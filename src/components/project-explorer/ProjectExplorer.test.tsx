@@ -19,11 +19,11 @@ describe('ProjectExplorer', () => {
     expect(screen.getByText('Types')).toBeInTheDocument();
     expect(screen.getByText('Variables')).toBeInTheDocument();
     expect(screen.getByText('nested')).toBeInTheDocument();
-    // `risk` is a `firstMatch` decision table in the DSL, but the real engine does not yet
-    // project `@kind: 'invocation'` on `get()` (known gap — see plan and tree-model.test.ts,
-    // which proves classifyFieldNode is spec-correct and will pick this up once the engine
-    // ships the fix). Today it renders as a plain [ctx], never [dt].
-    expect(screen.getByText('risk')).toBeInTheDocument();
+    // `risk` is a `firstMatch` decision table in the DSL, and the real engine now projects
+    // `@kind: 'invocation'` on `get()` (see docs/BUG_REPORTS.md, Bug 1 — fixed upstream), so it
+    // renders as `[dt]` with the `risk()` label, same as a `[func]` leaf.
+    expect(screen.getByText('risk()')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-dt')).toBeInTheDocument();
 
     // Collapsed: group contents not yet in the DOM.
     expect(screen.queryByText('globalConst')).not.toBeInTheDocument();
@@ -70,12 +70,10 @@ describe('ProjectExplorer', () => {
     expect(getSpy).toHaveBeenCalledTimes(1);
     expect(getSpy).toHaveBeenCalledWith('nested');
 
-    // Known engine gap: `get('nested')` currently returns an empty context — the real engine
-    // flattens `deep()`'s function schema onto the *root's* own fetch as a dotted `nested.deep`
-    // key instead of nesting it under `nested` (see tree-model.ts's dotted-key filter and the
-    // plan). So expanding `nested` reveals no children today; this is a real engine limitation
-    // to report upstream, not a bug in this component.
-    expect(screen.queryByText('deep()')).not.toBeInTheDocument();
+    // `get('nested')` now nests `deep()`'s function schema under `nested` correctly (see
+    // docs/BUG_REPORTS.md, Bug 2 — fixed upstream), so expanding `nested` reveals it as a
+    // `[func]` leaf.
+    expect(screen.getByText('deep()')).toBeInTheDocument();
 
     // Collapse and re-expand: must not re-fetch an already-cached path.
     await user.click(screen.getByText('nested'));

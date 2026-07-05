@@ -59,11 +59,11 @@
     }
   },
   "dependencies": {
-    "@edgerules/portable": "0.0.0-alpha.202607041229",
-    "@edgerules/web": "0.0.0-alpha.202607041229"
+    "@edgerules/portable": "0.0.0-alpha.202607042229",
+    "@edgerules/web": "0.0.0-alpha.202607042229"
   },
   "devDependencies": {
-    "@edgerules/node": "0.0.0-alpha.202607041229",
+    "@edgerules/node": "0.0.0-alpha.202607042229",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.3.11",
