@@ -33,5 +33,5 @@ detected bugs, append `docs/BUG_REPORTS.md` with a new entry describing the bug.
 ## Coding Standards
 
 - TypeScript + React function components only.
-- New components: co-located `*.test.tsx` (RTL) + a Storybook story.
+- New components: `*.test.tsx`/`*.test.ts` (RTL) in a component-local `__tests__/` folder + a Storybook story.
 - Keep exported props/types minimal — they become the npm public API.

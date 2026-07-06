@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { PortableContext, PortableInvocationDefinition, PortableNode } from '@edgerules/portable';
-import { classifyFieldNode, groupContextChildren, joinPath, listTypeEntries, ROOT_PATH } from './tree-model';
+import type { PortableContext, PortableNode } from '@edgerules/portable';
+import { classifyFieldNode, groupContextChildren, joinPath, listTypeEntries, ROOT_PATH } from '../tree-model';
 
 describe('classifyFieldNode', () => {
   it('classifies a plain object with no @kind as a context', () => {
@@ -29,22 +29,40 @@ describe('classifyFieldNode', () => {
         '@kind': 'function-schema',
         '@parameters': {},
         '@return': 'number',
-      } as unknown as PortableInvocationDefinition),
+      } as unknown as PortableNode),
     ).toBe('func');
   });
 
-  it('classifies an invocation with a hit-policy @method as dt', () => {
-    for (const method of ['firstMatch', 'uniqueMatch', 'collectMatches', 'bestMatch']) {
-      expect(
-        classifyFieldNode({ '@kind': 'invocation', '@method': method, '@arguments': [] }),
-      ).toBe('dt');
-    }
+  it('classifies a ruleset definition as dt', () => {
+    expect(
+      classifyFieldNode({
+        '@kind': 'ruleset',
+        '@parameters': { age: 'number' },
+        '@hitPolicy': 'first-match',
+        '@rules': [],
+      } as unknown as PortableNode),
+    ).toBe('dt');
   });
 
-  it('classifies an invocation with a plain function @method as var', () => {
+  it('classifies a ruleset schema as dt', () => {
+    // Not part of the declared PortableNode union, but the real engine's default CONTEXT
+    // filter returns this shape for ruleset fields (see EDGERULES_API_SPEC.md).
     expect(
-      classifyFieldNode({ '@kind': 'invocation', '@method': 'calcScore', '@arguments': [] }),
-    ).toBe('var');
+      classifyFieldNode({
+        '@kind': 'ruleset-schema',
+        '@parameters': { age: 'number' },
+        '@hitPolicy': 'first-match',
+        '@return': { level: 'string' },
+      } as unknown as PortableNode),
+    ).toBe('dt');
+  });
+
+  it('classifies any invocation (function or ruleset call) as var', () => {
+    for (const method of ['calcScore', 'firstMatch', 'risk']) {
+      expect(
+        classifyFieldNode({ '@kind': 'invocation', '@method': method, '@arguments': [] }),
+      ).toBe('var');
+    }
   });
 
   it('classifies a typed value / expression / scalar / array as var', () => {
@@ -58,8 +76,7 @@ describe('classifyFieldNode', () => {
 
 describe('groupContextChildren', () => {
   // Mirrors docs/PROJECT_EXPLORER_STORY.md's example model. `risk` is hand-built as an
-  // `@kind: 'invocation'` node here to verify our own classify/group logic is spec-correct —
-  // the real engine doesn't yet project invocations on read (see plan's known engine gap);
+  // `@kind: 'ruleset-schema'` node here to verify our own classify/group logic is spec-correct —
   // that's covered separately by ProjectExplorer's real-service test.
   const nestedContext: PortableContext = {
     deep: {
@@ -76,7 +93,12 @@ describe('groupContextChildren', () => {
     globalConst: { '@kind': 'type', type: 'number', readOnly: true },
     nested: nestedContext,
     list: [{ a: 1 }, { a: 2 }],
-    risk: { '@kind': 'invocation', '@method': 'firstMatch', '@arguments': [] },
+    risk: {
+      '@kind': 'ruleset-schema',
+      '@parameters': { age: 'number' },
+      '@hitPolicy': 'first-match',
+      '@return': { level: 'string' },
+    } as unknown as PortableNode,
   };
 
   it('splits root fields into vars (globalConst, list) and ordered (nested, risk)', () => {

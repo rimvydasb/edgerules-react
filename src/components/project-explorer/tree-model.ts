@@ -1,9 +1,6 @@
-import type { PortableContext, PortableInvocationDefinition, PortableNode } from '@edgerules/portable';
+import type { PortableContext, PortableNode } from '@edgerules/portable';
 
 export type FieldKind = 'ctx' | 'func' | 'dt' | 'var';
-
-/** The four reserved decision-table hit-policy keywords (story doc rule 5). */
-export const HIT_POLICY_METHODS = new Set(['firstMatch', 'uniqueMatch', 'collectMatches', 'bestMatch']);
 
 /** Literal `get()` argument for the root context — not a public path value (see ROOT_PATH). */
 export const ROOT_FETCH_PATH = '*';
@@ -12,18 +9,21 @@ export const ROOT_FETCH_PATH = '*';
 export const ROOT_PATH = '';
 
 /**
- * Classifies a context field per the story doc's icon rules. A field is `[dt]` only when it's an
- * invocation whose `@method` is one of the four reserved hit-policy keywords; any other invocation
- * (a plain user-function call) falls back to `[vars]`, same as any other computed field.
+ * Classifies a context field per the story doc's icon rules. A field is `[dt]` only when it's a
+ * `ruleset` declaration (or its `ruleset-schema` projection) — decision tables are now first-class
+ * `ruleset` entities (see FIRST_CLASS_RULESETS_STORY.md), never a call-position form. Every
+ * invocation (a call to a function or a ruleset alike) falls back to `[vars]`, same as any other
+ * computed field.
  */
 export function classifyFieldNode(node: PortableNode): FieldKind {
   if (node === null || typeof node !== 'object' || Array.isArray(node)) {
     return 'var';
   }
   // Widened to `string | undefined`: the real engine's default CONTEXT filter returns
-  // `'function-schema'` for function fields (see EDGERULES_API_SPEC.md), a shape that isn't part
-  // of the declared `PortableNode` union — comparing the narrower type directly would make some
-  // of the branches below unreachable per the type checker even though they occur at runtime.
+  // `'function-schema'` / `'ruleset-schema'` for function/ruleset fields (see EDGERULES_API_SPEC.md),
+  // shapes that aren't part of the declared `PortableNode` union — comparing the narrower type
+  // directly would make some of the branches below unreachable per the type checker even though
+  // they occur at runtime.
   const kind = ('@kind' in node ? node['@kind'] : undefined) as string | undefined;
 
   if (kind === undefined || kind === 'context') {
@@ -32,8 +32,8 @@ export function classifyFieldNode(node: PortableNode): FieldKind {
   if (kind === 'function' || kind === 'function-schema') {
     return 'func';
   }
-  if (kind === 'invocation') {
-    return HIT_POLICY_METHODS.has((node as PortableInvocationDefinition)['@method']) ? 'dt' : 'var';
+  if (kind === 'ruleset' || kind === 'ruleset-schema') {
+    return 'dt';
   }
   return 'var';
 }

@@ -25,18 +25,18 @@ The project explorer allows users to view the structure of the following EdgeRul
         }
     }
     list: [{a: 1}, {a: 2}] // array of objects
-    risk: firstMatch({ 
-        inputs: { age: 20 }; 
+    ruleset risk(age: number): { // decision table: a named, callable rule matrix
+        hitPolicy: "first-match"
         rules: [
-           { when: { age: 18..25 }; then: { level: "high" } }
-        ]; 
-        default: { level: "none" } }
-    )
+            { when: { age: 18..25 }, then: { level: "high" } }
+        ]
+        default: { level: "none" }
+    }
 }
 ```
 
-`risk` uses the `firstMatch` hit policy. EdgeRules has four decision-table hit policies — `firstMatch`, `uniqueMatch`,
-`collectMatches`, `bestMatch` — all rendered with the same `[dt]` icon; the policy itself is only visible once the
+`risk` uses the `first-match` hit policy. EdgeRules has four ruleset hit policies — `first-match`, `unique-match`,
+`collect-matches`, `best-match` — all rendered with the same `[dt]` icon; the policy itself is only visible once the
 Decision Table Editor is opened.
 
 Project Explorer display example as a tree view. Children of a context always render in this fixed group order:
@@ -97,10 +97,12 @@ Expanding `[types]` and `[vars]` lists their individual entries, each with its o
 3. **Functions**: The functions defined within the current context e.g. `deep()`.
 4. **Types**: The type definitions in that context e.g. `Person` and `PeopleList`. The types section hides all type
    definitions in that context.
-5. **Decision Tables**: A context field is rendered as a Decision Table (`[dt]`) only when it is an invocation
-   (`@kind: "invocation"`) whose `@method` is one of the four reserved hit-policy keywords — `firstMatch`,
-   `uniqueMatch`, `collectMatches`, `bestMatch`. Any other invocation (a plain user-function call, e.g.
-   `score: calcScore(input.data)`) is treated like any other computed field and grouped under `[vars]` instead.
+5. **Decision Tables**: A context field is rendered as a Decision Table (`[dt]`) only when it is a `ruleset`
+   declaration (`@kind: "ruleset"`, or its `"ruleset-schema"` projection on `get()`) — a named, callable rule matrix,
+   never a call-position form. Every invocation (`@kind: "invocation"`), whether it calls a plain user function
+   (e.g. `score: calcScore(input.data)`) or a ruleset (e.g. `decision: risk(age: applicant.age)`), is treated like
+   any other computed field and grouped under `[vars]` instead — decision tables come from `[dt]` declarations, not
+   from the calls made against them.
 6. **Ordering**: Within a context, groups always render in this fixed order: `[types]`, `[vars]`, then the
    individual `[ctx]` / `[func]` / `[dt]` entries in the order they appear in the underlying Portable JSON (i.e.
    source/document order, not alphabetical).

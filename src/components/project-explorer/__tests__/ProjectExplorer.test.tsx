@@ -5,30 +5,43 @@ import userEvent from '@testing-library/user-event';
 // plan's "WASM loading" note) — not a mock. `@edgerules/web`'s async, fetch-based `init()` isn't
 // reliably usable under Vitest/Node, so tests exercise the identical engine core via this build.
 import { MutableDecisionService } from '@edgerules/node/mutable';
-import { ProjectExplorer } from './ProjectExplorer';
-import { MODEL_DSL } from './testing/model.dsl';
+import { ProjectExplorer } from '../ProjectExplorer';
+import { MODEL_DSL } from '../testing/model.dsl';
 
 function buildService() {
   return MutableDecisionService.fromCode(MODEL_DSL);
 }
 
 describe('ProjectExplorer', () => {
-  it('renders Types, Variables, and ordered ctx/func/dt entries at the root, collapsed by default', () => {
+  it('renders Types, Variables, and ordered ctx entries at the root, collapsed by default', () => {
     render(<ProjectExplorer service={buildService()} />);
 
     expect(screen.getByText('Types')).toBeInTheDocument();
     expect(screen.getByText('Variables')).toBeInTheDocument();
     expect(screen.getByText('nested')).toBeInTheDocument();
-    // `risk` is a `firstMatch` decision table in the DSL, and the real engine now projects
-    // `@kind: 'invocation'` on `get()` (see docs/BUG_REPORTS.md, Bug 1 — fixed upstream), so it
-    // renders as `[dt]` with the `risk()` label, same as a `[func]` leaf.
-    expect(screen.getByText('risk()')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-dt')).toBeInTheDocument();
+    // `risk` is a `ruleset` declaration in the DSL (decision tables are now first-class rulesets,
+    // not the deprecated `firstMatch(...)` call form). `classifyFieldNode` correctly maps a
+    // `ruleset`/`ruleset-schema` node to `[dt]` (see tree-model.test.ts), but the real engine's
+    // `get()` does not yet project a `ruleset` field when listing its containing context, under
+    // any filter (see docs/BUG_REPORTS.md, Bug 1 — open upstream gap) — so `risk` does not appear
+    // in the tree at all today, unlike a sibling `[func]`.
+    expect(screen.queryByText('risk')).not.toBeInTheDocument();
+    expect(screen.queryByText('risk()')).not.toBeInTheDocument();
 
     // Collapsed: group contents not yet in the DOM.
     expect(screen.queryByText('globalConst')).not.toBeInTheDocument();
     expect(screen.queryByText('list')).not.toBeInTheDocument();
     expect(screen.queryByText('Person')).not.toBeInTheDocument();
+  });
+
+  it('classifies a live ruleset as [dt] once fetched by its own path (pending docs/BUG_REPORTS.md Bug 1)', () => {
+    // Pins the real engine's per-path behavior: `get('risk')` already returns a correct
+    // `ruleset-schema`, which `classifyFieldNode` maps to `[dt]` — the only missing piece is the
+    // containing context's own listing (Bug 1). This will start exercising the tree render too
+    // once that's fixed upstream.
+    const service = buildService();
+    const riskNode = service.get('risk');
+    expect(riskNode).toMatchObject({ '@kind': 'ruleset-schema', '@hitPolicy': 'first-match' });
   });
 
   it('expands Variables client-side with no additional get() call', async () => {
