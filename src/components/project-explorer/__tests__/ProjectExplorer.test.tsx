@@ -21,12 +21,11 @@ describe('ProjectExplorer', () => {
     expect(screen.getByText('nested')).toBeInTheDocument();
     // `risk` is a `ruleset` declaration in the DSL (decision tables are now first-class rulesets,
     // not the deprecated `firstMatch(...)` call form). `classifyFieldNode` correctly maps a
-    // `ruleset`/`ruleset-schema` node to `[dt]` (see tree-model.test.ts), but the real engine's
-    // `get()` does not yet project a `ruleset` field when listing its containing context, under
-    // any filter (see docs/BUG_REPORTS.md, Bug 1 — open upstream gap) — so `risk` does not appear
-    // in the tree at all today, unlike a sibling `[func]`.
-    expect(screen.queryByText('risk')).not.toBeInTheDocument();
-    expect(screen.queryByText('risk()')).not.toBeInTheDocument();
+    // `ruleset`/`ruleset-schema` node to `[dt]` (see tree-model.test.ts). The real engine's `get()`
+    // now projects a `ruleset` field when listing its containing context too (fixed upstream as of
+    // alpha .202607061957 — previously an open gap, see the memory of this fix), so `risk()`
+    // renders immediately as a `[dt]` leaf, same as a sibling `[func]`.
+    expect(screen.getByText('risk()')).toBeInTheDocument();
 
     // Collapsed: group contents not yet in the DOM.
     expect(screen.queryByText('globalConst')).not.toBeInTheDocument();
@@ -34,11 +33,9 @@ describe('ProjectExplorer', () => {
     expect(screen.queryByText('Person')).not.toBeInTheDocument();
   });
 
-  it('classifies a live ruleset as [dt] once fetched by its own path (pending docs/BUG_REPORTS.md Bug 1)', () => {
-    // Pins the real engine's per-path behavior: `get('risk')` already returns a correct
-    // `ruleset-schema`, which `classifyFieldNode` maps to `[dt]` — the only missing piece is the
-    // containing context's own listing (Bug 1). This will start exercising the tree render too
-    // once that's fixed upstream.
+  it('classifies a live ruleset as [dt] once fetched by its own path', () => {
+    // Pins the real engine's per-path behavior: `get('risk')` returns a `ruleset-schema`, which
+    // `classifyFieldNode` maps to `[dt]`.
     const service = buildService();
     const riskNode = service.get('risk');
     expect(riskNode).toMatchObject({ '@kind': 'ruleset-schema', '@hitPolicy': 'first-match' });

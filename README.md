@@ -26,7 +26,7 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
   for the corresponding TypeScript types (`PortableNode`, `PortableError`, `PortableRootContext`).
 - Material UI (MUI) for UI components and theming.
 - ReactFlow for flow-based visual programming.
-- ACE Editor for code editing.
+- CodeMirror for code editing.
 - MUI X Charts for data visualization.
 - TypeScript, React
 - Vitest and React Testing Library for unit/component testing; Playwright for end-to-end and visual testing.
@@ -46,7 +46,7 @@ components they actually import — a project that only uses the Code Editor nev
 │   │   ├── boxed-editor/          # Boxed Expressions Editor
 │   │   │   ├── index.ts           # Public exports for this component (its subpath entry point)
 │   │   │   └── *.tsx              # Implementation, co-located unit tests (*.test.tsx)
-│   │   ├── code-editor/           # Code Editor (ACE Editor)
+│   │   ├── code-editor/           # Code Editor (CodeMirror)
 │   │   ├── decision-table/        # Decision Table Editor
 │   │   ├── flow-editor/           # Flow Editor (ReactFlow-based)
 │   │   ├── project-explorer/      # Project Explorer
@@ -76,7 +76,7 @@ Unit tests (React Testing Library) live next to the code they cover as `*.test.t
   (`edgerules-react/code-editor`, `edgerules-react/flow-editor`, ...) plus a root entry (`edgerules-react`) that
   re-exports everything for convenience.
 - **Peer dependencies**: `react`, `react-dom`, `@mui/material` and other heavy, component-specific libraries
-  (`reactflow`, `ace-builds`/`react-ace`, `@mui/x-charts`, `@mui/x-tree-view`) are declared as `peerDependencies`
+  (`reactflow`, `@codemirror/state`/`@codemirror/view`/`@codemirror/lint`, `@mui/x-charts`, `@mui/x-tree-view`) are declared as `peerDependencies`
   (most marked optional via `peerDependenciesMeta`), never bundled, so consuming apps control their own versions
   and bundle size.
 - **Build output**: `tsup` builds dual ESM/CJS bundles with generated `.d.ts` files, one per component entry point,
