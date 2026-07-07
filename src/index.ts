@@ -1,4 +1,12 @@
-export { CodeEditor } from './components/code-editor';
-export type { CodeEditorProps, CodeEditorDiagnosticsService } from './components/code-editor';
+export { CodeEditor, formatEdgeRules, findDefinition } from './components/code-editor';
+export type {
+  CodeEditorProps,
+  CodeEditorDiagnostic,
+  CodeEditorDiagnosticsService,
+  CodeEditorService,
+  CodeEditorEmbedContext,
+} from './components/code-editor';
+export { CodeEditorCell } from './components/code-editor-cell';
+export type { CodeEditorCellProps } from './components/code-editor-cell';
 export { ProjectExplorer } from './components/project-explorer';
 export type { ProjectExplorerProps } from './components/project-explorer';

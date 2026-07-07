@@ -2,7 +2,10 @@ import { useState, type ReactElement } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { init, MutableDecisionService } from '@edgerules/web/mutable';
 import { CodeEditor } from '../../../src/components/code-editor';
-import { INVALID_MODEL_DSL, VALID_MODEL_DSL } from '../../../src/components/code-editor/testing/model.dsl';
+import {
+  INVALID_MODEL_DSL,
+  VALID_MODEL_DSL,
+} from '../../../src/components/code-editor/testing/model.dsl';
 
 async function buildService() {
   await init();
@@ -23,6 +26,15 @@ function StatefulCodeEditor({
 const meta: Meta<typeof CodeEditor> = {
   title: 'Code Editor/CodeEditor',
   component: CodeEditor,
+  parameters: {
+    docs: {
+      description: {
+        component:
+          'EdgeRules code editor: syntax highlighting, engine diagnostics, Ctrl+Space completion, ' +
+          'Ctrl+Click / F12 go-to-definition, Shift-Alt-F formatting.',
+      },
+    },
+  },
 };
 
 export default meta;
@@ -32,7 +44,10 @@ type Story = StoryObj<typeof CodeEditor>;
 export const Default: Story = {
   loaders: [async () => ({ service: await buildService() })],
   render: (_args, { loaded }) => (
-    <StatefulCodeEditor service={loaded.service as typeof MutableDecisionService} initialValue={VALID_MODEL_DSL} />
+    <StatefulCodeEditor
+      service={loaded.service as typeof MutableDecisionService}
+      initialValue={VALID_MODEL_DSL}
+    />
   ),
 };
 

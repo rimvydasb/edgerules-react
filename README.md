@@ -5,7 +5,11 @@ decision engine. Rule evaluation itself is not implemented here — components d
 engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), published from the
 [`edgerules-v2`](../edgerules-v2) repository. It includes:
 
-- EdgeRules Code Editor
+- EdgeRules Code Editor (syntax highlighting, engine diagnostics, Ctrl+Space completion, Ctrl+Click / F12
+  go-to-definition, Shift-Alt-F formatting)
+- EdgeRules Code Editor Cell (the same language tooling in a compact cell control for the Boxed and Decision
+  Table editors; commits on Enter/blur, cancels on Escape, analyzes the cell in the scope of its surrounding
+  model via an embed context)
 - EdgeRules Boxed Editor
 - EdgeRules Decision Table Editor
 - EdgeRules Flow Editor (ReactFlow-based)
@@ -46,7 +50,8 @@ components they actually import — a project that only uses the Code Editor nev
 │   │   ├── boxed-editor/          # Boxed Expressions Editor
 │   │   │   ├── index.ts           # Public exports for this component (its subpath entry point)
 │   │   │   └── *.tsx              # Implementation, co-located unit tests (*.test.tsx)
-│   │   ├── code-editor/           # Code Editor (CodeMirror)
+│   │   ├── code-editor/           # Code Editor (CodeMirror) + shared EdgeRules language modules (language/)
+│   │   ├── code-editor-cell/      # Compact cell editor sharing the code-editor language modules
 │   │   ├── decision-table/        # Decision Table Editor
 │   │   ├── flow-editor/           # Flow Editor (ReactFlow-based)
 │   │   ├── project-explorer/      # Project Explorer

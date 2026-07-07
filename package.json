@@ -40,6 +40,16 @@
         "types": "./dist/components/code-editor/index.d.cts",
         "default": "./dist/components/code-editor/index.cjs"
       }
+    },
+    "./code-editor-cell": {
+      "import": {
+        "types": "./dist/components/code-editor-cell/index.d.ts",
+        "default": "./dist/components/code-editor-cell/index.js"
+      },
+      "require": {
+        "types": "./dist/components/code-editor-cell/index.d.cts",
+        "default": "./dist/components/code-editor-cell/index.cjs"
+      }
     }
   },
   "scripts": {
@@ -52,9 +62,13 @@
     "e2e": "playwright test"
   },
   "peerDependencies": {
+    "@codemirror/autocomplete": "^6.0.0",
+    "@codemirror/commands": "^6.0.0",
+    "@codemirror/language": "^6.0.0",
     "@codemirror/lint": "^6.0.0",
     "@codemirror/state": "^6.0.0",
     "@codemirror/view": "^6.0.0",
+    "@lezer/highlight": "^1.0.0",
     "@emotion/react": "^11.5.0",
     "@emotion/styled": "^11.3.0",
     "@mui/icons-material": "^7.3.0 || ^9.0.0",
@@ -64,7 +78,19 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
+    "@codemirror/autocomplete": {
+      "optional": true
+    },
+    "@codemirror/commands": {
+      "optional": true
+    },
+    "@codemirror/language": {
+      "optional": true
+    },
     "@codemirror/lint": {
+      "optional": true
+    },
+    "@lezer/highlight": {
       "optional": true
     },
     "@codemirror/state": {
@@ -85,12 +111,16 @@
     "@edgerules/web": "0.0.0-alpha.202607071338"
   },
   "devDependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/language": "^6.12.4",
     "@codemirror/lint": "^6.9.7",
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.6",
-    "@edgerules/node": "0.0.0-alpha.202607061957",
+    "@edgerules/node": "0.0.0-alpha.202607071338",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@lezer/highlight": "^1.2.3",
     "@mui/icons-material": "^7.3.11",
     "@mui/material": "^7.3.11",
     "@mui/x-tree-view": "^9.8.0",

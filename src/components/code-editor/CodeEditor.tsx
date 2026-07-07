@@ -2,69 +2,35 @@ import { useEffect, useRef, type ReactElement } from 'react';
 import Box from '@mui/material/Box';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { EditorState } from '@codemirror/state';
-import { forceLinting, linter, type Diagnostic } from '@codemirror/lint';
+import { forceLinting } from '@codemirror/lint';
 import { EditorView } from '@codemirror/view';
+import { edgeRulesExtensions } from './language/extensions';
+import type { CodeEditorService } from './language/service';
 
-export interface CodeEditorDiagnostic {
-  from: number;
-  to: number;
-  message: string;
-  severity?: string;
-}
-
-export interface CodeEditorDiagnosticsService {
-  diagnostics: (code: string) => CodeEditorDiagnostic[];
-}
+export type {
+  CodeEditorDiagnostic,
+  CodeEditorDiagnosticsService,
+  CodeEditorService,
+} from './language/service';
 
 export interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
-  service: CodeEditorDiagnosticsService;
+  /**
+   * EdgeRules language service — the dev builds of `MutableDecisionService` (from
+   * `@edgerules/web/mutable` or `@edgerules/node/mutable`) satisfy this directly. Diagnostics
+   * power lint markers; `completions` (when present) powers Ctrl+Space suggestions.
+   */
+  service: CodeEditorService;
   readOnly?: boolean;
   className?: string;
   sx?: SxProps<Theme>;
 }
 
-function asSafeIndex(value: number | undefined, length: number): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return 0;
-  }
-  const normalized = Math.floor(value);
-  if (normalized < 0) {
-    return 0;
-  }
-  if (normalized > length) {
-    return length;
-  }
-  return normalized;
-}
-
-function mapSeverity(severity?: string): Diagnostic['severity'] {
-  if (severity === 'warning' || severity === 'info' || severity === 'error') {
-    return severity;
-  }
-  return 'error';
-}
-
-function mapDiagnostics(code: string, diagnostics: CodeEditorDiagnostic[]): Diagnostic[] {
-  const length = code.length;
-
-  return diagnostics.map((diagnostic) => {
-    const from = asSafeIndex(diagnostic.from, length);
-    const to = Math.max(from, asSafeIndex(diagnostic.to, length));
-
-    return {
-      from,
-      to,
-      message: diagnostic.message,
-      severity: mapSeverity(diagnostic.severity),
-    };
-  });
-}
-
 /**
- * A controlled EdgeRules code editor powered by CodeMirror.
- * Validation is delegated to the provided EdgeRules diagnostics service.
+ * A controlled EdgeRules code editor powered by CodeMirror: DSL syntax highlighting,
+ * engine-backed diagnostics and completions (Ctrl+Space), Ctrl+Click / F12 go-to-definition,
+ * and Shift-Alt-F document formatting.
  */
 export function CodeEditor({
   value,
@@ -103,19 +69,18 @@ export function CodeEditor({
         extensions: [
           EditorView.lineWrapping,
           EditorView.editable.of(!readOnly),
+          EditorState.readOnly.of(readOnly),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged || syncingFromPropRef.current) {
               return;
             }
             onChangeRef.current(update.state.doc.toString());
           }),
-          linter(
-            (editorView) => {
-              const code = editorView.state.doc.toString();
-              return mapDiagnostics(code, serviceRef.current.diagnostics(code));
-            },
-            { delay: 0 },
-          ),
+          edgeRulesExtensions({
+            service: () => serviceRef.current,
+            variant: 'editor',
+            lintDelay: 0,
+          }),
         ],
       }),
     });
@@ -127,6 +92,8 @@ export function CodeEditor({
       view.destroy();
       viewRef.current = null;
     };
+    // The initial doc is intentionally not a dependency; prop updates flow through the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readOnly]);
 
   useEffect(() => {

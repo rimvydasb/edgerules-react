@@ -4,6 +4,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'components/code-editor/index': 'src/components/code-editor/index.ts',
+    'components/code-editor-cell/index': 'src/components/code-editor-cell/index.ts',
     'components/project-explorer/index': 'src/components/project-explorer/index.ts',
   },
   format: ['esm', 'cjs'],
@@ -14,9 +15,13 @@ export default defineConfig({
   external: [
     'react',
     'react-dom',
+    '@codemirror/autocomplete',
+    '@codemirror/commands',
+    '@codemirror/language',
     '@codemirror/lint',
     '@codemirror/state',
     '@codemirror/view',
+    '@lezer/highlight',
     '@emotion/react',
     '@emotion/styled',
     '@mui/material',
