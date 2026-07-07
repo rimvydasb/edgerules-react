@@ -10,3 +10,5 @@ export { CodeEditorCell } from './components/code-editor-cell';
 export type { CodeEditorCellProps } from './components/code-editor-cell';
 export { ProjectExplorer } from './components/project-explorer';
 export type { ProjectExplorerProps } from './components/project-explorer';
+export { DecisionTableEditor } from './components/decision-table';
+export type { DecisionTableEditorProps, DecisionTableService } from './components/decision-table';

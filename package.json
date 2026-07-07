@@ -50,6 +50,16 @@
         "types": "./dist/components/code-editor-cell/index.d.cts",
         "default": "./dist/components/code-editor-cell/index.cjs"
       }
+    },
+    "./decision-table": {
+      "import": {
+        "types": "./dist/components/decision-table/index.d.ts",
+        "default": "./dist/components/decision-table/index.js"
+      },
+      "require": {
+        "types": "./dist/components/decision-table/index.d.cts",
+        "default": "./dist/components/decision-table/index.cjs"
+      }
     }
   },
   "scripts": {

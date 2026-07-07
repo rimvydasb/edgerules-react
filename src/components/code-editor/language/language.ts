@@ -211,7 +211,7 @@ export const edgeRulesLanguage = StreamLanguage.define(streamParser);
  * Emits stable `tok-*` CSS classes (instead of theme-generated ones) so hosts can restyle
  * highlighting with plain CSS and tests can assert on class names.
  */
-const edgeRulesHighlighter = tagHighlighter([
+export const edgeRulesHighlighter = tagHighlighter([
   { tag: t.comment, class: 'tok-comment' },
   { tag: t.string, class: 'tok-string' },
   { tag: t.number, class: 'tok-number' },

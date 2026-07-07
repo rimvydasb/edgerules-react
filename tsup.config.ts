@@ -6,6 +6,7 @@ export default defineConfig({
     'components/code-editor/index': 'src/components/code-editor/index.ts',
     'components/code-editor-cell/index': 'src/components/code-editor-cell/index.ts',
     'components/project-explorer/index': 'src/components/project-explorer/index.ts',
+    'components/decision-table/index': 'src/components/decision-table/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,

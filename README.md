@@ -11,7 +11,9 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
   Table editors; commits on Enter/blur, cancels on Escape, analyzes the cell in the scope of its surrounding
   model via an embed context)
 - EdgeRules Boxed Editor
-- EdgeRules Decision Table Editor
+- [EdgeRules Decision Table Editor](docs/DECISION_TABLE_STORY.md) (DMN-style grid over a `ruleset`:
+  decision tables, boolean-expression rules, and scorecards; statically highlighted display cells
+  with a single CodeEditorCell on the active cell)
 - EdgeRules Flow Editor (ReactFlow-based)
 - EdgeRules Test Runner
 - EdgeRules Types Editor

@@ -1,4 +1,5 @@
-export { edgeRules, edgeRulesLanguage } from './language';
+export { edgeRules, edgeRulesLanguage, edgeRulesHighlighter } from './language';
+export { highlightEdgeRules, type HighlightedSpan } from './highlight';
 export { edgeRulesLint, toCodeMirrorDiagnostics } from './lint';
 export { edgeRulesCompletion, edgeRulesCompletionSource } from './completion';
 export { edgeRulesGoToDefinition, findDefinition, type DefinitionTarget } from './navigation';
