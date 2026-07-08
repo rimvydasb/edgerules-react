@@ -267,6 +267,26 @@ describe('DecisionTableEditor editing', () => {
     });
   });
 
+  it('adds an input column via the table menu without breaking the existing call site', async () => {
+    const user = userEvent.setup();
+    const { service } = renderRisk();
+
+    await user.click(screen.getByLabelText('table menu'));
+    await user.click(screen.getByRole('menuitem', { name: /add input column/i }));
+    await user.type(screen.getByLabelText('Parameter name'), 'channel');
+    await user.click(screen.getByRole('button', { name: 'OK' }));
+
+    await waitFor(() => {
+      const definition = service.get('risk.*') as {
+        '@parameters': Record<string, unknown>;
+      };
+      expect(definition['@parameters']).toHaveProperty('channel');
+    });
+    // The `decision` call site still only passes age/income/segment — the new
+    // defaulted parameter must not break it.
+    expect(service.execute('decision')).toEqual({ level: 'high', limit: 1000 });
+  });
+
   it('adds an output column via the table menu', async () => {
     const user = userEvent.setup();
     const { service } = renderRisk();

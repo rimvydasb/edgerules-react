@@ -86,9 +86,10 @@ const RANGE_TEST = /^\.\.\.\s*>=\s*(.+?)\s+and\s+\.\.\.\s*<=\s*(.+)$/;
 const EQUALITY_TEST = /^\.\.\.\s*=\s*(.+)$/;
 
 /**
- * Re-sugars the engine's normalized unary-test echo for display/editing: the engine returns
- * `"... >= 18 and ... <= 25"` for an authored `18..25` and `"... = \"retail\""` for `"retail"`
- * (see docs/BUG_REPORTS.md #5). `any` becomes the empty string — the grid shows it as "–".
+ * Re-sugars a unary-test cell for display/editing back to `a..b` / bare-value form, tolerating
+ * either the compact form the engine now echoes (`"18..25"`) or the fully-normalized form
+ * (`"... >= 18 and ... <= 25"`) some rule nodes may still carry. `any` becomes the empty string
+ * — the grid shows it as "–".
  */
 export function prettyUnaryTest(raw: string): string {
   const text = raw.trim();
@@ -297,8 +298,6 @@ function defaultTextForType(typeLabel: string): string {
     case 'string':
       return "''";
     default:
-      // Bare special values (`Missing`) do not parse as portable expression strings
-      // (docs/BUG_REPORTS.md #8), so an empty string literal is the safest filler.
       return "''";
   }
 }
@@ -401,12 +400,25 @@ export function withOutputColumnRenamed(
   );
 }
 
+/** A default value per parameter type, so a new input column doesn't break existing call sites. */
+function defaultValueForType(type: PortableTypeReference): PortableTypedValue['default'] {
+  switch (type) {
+    case 'number':
+      return 0;
+    case 'boolean':
+      return false;
+    default:
+      return '';
+  }
+}
+
 export function withInputColumnAdded(
   definition: PortableRulesetDefinition,
   name: string,
   type: PortableTypeReference,
 ): PortableRulesetDefinition {
-  return { ...definition, '@parameters': { ...definition['@parameters'], [name]: type } };
+  const parameter: PortableTypedValue = { '@kind': 'type', type, default: defaultValueForType(type) };
+  return { ...definition, '@parameters': { ...definition['@parameters'], [name]: parameter } };
 }
 
 export function withInputColumnRemoved(

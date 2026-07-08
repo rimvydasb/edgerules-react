@@ -9,6 +9,7 @@ import {
   rowToRule,
   whenCellEmbedContext,
   withHitPolicy,
+  withInputColumnAdded,
   withInputColumnRemoved,
   withOutputColumnAdded,
   withOutputColumnRenamed,
@@ -181,6 +182,17 @@ describe('structural definition edits accepted by the real engine', () => {
     const renamed = withOutputColumnRenamed(service.get('risk.*') as PortableRulesetDefinition, 'reason', 'note');
     expect((service.set('risk', renamed) as { '@kind'?: string })['@kind']).toBe('ruleset-schema');
     expect(service.execute('decision')).toEqual({ level: 'high', limit: 1000, note: 'n/a' });
+  });
+
+  it('withInputColumnAdded defaults the new parameter so existing call sites keep working', () => {
+    const { service, definition } = riskDefinition();
+    const added = withInputColumnAdded(definition, 'channel', 'string');
+    const result = service.set('risk', added);
+    expect((result as { '@kind'?: string })['@kind']).toBe('ruleset-schema');
+    // The `decision` call site only ever passed age/income/segment; it must still link and run.
+    expect(service.execute('decision')).toEqual({ level: 'high', limit: 1000 });
+    const next = service.get('risk.*') as PortableRulesetDefinition;
+    expect(next['@parameters'].channel).toEqual({ '@kind': 'type', type: 'string', default: '' });
   });
 
   it('withInputColumnRemoved drops the parameter and its cells', () => {

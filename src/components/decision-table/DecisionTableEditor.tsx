@@ -434,8 +434,8 @@ export function DecisionTableEditor({
       const rulePath = `${path}.rules[${index}]`;
       const result = service.set(rulePath, rule);
       if (isPortableError(result)) {
-        // A rejected set is not rolled back by the engine (docs/BUG_REPORTS.md #2) —
-        // restore the last good rule before surfacing the error.
+        // Defensive: restore the last good rule before surfacing the error, in case a
+        // rejected set is ever left applied.
         service.set(rulePath, definition['@rules'][index]);
         setEditError(result.message);
         setEditing(null);
