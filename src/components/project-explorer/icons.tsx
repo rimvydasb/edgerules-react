@@ -3,7 +3,7 @@ import Badge from '@mui/material/Badge';
 import Tooltip from '@mui/material/Tooltip';
 import CategoryIcon from '@mui/icons-material/Category';
 import DataObjectIcon from '@mui/icons-material/DataObject';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ErrorOutlinedIcon from '@mui/icons-material/ErrorOutlined';
 import FolderIcon from '@mui/icons-material/Folder';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import LabelIcon from '@mui/icons-material/Label';
@@ -46,7 +46,7 @@ export function KindIcon({ kind, error }: KindIconProps): ReactElement {
     <Tooltip title={`${error.message}${locationSuffix}`}>
       <Badge
         overlap="circular"
-        badgeContent={<ErrorOutlineIcon color="error" sx={{ fontSize: 12 }} />}
+        badgeContent={<ErrorOutlinedIcon color="error" sx={{ fontSize: 12 }} />}
       >
         {icon}
       </Badge>

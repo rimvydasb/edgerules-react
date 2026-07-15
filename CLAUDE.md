@@ -1,6 +1,4 @@
-# CLAUDE.md
-
-Guidance for Claude Code in this repository.
+# Additional Note For Agents
 
 ## Project Overview
 

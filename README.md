@@ -5,19 +5,29 @@ decision engine. Rule evaluation itself is not implemented here — components d
 engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), published from the
 [`edgerules-v2`](../edgerules-v2) repository. It includes:
 
-- EdgeRules Code Editor (syntax highlighting, engine diagnostics, Ctrl+Space completion, Ctrl+Click / F12
+- [x] EdgeRules Code Editor (syntax highlighting, engine diagnostics, Ctrl+Space completion, Ctrl+Click / F12
   go-to-definition, Shift-Alt-F formatting)
-- EdgeRules Code Editor Cell (the same language tooling in a compact cell control for the Boxed and Decision
+- [x] EdgeRules Code Editor Cell (the same language tooling in a compact cell control for the Boxed and Decision
   Table editors; commits on Enter/blur, cancels on Escape, analyzes the cell in the scope of its surrounding
   model via an embed context)
-- EdgeRules Boxed Editor
-- [EdgeRules Decision Table Editor](docs/DECISION_TABLE_STORY.md) (DMN-style grid over a `ruleset`:
+- [ ] EdgeRules Boxed Editor
+- [x] [EdgeRules Decision Table Editor](docs/DECISION_TABLE_STORY.md) (DMN-style grid over a `ruleset`:
   decision tables, boolean-expression rules, and scorecards; statically highlighted display cells
   with a single CodeEditorCell on the active cell)
-- EdgeRules Flow Editor (ReactFlow-based)
-- EdgeRules Test Runner
-- EdgeRules Types Editor
+- [ ] EdgeRules Flow Editor (ReactFlow-based)
+  - [ ] InputNode
+  - [ ] FunctionNode
+  - [ ] RulesetNode
+  - [ ] TermsNode
+  - [ ] ChartNode
+  - [ ] OutputNode
+- [ ] EdgeRules Test Runner
+- [ ] EdgeRules Types Editor
 - [EdgeRules Project Explorer](docs/PROJECT_EXPLORER_STORY.md)
+
+## Other Links
+
+[EdgeRules Flow Editor GUI](/Users/rimvydasbingelis/Projects/EdgeRules/edgerules-v2/doc/research/MODELER_GUI_RESEARCH.md)
 
 ## General Notes
 
