@@ -10,7 +10,7 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 - [x] EdgeRules Code Editor Cell (the same language tooling in a compact cell control for the Boxed and Decision
   Table editors; commits on Enter/blur, cancels on Escape, analyzes the cell in the scope of its surrounding
   model via an embed context)
-- [ ] EdgeRules Boxed Editor
+- [ ] [EdgeRules Boxed Editor](docs/BOXED_EXPRESSIONS_EDITOR_STORY.md)
 - [x] [EdgeRules Decision Table Editor](docs/DECISION_TABLE_STORY.md) (DMN-style grid over a `ruleset`:
   decision tables, boolean-expression rules, and scorecards; statically highlighted display cells
   with a single CodeEditorCell on the active cell)
