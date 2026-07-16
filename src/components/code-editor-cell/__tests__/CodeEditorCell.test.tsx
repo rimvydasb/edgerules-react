@@ -55,20 +55,24 @@ describe('CodeEditorCell', () => {
     await user.keyboard('{Enter}');
 
     expect(onCommit).toHaveBeenCalledWith('1 + 2');
+    expect(onCommit).toHaveBeenCalledTimes(1);
     expect(getView(container).state.doc.lines).toBe(1);
   });
 
   it('cancels on Escape', async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
+    const onCommit = vi.fn();
     const { container } = render(
-      <CodeEditorCell value="1 + 2" onCancel={onCancel} service={service} />,
+      <CodeEditorCell value="1 + 2" onCancel={onCancel} onCommit={onCommit} service={service} />,
     );
 
     await user.click(queryEditable(container));
     await user.keyboard('{Escape}');
+    await user.click(document.body);
 
     expect(onCancel).toHaveBeenCalled();
+    expect(onCommit).not.toHaveBeenCalled();
   });
 
   it('commits on blur', async () => {

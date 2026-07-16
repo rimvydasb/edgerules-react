@@ -83,6 +83,7 @@ export function CodeEditorCell({
   const serviceRef = useRef<CodeEditorService>(service);
   const callbacksRef = useRef({ onChange, onCommit, onCancel });
   const syncingFromPropRef = useRef(false);
+  const suppressBlurCommitRef = useRef(false);
 
   const effectiveService = useMemo(
     () => (embedContext ? embedService(service, embedContext) : service),
@@ -106,6 +107,7 @@ export function CodeEditorCell({
     }
 
     const commit = (view: EditorView): boolean => {
+      suppressBlurCommitRef.current = true;
       callbacksRef.current.onCommit?.(view.state.doc.toString());
       return true;
     };
@@ -117,6 +119,7 @@ export function CodeEditorCell({
       {
         key: 'Escape',
         run: () => {
+          suppressBlurCommitRef.current = true;
           callbacksRef.current.onCancel?.();
           return true;
         },
@@ -137,6 +140,7 @@ export function CodeEditorCell({
           EditorState.readOnly.of(readOnly),
           EditorView.updateListener.of((update) => {
             if (update.docChanged && !syncingFromPropRef.current) {
+              suppressBlurCommitRef.current = false;
               callbacksRef.current.onChange?.(update.state.doc.toString());
             }
           }),
@@ -144,6 +148,9 @@ export function CodeEditorCell({
             blur(event, blurredView) {
               const next = event.relatedTarget;
               if (next instanceof Node && blurredView.dom.contains(next)) {
+                return false;
+              }
+              if (suppressBlurCommitRef.current) {
                 return false;
               }
               callbacksRef.current.onCommit?.(blurredView.state.doc.toString());

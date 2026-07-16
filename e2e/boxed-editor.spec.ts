@@ -1,5 +1,40 @@
 import { test, expect } from '@playwright/test';
 
+const BOXED_EDITOR_STORIES = [
+  'root-read-only',
+  'focused-function',
+  'editable',
+  'inline-function',
+  'context-function',
+  'external-function',
+  'invocation',
+  'literal-list',
+  'relation',
+  'loan-origination-overview',
+  'error-state',
+  'read-only-visual',
+  'nested-function-visual',
+  'large-model-visual',
+  'project-explorer-integration',
+] as const;
+
+test('read-only visual opens from the Storybook manager route', async ({ page }) => {
+  await page.goto('/?path=/story/boxed-editor-boxededitor--read-only-visual');
+  const story = page.frameLocator('#storybook-preview-iframe');
+  await expect(story.getByRole('treegrid')).toBeVisible();
+  await expect(story.getByText('The component failed to render properly')).not.toBeVisible();
+});
+
+test('every Boxed Editor story opens without the Storybook render error boundary', async ({ page }) => {
+  for (const story of BOXED_EDITOR_STORIES) {
+    await test.step(story, async () => {
+      await page.goto(`/iframe.html?id=boxed-editor-boxededitor--${story}&viewMode=story`);
+      await expect(page.locator('[role="treegrid"], [role="alert"]').first()).toBeVisible();
+      await expect(page.getByText('The component failed to render properly')).not.toBeVisible();
+    });
+  }
+});
+
 test('editable boxed expression mounts one cell editor and commits', async ({ page }) => {
   await page.goto('/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story');
   await page.getByRole('button', { name: 'Expand application' }).click();
@@ -22,6 +57,9 @@ test('editable cells retain language-service completions from their portable emb
   await page.getByRole('row', { name: 'application.calculation' }).getByRole('cell').nth(2).click();
   const editor = page.locator('.cm-content');
   await editor.click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await page.keyboard.press(`${modifier}+A`);
+  await page.keyboard.type('a');
   await page.keyboard.press('Control+Space');
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('amount');
 });

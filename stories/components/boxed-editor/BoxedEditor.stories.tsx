@@ -36,8 +36,7 @@ const LOAN_ORIGINATION_MODEL = `{
     propertyValue: <number, required: true>
     loanAmount: <number, required: true>
   }
-  func creditScore(age: number, income: number) -> number:
-    300 + age * 2 + income / 1000
+  func creditScore(age: number, income: number) -> number: 300 + age * 2 + income / 1000
   func applicantDecision(applicant: Applicant): {
     netIncome: applicant.income - applicant.expense
     score: creditScore(applicant.age, applicant.income)
@@ -50,6 +49,7 @@ const LOAN_ORIGINATION_MODEL = `{
 
 const ROUTING_MODEL = `{
   type Applicant: { age: <number> }
+  baseRate: 0.05
   application: { amount: <number, required: true> }
   func monthly(amount: number) -> number: amount / 12
   ruleset risk(age: number): {
