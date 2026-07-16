@@ -52,6 +52,7 @@ monolith rather than expressing the capabilities of a boxed entity.
 - Preserve one active `CodeEditorCell` across the complete editor.
 - Preserve read-only behavior, errors, list paging, routing, and rollback semantics.
 - Make new node kinds implementable without editing unrelated components.
+- Reduce repeated box chrome, action layout, expansion, and form wiring through composition.
 - Keep internal architecture out of the npm public API.
 
 ## 4. Non-goals
@@ -62,6 +63,7 @@ monolith rather than expressing the capabilities of a boxed entity.
 - Changing the public `BoxedEditorProps` API.
 - Adding type, ruleset, or loop editing to `BoxedEditor`.
 - Reimplementing engine parsing, linking, type inference, or validation in React.
+- Using class inheritance or an `extends` hierarchy for React components.
 - Creating generic components merely to reduce line counts.
 
 ## 5. Target mental model
@@ -136,6 +138,116 @@ Small shared visual primitives such as `BoxHeader`, `BoxActions`, `BoxTypeChip`,
 when they remove genuine duplication. They MUST NOT become another universal component controlled by node-kind
 conditionals.
 
+### 6.1 Composition strategy
+
+React components SHOULD be composed, not extended through inheritance. Domain components remain explicit, while shared
+layout and interaction mechanics are assembled from small primitives.
+
+The repeated treegrid row structure is a valid shared primitive. For example, domain boxes MAY compose a `BoxFrame`
+with named slots:
+
+```tsx
+function FunctionBox({node}: FunctionBoxProps) {
+    const signature = useFunctionActions(node.path);
+
+    return (
+        <BoxFrame
+            node={node}
+            header={<FunctionSignature node={node}/>}
+            value={null}
+            type={<BoxTypeChip schema={node.schema}/>}
+            actions={<FunctionActions node={node} onEditSignature={signature.edit}/>}>
+            {node.children?.map(child => <BoxedNode key={child.id} node={child}/>)}
+        </BoxFrame>
+    );
+}
+```
+
+`BoxFrame` MAY own only mechanics common to every box, such as:
+
+- accessible row/cell structure;
+- indentation and shared grid columns;
+- expand/collapse control placement;
+- error-slot placement;
+- read-only action-slot suppression; and
+- rendering an optional child region.
+
+It MUST accept composed content through `children` or named React-node slots. It MUST NOT accept flags such as
+`isFunction`, `isList`, `showInvocationEditor`, or a `kind` value that causes it to reproduce entity dispatch internally.
+
+### 6.2 Reusable behavior
+
+Shared stateful mechanics SHOULD be extracted as focused hooks when two or more domain components need the same
+behavior:
+
+```text
+useBoxExpansion(node.id)       expanded state and toggle
+useActiveExpression(node.path) active state, commit, cancel
+usePathError(node.path)        current path error
+useCollectionPage(node.path)   loaded count and load-more command
+```
+
+Hooks return behavior; visual primitives render structure; domain components decide semantics. A hook MUST NOT return
+the complete editor controller merely to avoid declaring focused dependencies.
+
+Pure formatting and Portable transformations remain ordinary functions rather than hooks. A function should not be
+renamed to `use...` unless it actually uses React state, context, or another hook.
+
+### 6.3 Reusable action groups
+
+Repeated buttons SHOULD be composed into capability-specific action groups:
+
+```text
+FieldActions          rename, duplicate, remove, metadata
+FunctionActions       edit signature, metadata
+ListItemActions       duplicate, remove, move up/down
+RelationColumnActions rename or remove a column
+CollectionActions     add item/row and load more
+```
+
+These components receive narrow semantic callbacks. There MUST NOT be a single `NodeActions` component that accepts all
+possible commands and decides visibility from `node.kind`.
+
+### 6.4 Reusable forms
+
+Forms MAY share presentation primitives such as `EditorDialog`, `DialogError`, `ParameterFields`, and
+`ExpressionField`. The owning domain component or focused form component still defines the form's fields and submit
+command.
+
+A schema/config-driven “universal editor dialog” is NOT a goal. Such a dialog tends to move entity conditionals into
+configuration objects, weakens TypeScript inference, and makes entity-specific validation harder to understand.
+
+### 6.5 Typed props and normalized nodes
+
+Dedicated boxes SHOULD receive discriminated node types instead of the full `BoxedRenderNode` wherever practical:
+
+```ts
+type FunctionRenderNode = Extract<BoxedRenderNode, {kind: 'function'}>;
+
+interface FunctionBoxProps {
+    node: FunctionRenderNode;
+}
+```
+
+If `BoxedRenderNode` is not currently a discriminated union, normalization SHOULD be refined so each kind carries only
+the fields valid for that kind. This removes repeated `isObject` checks, optional chaining, and unsafe casts from React
+components.
+
+### 6.6 Abstraction decision guide
+
+| Repetition                                             | Preferred abstraction                       |
+|--------------------------------------------------------|---------------------------------------------|
+| Portable conversion or formatting                     | Pure function                               |
+| Shared stateful interaction                            | Focused hook                                |
+| Grid row, header, type chip, or dialog chrome          | Small composable visual primitive           |
+| Repeated set of actions for one capability             | Capability-specific action component        |
+| EdgeRules entity semantics                             | Dedicated domain component                  |
+| Differences selected by many booleans or `node.kind`   | Separate domain components, not a primitive |
+
+An abstraction SHOULD be introduced after its common contract is understood. Two visually similar components MAY stay
+separate when their semantics or likely evolution differ. Avoid premature `memo`, callback memoization, higher-order
+components, and render-prop layers; use them only when profiling or a concrete reuse case justifies the complexity.
+
 ## 7. State and command architecture
 
 ### 7.1 Editor-wide state
@@ -208,6 +320,11 @@ src/components/boxed-editor/
 ├── BoxedEditor.tsx
 ├── BoxedEditorProvider.tsx
 ├── BoxedNode.tsx
+├── primitives/
+│   ├── BoxFrame.tsx
+│   ├── BoxTypeChip.tsx
+│   ├── StaticExpression.tsx
+│   └── EditorDialog.tsx
 ├── boxes/
 │   ├── ContextBox.tsx
 │   ├── FunctionBox.tsx
@@ -221,6 +338,11 @@ src/components/boxed-editor/
 │   ├── RelationBox.tsx
 │   ├── RelationRowBox.tsx
 │   └── EditorLinkBox.tsx
+├── hooks/
+│   ├── use-box-expansion.ts
+│   ├── use-active-expression.ts
+│   ├── use-path-error.ts
+│   └── use-collection-page.ts
 ├── actions/
 │   ├── field-actions.ts
 │   ├── function-actions.ts
@@ -243,6 +365,8 @@ Files SHOULD be grouped by responsibility rather than forced to match this tree 
 - [ ] Add characterization tests covering every `BoxedRenderNode.kind`.
 - [ ] Route existing rendering through the dispatcher without changing behavior.
 - [ ] Ensure an unknown or newly added kind produces a compile-time exhaustiveness failure.
+- [ ] Refine `BoxedRenderNode` into discriminated entity types where the current normalization is too broad.
+- [ ] Introduce a slot-based `BoxFrame` for shared accessible row and expansion mechanics.
 
 ### Phase 2 — Extract scalar and specialized boxes
 
@@ -252,6 +376,7 @@ Files SHOULD be grouped by responsibility rather than forced to match this tree 
 - [ ] Implement `ExternalFunctionBox`.
 - [ ] Implement `EditorLinkBox`.
 - [ ] Give each component focused props or focused hooks only.
+- [ ] Compose shared headers, type chips, static expressions, and action groups instead of copying their markup.
 
 ### Phase 3 — Extract recursive structural boxes
 
@@ -260,6 +385,7 @@ Files SHOULD be grouped by responsibility rather than forced to match this tree 
 - [ ] Implement `ListBox` and `ListItemBox` with paging and virtualization.
 - [ ] Implement `RelationBox` and `RelationRowBox` with column operations.
 - [ ] Preserve expansion state and accessible tree/grid semantics.
+- [ ] Share collection paging and virtualization behavior without merging list and relation semantics.
 
 ### Phase 4 — Replace broad callback plumbing
 
@@ -268,11 +394,14 @@ Files SHOULD be grouped by responsibility rather than forced to match this tree 
 - [ ] Remove `BoxedNodeRowProps`.
 - [ ] Remove the universal `BoxedNodeRow`, `BoxedValueCell`, and `BoxedActionsCell` condition chains.
 - [ ] Verify that no replacement “god context” exposes all operations to every entity.
+- [ ] Verify that shared primitives use slots/children and contain no entity-kind dispatch.
 
 ### Phase 5 — Consolidate forms and finish cleanup
 
 - [ ] Assign each edit form to its owning entity or focused form module.
 - [ ] Retain shared dialog primitives only where they reduce real duplication.
+- [ ] Replace repeated button sets with capability-specific action groups.
+- [ ] Remove pass-through wrappers that add neither semantics nor reusable mechanics.
 - [ ] Remove obsolete compatibility code and unused internal types.
 - [ ] Document the final internal architecture.
 - [ ] Confirm the npm public API and emitted declarations are unchanged.
@@ -323,6 +452,10 @@ The refactoring is complete when:
 - [ ] No component has a props contract comparable in scope to `BoxedNodeRowProps`.
 - [ ] Entity components depend only on relevant state and actions.
 - [ ] There is no universal value/action component branching over all node kinds.
+- [ ] Shared box chrome is composed through slots or children rather than duplicated by every entity.
+- [ ] Shared hooks and action groups are capability-specific and do not expose the full editor controller.
+- [ ] Domain components do not use component inheritance or boolean-heavy universal renderers.
+- [ ] Normalized node types make invalid entity/property combinations unrepresentable where practical.
 - [ ] Engine mutation, validation, rollback, refresh, and notification behavior remains centralized.
 - [ ] `BoxedEditorProps` and package exports remain backward compatible.
 - [ ] Existing RTL, build, Storybook, and Playwright suites pass.
@@ -338,4 +471,7 @@ Before accepting each phase, reviewers should be able to answer “yes” to the
 - Would adding a different entity leave this component unchanged?
 - Is engine-specific mutation behavior outside the presentation component?
 - Does read-only rendering avoid unnecessary edit dependencies?
+- Is repeated markup handled by a semantic primitive, hook, or action group with a narrow contract?
+- Does the abstraction use composition rather than inheritance or entity-kind flags?
+- Would the code be clearer if two superficially similar cases remained separate?
 - Has abstraction reduced semantic coupling rather than only moving lines between files?
