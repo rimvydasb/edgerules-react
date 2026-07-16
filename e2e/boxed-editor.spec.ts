@@ -31,3 +31,60 @@ test('read-only boxed story exposes no expression editor activation', async ({ p
   await expect(page.locator('.cm-editor')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Add field to *' })).toHaveCount(0);
 });
+
+test('loan-origination overview renders the authored root model without live editors', async ({ page }) => {
+  await page.goto('/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story');
+  await expect(page.getByRole('treegrid')).toContainText('Applicant');
+  await expect(page.getByRole('row', { name: 'application' })).toBeVisible();
+  await expect(page.getByText('func creditScore(age: number, income: number) → number')).toBeVisible();
+  await expect(page.getByRole('row', { name: 'finalDecision' })).toContainText('APPROVE');
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
+});
+
+test('visual error and read-only scenarios retain their distinct UI states', async ({ page }) => {
+  await page.goto('/iframe.html?id=boxed-editor-boxededitor--error-state&viewMode=story');
+  await expect(page.getByRole('alert')).toContainText("unresolved reference 'a'");
+
+  await page.goto('/iframe.html?id=boxed-editor-boxededitor--read-only-visual&viewMode=story');
+  await expect(page.getByRole('treegrid')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add field to *' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit signature creditScore' })).toHaveCount(0);
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
+});
+
+test('visual nested-function and large-model scenarios keep rendering static', async ({ page }) => {
+  await page.goto('/iframe.html?id=boxed-editor-boxededitor--nested-function-visual&viewMode=story');
+  await page.getByRole('button', { name: 'Expand application' }).click();
+  await expect(page.getByText('func affordability(income: number)')).toBeVisible();
+  await page.getByRole('button', { name: 'Expand application.affordability' }).click();
+  await expect(page.getByRole('row', { name: 'application.affordability.threshold' })).toContainText('monthlyIncome * 0.35');
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
+
+  await page.goto('/iframe.html?id=boxed-editor-boxededitor--large-model-visual&viewMode=story');
+  await expect(page.getByRole('row', { name: 'value0' })).toBeVisible();
+  await expect(page.getByRole('row', { name: 'value199' })).toBeVisible();
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
+});
+
+test('Project Explorer root paths and specialized boxed links route to their host editors', async ({ page }) => {
+  await page.goto('/iframe.html?id=boxed-editor-boxededitor--project-explorer-integration&viewMode=story');
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('boxed: *');
+
+  await page.getByText('monthly()', { exact: true }).click();
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('boxed: monthly');
+
+  await page.getByText('Variables', { exact: true }).click();
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('boxed: *');
+  await page.getByRole('button', { name: 'Open Types Editor' }).click();
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('type-definition: Applicant');
+
+  await page.getByText('Variables', { exact: true }).click();
+  await page.getByRole('button', { name: 'Open Decision Table Editor' }).click();
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('ruleset: risk');
+  await expect(page.locator('table.MuiTable-root')).toBeVisible();
+
+  await page.getByText('Variables', { exact: true }).click();
+  await page.getByRole('button', { name: 'Open Loop Editor' }).click();
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('loop: counter');
+  await expect(page.getByRole('alert')).toContainText('Loop Editor route: counter');
+});

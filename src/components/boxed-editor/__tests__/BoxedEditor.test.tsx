@@ -62,6 +62,35 @@ describe('BoxedEditor', () => {
     expect(onOpenNode).toHaveBeenCalledWith({ path: 'Applicant', kind: 'type-definition' });
   });
 
+  it('routes type, ruleset, and loop definitions with their exact authored paths', async () => {
+    const onOpenNode = vi.fn();
+    const user = userEvent.setup();
+    const instance = MutableDecisionService.fromCode(`{
+      type Applicant: { age: <number> }
+      ruleset risk(age: number): {
+        hitPolicy: "first-match"
+        rules: [{ when: { age: 1..100 }, then: { eligible: true } }]
+        default: { eligible: false }
+      }
+      loop counter(x: number): {
+        state: { n: x }
+        while: state.n > 0
+        maxIterations: 10
+        do: { n: state.n - 1 }
+        return: state.n
+      }
+    }`);
+    render(<BoxedEditor service={instance} path="*" readOnly onOpenNode={onOpenNode} />);
+
+    await user.click(screen.getByRole('button', { name: 'Open Types Editor' }));
+    await user.click(screen.getByRole('button', { name: 'Open Decision Table Editor' }));
+    await user.click(screen.getByRole('button', { name: 'Open Loop Editor' }));
+
+    expect(onOpenNode).toHaveBeenNthCalledWith(1, { path: 'Applicant', kind: 'type-definition' });
+    expect(onOpenNode).toHaveBeenNthCalledWith(2, { path: 'risk', kind: 'ruleset' });
+    expect(onOpenNode).toHaveBeenNthCalledWith(3, { path: 'counter', kind: 'loop' });
+  });
+
   it('commits an expression through one active CodeEditorCell and emits the refreshed snapshot', async () => {
     const user = userEvent.setup();
     const instance = MutableDecisionService.fromCode('{ answer: 1 }');

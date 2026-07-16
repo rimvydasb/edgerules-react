@@ -800,11 +800,11 @@ The editor submits `@description` with complete metadata writes. Engine version
 
 ### Phase 5 — Integration
 
-- [ ] Integrate Project Explorer paths.
-- [ ] Integrate Types, Decision Table, and Loop Editor routing.
-- [ ] Add a loan-origination root overview story.
-- [ ] Add error, read-only, nested-function, and large-model visual tests.
-- [ ] Verify package build, types, RTL, Storybook build, and Playwright suites.
+- [x] Integrate Project Explorer paths.
+- [x] Integrate Types, Decision Table, and Loop Editor routing.
+- [x] Add a loan-origination root overview story.
+- [x] Add error, read-only, nested-function, and large-model visual tests.
+- [x] Verify package build, types, RTL, Storybook build, and Playwright suites.
 
 ## 18. Acceptance criteria
 
