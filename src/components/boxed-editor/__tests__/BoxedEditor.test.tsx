@@ -205,4 +205,70 @@ describe('BoxedEditor', () => {
       '@node': 'ChartNode', '@node-name': 'Application',
     });
   });
+
+  it('pages and edits CRUD-addressable scalar lists without expanding computed arrays', async () => {
+    const user = userEvent.setup();
+    const values = Array.from({ length: 120 }, (_, index) => index + 1).join(', ');
+    const instance = MutableDecisionService.fromCode(`{ nums: [${values}] computed: range(1, 3) }`);
+    const { container } = render(<BoxedEditor service={instance} path="*" />);
+
+    await user.click(screen.getByRole('button', { name: 'Expand nums' }));
+    expect(screen.getByRole('row', { name: 'nums[0]' })).toHaveTextContent('1');
+    expect(screen.getAllByRole('button', { name: 'Load more' })).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Load more' }));
+    await user.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(screen.getByLabelText('Virtualized rows nums')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add item to nums' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add item to computed' })).not.toBeInTheDocument();
+
+    const item = screen.getByRole('row', { name: 'nums[0]' });
+    await user.click(within(item).getAllByRole('cell')[2]);
+    const editor = container.querySelector<HTMLElement>('.cm-content');
+    expect(editor).not.toBeNull();
+    await user.click(editor!);
+    await user.keyboard('{Control>}a{/Control}20{Enter}');
+    expect((instance.toPortable().nums as { expression: string }).expression).toMatch(/^\[20,/);
+    await user.click(screen.getByRole('button', { name: 'Duplicate nums[0]' }));
+    expect((instance.toPortable().nums as { expression: string }).expression).toMatch(/120, 20\]$/);
+  });
+
+  it('renders literal record lists as relations and writes row and column changes atomically', async () => {
+    const user = userEvent.setup();
+    const instance = MutableDecisionService.fromCode(`{
+      people: [{ name: "A"; age: 1 }, { name: "B"; age: 2 }]
+    }`);
+    render(<BoxedEditor service={instance} path="*" />);
+
+    await user.click(screen.getByRole('button', { name: 'Expand people' }));
+    expect(screen.getByRole('row', { name: 'people[0]' })).toHaveTextContent('Row 1');
+    await user.click(screen.getByRole('button', { name: 'Add row to people' }));
+    const rowDialog = screen.getByRole('dialog');
+    await user.clear(within(rowDialog).getByLabelText('name expression'));
+    await user.type(within(rowDialog).getByLabelText('name expression'), '"C"');
+    await user.clear(within(rowDialog).getByLabelText('age expression'));
+    await user.type(within(rowDialog).getByLabelText('age expression'), '3');
+    await user.click(within(rowDialog).getByRole('button', { name: 'Add' }));
+    expect((instance.toPortable().people as { expression: string }).expression).toContain('name: "C"');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Add column to people' }));
+    const columnDialog = screen.getByRole('dialog');
+    await user.type(within(columnDialog).getByLabelText('Column name'), 'active');
+    await user.clear(within(columnDialog).getByLabelText('Default expression'));
+    await user.type(within(columnDialog).getByLabelText('Default expression'), 'true');
+    await user.click(within(columnDialog).getByRole('button', { name: 'Save column' }));
+    expect((instance.toPortable().people as { expression: string }).expression).toContain('active: true');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Rename column people.active' }));
+    const renameDialog = screen.getByRole('dialog');
+    await user.clear(within(renameDialog).getByLabelText('Column name'));
+    await user.type(within(renameDialog).getByLabelText('Column name'), 'enabled');
+    await user.click(within(renameDialog).getByRole('button', { name: 'Save column' }));
+    expect((instance.toPortable().people as { expression: string }).expression).toContain('enabled: true');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Delete people[0]' }));
+    expect((instance.toPortable().people as { expression: string }).expression).not.toContain('name: "A"');
+  });
 });

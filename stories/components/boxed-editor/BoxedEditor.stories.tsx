@@ -76,3 +76,20 @@ export const Invocation: Story = {
   }`) })],
   render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="payment" />,
 };
+
+export const LiteralList: Story = {
+  loaders: [async () => ({ service: await buildService(`{
+    scores: [12, 19, 27, 35]
+  }`) })],
+  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="scores" />,
+};
+
+export const Relation: Story = {
+  loaders: [async () => ({ service: await buildService(`{
+    applicants: [
+      { name: "Ada"; age: 36 }
+      { name: "Grace"; age: 42 }
+    ]
+  }`) })],
+  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="applicants" />,
+};

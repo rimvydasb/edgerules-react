@@ -792,11 +792,11 @@ The editor submits `@description` with complete metadata writes. Engine version
 
 ### Phase 4 — Lists and relations
 
-- [ ] Implement indexed literal-list detection and paging.
-- [ ] Implement item add, edit, duplicate, delete, and reorder.
-- [ ] Implement uniform-record relation rendering.
-- [ ] Implement atomic relation row and column operations.
-- [ ] Add row virtualization and large-list tests.
+- [x] Implement indexed literal-list detection and paging.
+- [x] Implement item add, edit, duplicate, delete, and reorder.
+- [x] Implement uniform-record relation rendering.
+- [x] Implement atomic relation row and column operations.
+- [x] Add row virtualization and large-list tests.
 
 ### Phase 5 — Integration
 

@@ -21,6 +21,18 @@ export interface BoxedRenderNode {
   children?: BoxedRenderNode[];
   /** An invocation argument is displayed as a child row but is written with its owner. */
   invocation?: { path: string; argument: string | number };
+  /** A literal collection item is addressed by its owning list and numeric index. */
+  listItem?: { path: string; index: number };
+  parentListLength?: number;
+  parentListTerminal?: boolean;
+  /** Paging data comes from indexed CRUD reads, never from parsing an expression. */
+  list?: { loaded: number; terminal: boolean; error?: string };
+}
+
+export interface IndexedListPage {
+  items: PortableNode[];
+  terminal: boolean;
+  error?: string;
 }
 
 const METADATA = new Set(['@kind', '@description', '@node', '@node-name', '@model-name', '@model-version']);
@@ -35,7 +47,7 @@ export function authoredFields(context: PortableContext): Array<[string, Portabl
   );
 }
 
-export function classifyNode(node: PortableNode, schema?: PortableNode): BoxedRenderKind {
+export function classifyNode(node: PortableNode, schema?: PortableNode, indexedList?: IndexedListPage): BoxedRenderKind {
   const rawKind: unknown = isObject(node) ? node['@kind'] : undefined;
   const kind: string | undefined = typeof rawKind === 'string' ? rawKind : undefined;
   if (kind === 'type-definition' || kind === 'ruleset' || kind === 'loop') return 'editor-link';
@@ -44,7 +56,11 @@ export function classifyNode(node: PortableNode, schema?: PortableNode): BoxedRe
   if (kind === 'invocation') return 'invocation';
   if (kind === 'type') return 'input';
   if (kind === 'context' || (isObject(node) && kind === undefined)) return 'context';
-  if (Array.isArray(node) && isObject(schema) && schema.type === 'array') return 'list';
+  if (indexedList && isObject(schema) && schema.type === 'array') {
+    return indexedList.items[0] && isObject(indexedList.items[0]) && String(indexedList.items[0]['@kind'] ?? '') === 'context'
+      ? 'relation'
+      : 'list';
+  }
   return 'expression';
 }
 
@@ -85,35 +101,44 @@ export function renderNode(
   path: string,
   schema?: PortableNode,
   name?: string,
+  indexedLists?: ReadonlyMap<string, IndexedListPage>,
 ): BoxedRenderNode {
-  const kind = classifyNode(authored, schema);
+  const indexedList = indexedLists?.get(path);
+  const kind = classifyNode(authored, schema, indexedList);
   let children: BoxedRenderNode[] | undefined;
   if (kind === 'context' && isObject(authored)) {
     children = authoredFields(authored as PortableContext).map(([fieldName, field]) =>
-      renderNode(field, path === '*' ? fieldName : `${path}.${fieldName}`, schemaField(schema, fieldName), fieldName),
+      renderNode(field, path === '*' ? fieldName : `${path}.${fieldName}`, schemaField(schema, fieldName), fieldName, indexedLists),
     );
   }
   if (kind === 'function' && isObject(authored)) {
     const body = authored['@body'] as PortableNode;
     children = isObject(body) && (body['@kind'] === 'context' || body['@kind'] === undefined)
       ? authoredFields(body as PortableContext).map(([fieldName, field]) =>
-        renderNode(field, `${path}.${fieldName}`, undefined, fieldName),
+        renderNode(field, `${path}.${fieldName}`, undefined, fieldName, indexedLists),
       )
-      : [renderNode(body, `${path}.result`, undefined, 'result')];
+      : [renderNode(body, `${path}.result`, undefined, 'result', indexedLists)];
   }
   if (kind === 'invocation' && isObject(authored)) {
     const argumentsValue = authored['@arguments'];
     children = Array.isArray(argumentsValue)
       ? argumentsValue.map((argument, index) => ({
-        ...renderNode(argument as PortableNode, `${path}.@arguments[${index}]`, undefined, `Argument ${index + 1}`),
+        ...renderNode(argument as PortableNode, `${path}.@arguments[${index}]`, undefined, `Argument ${index + 1}`, indexedLists),
         invocation: { path, argument: index },
       }))
       : isObject(argumentsValue)
         ? Object.entries(argumentsValue).map(([argument, value]) => ({
-          ...renderNode(value as PortableNode, `${path}.@arguments.${argument}`, undefined, argument),
+          ...renderNode(value as PortableNode, `${path}.@arguments.${argument}`, undefined, argument, indexedLists),
           invocation: { path, argument },
         }))
         : [];
   }
-  return { id: path, path, kind, name, authored, schema, children };
+  if ((kind === 'list' || kind === 'relation') && indexedList) {
+    const itemSchema = isObject(schema) ? schema.items as PortableNode | undefined : undefined;
+    children = indexedList.items.map((item, index) => ({
+      ...renderNode(item, `${path}[${index}]`, itemSchema, kind === 'relation' ? `Row ${index + 1}` : `Item ${index + 1}`, indexedLists),
+      listItem: { path, index },
+    }));
+  }
+  return { id: path, path, kind, name, authored, schema, children, ...(indexedList ? { list: { loaded: indexedList.items.length, terminal: indexedList.terminal, ...(indexedList.error ? { error: indexedList.error } : {}) } } : {}) };
 }
