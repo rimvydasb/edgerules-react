@@ -30,3 +30,30 @@ field references `application.amount`.
 Expected behavior: `rename` must either rewrite affected references and return success, or return `PortableError` and
 leave the original model unchanged. Until fixed, editors must force a linked read after `rename` and apply the inverse
 rename when validation fails.
+
+## `@description` is discarded by Portable CRUD writes — open (@edgerules/node + @edgerules/web, 2026-07-16)
+
+> KNOWN AND POSTPONED! For now, it is unclear if we should use description annotation or in DSL or DSL must capture
+> comments under `//` - will be implemented in the future.
+
+Verified against the installed **0.0.0-alpha.202607152015** engine. The Portable contract permits
+`@description` on every node, but `set()` accepts a node carrying it and silently drops the property from both
+`get()` and `toPortable()`. Annotations on the same write persist correctly.
+
+```ts
+const service = MutableDecisionService.fromCode('{ application: { amount: <number> } }');
+
+service.set('application', {
+    '@kind': 'context',
+    '@node': 'ChartNode',
+    '@node-name': 'Application',
+    '@description': 'Loan inputs',
+    amount: {'@kind': 'type', type: 'number'},
+});
+
+service.toPortable().application;
+// { '@kind': 'context', amount: { '@kind': 'type', type: 'number' },
+//   '@node': 'ChartNode', '@node-name': 'Application' }
+```
+
+Expected behavior: the engine must retain and re-emit `@description`, as it does `@node` and `@node-name`.

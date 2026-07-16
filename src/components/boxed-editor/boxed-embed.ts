@@ -39,9 +39,9 @@ function nodeText(node: PortableNode, path: string, activePath: string): string 
   if (kind === 'invocation') {
     const argumentsValue = object['@arguments'];
     const argumentsText = Array.isArray(argumentsValue)
-      ? argumentsValue.map(value => nodeText(value as PortableNode, path, activePath)).join(', ')
+      ? argumentsValue.map((value, index) => nodeText(value as PortableNode, `${path}.@arguments[${index}]`, activePath)).join(', ')
       : isObject(argumentsValue)
-        ? Object.entries(argumentsValue).map(([name, value]) => `${name}: ${nodeText(value as PortableNode, path, activePath)}`).join(', ')
+        ? Object.entries(argumentsValue).map(([name, value]) => `${name}: ${nodeText(value as PortableNode, `${path}.@arguments.${name}`, activePath)}`).join(', ')
         : '';
     return `${String(object['@method'] ?? '')}(${argumentsText})`;
   }

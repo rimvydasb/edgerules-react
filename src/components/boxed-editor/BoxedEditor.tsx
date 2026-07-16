@@ -56,6 +56,10 @@ const NOOP_LANGUAGE_SERVICE: CodeEditorService = { diagnostics: () => [] };
 
 interface AddFieldDraft { parentPath: string; name: string; kind: 'expression' | 'input' | 'context' | 'list' }
 interface InputDraft { path: string; value: PortableTypedValue }
+interface SignatureParameter { name: string; type: string }
+interface SignatureDraft { path: string; external: boolean; parameters: SignatureParameter[]; returnType: string; node: Record<string, unknown> }
+interface MetadataDraft { path: string; node: Record<string, unknown>; nodeKind: string; nodeName: string; description: string }
+interface InvocationDraft { path: string; node: Record<string, unknown>; method: string; named: boolean; arguments: Array<{ name: string; value: string }> }
 
 function typeLabel(schema: PortableNode | undefined): string | undefined {
   if (!isObject(schema)) return undefined;
@@ -94,6 +98,49 @@ function functionSignature(node: Record<string, unknown>, name: string | undefin
   return `func ${name ?? ''}(${parameters})${returnType ? ` → ${returnType}` : ''}`;
 }
 
+function parameterDrafts(node: Record<string, unknown>): SignatureParameter[] {
+  return isObject(node['@parameters'])
+    ? Object.entries(node['@parameters']).map(([name, value]) => ({ name, type: value === null ? '' : typeText(value) }))
+    : [];
+}
+
+function typeText(value: unknown): string {
+  return typeof value === 'string' ? value : isObject(value) && typeof value.type === 'string' ? value.type : '';
+}
+
+function signatureNode(draft: SignatureDraft): PortableNode {
+  const parameters: Record<string, string | null> = {};
+  for (const parameter of draft.parameters) {
+    if (parameter.name.trim()) parameters[parameter.name.trim()] = parameter.type.trim() || null;
+  }
+  const { node, returnType, external } = draft;
+  return {
+    ...node,
+    '@kind': external ? 'external-function' : 'function',
+    '@parameters': parameters,
+    ...(returnType.trim() ? { '@return': returnType.trim() } : {}),
+  } as PortableNode;
+}
+
+function metadataNode(draft: MetadataDraft): PortableNode {
+  const { node, nodeKind, nodeName, description } = draft;
+  const { '@node': _node, '@node-name': _nodeName, '@description': _description, ...rest } = node;
+  return {
+    ...rest,
+    ...(nodeKind.trim() ? { '@node': nodeKind.trim(), ...(nodeName.trim() ? { '@node-name': nodeName.trim() } : {}) } : {}),
+    ...(description.trim() ? { '@description': description.trim() } : {}),
+  } as PortableNode;
+}
+
+function invocationNode(draft: InvocationDraft): PortableNode {
+  const { node, method, named, arguments: draftArguments } = draft;
+  const argumentsValue = named
+    ? Object.fromEntries(draftArguments.filter(argument => argument.name.trim()).map(argument => [argument.name.trim(), argument.value]))
+    : draftArguments.map(argument => argument.value);
+  const { '@type': _type, ...authored } = node;
+  return { ...authored, '@kind': 'invocation', '@method': method.trim(), '@arguments': argumentsValue } as PortableNode;
+}
+
 function parentPath(path: string): string {
   const lastDot = path.lastIndexOf('.');
   return lastDot === -1 ? '*' : path.slice(0, lastDot);
@@ -127,8 +174,8 @@ interface NodeRowProps {
   languageService: CodeEditorService;
   errors: Record<string, string>;
   toggle: (id: string) => void;
-  startExpression: (path: string) => void;
-  commitExpression: (path: string, text: string) => void;
+  startExpression: (node: BoxedRenderNode) => void;
+  commitExpression: (node: BoxedRenderNode, text: string) => void;
   cancelExpression: () => void;
   startName: (node: BoxedRenderNode) => void;
   setNameDraft: (value: string) => void;
@@ -137,14 +184,20 @@ interface NodeRowProps {
   remove: (node: BoxedRenderNode) => void;
   openInput: (node: BoxedRenderNode) => void;
   openAdd: (path: string) => void;
+  openSignature: (node: BoxedRenderNode) => void;
+  openMetadata: (node: BoxedRenderNode) => void;
+  openInvocation: (node: BoxedRenderNode) => void;
   onOpenNode?: (target: BoxedEditorOpenTarget) => void;
 }
 
 function NodeRow(props: NodeRowProps): ReactElement {
-  const { node, depth, expanded, editingExpression, editingName, nameDraft, readOnly, snapshot, languageService, errors, toggle, startExpression, commitExpression, cancelExpression, startName, setNameDraft, commitName, duplicate, remove, openInput, openAdd, onOpenNode } = props;
+  const { node, depth, expanded, editingExpression, editingName, nameDraft, readOnly, snapshot, languageService, errors, toggle, startExpression, commitExpression, cancelExpression, startName, setNameDraft, commitName, duplicate, remove, openInput, openAdd, openSignature, openMetadata, openInvocation, onOpenNode } = props;
   const hasChildren = Boolean(node.children?.length);
   const isExpanded = expanded.has(node.id);
   const label = node.kind === 'function' && isObject(node.authored) ? functionSignature(node.authored, node.name) : node.name ?? (node.path === '*' ? 'Model' : node.path);
+  const annotation = isObject(node.authored) && typeof node.authored['@node'] === 'string' ? node.authored['@node'] : undefined;
+  const annotationName = isObject(node.authored) && typeof node.authored['@node-name'] === 'string' ? node.authored['@node-name'] : undefined;
+  const description = isObject(node.authored) && typeof node.authored['@description'] === 'string' ? node.authored['@description'] : undefined;
   const schemaType = typeLabel(node.schema);
   const targetKind = isObject(node.authored) ? node.authored['@kind'] : undefined;
   const editableExpression = node.kind === 'expression';
@@ -153,14 +206,14 @@ function NodeRow(props: NodeRowProps): ReactElement {
   let value: ReactNode;
   if (node.kind === 'context') value = node.children?.length ? null : <Typography color="text.secondary">Empty context</Typography>;
   else if (node.kind === 'input' && isObject(node.authored)) value = <Button size="small" color="inherit" disabled={readOnly} onClick={() => openInput(node)}><Typography component="code">&lt;{String(node.authored.type)}{node.authored.required ? ', required' : ''}&gt;</Typography></Button>;
-  else if (node.kind === 'external-function' && isObject(node.authored)) value = <Typography component="code">{functionSignature(node.authored, node.name).replace(/^func /, 'external func ')}</Typography>;
+  else if (node.kind === 'external-function' && isObject(node.authored)) value = <Button size="small" color="inherit" disabled={readOnly} onClick={() => openSignature(node)}><Typography component="code">{functionSignature(node.authored, node.name).replace(/^func /, 'external func ')}</Typography></Button>;
   else if (node.kind === 'function') value = null;
   else if (node.kind === 'editor-link') {
     const kind = targetKind as BoxedEditorTargetKind;
     const text = kind === 'type-definition' ? 'Open Types Editor' : kind === 'ruleset' ? 'Open Decision Table Editor' : 'Open Loop Editor';
     value = onOpenNode ? <Button size="small" onClick={() => onOpenNode({ path: node.path, kind })}>{text}</Button> : <Typography color="text.secondary">{text}</Typography>;
   } else if (isEditingExpression) {
-    value = <CodeEditorCell value={expressionText(node.kind === 'invocation' && isObject(node.authored) ? invocationText(node.authored) : node.authored)} service={languageService} embedContext={expressionEmbedContext(snapshot, node.path)} autoFocus onCommit={(text) => commitExpression(node.path, text)} onCancel={cancelExpression} />;
+    value = <CodeEditorCell value={expressionText(node.kind === 'invocation' && isObject(node.authored) ? invocationText(node.authored) : node.authored)} service={languageService} embedContext={expressionEmbedContext(snapshot, node.path)} autoFocus onCommit={(text) => commitExpression(node, text)} onCancel={cancelExpression} />;
   } else {
     value = <Box sx={{ minHeight: 24 }}><HighlightedExpression node={node.kind === 'invocation' && isObject(node.authored) ? invocationText(node.authored) : node.authored} /></Box>;
   }
@@ -171,11 +224,16 @@ function NodeRow(props: NodeRowProps): ReactElement {
       </Box>
       <Box role="cell" sx={{ py: 1, pr: 1, fontWeight: node.path === '*' ? 700 : 500 }}>
         {editingName === node.path ? <InputBase autoFocus value={nameDraft} inputProps={{ 'aria-label': `Name ${node.path}` }} onChange={event => setNameDraft(event.target.value)} onBlur={() => commitName(node)} onKeyDown={event => { if (event.key === 'Enter') commitName(node); if (event.key === 'Escape') setNameDraft(node.name ?? ''); }} /> : label}
+        {annotation && <Chip size="small" sx={{ ml: 0.5 }} label={annotationName ? `${annotation}: ${annotationName}` : annotation} />}
+        {description && <Typography variant="caption" sx={{ display: 'block' }} color="text.secondary">{description}</Typography>}
       </Box>
-      <Box role="cell" tabIndex={!readOnly && editableExpression && !isEditingExpression ? 0 : undefined} onClick={!readOnly && editableExpression && !isEditingExpression ? () => startExpression(node.path) : undefined} onKeyDown={!readOnly && editableExpression && !isEditingExpression ? event => { if (event.key === 'Enter' || event.key === 'F2') { event.preventDefault(); startExpression(node.path); } } : undefined} sx={{ py: 1, pr: 1, cursor: !readOnly && editableExpression ? 'cell' : 'default', outline: 'none' }}>{value}{errors[node.path] && <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>{errors[node.path]}</Alert>}</Box>
+      <Box role="cell" tabIndex={!readOnly && editableExpression && !isEditingExpression ? 0 : undefined} onClick={!readOnly && editableExpression && !isEditingExpression ? () => startExpression(node) : undefined} onKeyDown={!readOnly && editableExpression && !isEditingExpression ? event => { if (event.key === 'Enter' || event.key === 'F2') { event.preventDefault(); startExpression(node); } } : undefined} sx={{ py: 1, pr: 1, cursor: !readOnly && editableExpression ? 'cell' : 'default', outline: 'none' }}>{value}{errors[node.path] && <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>{errors[node.path]}</Alert>}</Box>
       <Box role="cell" sx={{ py: 1 }}>{schemaType && <Chip size="small" label={schemaType} />}</Box>
       {!readOnly && <Box role="cell" sx={{ py: 0.5, display: 'flex', gap: 0.25 }}>
         {node.kind === 'context' && <IconButton size="small" aria-label={`Add field to ${node.path}`} onClick={() => openAdd(node.path)}><AddIcon fontSize="small" /></IconButton>}
+        {(node.kind === 'function' || node.kind === 'external-function') && <Button size="small" aria-label={`Edit signature ${node.path}`} onClick={() => openSignature(node)}>Signature</Button>}
+        {node.kind === 'invocation' && <Button size="small" aria-label={`Edit invocation ${node.path}`} onClick={() => openInvocation(node)}>Invocation</Button>}
+        {isObject(node.authored) && node.path !== '*' && <Button size="small" aria-label={`Edit metadata ${node.path}`} onClick={() => openMetadata(node)}>Metadata</Button>}
         {canFieldActions && <><IconButton size="small" aria-label={`Rename ${node.path}`} onClick={() => startName(node)}><DriveFileRenameOutlineIcon fontSize="small" /></IconButton><IconButton size="small" aria-label={`Duplicate ${node.path}`} onClick={() => duplicate(node)}><ContentCopyIcon fontSize="small" /></IconButton><IconButton size="small" aria-label={`Delete ${node.path}`} onClick={() => remove(node)}><DeleteIcon fontSize="small" /></IconButton></>}
       </Box>}
     </Box>
@@ -194,6 +252,9 @@ export function BoxedEditor({ service, path, languageService, revision, readOnly
   const [nameDraft, setNameDraft] = useState('');
   const [addDraft, setAddDraft] = useState<AddFieldDraft | null>(null);
   const [inputDraft, setInputDraft] = useState<InputDraft | null>(null);
+  const [signatureDraft, setSignatureDraft] = useState<SignatureDraft | null>(null);
+  const [metadataDraft, setMetadataDraft] = useState<MetadataDraft | null>(null);
+  const [invocationDraft, setInvocationDraft] = useState<InvocationDraft | null>(null);
 
   const load = useCallback((nextSnapshot: PortableRootContext, resetExpansion: boolean): boolean => {
     const selected = resolveAuthoredPath(nextSnapshot, path);
@@ -222,11 +283,25 @@ export function BoxedEditor({ service, path, languageService, revision, readOnly
   }, [load, onChange, service]);
   const showError = useCallback((targetPath: string, error: PortableError | string): void => setErrors(previous => ({ ...previous, [targetPath]: typeof error === 'string' ? error : error.message })), []);
   const toggle = useCallback((id: string): void => setExpanded(previous => { const next = new Set(previous); next.has(id) ? next.delete(id) : next.add(id); return next; }), []);
-  const commitExpression = useCallback((targetPath: string, text: string): void => {
-    const result = service.set(targetPath, text);
-    if (isPortableError(result)) { showError(targetPath, result); return; }
+  const commitExpression = useCallback((node: BoxedRenderNode, text: string): void => {
+    let targetPath = node.path;
+    let nextNode: PortableNode = text;
+    if (node.invocation) {
+      const invocation = snapshot && resolveAuthoredPath(snapshot, node.invocation.path);
+      if (!isObject(invocation)) { setFatalError(`Invocation not found: ${node.invocation.path}`); return; }
+      const argumentsValue = invocation['@arguments'];
+      if (typeof node.invocation.argument === 'number' && Array.isArray(argumentsValue)) {
+        const argumentsCopy = [...argumentsValue]; argumentsCopy[node.invocation.argument] = text;
+        nextNode = { ...invocation, '@arguments': argumentsCopy } as PortableNode;
+      } else if (typeof node.invocation.argument === 'string' && isObject(argumentsValue)) {
+        nextNode = { ...invocation, '@arguments': { ...argumentsValue, [node.invocation.argument]: text } } as PortableNode;
+      } else { setFatalError(`Invocation argument not found: ${node.path}`); return; }
+      targetPath = node.invocation.path;
+    }
+    const result = service.set(targetPath, nextNode);
+    if (isPortableError(result)) { showError(node.path, result); return; }
     refreshCommitted();
-  }, [refreshCommitted, service, showError]);
+  }, [refreshCommitted, service, showError, snapshot]);
   const guardedRename = useCallback((node: BoxedRenderNode, newName: string): void => {
     const oldName = node.name ?? '';
     if (!newName || newName === oldName) { setEditingName(null); return; }
@@ -271,14 +346,36 @@ export function BoxedEditor({ service, path, languageService, revision, readOnly
     if (isPortableError(result)) { showError(inputDraft.path, result); return; }
     setInputDraft(null); refreshCommitted();
   }, [inputDraft, refreshCommitted, service, showError]);
+  const commitSignature = useCallback((): void => {
+    if (!signatureDraft) return;
+    const result = service.set(signatureDraft.path, signatureNode(signatureDraft));
+    if (isPortableError(result)) { showError(signatureDraft.path, result); return; }
+    setSignatureDraft(null); refreshCommitted();
+  }, [refreshCommitted, service, showError, signatureDraft]);
+  const commitMetadata = useCallback((): void => {
+    if (!metadataDraft) return;
+    const result = service.set(metadataDraft.path, metadataNode(metadataDraft));
+    if (isPortableError(result)) { showError(metadataDraft.path, result); return; }
+    setMetadataDraft(null); refreshCommitted();
+  }, [metadataDraft, refreshCommitted, service, showError]);
+  const commitInvocation = useCallback((): void => {
+    if (!invocationDraft || !invocationDraft.method.trim()) return;
+    const result = service.set(invocationDraft.path, invocationNode(invocationDraft));
+    if (isPortableError(result)) { showError(invocationDraft.path, result); return; }
+    setInvocationDraft(null); refreshCommitted();
+  }, [invocationDraft, refreshCommitted, service, showError]);
 
   if (fatalError) return <Alert severity="error" className={className} sx={sx}>{fatalError}</Alert>;
   if (!model || !snapshot) return <Box className={className} sx={sx} aria-busy="true" />;
   return <>
     <Box className={className} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden', ...sx }} role="treegrid" aria-label={`Boxed editor ${path}`}>
-      <NodeRow node={model} depth={0} expanded={expanded} editingExpression={editingExpression} editingName={editingName} nameDraft={nameDraft} readOnly={readOnly} snapshot={snapshot} languageService={languageService ?? NOOP_LANGUAGE_SERVICE} errors={errors} toggle={toggle} startExpression={setEditingExpression} commitExpression={commitExpression} cancelExpression={() => { setEditingExpression(null); setErrors({}); }} startName={node => { setEditingName(node.path); setNameDraft(node.name ?? ''); }} setNameDraft={setNameDraft} commitName={node => guardedRename(node, nameDraft.trim())} duplicate={duplicate} remove={guardedRemove} openInput={node => setInputDraft({ path: node.path, value: typedInput(node.authored) })} openAdd={parent => setAddDraft({ parentPath: parent, name: '', kind: 'expression' })} onOpenNode={onOpenNode} />
+      {path === '*' && (snapshot['@model-name'] || snapshot['@model-version']) && <Box sx={{ px: 1, py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}><Typography variant="subtitle2">{snapshot['@model-name'] ?? 'Model'}{snapshot['@model-version'] ? ` · ${snapshot['@model-version']}` : ''}</Typography></Box>}
+      <NodeRow node={model} depth={0} expanded={expanded} editingExpression={editingExpression} editingName={editingName} nameDraft={nameDraft} readOnly={readOnly} snapshot={snapshot} languageService={languageService ?? NOOP_LANGUAGE_SERVICE} errors={errors} toggle={toggle} startExpression={node => setEditingExpression(node.path)} commitExpression={commitExpression} cancelExpression={() => { setEditingExpression(null); setErrors({}); }} startName={node => { setEditingName(node.path); setNameDraft(node.name ?? ''); }} setNameDraft={setNameDraft} commitName={node => guardedRename(node, nameDraft.trim())} duplicate={duplicate} remove={guardedRemove} openInput={node => setInputDraft({ path: node.path, value: typedInput(node.authored) })} openAdd={parent => setAddDraft({ parentPath: parent, name: '', kind: 'expression' })} openSignature={node => { if (isObject(node.authored)) setSignatureDraft({ path: node.path, external: node.kind === 'external-function', parameters: parameterDrafts(node.authored), returnType: typeText(node.authored['@return']), node: node.authored }); }} openMetadata={node => { if (isObject(node.authored)) setMetadataDraft({ path: node.path, node: node.authored, nodeKind: String(node.authored['@node'] ?? ''), nodeName: String(node.authored['@node-name'] ?? ''), description: String(node.authored['@description'] ?? '') }); }} openInvocation={node => { if (isObject(node.authored)) { const argumentsValue = node.authored['@arguments']; setInvocationDraft({ path: node.path, node: node.authored, method: String(node.authored['@method'] ?? ''), named: !Array.isArray(argumentsValue), arguments: Array.isArray(argumentsValue) ? argumentsValue.map(value => ({ name: '', value: expressionText(value as PortableNode) })) : isObject(argumentsValue) ? Object.entries(argumentsValue).map(([name, value]) => ({ name, value: expressionText(value as PortableNode) })) : [] }); } }} onOpenNode={onOpenNode} />
     </Box>
     <Dialog open={Boolean(addDraft)} onClose={() => setAddDraft(null)}><DialogTitle>Add field</DialogTitle><DialogContent sx={{ display: 'grid', gap: 2, minWidth: 300 }}><TextField autoFocus label="Name" value={addDraft?.name ?? ''} onChange={event => setAddDraft(current => current ? { ...current, name: event.target.value } : current)} /><Select aria-label="Field kind" value={addDraft?.kind ?? 'expression'} onChange={event => setAddDraft(current => current ? { ...current, kind: event.target.value as AddFieldDraft['kind'] } : current)}><MenuItem value="expression">Expression</MenuItem><MenuItem value="input">Input</MenuItem><MenuItem value="context">Context</MenuItem><MenuItem value="list">Literal list</MenuItem></Select>{addDraft && errors[childPath(addDraft.parentPath, addDraft.name)] && <Alert severity="error">{errors[childPath(addDraft.parentPath, addDraft.name)]}</Alert>}</DialogContent><DialogActions><Button onClick={() => setAddDraft(null)}>Cancel</Button><Button onClick={commitAdd}>Add field</Button></DialogActions></Dialog>
     <Dialog open={Boolean(inputDraft)} onClose={() => setInputDraft(null)}><DialogTitle>Edit input</DialogTitle><DialogContent sx={{ display: 'grid', gap: 1, minWidth: 300 }}><TextField label="Type" value={inputDraft?.value.type ?? ''} onChange={event => setInputDraft(current => current ? { ...current, value: { ...current.value, type: event.target.value } } : current)} /><FormControlLabel control={<Checkbox checked={inputDraft?.value.required === true} onChange={event => setInputDraft(current => current ? { ...current, value: { ...current.value, ...(event.target.checked ? { required: true } : { required: undefined }) } } : current)} />} label="Required" />{inputDraft && errors[inputDraft.path] && <Alert severity="error">{errors[inputDraft.path]}</Alert>}</DialogContent><DialogActions><Button onClick={() => setInputDraft(null)}>Cancel</Button><Button onClick={commitInput}>Save input</Button></DialogActions></Dialog>
+    <Dialog open={Boolean(signatureDraft)} onClose={() => setSignatureDraft(null)}><DialogTitle>Edit {signatureDraft?.external ? 'external function' : 'function'} signature</DialogTitle><DialogContent sx={{ display: 'grid', gap: 1, minWidth: 420 }}>{signatureDraft?.parameters.map((parameter, index) => <Box key={index} sx={{ display: 'flex', gap: 1 }}><TextField label={`Parameter ${index + 1} name`} value={parameter.name} onChange={event => setSignatureDraft(current => current ? { ...current, parameters: current.parameters.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) } : current)} /><TextField label={`Parameter ${index + 1} type`} value={parameter.type} onChange={event => setSignatureDraft(current => current ? { ...current, parameters: current.parameters.map((item, itemIndex) => itemIndex === index ? { ...item, type: event.target.value } : item) } : current)} /><IconButton aria-label={`Remove parameter ${index + 1}`} onClick={() => setSignatureDraft(current => current ? { ...current, parameters: current.parameters.filter((_, itemIndex) => itemIndex !== index) } : current)}><DeleteIcon fontSize="small" /></IconButton></Box>)}<Button onClick={() => setSignatureDraft(current => current ? { ...current, parameters: [...current.parameters, { name: '', type: 'number' }] } : current)}>Add parameter</Button><TextField label="Return type" value={signatureDraft?.returnType ?? ''} onChange={event => setSignatureDraft(current => current ? { ...current, returnType: event.target.value } : current)} />{signatureDraft && errors[signatureDraft.path] && <Alert severity="error">{errors[signatureDraft.path]}</Alert>}</DialogContent><DialogActions><Button onClick={() => setSignatureDraft(null)}>Cancel</Button><Button onClick={commitSignature}>Save signature</Button></DialogActions></Dialog>
+    <Dialog open={Boolean(invocationDraft)} onClose={() => setInvocationDraft(null)}><DialogTitle>Edit invocation</DialogTitle><DialogContent sx={{ display: 'grid', gap: 1, minWidth: 420 }}><TextField label="Method" value={invocationDraft?.method ?? ''} onChange={event => setInvocationDraft(current => current ? { ...current, method: event.target.value } : current)} /><FormControlLabel control={<Checkbox checked={invocationDraft?.named === true} onChange={event => setInvocationDraft(current => current ? { ...current, named: event.target.checked, arguments: current.arguments.map(argument => ({ ...argument, name: event.target.checked ? argument.name : '' })) } : current)} />} label="Named arguments" />{invocationDraft?.arguments.map((argument, index) => <Box key={index} sx={{ display: 'flex', gap: 1 }}><TextField label={invocationDraft.named ? `Argument ${index + 1} name` : `Argument ${index + 1}`} value={invocationDraft.named ? argument.name : String(index + 1)} disabled={!invocationDraft.named} onChange={event => setInvocationDraft(current => current ? { ...current, arguments: current.arguments.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) } : current)} /><TextField label={`Argument ${index + 1} expression`} value={argument.value} onChange={event => setInvocationDraft(current => current ? { ...current, arguments: current.arguments.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item) } : current)} /><IconButton aria-label={`Remove argument ${index + 1}`} onClick={() => setInvocationDraft(current => current ? { ...current, arguments: current.arguments.filter((_, itemIndex) => itemIndex !== index) } : current)}><DeleteIcon fontSize="small" /></IconButton></Box>)}<Button onClick={() => setInvocationDraft(current => current ? { ...current, arguments: [...current.arguments, { name: '', value: '0' }] } : current)}>Add argument</Button>{invocationDraft && errors[invocationDraft.path] && <Alert severity="error">{errors[invocationDraft.path]}</Alert>}</DialogContent><DialogActions><Button onClick={() => setInvocationDraft(null)}>Cancel</Button><Button onClick={commitInvocation}>Save invocation</Button></DialogActions></Dialog>
+    <Dialog open={Boolean(metadataDraft)} onClose={() => setMetadataDraft(null)}><DialogTitle>Edit metadata</DialogTitle><DialogContent sx={{ display: 'grid', gap: 1, minWidth: 360 }}><TextField label="Node kind" value={metadataDraft?.nodeKind ?? ''} onChange={event => setMetadataDraft(current => current ? { ...current, nodeKind: event.target.value } : current)} /><TextField label="Node label" value={metadataDraft?.nodeName ?? ''} onChange={event => setMetadataDraft(current => current ? { ...current, nodeName: event.target.value } : current)} /><TextField label="Description" multiline minRows={2} value={metadataDraft?.description ?? ''} onChange={event => setMetadataDraft(current => current ? { ...current, description: event.target.value } : current)} />{metadataDraft && errors[metadataDraft.path] && <Alert severity="error">{errors[metadataDraft.path]}</Alert>}</DialogContent><DialogActions><Button onClick={() => setMetadataDraft(null)}>Cancel</Button><Button onClick={commitMetadata}>Save metadata</Button></DialogActions></Dialog>
   </>;
 }

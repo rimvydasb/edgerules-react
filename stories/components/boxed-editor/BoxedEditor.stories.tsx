@@ -18,7 +18,7 @@ const MODEL = `{
   payment: monthly(application.amount)
 }`;
 
-async function buildService() { await init(); return MutableDecisionService.fromCode(MODEL); }
+async function buildService(model = MODEL) { await init(); return MutableDecisionService.fromCode(model); }
 
 const meta: Meta<typeof BoxedEditor> = { title: 'Boxed Editor/BoxedEditor', component: BoxedEditor };
 export default meta;
@@ -43,4 +43,36 @@ export const Editable: Story = {
       <output data-testid="boxed-change-count">Changes: {changes}</output>
     </>;
   },
+};
+
+export const InlineFunction: Story = {
+  loaders: [async () => ({ service: await buildService(`{
+    func monthly(amount: number) -> number: amount / 12
+  }`) })],
+  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="monthly" />,
+};
+
+export const ContextFunction: Story = {
+  loaders: [async () => ({ service: await buildService(`{
+    func summary(amount: number): {
+      tax: amount * 0.2
+      result: amount + tax
+    }
+  }`) })],
+  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="summary" />,
+};
+
+export const ExternalFunction: Story = {
+  loaders: [async () => ({ service: await buildService(`{
+    external func lookup(id: string) -> number
+  }`) })],
+  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="lookup" />,
+};
+
+export const Invocation: Story = {
+  loaders: [async () => ({ service: await buildService(`{
+    func monthly(amount: number) -> number: amount / 12
+    payment: monthly(1200)
+  }`) })],
+  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="payment" />,
 };

@@ -781,11 +781,14 @@ Internal boxes and `BoxedRenderNode` MUST NOT be exported.
 
 ### Phase 3 — Functions and invocations
 
-- [ ] Implement atomic function signature editing.
-- [ ] Implement external-function signature editing.
-- [ ] Implement invocation expansion and whole-invocation writes.
-- [ ] Implement modeler metadata display and writes.
-- [ ] Add inline-function, context-function, external-function, and invocation stories.
+- [x] Implement atomic function signature editing.
+- [x] Implement external-function signature editing.
+- [x] Implement invocation expansion and whole-invocation writes.
+- [x] Implement modeler metadata display and writes.
+- [x] Add inline-function, context-function, external-function, and invocation stories.
+
+The editor submits `@description` with complete metadata writes. Engine version
+`0.0.0-alpha.202607152015` currently discards that field; see `BUG_REPORTS.md`.
 
 ### Phase 4 — Lists and relations
 

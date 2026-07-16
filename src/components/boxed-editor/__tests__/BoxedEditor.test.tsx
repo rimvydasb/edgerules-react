@@ -42,6 +42,18 @@ describe('BoxedEditor', () => {
     expect(screen.getByRole('row', { name: 'monthly.result' })).toHaveTextContent('amount / 12');
   });
 
+  it('maps context-function body fields to their CRUD paths', () => {
+    const instance = MutableDecisionService.fromCode(`{
+      func summary(amount: number): {
+        tax: amount * 0.2
+        result: amount + tax
+      }
+    }`);
+    render(<BoxedEditor service={instance} path="summary" readOnly />);
+    expect(screen.getByRole('row', { name: 'summary.tax' })).toHaveTextContent('amount * 0.2');
+    expect(screen.getByRole('row', { name: 'summary.result' })).toHaveTextContent('amount + tax');
+  });
+
   it('routes specialized definitions while read-only', async () => {
     const onOpenNode = vi.fn();
     const user = userEvent.setup();
@@ -124,5 +136,73 @@ describe('BoxedEditor', () => {
     expect(instance.toPortable().application as object).not.toHaveProperty('principal');
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByText(/unresolved reference 'amount'/)).toBeInTheDocument();
+  });
+
+  it('writes complete function and external signatures and preserves function bodies', async () => {
+    const user = userEvent.setup();
+    const instance = MutableDecisionService.fromCode(`{
+      func monthly(amount: number): amount / 12
+      external func lookup(id: string) -> string
+    }`);
+    render(<BoxedEditor service={instance} path="*" />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit signature monthly' }));
+    const functionDialog = screen.getByRole('dialog');
+    await user.click(within(functionDialog).getByRole('button', { name: 'Add parameter' }));
+    await user.type(within(functionDialog).getByLabelText('Parameter 2 name'), 'fee');
+    await user.click(within(functionDialog).getByRole('button', { name: 'Save signature' }));
+    expect(instance.toPortable().monthly).toMatchObject({
+      '@kind': 'function',
+      '@parameters': { amount: 'number', fee: 'number' },
+      '@body': { '@kind': 'expression', expression: 'amount / 12' },
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Edit signature lookup' }));
+    const externalDialog = screen.getByRole('dialog');
+    await user.clear(within(externalDialog).getByLabelText('Return type'));
+    await user.type(within(externalDialog).getByLabelText('Return type'), 'number');
+    await user.click(within(externalDialog).getByRole('button', { name: 'Save signature' }));
+    expect(instance.toPortable().lookup).toMatchObject({
+      '@kind': 'external-function',
+      '@parameters': { id: 'string' },
+      '@return': 'number',
+    });
+  });
+
+  it('expands invocation arguments, writes complete invocations, and writes modeler metadata', async () => {
+    const user = userEvent.setup();
+    const instance = service();
+    instance.set('payment', { '@kind': 'invocation', '@method': 'monthly', '@arguments': ['application.amount'] });
+    const { container } = render(<BoxedEditor service={instance} path="*" />);
+
+    await user.click(screen.getByRole('button', { name: 'Expand payment' }));
+    const argumentRow = screen.getByRole('row', { name: 'payment.@arguments[0]' });
+    expect(argumentRow).toHaveTextContent('application.amount');
+    await user.click(within(argumentRow).getAllByRole('cell')[2]);
+    const editor = container.querySelector<HTMLElement>('.cm-content');
+    expect(editor).not.toBeNull();
+    await user.click(editor!);
+    await user.keyboard('{Control>}a{/Control}application.amount * 3{Enter}');
+    expect(instance.toPortable().payment).toMatchObject({ '@arguments': ['application.amount * 3'] });
+    await user.click(screen.getByRole('button', { name: 'Edit invocation payment' }));
+    const invocationDialog = screen.getByRole('dialog');
+    await user.clear(within(invocationDialog).getByLabelText('Argument 1 expression'));
+    await user.type(within(invocationDialog).getByLabelText('Argument 1 expression'), 'application.amount * 2');
+    await user.click(within(invocationDialog).getByRole('button', { name: 'Save invocation' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(instance.toPortable().payment).toMatchObject({
+      '@kind': 'invocation', '@method': 'monthly', '@arguments': ['application.amount * 2'],
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Edit metadata application' }));
+    const metadataDialog = screen.getByRole('dialog');
+    await user.type(within(metadataDialog).getByLabelText('Node kind'), 'ChartNode');
+    await user.type(within(metadataDialog).getByLabelText('Node label'), 'Application');
+    await user.type(within(metadataDialog).getByLabelText('Description'), 'Loan inputs');
+    await user.click(within(metadataDialog).getByRole('button', { name: 'Save metadata' }));
+    expect(instance.toPortable().application).toMatchObject({
+      '@node': 'ChartNode', '@node-name': 'Application',
+    });
   });
 });

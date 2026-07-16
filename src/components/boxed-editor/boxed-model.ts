@@ -19,6 +19,8 @@ export interface BoxedRenderNode {
   authored: PortableNode;
   schema?: PortableNode;
   children?: BoxedRenderNode[];
+  /** An invocation argument is displayed as a child row but is written with its owner. */
+  invocation?: { path: string; argument: string | number };
 }
 
 const METADATA = new Set(['@kind', '@description', '@node', '@node-name', '@model-name', '@model-version']);
@@ -93,7 +95,25 @@ export function renderNode(
   }
   if (kind === 'function' && isObject(authored)) {
     const body = authored['@body'] as PortableNode;
-    children = [renderNode(body, `${path}.result`, undefined, 'result')];
+    children = isObject(body) && (body['@kind'] === 'context' || body['@kind'] === undefined)
+      ? authoredFields(body as PortableContext).map(([fieldName, field]) =>
+        renderNode(field, `${path}.${fieldName}`, undefined, fieldName),
+      )
+      : [renderNode(body, `${path}.result`, undefined, 'result')];
+  }
+  if (kind === 'invocation' && isObject(authored)) {
+    const argumentsValue = authored['@arguments'];
+    children = Array.isArray(argumentsValue)
+      ? argumentsValue.map((argument, index) => ({
+        ...renderNode(argument as PortableNode, `${path}.@arguments[${index}]`, undefined, `Argument ${index + 1}`),
+        invocation: { path, argument: index },
+      }))
+      : isObject(argumentsValue)
+        ? Object.entries(argumentsValue).map(([argument, value]) => ({
+          ...renderNode(value as PortableNode, `${path}.@arguments.${argument}`, undefined, argument),
+          invocation: { path, argument },
+        }))
+        : [];
   }
   return { id: path, path, kind, name, authored, schema, children };
 }
