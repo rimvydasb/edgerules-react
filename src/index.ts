@@ -12,3 +12,5 @@ export { ProjectExplorer } from './components/project-explorer';
 export type { ProjectExplorerProps } from './components/project-explorer';
 export { DecisionTableEditor } from './components/decision-table';
 export type { DecisionTableEditorProps, DecisionTableService } from './components/decision-table';
+export { BoxedEditor } from './components/boxed-editor';
+export type { BoxedEditorProps, BoxedEditorService, BoxedEditorOpenTarget, BoxedEditorTargetKind } from './components/boxed-editor';

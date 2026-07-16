@@ -60,6 +60,16 @@
         "types": "./dist/components/decision-table/index.d.cts",
         "default": "./dist/components/decision-table/index.cjs"
       }
+    },
+    "./boxed-editor": {
+      "import": {
+        "types": "./dist/components/boxed-editor/index.d.ts",
+        "default": "./dist/components/boxed-editor/index.js"
+      },
+      "require": {
+        "types": "./dist/components/boxed-editor/index.d.cts",
+        "default": "./dist/components/boxed-editor/index.cjs"
+      }
     }
   },
   "scripts": {
