@@ -1,104 +1,869 @@
-# EdgeRules Boxed Expressions Editor
+# EdgeRules Boxed Expressions Editor Specification
 
-The Boxed Expressions Editor is the structured editor for EdgeRules contexts, values, functions,
-external-function declarations, and invocations. It presents the same model as a recursively nested,
-spreadsheet-like set of boxes while preserving EdgeRules as the language and the WASM model as the source of truth.
+| Field                    | Value                                   |
+|--------------------------|-----------------------------------------|
+| Status                   | Proposed                                |
+| Component                | `BoxedEditor`                           |
+| Package export           | `edgerules-react/boxed-editor`          |
+| Engine packages          | `@edgerules/web`, `@edgerules/portable` |
+| Validated engine version | `0.0.0-alpha.202607152015`              |
+| Last validation date     | 2026-07-16                              |
 
-It is inspired by DMN boxed expressions, but it is not a DMN/FEEL serializer. The visual metaphors are mapped to the
-current EdgeRules DSL and canonical `@edgerules/portable` nodes. Rulesets, loops, and type definitions keep their own
-specialized editors.
+## 1. Purpose
 
-This story was validated on 2026-07-16 against the installed
-`@edgerules/web` / `@edgerules/node` / `@edgerules/portable`
-`0.0.0-alpha.202607152015` packages and the sibling `edgerules-v2/tests/wasm/` suite.
+`BoxedEditor` is a React editor for the following EdgeRules model entities:
 
-> ARCHITECT NOTES: Certain topics are background for the design and implementation of the Boxed Editor and some topics
-> are design decisions. Have a clear separation of them.
+- contexts and context fields;
+- expressions and scalar literals;
+- typed inputs;
+- literal lists and uniform-record relations;
+- function definitions;
+- external-function declarations; and
+- structured invocations.
 
-> ARCHITECT NOTES: be precise, avoid belletrists and narrations. Use structural way to define new component. Utilize
-> structures such as Markdown lists and tables, use Mermaid diagrams where needed. The point is that structures are much
-> better readable.
+The component presents these entities as nested boxes. It reads and mutates the model through a caller-owned
+`MutableDecisionService`. The EdgeRules model remains the only persisted model; the component does not define a boxed
+serialization format.
 
-## Product goals
+## 2. Normative language
 
-- Make a large decision model readable as named, nested business calculations instead of one source file.
-- Keep Boxed and Code views semantically interchangeable through the engine's Portable format.
-- Give every expression cell the same diagnostics, completion, navigation, and formatting support as `CodeEditor`.
-- Make inferred types, typed inputs, function boundaries, and errors visible without pretending the UI owns a second
-  type system.
-- Remain usable in a full-page modeler, a Project Explorer route, or a constrained Flow Editor node.
-- Scale to deep contexts and large literal collections without mounting an editor for every visible cell.
+The terms **MUST**, **MUST NOT**, **SHOULD**, and **MAY** define implementation requirements in this document.
 
-## Non-goals
+### 2.1 Normative dependencies
 
-- The component does not parse, evaluate, or type-check EdgeRules itself.
-- It does not preserve source whitespace or comments. `@description`, when present in Portable, remains structured
-  metadata, but the editor does not promise that it survives an external DSL-text-only round trip.
-- It does not edit `PortableTypeDefinition`s; those open in the Types Editor.
-- It does not reimplement `PortableRulesetDefinition`; those open in `DecisionTableEditor`.
-- It does not reimplement `PortableLoopDefinition`; the engine's loop design calls for a dedicated Loop Editor.
-- It does not run models or own execution traces. The host composes execution and result panels around it.
-- It does not automatically refactor arbitrary expression text when a function parameter is renamed.
+| Contract                                | Source                                                           |
+|-----------------------------------------|------------------------------------------------------------------|
+| EdgeRules grammar                       | `../edgerules-v2/doc/architecture/EBNF.md`                       |
+| EdgeRules context and scope rules       | `../edgerules-v2/doc/architecture/EDGERULES_DSL_CONTEXT_SPEC.md` |
+| `get` / `set` / `remove` / `rename` API | `../edgerules-v2/doc/architecture/EDGERULES_API_SPEC.md`         |
+| Portable TypeScript nodes               | `@edgerules/portable`                                            |
+| Executable DSL/API examples             | `../edgerules-v2/tests/wasm/`                                    |
+| Cell editor behavior                    | `src/components/code-editor-cell/CodeEditorCell.tsx`             |
 
-## What the legacy editor taught us
+When prose documentation and the installed package behavior differ, the installed package and sibling WASM tests are
+authoritative for this component version. Any confirmed engine defect MUST be recorded in `docs/BUG_REPORTS.md`.
+
+## 3. Scope
+
+### 3.1 In scope
+
+| Capability                 | Requirement                                                  |
+|----------------------------|--------------------------------------------------------------|
+| Read authored model        | Read canonical authored nodes from `service.toPortable()`    |
+| Read linked schema         | Read inferred types and direction flags from `service.get()` |
+| Edit expressions           | Use one active `CodeEditorCell`                              |
+| Edit model structure       | Use `service.set`, `service.rename`, and `service.remove`    |
+| Navigate nested data       | Render contexts and literal collections recursively          |
+| Route specialized entities | Notify the host through `onOpenNode`                         |
+| Notify persistence layer   | Emit the refreshed `PortableRootContext` through `onChange`  |
+| External refresh           | Reload when `service`, `path`, or `revision` changes         |
+| Read-only rendering        | Render the complete structure without mutation controls      |
+
+### 3.2 Out of scope
+
+| Entity or capability                       | Owner or reason                                                  |
+|--------------------------------------------|------------------------------------------------------------------|
+| `PortableTypeDefinition` editing           | Types Editor                                                     |
+| `PortableRulesetDefinition` editing        | `DecisionTableEditor`                                            |
+| `PortableLoopDefinition` editing           | Loop Editor                                                      |
+| Model execution                            | Host application                                                 |
+| Execution trace                            | Host application / Test Runner                                   |
+| DSL evaluation or type inference           | EdgeRules WASM engine                                            |
+| Source whitespace and comment preservation | Not represented by the canonical Portable snapshot               |
+| Context reordering                         | Current CRUD API has no atomic context move operation            |
+| Cross-context drag/drop                    | `rename` cannot change a node's parent                           |
+| Symbol-aware parameter refactoring         | Current engine API has no parameter-rename refactoring operation |
+
+## 4. Component ownership
+
+| Portable node                        | Boxed Editor presentation | Editing owner         |
+|--------------------------------------|---------------------------|-----------------------|
+| `PortableContext`                    | `ContextBox`              | Boxed Editor          |
+| `PortableExpression` or scalar       | `ExpressionCell`          | Boxed Editor          |
+| `PortableTypedValue`                 | `InputBox`                | Boxed Editor          |
+| CRUD-addressable literal list        | `ListBox`                 | Boxed Editor          |
+| Uniform list of contexts             | `RelationBox`             | Boxed Editor          |
+| Computed list                        | `ExpressionCell`          | Boxed Editor          |
+| `PortableFunctionDefinition`         | `FunctionBox`             | Boxed Editor          |
+| `PortableExternalFunctionDefinition` | `ExternalFunctionBox`     | Boxed Editor          |
+| `PortableInvocationDefinition`       | `InvocationBox`           | Boxed Editor          |
+| `PortableTypeDefinition`             | `EditorLinkBox`           | Types Editor          |
+| `PortableRulesetDefinition`          | `EditorLinkBox`           | Decision Table Editor |
+| `PortableLoopDefinition`             | `EditorLinkBox`           | Loop Editor           |
+
+## 5. Design decisions
+
+| ID  | Decision                                                                 | Consequence                                                                     |
+|-----|--------------------------------------------------------------------------|---------------------------------------------------------------------------------|
+| D1  | `MutableDecisionService` is the model authority                          | No independently persisted `BoxedExpressionData` model                          |
+| D2  | `toPortable()` supplies authored structure                               | Expression source and source order come from one canonical snapshot             |
+| D3  | `get()` supplies linked schema                                           | Inferred types and `readOnly` / `writeOnly` are treated as projections          |
+| D4  | Only one `CodeEditorCell` may be mounted                                 | Display cells use static highlighting; editor cost is constant                  |
+| D5  | Specialized definitions are routed, not flattened                        | Ruleset, loop, and type semantics remain owned by their editors                 |
+| D6  | Mutations use the narrowest valid engine operation                       | Cell edits do not replace an enclosing context without necessity                |
+| D7  | Multi-field invariants use one whole-node `set`                          | Function signatures, invocations, relation shapes, and list reorders are atomic |
+| D8  | Literal lists are expanded only when their children are CRUD-addressable | Computed arrays remain expressions; no DSL list parser is introduced            |
+| D9  | Boxed/Code equivalence is semantic                                       | Formatting and comments are not round-tripped through Portable                  |
+| D10 | Context move/reorder controls are absent in v1                           | The UI does not promise a mutation unsupported by the engine API                |
+| D11 | Rename and remove require post-mutation linked validation                | Current lazy-link failures are rolled back before change notification           |
+
+## 6. System context
+
+```mermaid
+flowchart LR
+    App[Host application] -->|creates and owns| Service[MutableDecisionService]
+    App -->|props| Editor[BoxedEditor]
+    Editor -->|toPortable| Authored[Authored Portable snapshot]
+    Editor -->|get| Schema[Linked schema projection]
+    Editor -->|set / rename / remove| Service
+    Editor -->|onChange snapshot| App
+    Editor -->|onOpenNode target| App
+    Editor --> Cell[One active CodeEditorCell]
+    Cell -->|diagnostics / completions| Language[MutableDecisionService class]
+```
+
+### 6.1 Host responsibilities
+
+The host application MUST:
+
+- initialize `@edgerules/web/mutable` before rendering the component;
+- create and retain the `MutableDecisionService` instance;
+- pass the `MutableDecisionService` class as `languageService` when language tooling is required;
+- persist `onChange` snapshots when persistence is required;
+- route `onOpenNode` targets to the appropriate editor; and
+- change `revision` after mutating the same service instance outside `BoxedEditor`.
+
+### 6.2 Component responsibilities
+
+`BoxedEditor` MUST:
+
+- load authored and linked views from the supplied service;
+- resolve `path` to one authored entity;
+- render that entity and any visible descendants;
+- commit edits through the service;
+- reload after each successful mutation;
+- surface `PortableError` values without throwing them through React; and
+- avoid disposing the caller-owned service.
+
+## 7. Public application API
+
+### 7.1 Exported types
+
+```ts
+import type {SxProps, Theme} from '@mui/material/styles';
+import type {
+    PortableError,
+    PortableNode,
+    PortableRootContext,
+} from '@edgerules/portable';
+import type {GetFilter} from '@edgerules/web';
+import type {CodeEditorService} from '../code-editor-cell';
+
+export interface BoxedEditorService {
+    toPortable(): PortableRootContext;
+
+    get(path: string, filter?: GetFilter): PortableNode | PortableError;
+
+    set(path: string, node: PortableNode): PortableNode | PortableError;
+
+    remove(path: string): void | PortableError;
+
+    rename(path: string, newName: string): void | PortableError;
+}
+
+export type BoxedEditorTargetKind = 'type-definition' | 'ruleset' | 'loop';
+
+export interface BoxedEditorOpenTarget {
+    path: string;
+    kind: BoxedEditorTargetKind;
+}
+
+export interface BoxedEditorProps {
+    service: BoxedEditorService;
+    path: string;
+    languageService?: CodeEditorService;
+    revision?: string | number;
+    readOnly?: boolean;
+    onChange?: (snapshot: PortableRootContext) => void;
+    onOpenNode?: (target: BoxedEditorOpenTarget) => void;
+    className?: string;
+    sx?: SxProps<Theme>;
+}
+```
+
+### 7.2 Prop contract
+
+| Prop              | Required | Default              | Contract                                                      |
+|-------------------|---------:|----------------------|---------------------------------------------------------------|
+| `service`         |      Yes | —                    | Stable caller-owned mutable service instance                  |
+| `path`            |      Yes | —                    | Engine path to render; `"*"` selects the root                 |
+| `languageService` |       No | diagnostics disabled | Usually the `MutableDecisionService` class                    |
+| `revision`        |       No | `undefined`          | Changing it forces a reload from the same service instance    |
+| `readOnly`        |       No | `false`              | Removes all mutation controls and editor activation           |
+| `onChange`        |       No | —                    | Called once after a successful committed mutation and refresh |
+| `onOpenNode`      |       No | —                    | Called when a type, ruleset, or loop link is activated        |
+| `className`       |       No | —                    | Applied to the root element                                   |
+| `sx`              |       No | —                    | MUI root styles                                               |
+
+### 7.3 Path contract
+
+| `path` value            | Result                                        |
+|-------------------------|-----------------------------------------------|
+| `"*"`                   | Root model overview                           |
+| `"application"`         | Focused context or value                      |
+| `"application.address"` | Focused nested context or value               |
+| `"applicants[0]"`       | Focused literal list element when addressable |
+| `"creditScore"`         | Focused function definition                   |
+| `"fetchData"`           | Focused external-function declaration         |
+
+The component input MUST NOT use definition-query syntax such as `creditScore.*`. The component derives definition
+queries internally. Function-body paths use the engine CRUD form (`creditScore.result`), not Portable property syntax
+(`creditScore.@body.result`).
+
+### 7.4 Application usage
+
+```tsx
+import {useEffect, useState, type ReactElement} from 'react';
+import {init, MutableDecisionService} from '@edgerules/web/mutable';
+import type {PortableRootContext} from '@edgerules/portable';
+import {BoxedEditor, type BoxedEditorOpenTarget} from 'edgerules-react/boxed-editor';
+
+const model = `{
+  application: {
+    amount: <number, required: true>
+    termMonths: <number, 12>
+  }
+  func monthlyAmount(amount: number, termMonths: number) -> number:
+    amount / termMonths
+  payment: monthlyAmount(application.amount, application.termMonths)
+}`;
+
+declare function savePortableModel(snapshot: PortableRootContext): void;
+
+declare function openEditor(target: BoxedEditorOpenTarget): void;
+
+export function ModelPage(): ReactElement {
+    const [service, setService] = useState<MutableDecisionService | null>(null);
+
+    useEffect(() => {
+        let active = true;
+        let instance: MutableDecisionService | undefined;
+
+        void init().then(() => {
+            instance = MutableDecisionService.fromCode(model);
+            if (active) {
+                setService(instance);
+            } else {
+                instance[Symbol.dispose]();
+            }
+        });
+
+        return () => {
+            active = false;
+            instance?.[Symbol.dispose]();
+        };
+    }, []);
+
+    if (!service) {
+        return <div>Loading model…</div>;
+    }
+
+    return (
+        <BoxedEditor
+            service={service}
+            languageService={MutableDecisionService}
+            path="*"
+            onChange={(snapshot) => savePortableModel(snapshot)}
+            onOpenNode={(target) => openEditor(target)}
+        />
+    );
+}
+```
+
+`savePortableModel` and routing are application functions. They are not exported by `edgerules-react`.
+
+## 8. EdgeRules API integration
+
+### 8.1 Initial load and refresh
+
+The component MUST run the following algorithm on mount and whenever `service`, `path`, or `revision` changes:
+
+1. Call `service.toPortable()` once and store the result as `authoredSnapshot`.
+2. Resolve `path` against `authoredSnapshot` using the path rules in section 8.3.
+3. Load linked schema according to the resolved node kind.
+4. Join authored nodes and linked schema into an in-memory render model.
+5. Render the selected box.
+
+Linked schema calls:
+
+| Selected authored node                | Schema calls                                                         |
+|---------------------------------------|----------------------------------------------------------------------|
+| Root                                  | `get("*", "FIELDS")`                                                 |
+| Context                               | `get(path, "FIELDS")`                                                |
+| Expression / typed input / invocation | `get(path, "FIELDS")`                                                |
+| Function                              | `get(path, "FIELDS")` and `get(path + ".*", "FUNCTION_DEFINITIONS")` |
+| External function                     | No inferred body schema; declared signature is authoritative         |
+| Ruleset                               | `get(path, "FIELDS")` for summary only                               |
+| Loop                                  | `get(path, "FIELDS")` for summary only                               |
+| Type definition                       | No Boxed schema load; route summary only                             |
+
+`service.get()` results MUST NOT replace authored expression nodes. In the current API, `get()` primarily returns
+linked types and schemas; `toPortable()` retains authored expressions.
+
+Function bodies in a root/context overview MUST be collapsed initially. Expanding a function lazily loads
+`get(path + ".*", "FUNCTION_DEFINITIONS")`. A directly selected function loads and expands its body immediately.
+
+### 8.2 Mutation lifecycle
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Editor as BoxedEditor
+    participant Engine as MutableDecisionService
+    participant App
+    User ->> Editor: commit draft
+    Editor ->> Engine: set / rename / remove
+    alt PortableError
+        Engine -->> Editor: error
+        Editor -->> User: keep draft open and show error
+    else success
+        Engine -->> Editor: stored node / void
+        Editor ->> Engine: toPortable()
+        Editor ->> Engine: get(schema path)
+        Editor -->> User: render refreshed value
+        Editor -->> App: onChange(refreshed snapshot)
+    end
+```
+
+The success branch completes only after the post-mutation linked read succeeds. A linked-read failure after `rename`
+or `remove` enters the rollback procedure in section 8.5.
+
+`onChange` MUST NOT fire for cancelled or rejected mutations.
+
+### 8.3 Authored path resolution
+
+The Portable snapshot uses wrapper fields that do not appear in CRUD paths. The resolver MUST apply these mappings:
+
+| Authored node location                         | Engine path              |
+|------------------------------------------------|--------------------------|
+| Root context field `application`               | `application`            |
+| Nested field `application.amount`              | `application.amount`     |
+| Function body field `creditScore.@body.result` | `creditScore.result`     |
+| Literal list element                           | `<listPath>[index]`      |
+| Loop state field `amortize.@state.balance`     | `amortize.state.balance` |
+| Loop step field `amortize.@do.balance`         | `amortize.do.balance`    |
+| Ruleset row                                    | `risk.rules[index]`      |
+
+Loop and ruleset descendants are mapped for routing and diagnostics only; their editing remains delegated.
+
+### 8.4 Write operation matrix
+
+| User operation                  | Engine call                                         | Success refresh scope      |
+|---------------------------------|-----------------------------------------------------|----------------------------|
+| Edit expression                 | `set(fieldPath, expressionText)`                    | Selected root              |
+| Edit typed input                | `set(fieldPath, PortableTypedValue)`                | Selected root              |
+| Add context field               | `set(newFieldPath, stagedNode)`                     | Parent context             |
+| Rename context field            | Guarded `rename(fieldPath, newName)`                | Parent context             |
+| Duplicate context field         | `set(copyPath, authoredNode)`                       | Parent context             |
+| Delete context field            | Guarded `remove(fieldPath)`                         | Parent context             |
+| Edit function name              | Guarded `rename(functionPath, newName)`             | Selected root              |
+| Edit function signature         | `set(functionPath, completeFunctionDefinition)`     | Function and call sites    |
+| Edit external signature         | `set(functionPath, completeExternalDefinition)`     | Declaration and call sites |
+| Edit invocation method/argument | `set(invocationPath, completeInvocationDefinition)` | Invocation field           |
+| Edit literal list item          | `set(listItemPath, node)`                           | List                       |
+| Append literal list item        | `set(listTailPath, stagedNode)`                     | List                       |
+| Delete literal list item        | Guarded `remove(listItemPath)`                      | List                       |
+| Reorder literal list            | `set(listPath, completeList)`                       | List                       |
+| Change relation columns         | `set(listPath, completeList)`                       | Relation                   |
+| Set/update node annotation      | `set(path, { "@node": kind, "@node-name": label })` | Annotated node             |
+| Remove node annotation          | `remove(annotationPath)`                            | Annotated node             |
+
+Every successful write MUST call `toPortable()` once. The refresh scope column identifies the linked schema subtree
+that MUST be reloaded after that snapshot is obtained. `Selected root` means the node selected by `BoxedEditor.path`.
+
+The second argument of `rename` is a name, not a full path. For example, renaming `application.amount` to
+`principal` MUST call `rename("application.amount", "principal")`.
+
+For list operations, `listItemPath` is `${listPath}[${index}]` and `listTailPath` is
+`${listPath}[${length}]`. For annotation removal, `annotationPath` is `${path}.@${kind}`.
+
+### 8.5 Guarded rename and remove
+
+The engine version named in this specification does not reliably rewrite references when a value field is renamed.
+The component MUST guard every rename:
+
+1. Retain the old path and old name.
+2. Call `rename(oldPath, newName)`.
+3. Force a linked read of the owning context.
+4. If the read succeeds, refresh and emit `onChange`.
+5. If the read returns `PortableError`, call the inverse rename on the new path and show the error.
+6. If the inverse rename fails, render a fatal editor alert and do not emit `onChange`.
+
+For `application.amount → principal`, the inverse call is `rename("application.principal", "amount")`. For a root
+rename `creditScore → score`, the inverse call is `rename("score", "creditScore")`.
+
+See the open value-field rename entry in `BUG_REPORTS.md`. This guard also applies to function names even though the
+current engine rewrites function invocation methods successfully.
+
+`remove` may expose a linking error only on the next linked read. The component MUST guard a removal as follows:
+
+1. Retain the removed authored node and its original path.
+2. Call `remove(path)`.
+3. Force a linked read of the owning context.
+4. If the read succeeds, refresh and emit `onChange`.
+5. If the read returns `PortableError`, restore the retained node with `set(path, node)` and show the error.
+6. If restoration fails, render a fatal editor alert and do not emit `onChange`.
+
+Restoration appends a context field under the current API. The restored field may therefore move to the end of its
+context while retaining its semantics.
+
+## 9. Render model
+
+The internal render model MUST be derived for each refresh and MUST NOT be exported or persisted.
+
+```ts
+interface BoxedRenderNode {
+    id: string;
+    path: string;
+    kind:
+        | 'context'
+        | 'expression'
+        | 'input'
+        | 'list'
+        | 'relation'
+        | 'function'
+        | 'external-function'
+        | 'invocation'
+        | 'editor-link';
+    name?: string;
+    authored: PortableNode;
+    schema?: PortableNode;
+    children?: BoxedRenderNode[];
+}
+```
+
+`id` MUST be stable for a stable model path. Collapse, focus, draft, and pagination state MUST be keyed by `id` and
+kept outside the render model.
+
+### 9.1 Node classification order
+
+Classification MUST use the following first-match order:
+
+| Priority | Condition                                                    | Render kind          |
+|---------:|--------------------------------------------------------------|----------------------|
+|        1 | `@kind === "type-definition"`                                | `editor-link`        |
+|        2 | `@kind === "ruleset"`                                        | `editor-link`        |
+|        3 | `@kind === "loop"`                                           | `editor-link`        |
+|        4 | `@kind === "function"`                                       | `function`           |
+|        5 | `@kind === "external-function"`                              | `external-function`  |
+|        6 | `@kind === "invocation"`                                     | `invocation`         |
+|        7 | `@kind === "type"`                                           | `input`              |
+|        8 | `@kind === "context"` or plain Portable context              | `context`            |
+|        9 | Linked type is array and child index `0` is CRUD-addressable | `list` or `relation` |
+|       10 | Scalar or `@kind === "expression"`                           | `expression`         |
+
+An empty literal list and a computed list are not distinguishable through child paths in the current API. Both render
+as `ExpressionCell` until the engine exposes child enumeration.
+
+### 9.2 Root layout
+
+The root uses one bordered grid. It MUST NOT render independent floating cards for sibling fields.
+
+```text
+┌─ kind/name or function signature ───────── value/body ───── type ─ actions ┐
+│  context field                           expression          number    ⋮     │
+│  nested context                          ┌ nested rows ┐      object    ⋮     │
+│  function signature                      │ body        │      number    ⋮     │
+│  specialized definition                 Open editor       ruleset      →     │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+Columns:
+
+| Column  | Content                                                    |
+|---------|------------------------------------------------------------|
+| Gutter  | depth, expand/collapse control, row index where applicable |
+| Name    | field name, function signature, or specialized entity name |
+| Value   | expression, nested box, input descriptor, or editor link   |
+| Type    | linked type and input/computed direction                   |
+| Actions | context menu; hidden in read-only mode                     |
+
+### 9.3 ContextBox
+
+| Aspect              | Specification                                                   |
+|---------------------|-----------------------------------------------------------------|
+| Children            | All non-metadata authored entries in source order               |
+| Nested values       | Render recursively in the value column                          |
+| Footer              | `Add field` action when writable                                |
+| Name edit           | Plain text control; commit with guarded `rename(path, newName)` |
+| Row actions         | Rename, duplicate, delete, edit metadata                        |
+| Unsupported actions | Reorder, move to another context                                |
+| Empty state         | One `Empty context` row plus `Add field` when writable          |
+
+Adding a field MUST use a staging dialog with `name` and one initial node kind: expression, input, context, or literal
+list. The engine MUST receive one valid `set` call; partially constructed fields MUST NOT be written.
+
+### 9.4 ExpressionCell
+
+| State            | Rendering                                                         |
+|------------------|-------------------------------------------------------------------|
+| Display          | Static `highlightEdgeRules` output; no CodeMirror instance        |
+| Editing          | One `CodeEditorCell` mounted in the active cell                   |
+| Expanded editing | The same draft in multiline `CodeEditorCell` mode                 |
+| Type             | Linked schema label; never persisted with the expression          |
+| Error            | Inline `PortableError.message` and source location when available |
+
+Text conversion:
+
+| Authored value       | Cell text                                 |
+|----------------------|-------------------------------------------|
+| `PortableExpression` | `expression` field                        |
+| Number               | Decimal text                              |
+| Boolean              | `true` or `false`                         |
+| Portable string      | The string as EdgeRules expression source |
+
+### 9.5 InputBox
+
+`InputBox` edits a complete `PortableTypedValue`.
+
+| Field          | Control                  | Write rule                       |
+|----------------|--------------------------|----------------------------------|
+| `type`         | Type selector            | Required                         |
+| `items`        | Item type selector       | Visible only for `type: "array"` |
+| `required`     | Checkbox                 | Omit when false                  |
+| `default`      | Scalar/list editor       | Omit when unset                  |
+| `enum`         | Repeatable scalar editor | Omit when empty                  |
+| `@description` | Text field               | Preserve when present            |
+
+`readOnly` and `writeOnly` are get-only linked projections. They MUST be removed from every `set` payload.
+
+### 9.6 ListBox
+
+| Aspect         | Specification                                                          |
+|----------------|------------------------------------------------------------------------|
+| Eligibility    | Linked type is array and indexed CRUD reads succeed                    |
+| Page size      | 50 items                                                               |
+| Loading        | Sequential indexed `get` calls until page end or first `EntryNotFound` |
+| Item display   | Row index, expression/nested box, type, actions                        |
+| Append         | Available only after the terminal page is known                        |
+| Reorder        | Available only after all items are loaded                              |
+| Virtualization | Required after 100 loaded rows                                         |
+
+Any error other than terminal `EntryNotFound` MUST stop list expansion and display the error. The editor MUST NOT parse
+the `toPortable()` list expression to discover elements.
+
+### 9.7 RelationBox
+
+`RelationBox` is selected when the linked array item schema is a record and indexed elements resolve to contexts.
+
+| Aspect            | Specification                                |
+|-------------------|----------------------------------------------|
+| Columns           | First row authored field order               |
+| Column types      | Linked item schema                           |
+| Rows              | Literal list elements                        |
+| Cell editing      | `CodeEditorCell` at `${listPath}[row].field` |
+| Row operations    | Add, duplicate, delete, reorder              |
+| Column operations | Add, rename, delete                          |
+
+Column operations MUST stage and write the complete list once. The engine enforces homogeneous record shape and type.
+Mixed item types are linking errors; there is no heterogeneous-list fallback.
+
+### 9.8 FunctionBox
+
+| Area     | Content                                                                       |
+|----------|-------------------------------------------------------------------------------|
+| Header   | Function name, ordered parameters, declared return type, inferred return type |
+| Body     | One `ExpressionCell` or nested `ContextBox`                                   |
+| Metadata | `@node`, `@node-name`, and `@description` when present                        |
+| Collapse | Header remains visible; body is hidden                                        |
+
+Function bodies are closed scopes. Cell embedding MUST expose function parameters and callable definitions and MUST
+NOT expose enclosing value fields.
+
+Function bodies MUST be collapsed initially in a root/context overview and expanded initially when the function is
+the selected `path`. Opening a collapsed function MUST load its linked body schema lazily.
+
+Signature editing MUST stage and `set` the complete `PortableFunctionDefinition`. Function-name editing MUST use the
+guarded rename lifecycle. A parameter rename that leaves body references invalid MUST be rejected by the engine and
+shown as an inline signature error; the component MUST NOT perform textual replacement in body expressions.
+
+### 9.9 ExternalFunctionBox
+
+| Area      | Content                               |
+|-----------|---------------------------------------|
+| Header    | `external` badge and declaration name |
+| Signature | Ordered, typed parameters             |
+| Return    | Mandatory declared return type        |
+| Body      | None                                  |
+
+Any signature edit MUST write one complete `PortableExternalFunctionDefinition`.
+
+### 9.10 InvocationBox
+
+| Invocation form      | Rendering                          |
+|----------------------|------------------------------------|
+| Named arguments      | Parameter name and expression rows |
+| Positional arguments | Numbered expression rows           |
+| Collapsed            | Canonical call expression          |
+
+Changing the method or any argument MUST stage and set the complete `PortableInvocationDefinition`. The engine remains
+responsible for rejecting named arguments to built-ins and for normalizing named arguments to declaration order.
+
+### 9.11 EditorLinkBox
+
+| Kind            | Label                        | Callback target                     |
+|-----------------|------------------------------|-------------------------------------|
+| Type definition | `Open Types Editor`          | `{ path, kind: "type-definition" }` |
+| Ruleset         | `Open Decision Table Editor` | `{ path, kind: "ruleset" }`         |
+| Loop            | `Open Loop Editor`           | `{ path, kind: "loop" }`            |
+
+If `onOpenNode` is absent, the box MUST render a non-interactive summary.
+
+### 9.12 Modeler metadata
+
+| Metadata         | Presentation                                              | Mutation                      |
+|------------------|-----------------------------------------------------------|-------------------------------|
+| `@node`          | Kind badge                                                | Annotation-only `set`         |
+| `@node-name`     | Human label beside key                                    | Annotation-only `set`         |
+| `@description`   | Secondary text / edit field where the whole node is owned | Preserve in whole-node writes |
+| `@model-name`    | Root header                                               | Read-only in Boxed Editor     |
+| `@model-version` | Root header                                               | Read-only in Boxed Editor     |
+
+## 10. CodeEditorCell integration
+
+### 10.1 Mounting rule
+
+At most one `.cm-editor` instance may exist inside one `BoxedEditor`. Activating another cell MUST unmount the previous
+instance after committing or cancelling its draft.
+
+When `languageService` is omitted, the component MUST pass an internal no-op diagnostics service to `CodeEditorCell`.
+Editing remains available; diagnostics and completions are empty.
+
+### 10.2 Embed-context construction
+
+`CodeEditorCell` diagnostics and completions require valid surrounding DSL. The component MUST build
+`CodeEditorEmbedContext` as follows:
+
+1. Serialize the current authored Portable snapshot to canonical EdgeRules DSL.
+2. Replace the active expression with a unique marker during serialization.
+3. Split the serialized text around the marker into `prefix` and `suffix`.
+4. Pass `{ prefix, suffix }` to `CodeEditorCell`.
+5. Reuse the serialization while the authored snapshot and active path are unchanged.
+
+The serializer MUST support every canonical Portable kind listed in section 4. It MUST NOT parse user-authored DSL.
+Serializer fixtures MUST pass `MutableDecisionService.diagnostics()` with an empty result before they are used for
+cell embedding. Presentation-only metadata MAY be omitted from the synthesized DSL when it cannot affect scope or
+types.
+
+## 11. Interaction contract
+
+### 11.1 Cell state transitions
+
+| Current state | Event                      | Next state    | Effect                                  |
+|---------------|----------------------------|---------------|-----------------------------------------|
+| Display       | Double-click, Enter, or F2 | Editing       | Mount cell editor and focus end of text |
+| Display       | Arrow key                  | Display       | Focus adjacent display cell             |
+| Editing       | Enter, single-line         | Committing    | Call mutation                           |
+| Editing       | Mod-Enter, multiline       | Committing    | Call mutation                           |
+| Editing       | Blur                       | Committing    | Call mutation                           |
+| Editing       | Escape                     | Display       | Discard draft and restore authored text |
+| Committing    | Success                    | Display       | Refresh model, emit `onChange`          |
+| Committing    | `PortableError`            | Editing error | Retain draft, show error, restore focus |
+
+Autocomplete popup key handling takes precedence over grid navigation.
+
+### 11.2 Grid navigation
+
+| Key                | Behavior                                            |
+|--------------------|-----------------------------------------------------|
+| Arrow Left / Right | Previous / next cell in the row                     |
+| Arrow Up / Down    | Same or nearest column in adjacent row              |
+| Home / End         | First / last cell in the row                        |
+| Enter / F2         | Start editing                                       |
+| Escape             | Cancel editing or close menu/dialog                 |
+| Tab / Shift-Tab    | Browser-order traversal across interactive controls |
+
+## 12. Error handling
+
+| Error source                                   | Presentation                                     | Model state                              |
+|------------------------------------------------|--------------------------------------------------|------------------------------------------|
+| Initial snapshot, path, or schema load failure | Full-width `Alert`                               | No editable model rendered               |
+| Cell `set` failure                             | Inline cell error                                | Transactional engine keeps previous node |
+| Guarded `rename` failure                       | Inline name/signature error after inverse rename | Original name restored                   |
+| Guarded remove failure                         | Inline row error after restoration               | Node restored; order may change          |
+| Restoration failure                            | Fatal full-width `Alert`                         | Editing disabled until external reload   |
+| List page load failure                         | Error row at page boundary                       | Loaded rows remain readable              |
+
+The component MUST display `PortableError.message`. It SHOULD display `type`, `path`, and `location` when present.
+
+## 13. Read-only mode
+
+When `readOnly` is `true`:
+
+- editor activation MUST be disabled;
+- add, rename, duplicate, delete, reorder, metadata, and signature controls MUST be hidden;
+- copy, text selection, and collapse/expand MUST remain available; and
+- `onOpenNode` routing MUST remain available.
+
+## 14. Accessibility requirements
+
+- Every row MUST have an accessible name containing its model path.
+- Nested ownership MUST use `aria-level` or equivalent structural semantics.
+- Expand/collapse buttons MUST expose `aria-expanded`.
+- Action buttons MUST include the affected path in their accessible name.
+- Type and input/computed state MUST be expressed in text, not color alone.
+- Inline errors MUST be connected to their active control with `aria-describedby`.
+- The active error cell MUST receive focus after a rejected commit.
+
+## 15. Performance requirements
+
+| Metric                     | Requirement                                                                    |
+|----------------------------|--------------------------------------------------------------------------------|
+| CodeMirror instances       | Maximum 1 per `BoxedEditor`                                                    |
+| Static highlighting        | Memoized by expression text                                                    |
+| Initial list reads         | Maximum 50 indexed elements                                                    |
+| Loaded list rows above 100 | Virtualized                                                                    |
+| Authored snapshot reads    | One `toPortable()` per refresh cycle                                           |
+| Schema reads               | One base context/schema read; expanded functions and list pages add lazy reads |
+| Collapse state             | UI-only; no engine mutation                                                    |
+
+## 16. Implementation modules
+
+| File                                                        | Responsibility                                                  |
+|-------------------------------------------------------------|-----------------------------------------------------------------|
+| `src/components/boxed-editor/BoxedEditor.tsx`               | Public component, refresh, mutation orchestration, fatal errors |
+| `src/components/boxed-editor/boxed-model.ts`                | Path resolution, node classification, authored/schema join      |
+| `src/components/boxed-editor/boxed-embed.ts`                | Portable-to-DSL serialization and embed contexts                |
+| `src/components/boxed-editor/boxes/ContextBox.tsx`          | Context layout and field operations                             |
+| `src/components/boxed-editor/boxes/ExpressionCell.tsx`      | Static/active expression rendering                              |
+| `src/components/boxed-editor/boxes/InputBox.tsx`            | Typed input controls                                            |
+| `src/components/boxed-editor/boxes/ListBox.tsx`             | Literal list paging and operations                              |
+| `src/components/boxed-editor/boxes/RelationBox.tsx`         | Uniform-record table                                            |
+| `src/components/boxed-editor/boxes/FunctionBox.tsx`         | Function signature and body                                     |
+| `src/components/boxed-editor/boxes/ExternalFunctionBox.tsx` | External declaration                                            |
+| `src/components/boxed-editor/boxes/InvocationBox.tsx`       | Structured invocation                                           |
+| `src/components/boxed-editor/boxes/EditorLinkBox.tsx`       | Specialized editor routing                                      |
+| `src/components/boxed-editor/__tests__/`                    | RTL and real-engine unit/integration tests                      |
+| `stories/components/boxed-editor/BoxedEditor.stories.tsx`   | Storybook scenarios                                             |
+| `e2e/boxed-editor.spec.ts`                                  | Keyboard, tooling, visual, and large-list tests                 |
+
+Public exports:
+
+- `BoxedEditor`;
+- `BoxedEditorProps`;
+- `BoxedEditorService`;
+- `BoxedEditorOpenTarget`; and
+- `BoxedEditorTargetKind`.
+
+Internal boxes and `BoxedRenderNode` MUST NOT be exported.
+
+## 17. Delivery plan
+
+### Phase 1 — Read-only rendering
+
+- [ ] Add the `boxed-editor` package entry point and public exports.
+- [ ] Implement authored path resolution and schema loading.
+- [ ] Implement node classification and `BoxedRenderNode`.
+- [ ] Render root, context, expression, input, function, external-function, and editor-link boxes.
+- [ ] Add static EdgeRules highlighting and inferred type labels.
+- [ ] Add collapse/expand and focused-path behavior.
+- [ ] Add read-only Storybook stories and RTL tests.
+
+### Phase 2 — Expression and context editing
+
+- [ ] Implement Portable-to-DSL serialization for embed contexts.
+- [ ] Mount one active `CodeEditorCell`.
+- [ ] Implement expression and typed-input `set` operations.
+- [ ] Implement context field add, guarded rename, duplicate, and guarded delete.
+- [ ] Implement inline errors and fatal restore errors.
+- [ ] Implement `onChange`, `revision`, and read-only behavior.
+- [ ] Add keyboard and language-tooling Playwright tests.
+
+### Phase 3 — Functions and invocations
+
+- [ ] Implement atomic function signature editing.
+- [ ] Implement external-function signature editing.
+- [ ] Implement invocation expansion and whole-invocation writes.
+- [ ] Implement modeler metadata display and writes.
+- [ ] Add inline-function, context-function, external-function, and invocation stories.
+
+### Phase 4 — Lists and relations
+
+- [ ] Implement indexed literal-list detection and paging.
+- [ ] Implement item add, edit, duplicate, delete, and reorder.
+- [ ] Implement uniform-record relation rendering.
+- [ ] Implement atomic relation row and column operations.
+- [ ] Add row virtualization and large-list tests.
+
+### Phase 5 — Integration
+
+- [ ] Integrate Project Explorer paths.
+- [ ] Integrate Types, Decision Table, and Loop Editor routing.
+- [ ] Add a loan-origination root overview story.
+- [ ] Add error, read-only, nested-function, and large-model visual tests.
+- [ ] Verify package build, types, RTL, Storybook build, and Playwright suites.
+
+## 18. Acceptance criteria
+
+| ID    | Given                                           | When                                                | Then                                                                      |
+|-------|-------------------------------------------------|-----------------------------------------------------|---------------------------------------------------------------------------|
+| AC-01 | A valid model and `path="*"`                    | The component mounts                                | Root entities render in authored order                                    |
+| AC-02 | A context/function/value path                   | The component mounts                                | The matching authored node is focused                                     |
+| AC-03 | A type, ruleset, or loop                        | The route box is activated                          | `onOpenNode` receives the exact path and kind                             |
+| AC-04 | 200 visible expression cells                    | No cell is being edited                             | Zero CodeMirror instances are mounted                                     |
+| AC-05 | Any editable expression cell                    | Editing begins                                      | Exactly one `CodeEditorCell` is mounted                                   |
+| AC-06 | A function-body cell                            | Completion is requested                             | Parameters/callables are visible; enclosing values are not                |
+| AC-07 | A valid draft                                   | The user commits                                    | The narrowest engine write runs, views refresh, and `onChange` fires once |
+| AC-08 | An invalid draft                                | The user commits                                    | Draft remains active, error is shown, and `onChange` does not fire        |
+| AC-09 | A referenced value field                        | Rename validation fails                             | The inverse rename restores the original name and no change is emitted    |
+| AC-10 | A referenced entity                             | Delete causes a link failure                        | Entity is restored and the failure is shown                               |
+| AC-11 | A computed array                                | The model renders                                   | It remains one `ExpressionCell`                                           |
+| AC-12 | A CRUD-addressable scalar list                  | The model renders                                   | It becomes a paged `ListBox`                                              |
+| AC-13 | A uniform literal record list                   | The model renders                                   | It becomes a `RelationBox` with linked column types                       |
+| AC-14 | A typed input                                   | The user edits constraints                          | Write payload omits `readOnly` and `writeOnly`                            |
+| AC-15 | `readOnly=true`                                 | The model renders                                   | Mutation controls and editor activation are absent                        |
+| AC-16 | The same service instance is changed externally | `revision` changes                                  | The component reloads authored and linked views                           |
+| AC-17 | A successful edit                               | The returned snapshot is passed to `fromPortable()` | The reconstructed model links successfully                                |
+| AC-18 | Keyboard-only interaction                       | The user navigates and edits                        | All specified actions are reachable without a pointer                     |
+
+## Appendix A. Design background (non-normative)
+
+### A.1 Legacy editor review
 
 ![Legacy EdgeRules boxed editor](screenshots/boxededitor.png)
 
-The old editor established a useful visual language:
+| Legacy characteristic                 | Decision                                      |
+|---------------------------------------|-----------------------------------------------|
+| One full-width bordered surface       | Adopt                                         |
+| Stable name and value columns         | Adopt                                         |
+| Nested rows showing ownership         | Adopt                                         |
+| Function signatures as headers        | Adopt                                         |
+| Compact type labels                   | Adopt using linked schema                     |
+| Collapse controls                     | Adopt                                         |
+| `Σ` symbols as generic entity markers | Replace with explicit node-kind labels        |
+| Separate `BoxedExpressionData` AST    | Reject                                        |
+| JavaScript-type guessing              | Reject                                        |
+| Heterogeneous-list fallback           | Reject; engine lists are homogeneous          |
+| Context drag/drop                     | Defer until an atomic engine operation exists |
 
-- one full-width bordered surface rather than disconnected cards;
-- stable name and value columns;
-- nested rows that clearly show context ownership;
-- function signatures as section headers;
-- compact inferred type labels; and
-- collapse controls for large definitions.
+### A.2 Boxed-expression tooling reference
 
-The next generation keeps those ideas, but removes several legacy assumptions:
+DMN boxed-expression tooling demonstrates the following presentation patterns:
 
-- `Σ` and handwritten box types are replaced by explicit EdgeRules node-kind badges;
-- the editor does not build a separate `BoxedExpressionData` AST;
-- values are not guessed to be literals from JavaScript types — Portable strings are EdgeRules source;
-- lists are homogeneous because the EdgeRules linker enforces one item type;
-- types, rulesets, and loops route to their specialized editors; and
-- drag handles are not shown where the current CRUD API has no atomic move operation.
+- context entries rendered as name/value rows;
+- nested expressions inside context values;
+- functions rendered as signatures plus bodies;
+- invocations rendered as parameter bindings;
+- scalar lists rendered as rows; and
+- uniform records rendered as relations.
 
-## Practices adopted from boxed-expression tooling
+These patterns inform presentation only. EdgeRules DSL, Portable nodes, scoping, typing, and execution semantics remain
+authoritative. Reference:
+[Apache KIE DMN boxed expressions](https://kie.apache.org/docs/10.1.x/drools/drools/DMN/index.html#dmn-decision-logic-con_dmn-models).
 
-DMN tooling consistently uses a small recursive vocabulary: literal expressions, contexts, functions, invocations,
-lists, relations, and decision tables. Context values may themselves contain another boxed expression, while relation
-expressions present uniform records as columns and rows. The EdgeRules editor adopts that visual composition without
-copying DMN execution semantics. See the
-[Apache KIE boxed-expression reference](https://kie.apache.org/docs/10.1.x/drools/drools/DMN/index.html#dmn-decision-logic-con_dmn-models).
+### A.3 Reference model
 
-The following interaction practices also carry over:
-
-- structure is visible before editing starts;
-- nested boxes may be collapsed without changing the model;
-- row actions live in a consistent trailing menu;
-- a focused cell can be edited entirely from the keyboard; and
-- specialized expressions open in their purpose-built editor instead of being flattened into generic cells.
-
-## EdgeRules ownership and routing
-
-| EdgeRules / Portable node                               | Boxed rendering                                 | Owner                 |
-|---------------------------------------------------------|-------------------------------------------------|-----------------------|
-| Context / record                                        | `ContextBox` with recursively nested entries    | Boxed Editor          |
-| Scalar or `PortableExpression`                          | highlighted `ExpressionCell`                    | Boxed Editor          |
-| `PortableTypedValue`                                    | `InputBox` with type and constraint controls    | Boxed Editor          |
-| Literal list                                            | `ListBox`, or `RelationBox` for uniform records | Boxed Editor          |
-| Computed list (`for`, filter, function call, and so on) | one `ExpressionCell`                            | Boxed Editor          |
-| `PortableFunctionDefinition`                            | `FunctionBox`                                   | Boxed Editor          |
-| `PortableExternalFunctionDefinition`                    | signature-only `ExternalFunctionBox`            | Boxed Editor          |
-| `PortableInvocationDefinition`                          | `InvocationBox` with argument bindings          | Boxed Editor          |
-| `PortableRulesetDefinition`                             | compact link/summary                            | Decision Table Editor |
-| `PortableLoopDefinition`                                | compact link/summary                            | Loop Editor           |
-| `PortableTypeDefinition`                                | compact link/summary                            | Types Editor          |
-
-`path="*"` renders a root overview. A context path renders that context, and a function/external-function/value path
-focuses the corresponding box. A nested specialized definition remains visible as a summary row and calls
-`onOpenNode` when activated.
-
-## Example model
+The implementation stories SHOULD use this valid model for the root overview:
 
 ```edgerules
 {
@@ -132,307 +897,3 @@ focuses the corresponding box. A nested specialized definition remains visible a
         if count(decisions[eligible = false]) > 0 then "DECLINE" else "APPROVE"
 }
 ```
-
-The root overview is conceptually:
-
-```text
-┌─ [types] Applicant ───────────────────────────── Open Types Editor ─┐
-├─ [context] application ─────────────────────────────────────────────┤
-│  applicationDate   [input] <date, required>                         │
-│  applicants        [input] <Applicant[], required>                  │
-│  propertyValue     [input] <number, required>                       │
-│  loanAmount        [input] <number, required>                       │
-├─ [func] creditScore(age: number, income: number) -> number ─────────┤
-│  300 + age * 2 + income / 1000                                     │
-├─ [func] applicantDecision(applicant: Applicant) ────────────────────┤
-│  netIncome          applicant.income - applicant.expense   number   │
-│  score              creditScore(...)                      number   │
-│  eligible           score >= 700 and netIncome > 2000     boolean  │
-│  return             { score: score, eligible: eligible }  object   │
-├─────────────────────────────────────────────────────────────────────┤
-│  decisions          for applicant in ...                  object[] │
-│  finalDecision      if count(...) ...                     string   │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-The type labels are linked schema, not authored annotations. The `Applicant` definition is shown only as a route to
-the Types Editor.
-
-## Box mappings
-
-### ContextBox
-
-A context is an ordered visual list of named entries. Each row has:
-
-1. a depth/expand gutter;
-2. an editable field name;
-3. a value box;
-4. a linked type label and input/computed badge; and
-5. a trailing actions menu.
-
-Nested contexts recurse in the value column. The UI displays author/source order, although EdgeRules evaluation is
-order-independent. Context rows may be added, renamed, removed, duplicated, and collapsed.
-
-Context reordering and cross-context drag/drop are not in v1. The current API appends new context entities and
-`rename` cannot change a node's parent; exposing a visual move that is not one atomic engine operation would make Code
-and Boxed views disagree. A future engine move API can add this without changing the rendering model.
-
-### ExpressionCell
-
-Numbers, booleans, string literals, temporal constructors, ranges, records, conditionals, comprehensions written with
-`for ... return`, function calls, and all other expressions use the same leaf cell. There is no separate public
-`LiteralBox` type because the distinction is an editing presentation, not an EdgeRules semantic node.
-
-- Display mode uses `highlightEdgeRules` and mounts no CodeMirror instance.
-- Double-click, Enter, or F2 replaces the display with the only active `CodeEditorCell`.
-- Enter or blur commits; Escape cancels; Tab returns navigation to the host grid.
-- An expand button opens the same active cell in multiline mode; Mod-Enter commits there.
-- The inferred type is read from the engine schema and is never written back as an expression annotation.
-
-### InputBox
-
-A `PortableTypedValue` is an input slot, not an expression. Its compact row shows `<type>`, `input`, and constraint
-badges. An inline popover edits the canonical fields:
-
-- `type` and array `items`;
-- `required`;
-- `default`;
-- `enum`; and
-- `@description`.
-
-Changing these controls sets a complete `PortableTypedValue`. `readOnly` and `writeOnly` are engine projections and
-must never be copied from `get()` into a write payload.
-
-### ListBox and RelationBox
-
-Only a literal, CRUD-addressable list becomes a structural list box. An array computed by `for`, filtering, or a call
-remains one `ExpressionCell`, even if its inferred result is an array.
-
-Literal array elements are discovered through official paths (`items[0]`, `items[1]`, ...), loaded one page at a time.
-This avoids writing a second EdgeRules parser merely to split the canonical expression string returned by
-`toPortable()`. An empty or non-addressable array falls back to one expression cell until the engine exposes child
-enumeration.
-
-- Scalar items render as numbered expression rows.
-- Uniform context items render as a relation grid: record fields are columns, items are rows.
-- Nested list/context values recurse.
-- The engine's linked `items` schema supplies the item/column types.
-- Lists are homogeneous. A mixed-type or inconsistent-record list is a linker error, not a generic UI fallback.
-- Add is staged locally and appended with `set("path[index]", value)` only after it is valid.
-- Remove uses `remove("path[index]")`; later indices shift according to the engine contract.
-- Reordering a literal list writes the whole list once, making the semantic order change atomic.
-- Relation column add/remove/rename writes the complete literal list once so every row keeps the same record shape.
-- Pages are lazy and display cells are virtualizable. There is no initial scan of an unbounded number of indices.
-
-Operations requiring the complete array, including append, reorder, and relation-column changes, become available
-after the final page is known. Editing or removing already loaded elements remains available immediately.
-
-### FunctionBox
-
-A function header shows its name, ordered parameters, optional declared return type, inferred return type, description,
-and collapse control. Its body is either one expression cell or a nested context box.
-
-Functions are closed EdgeRules scopes. The embedded language context must include parameters and callable definitions,
-but must not make enclosing value fields visible inside the function.
-
-Signature edits write the complete `PortableFunctionDefinition` once because parameters are not independent CRUD
-entities. Adding/removing/changing a parameter or declared return type is therefore atomic. Renaming the function
-itself uses `service.rename`, which lets the engine rewrite call sites. Parameter renames that leave body references
-invalid are rejected; automatic expression refactoring is deferred until the engine exposes a symbol-aware rename.
-
-### ExternalFunctionBox
-
-An external function is a signature-only function box with an `external` badge, typed parameters, and mandatory return
-type. It has no body and does not expose execution/resolution controls. Signature edits set one complete
-`PortableExternalFunctionDefinition`.
-
-### InvocationBox
-
-A direct `PortableInvocationDefinition` may expand from the compact call expression into:
-
-- a callable selector;
-- named argument rows for user functions/rulesets/loops; or
-- numbered positional argument rows (also used for built-ins).
-
-Every argument value is an `ExpressionCell`. The callable's schema supplies parameter names and types. Editing a
-method or argument sets the complete invocation once; this keeps named/positional form and declaration-order
-normalization under engine control. A call nested inside a larger expression remains part of that expression cell.
-
-### Modeler metadata
-
-`@node` and `@node-name` render as a node-kind badge and human label without changing the expression's key. The editor
-updates them with the engine's annotation-only `set` form, so the value is not replaced or re-linked. `@description`
-is displayed when a Portable node carries it; controls that own a complete node (typed inputs, functions, and
-external functions) preserve it on every write. Root `@model-name` / `@model-version` are context, not editable cells
-in this component.
-
-## Data and language-service architecture
-
-The authored and linked views solve different problems and must not be confused:
-
-| Source                                            | Purpose                                  | Important behavior                                    |
-|---------------------------------------------------|------------------------------------------|-------------------------------------------------------|
-| `service.toPortable()`                            | authored structure and expression source | preserves canonical nodes and source order            |
-| `service.get(path, "FIELDS")`                     | linked schema sidecar                    | returns types/direction, not all authored expressions |
-| `service.get(path, definition filter)` / `path.*` | specialized linked definitions           | useful for schemas, but not the Boxed source of truth |
-| `set` / `remove` / `rename`                       | all mutations                            | engine parses, links, normalizes, and returns errors  |
-
-The editor takes one authored snapshot, obtains the smallest linked schema tree needed for the selected path, and joins
-them into internal render rows. Those rows contain references to Portable nodes and engine CRUD paths; they are a view
-model, not a serializable boxed format.
-
-Portable property paths and CRUD paths are not always identical. The adapter owns these tested translations:
-
-- function `@body.result` renders with engine path `functionName.result`;
-- loop `@state` / `@do` slots use `loopName.state.*` / `loopName.do.*`; and
-- ruleset `@rules` slots use `rulesetName.rules[index].*`.
-
-### Embedded CodeEditorCell context
-
-`CodeEditorCell` validates `prefix + value + suffix`. The Boxed Editor builds those fragments from a canonical
-Portable-to-DSL view serializer:
-
-1. serialize the current `toPortable()` snapshot to valid EdgeRules DSL;
-2. replace the active expression with a unique marker;
-3. split the result around the marker into `CodeEditorEmbedContext.prefix` and `.suffix`; and
-4. memoize the unchanged serialization while the cell is active.
-
-The serializer is an editor adapter, not a new grammar implementation. It supports only canonical Portable kinds and
-every emitted fixture is checked by `MutableDecisionService.diagnostics`. This gives a cell the true surrounding
-scope, including types, callable signatures, nested contexts, and function membranes.
-
-## Write lifecycle and error handling
-
-1. Keep the last good `toPortable()` snapshot.
-2. Let the user edit a local cell draft.
-3. Convert only that UI control to the canonical `PortableNode` payload.
-4. Call the narrowest engine mutation.
-5. On success, refresh authored and linked views, close the editor, and call `onChange`.
-6. On `PortableError`, keep the previous rendered snapshot and show `message`, `type`, and `location` next to the cell.
-
-Current `set` and `rename` operations are transactional. `remove` is defensively verified by forcing a linked read; if
-removal leaves dangling references, the editor restores the removed node, refreshes, and surfaces the linking error.
-Because a restored context field is appended by the current API, its visual order may change; its semantics and
-references are restored. Multi-field changes such as a function signature, invocation, relation row, or list reorder
-use one whole-node `set` rather than a sequence of temporarily invalid mutations.
-
-Load failures render an `Alert` for the selected path. A cell error does not blank the rest of the editor. The first
-invalid cell receives focus, and an error summary links back to every visible failure.
-
-## Interaction, accessibility, and performance
-
-- Exactly one `CodeEditorCell` is mounted per Boxed Editor, only while a cell is active.
-- Arrow keys move between display cells; Enter/F2 edits; Escape cancels; Home/End move to row edges.
-- Row menus and expand buttons are ordinary focusable controls with path-specific accessible names.
-- Indentation is supplemented by borders, labels, and `aria-level`; ownership is not communicated by color alone.
-- Inferred-type and input/computed states use text labels as well as color.
-- Collapse state, active path, and loaded collection pages are UI state and never written into Portable metadata.
-- Static highlighting is memoized by expression text. Long lists/relations virtualize display rows.
-- A context initially expands to a practical depth; focused paths and their ancestors always open automatically.
-- Read-only mode removes mutation actions but retains selection, copy, collapse, diagnostics, and go-to-definition.
-
-## Public component contract
-
-> ARCHITECT NOTES: after reading all of this I have no idea how you're going to use EdgeRules API.
-> Also, you missed the point specifying teh actual <BoxedEditor ... > component usage in the story. You must do this as
-> well as mention app API.
-
-Keep the npm surface structural and small:
-
-> ARCHITECT NOTES: `Keep the npm surface structural and small:` - you do not need to tell these adjectives! This is
-> story that must be specific, exact and specification content answers all questions!
-
-```ts
-export interface BoxedEditorService {
-    toPortable(): PortableRootContext;
-
-    get(path: string, filter?: GetFilter): PortableNode | PortableError;
-
-    set(path: string, node: PortableNode): PortableNode | PortableError;
-
-    remove(path: string): void | PortableError;
-
-    rename(path: string, newName: string): void | PortableError;
-}
-
-export interface BoxedEditorProps {
-    service: BoxedEditorService;
-    path: string;
-    languageService?: CodeEditorService;
-    readOnly?: boolean;
-    onChange?: (snapshot: PortableRootContext) => void;
-    onOpenNode?: (
-        path: string,
-        kind: 'type-definition' | 'ruleset' | 'loop',
-    ) => void;
-    className?: string;
-    sx?: SxProps<Theme>;
-}
-```
-
-Consumers pass the dev `MutableDecisionService` instance as `service` and its class as `languageService`, exactly as
-with `DecisionTableEditor` and `CodeEditorCell`.
-
-## Implementation structure
-
-- `src/components/boxed-editor/BoxedEditor.tsx` — orchestration, loading, writes, focus, and public props.
-- `src/components/boxed-editor/boxed-model.ts` — pure Portable/schema-to-row mapping and CRUD path translation.
-- `src/components/boxed-editor/boxed-embed.ts` — canonical Portable-to-DSL cell embedding.
-- `src/components/boxed-editor/boxes/` — internal context, expression, input, list/relation, function, external, and
-  invocation renderers.
-- `src/components/boxed-editor/__tests__/` — RTL tests and real-engine mapping/write tests.
-- `stories/components/boxed-editor/BoxedEditor.stories.tsx` — interactive Storybook coverage.
-- `e2e/boxed-editor.spec.ts` — keyboard, language tooling, mutation, error, and visual coverage.
-
-Only `BoxedEditor`, `BoxedEditorProps`, and the structural service type are public. Internal box components and the row
-view model are implementation details.
-
-## Delivery phases
-
-> ARCHITECT NOTES: Tasks must have Markdown checkboxes [ ] or [x]
-
-### Phase 1 — faithful read-only model
-
-- Render contexts, expression cells, typed inputs, inline/context functions, and specialized-editor links.
-- Join `toPortable()` authored nodes with `get()` linked schema.
-- Add static syntax highlighting, inferred type labels, collapse state, and focused-path routing.
-- Prove Portable-to-DSL embedding fixtures against engine diagnostics.
-
-### Phase 2 — cell editing
-
-- Mount one active `CodeEditorCell` with real surrounding scope.
-- Implement `set`, `rename`, guarded `remove`, refresh, `onChange`, and inline `PortableError` handling.
-- Add input controls, field creation, duplication, and deletion.
-- Complete keyboard and read-only behavior.
-
-### Phase 3 — structural expressions
-
-- Add lazy literal `ListBox` and uniform-record `RelationBox` editing.
-- Add invocation expansion and atomic invocation edits.
-- Add atomic function/external-function signature editing.
-- Add multiline expansion, row virtualization, and copy/paste of canonical DSL text.
-
-### Phase 4 — integration and polish
-
-- Integrate Project Explorer routing and specialized-editor callbacks.
-- Add the loan-origination overview, nested-function, typed-input, literal-list/relation, invocation, error, and
-  read-only Storybook stories.
-- Add RTL, Playwright keyboard/visual tests, and large-model performance coverage.
-
-## Acceptance criteria
-
-- A valid current EdgeRules model renders without a handwritten boxed AST or DSL parser.
-- Root, nested-context, field, function, and external-function paths focus the correct box.
-- Types, rulesets, and loops route to their dedicated editors and are never silently flattened.
-- Display cells mount no CodeMirror; editing mounts exactly one `CodeEditorCell`.
-- Cell diagnostics/completions see the correct surrounding scope, including closed function boundaries.
-- Successful edits round-trip through `toPortable()` and remain valid when reconstructed with
-  `MutableDecisionService.fromPortable()`.
-- Invalid `set`/`rename` edits return a visible structured error and leave the last good model/rendering intact;
-  rejected removals restore model semantics and report the possible source-order change.
-- Literal lists and record relations edit through indexed CRUD paths; computed arrays stay expression cells.
-- Engine-inferred types and input constraints are visible, but get-only `readOnly`/`writeOnly` fields are never
-  persisted in write payloads.
-- All operations work by keyboard, have accessible names, and preserve functionality in read-only mode.
-- RTL tests are component-local, a Storybook story covers every major box, and Playwright covers keyboard editing,
-  completions, errors, nested layout, and large-list behavior.
