@@ -1,18 +1,34 @@
-import { useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
+import InputBase from '@mui/material/InputBase';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import AddIcon from '@mui/icons-material/Add';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteIcon from '@mui/icons-material/Delete';
+import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { type SxProps, type Theme } from '@mui/material/styles';
-import type { PortableError, PortableNode, PortableRootContext } from '@edgerules/portable';
+import type { PortableError, PortableNode, PortableRootContext, PortableTypedValue } from '@edgerules/portable';
 import type { GetFilter } from '@edgerules/web';
+import { CodeEditorCell } from '../code-editor-cell';
 import { highlightEdgeRules } from '../code-editor/language/highlight';
 import type { CodeEditorService } from '../code-editor/language/service';
 import { isPortableError } from '../../lib/portable';
+import { expressionEmbedContext } from './boxed-embed';
 import { isObject, renderNode, resolveAuthoredPath, type BoxedRenderNode } from './boxed-model';
 
 export interface BoxedEditorService {
@@ -35,6 +51,11 @@ export interface BoxedEditorProps {
   className?: string;
   sx?: SxProps<Theme>;
 }
+
+const NOOP_LANGUAGE_SERVICE: CodeEditorService = { diagnostics: () => [] };
+
+interface AddFieldDraft { parentPath: string; name: string; kind: 'expression' | 'input' | 'context' | 'list' }
+interface InputDraft { path: string; value: PortableTypedValue }
 
 function typeLabel(schema: PortableNode | undefined): string | undefined {
   if (!isObject(schema)) return undefined;
@@ -73,63 +94,191 @@ function functionSignature(node: Record<string, unknown>, name: string | undefin
   return `func ${name ?? ''}(${parameters})${returnType ? ` → ${returnType}` : ''}`;
 }
 
-function NodeRow({ node, depth, expanded, toggle, onOpenNode }: { node: BoxedRenderNode; depth: number; expanded: Set<string>; toggle: (id: string) => void; onOpenNode?: (target: BoxedEditorOpenTarget) => void }): ReactElement {
+function parentPath(path: string): string {
+  const lastDot = path.lastIndexOf('.');
+  return lastDot === -1 ? '*' : path.slice(0, lastDot);
+}
+
+function childPath(parent: string, name: string): string { return parent === '*' ? name : `${parent}.${name}`; }
+
+function typedInput(node: PortableNode): PortableTypedValue {
+  const value = isObject(node) ? node : {};
+  const { readOnly: _readOnly, writeOnly: _writeOnly, type, required, default: defaultValue, enum: enumValue, items, ...metadata } = value;
+  return {
+    ...metadata,
+    '@kind': 'type',
+    type: typeof type === 'string' ? type : 'string',
+    ...(required === true ? { required: true } : {}),
+    ...(defaultValue !== undefined ? { default: defaultValue as PortableTypedValue['default'] } : {}),
+    ...(Array.isArray(enumValue) && enumValue.length ? { enum: enumValue as PortableTypedValue['enum'] } : {}),
+    ...(items !== undefined ? { items: items as PortableTypedValue['items'] } : {}),
+  };
+}
+
+interface NodeRowProps {
+  node: BoxedRenderNode;
+  depth: number;
+  expanded: Set<string>;
+  editingExpression: string | null;
+  editingName: string | null;
+  nameDraft: string;
+  readOnly: boolean;
+  snapshot: PortableRootContext;
+  languageService: CodeEditorService;
+  errors: Record<string, string>;
+  toggle: (id: string) => void;
+  startExpression: (path: string) => void;
+  commitExpression: (path: string, text: string) => void;
+  cancelExpression: () => void;
+  startName: (node: BoxedRenderNode) => void;
+  setNameDraft: (value: string) => void;
+  commitName: (node: BoxedRenderNode) => void;
+  duplicate: (node: BoxedRenderNode) => void;
+  remove: (node: BoxedRenderNode) => void;
+  openInput: (node: BoxedRenderNode) => void;
+  openAdd: (path: string) => void;
+  onOpenNode?: (target: BoxedEditorOpenTarget) => void;
+}
+
+function NodeRow(props: NodeRowProps): ReactElement {
+  const { node, depth, expanded, editingExpression, editingName, nameDraft, readOnly, snapshot, languageService, errors, toggle, startExpression, commitExpression, cancelExpression, startName, setNameDraft, commitName, duplicate, remove, openInput, openAdd, onOpenNode } = props;
   const hasChildren = Boolean(node.children?.length);
   const isExpanded = expanded.has(node.id);
   const label = node.kind === 'function' && isObject(node.authored) ? functionSignature(node.authored, node.name) : node.name ?? (node.path === '*' ? 'Model' : node.path);
   const schemaType = typeLabel(node.schema);
   const targetKind = isObject(node.authored) ? node.authored['@kind'] : undefined;
+  const editableExpression = node.kind === 'expression';
+  const isEditingExpression = editingExpression === node.path;
+  const canFieldActions = node.path !== '*' && node.kind !== 'editor-link' && node.kind !== 'function' && node.kind !== 'external-function';
   let value: ReactNode;
   if (node.kind === 'context') value = node.children?.length ? null : <Typography color="text.secondary">Empty context</Typography>;
-  else if (node.kind === 'input' && isObject(node.authored)) value = <Typography component="code">&lt;{String(node.authored.type)}{node.authored.required ? ', required' : ''}&gt;</Typography>;
+  else if (node.kind === 'input' && isObject(node.authored)) value = <Button size="small" color="inherit" disabled={readOnly} onClick={() => openInput(node)}><Typography component="code">&lt;{String(node.authored.type)}{node.authored.required ? ', required' : ''}&gt;</Typography></Button>;
   else if (node.kind === 'external-function' && isObject(node.authored)) value = <Typography component="code">{functionSignature(node.authored, node.name).replace(/^func /, 'external func ')}</Typography>;
   else if (node.kind === 'function') value = null;
-  else if (node.kind === 'invocation' && isObject(node.authored)) value = <HighlightedExpression node={invocationText(node.authored)} />;
   else if (node.kind === 'editor-link') {
     const kind = targetKind as BoxedEditorTargetKind;
     const text = kind === 'type-definition' ? 'Open Types Editor' : kind === 'ruleset' ? 'Open Decision Table Editor' : 'Open Loop Editor';
     value = onOpenNode ? <Button size="small" onClick={() => onOpenNode({ path: node.path, kind })}>{text}</Button> : <Typography color="text.secondary">{text}</Typography>;
-  } else value = <HighlightedExpression node={node.authored} />;
+  } else if (isEditingExpression) {
+    value = <CodeEditorCell value={expressionText(node.kind === 'invocation' && isObject(node.authored) ? invocationText(node.authored) : node.authored)} service={languageService} embedContext={expressionEmbedContext(snapshot, node.path)} autoFocus onCommit={(text) => commitExpression(node.path, text)} onCancel={cancelExpression} />;
+  } else {
+    value = <Box sx={{ minHeight: 24 }}><HighlightedExpression node={node.kind === 'invocation' && isObject(node.authored) ? invocationText(node.authored) : node.authored} /></Box>;
+  }
   return <>
-    <Box role="row" aria-label={node.path} aria-level={depth + 1} sx={{ display: 'grid', gridTemplateColumns: '34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr)', alignItems: 'start', borderTop: '1px solid', borderColor: 'divider', minHeight: 42 }}>
+    <Box role="row" aria-label={node.path} aria-level={depth + 1} sx={{ display: 'grid', gridTemplateColumns: readOnly ? '34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr)' : '34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr) 118px', alignItems: 'start', borderTop: '1px solid', borderColor: 'divider', minHeight: 42 }}>
       <Box role="cell" sx={{ pl: depth * 2 }}>
         {hasChildren && <IconButton size="small" aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${node.path}`} aria-expanded={isExpanded} onClick={() => toggle(node.id)}>{isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}</IconButton>}
       </Box>
-      <Box role="cell" sx={{ py: 1, pr: 1, fontWeight: node.path === '*' ? 700 : 500 }}>{label}</Box>
-      <Box role="cell" sx={{ py: 1, pr: 1 }}>{value}</Box>
+      <Box role="cell" sx={{ py: 1, pr: 1, fontWeight: node.path === '*' ? 700 : 500 }}>
+        {editingName === node.path ? <InputBase autoFocus value={nameDraft} inputProps={{ 'aria-label': `Name ${node.path}` }} onChange={event => setNameDraft(event.target.value)} onBlur={() => commitName(node)} onKeyDown={event => { if (event.key === 'Enter') commitName(node); if (event.key === 'Escape') setNameDraft(node.name ?? ''); }} /> : label}
+      </Box>
+      <Box role="cell" tabIndex={!readOnly && editableExpression && !isEditingExpression ? 0 : undefined} onClick={!readOnly && editableExpression && !isEditingExpression ? () => startExpression(node.path) : undefined} onKeyDown={!readOnly && editableExpression && !isEditingExpression ? event => { if (event.key === 'Enter' || event.key === 'F2') { event.preventDefault(); startExpression(node.path); } } : undefined} sx={{ py: 1, pr: 1, cursor: !readOnly && editableExpression ? 'cell' : 'default', outline: 'none' }}>{value}{errors[node.path] && <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>{errors[node.path]}</Alert>}</Box>
       <Box role="cell" sx={{ py: 1 }}>{schemaType && <Chip size="small" label={schemaType} />}</Box>
+      {!readOnly && <Box role="cell" sx={{ py: 0.5, display: 'flex', gap: 0.25 }}>
+        {node.kind === 'context' && <IconButton size="small" aria-label={`Add field to ${node.path}`} onClick={() => openAdd(node.path)}><AddIcon fontSize="small" /></IconButton>}
+        {canFieldActions && <><IconButton size="small" aria-label={`Rename ${node.path}`} onClick={() => startName(node)}><DriveFileRenameOutlineIcon fontSize="small" /></IconButton><IconButton size="small" aria-label={`Duplicate ${node.path}`} onClick={() => duplicate(node)}><ContentCopyIcon fontSize="small" /></IconButton><IconButton size="small" aria-label={`Delete ${node.path}`} onClick={() => remove(node)}><DeleteIcon fontSize="small" /></IconButton></>}
+      </Box>}
     </Box>
-    {hasChildren && isExpanded && node.children?.map(child => <NodeRow key={child.id} node={child} depth={depth + 1} expanded={expanded} toggle={toggle} onOpenNode={onOpenNode} />)}
+    {hasChildren && isExpanded && node.children?.map(child => <NodeRow key={child.id} {...props} node={child} depth={depth + 1} />)}
   </>;
 }
 
-export function BoxedEditor({ service, path, revision, onOpenNode, className, sx }: BoxedEditorProps): ReactElement {
+export function BoxedEditor({ service, path, languageService, revision, readOnly = false, onChange, onOpenNode, className, sx }: BoxedEditorProps): ReactElement {
   const [model, setModel] = useState<BoxedRenderNode | null>(null);
-  const [error, setError] = useState<PortableError | Error | null>(null);
+  const [snapshot, setSnapshot] = useState<PortableRootContext | null>(null);
+  const [fatalError, setFatalError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    try {
-      const authored = service.toPortable();
-      const selected = resolveAuthoredPath(authored, path);
-      if (!selected) throw new Error(`Path not found: ${path}`);
-      const schema = service.get(path, path === '*' ? 'FIELDS' : 'FIELDS');
-      if (isPortableError(schema)) { setError(schema); setModel(null); return; }
-      // Function definitions are intentionally not part of the FIELDS projection. A directly
-      // focused function opens its body, so validate that linked definition projection here.
-      if (isObject(selected) && String(selected['@kind']) === 'function') {
-        const definition = service.get(`${path}.*`, 'FUNCTION_DEFINITIONS');
-        if (isPortableError(definition)) { setError(definition); setModel(null); return; }
-      }
-      const selectedName = path === '*' ? undefined : path.split('.').at(-1)?.replace(/\[\d+\]$/, '');
-      const next = renderNode(selected, path, schema, selectedName);
-      setModel(next); setError(null);
-      setExpanded(new Set([next.id, ...(path !== '*' ? next.children?.map(child => child.id) ?? [] : [])]));
-    } catch (cause) { setError(cause instanceof Error ? cause : new Error(String(cause))); setModel(null); }
-  }, [service, path, revision]);
-  const toggle = (id: string): void => setExpanded(previous => { const next = new Set(previous); next.has(id) ? next.delete(id) : next.add(id); return next; });
-  if (error) return <Alert severity="error">{isPortableError(error) ? error.message : error.message}</Alert>;
-  if (!model) return <Box className={className} sx={sx} aria-busy="true" />;
-  return <Box className={className} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden', ...sx }} role="treegrid" aria-label={`Boxed editor ${path}`}>
-    <NodeRow node={model} depth={0} expanded={expanded} toggle={toggle} onOpenNode={onOpenNode} />
-  </Box>;
+  const [editingExpression, setEditingExpression] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
+  const [addDraft, setAddDraft] = useState<AddFieldDraft | null>(null);
+  const [inputDraft, setInputDraft] = useState<InputDraft | null>(null);
+
+  const load = useCallback((nextSnapshot: PortableRootContext, resetExpansion: boolean): boolean => {
+    const selected = resolveAuthoredPath(nextSnapshot, path);
+    if (!selected) { setFatalError(`Path not found: ${path}`); setModel(null); return false; }
+    const schema = service.get(path, 'FIELDS');
+    if (isPortableError(schema)) { setFatalError(schema.message); setModel(null); return false; }
+    if (isObject(selected) && String(selected['@kind']) === 'function') {
+      const definition = service.get(`${path}.*`, 'FUNCTION_DEFINITIONS');
+      if (isPortableError(definition)) { setFatalError(definition.message); setModel(null); return false; }
+    }
+    const selectedName = path === '*' ? undefined : path.split('.').at(-1)?.replace(/\[\d+\]$/, '');
+    const next = renderNode(selected, path, schema, selectedName);
+    setSnapshot(nextSnapshot); setModel(next); setFatalError(null);
+    if (resetExpansion) setExpanded(new Set([next.id, ...(path !== '*' ? next.children?.map(child => child.id) ?? [] : [])]));
+    return true;
+  }, [path, service]);
+
+  useEffect(() => { try { load(service.toPortable(), true); } catch (cause) { setFatalError(cause instanceof Error ? cause.message : String(cause)); } }, [service, path, revision, load]);
+
+  const refreshCommitted = useCallback((): boolean => {
+    const nextSnapshot = service.toPortable();
+    if (!load(nextSnapshot, false)) return false;
+    onChange?.(nextSnapshot);
+    setErrors({}); setEditingExpression(null); setEditingName(null);
+    return true;
+  }, [load, onChange, service]);
+  const showError = useCallback((targetPath: string, error: PortableError | string): void => setErrors(previous => ({ ...previous, [targetPath]: typeof error === 'string' ? error : error.message })), []);
+  const toggle = useCallback((id: string): void => setExpanded(previous => { const next = new Set(previous); next.has(id) ? next.delete(id) : next.add(id); return next; }), []);
+  const commitExpression = useCallback((targetPath: string, text: string): void => {
+    const result = service.set(targetPath, text);
+    if (isPortableError(result)) { showError(targetPath, result); return; }
+    refreshCommitted();
+  }, [refreshCommitted, service, showError]);
+  const guardedRename = useCallback((node: BoxedRenderNode, newName: string): void => {
+    const oldName = node.name ?? '';
+    if (!newName || newName === oldName) { setEditingName(null); return; }
+    const renamed = service.rename(node.path, newName);
+    if (isPortableError(renamed)) { showError(node.path, renamed); return; }
+    const ownerPath = parentPath(node.path);
+    const validation = service.get(ownerPath, 'FIELDS');
+    if (!isPortableError(validation)) { refreshCommitted(); return; }
+    const rollback = service.rename(childPath(ownerPath, newName), oldName);
+    if (isPortableError(rollback)) { setFatalError(`Could not restore ${node.path}: ${rollback.message}`); return; }
+    showError(node.path, validation);
+  }, [refreshCommitted, service, showError]);
+  const guardedRemove = useCallback((node: BoxedRenderNode): void => {
+    const removed = service.remove(node.path);
+    if (isPortableError(removed)) { showError(node.path, removed); return; }
+    const validation = service.get(parentPath(node.path), 'FIELDS');
+    if (!isPortableError(validation)) { refreshCommitted(); return; }
+    const restored = service.set(node.path, node.authored);
+    if (isPortableError(restored)) { setFatalError(`Could not restore ${node.path}: ${restored.message}`); return; }
+    showError(node.path, validation);
+  }, [refreshCommitted, service, showError]);
+  const duplicate = useCallback((node: BoxedRenderNode): void => {
+    const parent = parentPath(node.path); const base = node.name ?? 'copy';
+    const fields = snapshot && resolveAuthoredPath(snapshot, parent);
+    let name = `${base}Copy`; let index = 2;
+    while (isObject(fields) && name in fields) { name = `${base}Copy${index}`; index += 1; }
+    const result = service.set(childPath(parent, name), node.authored);
+    if (isPortableError(result)) { showError(node.path, result); return; }
+    refreshCommitted();
+  }, [refreshCommitted, service, showError, snapshot]);
+  const commitAdd = useCallback((): void => {
+    if (!addDraft || !addDraft.name.trim()) return;
+    const target = childPath(addDraft.parentPath, addDraft.name.trim());
+    const node: PortableNode = addDraft.kind === 'expression' ? '0' : addDraft.kind === 'input' ? { '@kind': 'type', type: 'string' } : addDraft.kind === 'context' ? { '@kind': 'context' } : [];
+    const result = service.set(target, node);
+    if (isPortableError(result)) { showError(target, result); return; }
+    setAddDraft(null); refreshCommitted();
+  }, [addDraft, refreshCommitted, service, showError]);
+  const commitInput = useCallback((): void => {
+    if (!inputDraft) return;
+    const result = service.set(inputDraft.path, typedInput(inputDraft.value));
+    if (isPortableError(result)) { showError(inputDraft.path, result); return; }
+    setInputDraft(null); refreshCommitted();
+  }, [inputDraft, refreshCommitted, service, showError]);
+
+  if (fatalError) return <Alert severity="error" className={className} sx={sx}>{fatalError}</Alert>;
+  if (!model || !snapshot) return <Box className={className} sx={sx} aria-busy="true" />;
+  return <>
+    <Box className={className} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden', ...sx }} role="treegrid" aria-label={`Boxed editor ${path}`}>
+      <NodeRow node={model} depth={0} expanded={expanded} editingExpression={editingExpression} editingName={editingName} nameDraft={nameDraft} readOnly={readOnly} snapshot={snapshot} languageService={languageService ?? NOOP_LANGUAGE_SERVICE} errors={errors} toggle={toggle} startExpression={setEditingExpression} commitExpression={commitExpression} cancelExpression={() => { setEditingExpression(null); setErrors({}); }} startName={node => { setEditingName(node.path); setNameDraft(node.name ?? ''); }} setNameDraft={setNameDraft} commitName={node => guardedRename(node, nameDraft.trim())} duplicate={duplicate} remove={guardedRemove} openInput={node => setInputDraft({ path: node.path, value: typedInput(node.authored) })} openAdd={parent => setAddDraft({ parentPath: parent, name: '', kind: 'expression' })} onOpenNode={onOpenNode} />
+    </Box>
+    <Dialog open={Boolean(addDraft)} onClose={() => setAddDraft(null)}><DialogTitle>Add field</DialogTitle><DialogContent sx={{ display: 'grid', gap: 2, minWidth: 300 }}><TextField autoFocus label="Name" value={addDraft?.name ?? ''} onChange={event => setAddDraft(current => current ? { ...current, name: event.target.value } : current)} /><Select aria-label="Field kind" value={addDraft?.kind ?? 'expression'} onChange={event => setAddDraft(current => current ? { ...current, kind: event.target.value as AddFieldDraft['kind'] } : current)}><MenuItem value="expression">Expression</MenuItem><MenuItem value="input">Input</MenuItem><MenuItem value="context">Context</MenuItem><MenuItem value="list">Literal list</MenuItem></Select>{addDraft && errors[childPath(addDraft.parentPath, addDraft.name)] && <Alert severity="error">{errors[childPath(addDraft.parentPath, addDraft.name)]}</Alert>}</DialogContent><DialogActions><Button onClick={() => setAddDraft(null)}>Cancel</Button><Button onClick={commitAdd}>Add field</Button></DialogActions></Dialog>
+    <Dialog open={Boolean(inputDraft)} onClose={() => setInputDraft(null)}><DialogTitle>Edit input</DialogTitle><DialogContent sx={{ display: 'grid', gap: 1, minWidth: 300 }}><TextField label="Type" value={inputDraft?.value.type ?? ''} onChange={event => setInputDraft(current => current ? { ...current, value: { ...current.value, type: event.target.value } } : current)} /><FormControlLabel control={<Checkbox checked={inputDraft?.value.required === true} onChange={event => setInputDraft(current => current ? { ...current, value: { ...current.value, ...(event.target.checked ? { required: true } : { required: undefined }) } } : current)} />} label="Required" />{inputDraft && errors[inputDraft.path] && <Alert severity="error">{errors[inputDraft.path]}</Alert>}</DialogContent><DialogActions><Button onClick={() => setInputDraft(null)}>Cancel</Button><Button onClick={commitInput}>Save input</Button></DialogActions></Dialog>
+  </>;
 }

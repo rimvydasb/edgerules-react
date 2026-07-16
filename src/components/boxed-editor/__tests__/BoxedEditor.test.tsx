@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MutableDecisionService } from '@edgerules/node/mutable';
 import { BoxedEditor } from '../BoxedEditor';
@@ -48,5 +48,81 @@ describe('BoxedEditor', () => {
     render(<BoxedEditor service={service()} path="*" readOnly onOpenNode={onOpenNode} />);
     await user.click(screen.getByRole('button', { name: 'Open Types Editor' }));
     expect(onOpenNode).toHaveBeenCalledWith({ path: 'Applicant', kind: 'type-definition' });
+  });
+
+  it('commits an expression through one active CodeEditorCell and emits the refreshed snapshot', async () => {
+    const user = userEvent.setup();
+    const instance = MutableDecisionService.fromCode('{ answer: 1 }');
+    const onChange = vi.fn();
+    const { container } = render(<BoxedEditor service={instance} path="*" onChange={onChange} />);
+
+    await user.click(within(screen.getByRole('row', { name: 'answer' })).getAllByRole('cell')[2]);
+    expect(container.querySelectorAll('.cm-editor')).toHaveLength(1);
+    const editor = container.querySelector<HTMLElement>('.cm-content');
+    expect(editor).not.toBeNull();
+    await user.click(editor!);
+    await user.keyboard('{Control>}a{/Control}1 + 2{Enter}');
+
+    expect(instance.toPortable().answer).toMatchObject({ '@kind': 'expression', expression: '1 + 2' });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(container.querySelectorAll('.cm-editor')).toHaveLength(0);
+  });
+
+  it('writes complete typed inputs and supports context add, rename, duplicate, and delete', async () => {
+    const user = userEvent.setup();
+    const instance = service();
+    render(<BoxedEditor service={instance} path="*" />);
+
+    await user.click(screen.getByRole('button', { name: 'Expand application' }));
+    await user.click(screen.getByRole('button', { name: '<number, required>' }));
+    const inputDialog = screen.getByRole('dialog');
+    await user.click(within(inputDialog).getByLabelText('Required'));
+    await user.click(within(inputDialog).getByRole('button', { name: 'Save input' }));
+    expect(instance.toPortable().application as object).toMatchObject({ amount: { '@kind': 'type', type: 'number' } });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Add field to application' }));
+    const addDialog = screen.getByRole('dialog');
+    await user.type(within(addDialog).getByLabelText('Name'), 'fee');
+    await user.click(within(addDialog).getByRole('button', { name: 'Add field' }));
+    expect(instance.toPortable().application as object).toHaveProperty('fee', 0);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Rename application.fee' }));
+    const name = screen.getByLabelText('Name application.fee');
+    await user.clear(name);
+    await user.type(name, 'serviceFee');
+    await user.keyboard('{Enter}');
+    expect(instance.toPortable().application as object).toHaveProperty('serviceFee', 0);
+
+    await user.click(screen.getByRole('button', { name: 'Duplicate application.serviceFee' }));
+    expect(instance.toPortable().application as object).toHaveProperty('serviceFeeCopy', 0);
+    await user.click(screen.getByRole('button', { name: 'Delete application.serviceFeeCopy' }));
+    expect(instance.toPortable().application as object).not.toHaveProperty('serviceFeeCopy');
+  });
+
+  it('removes all mutation affordances in read-only mode', () => {
+    render(<BoxedEditor service={service()} path="*" readOnly />);
+    expect(screen.queryByRole('button', { name: 'Edit payment' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add field to *' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rename payment' })).not.toBeInTheDocument();
+  });
+
+  it('rolls back a rename when linked validation exposes an unresolved reference', async () => {
+    const user = userEvent.setup();
+    const instance = service();
+    const onChange = vi.fn();
+    render(<BoxedEditor service={instance} path="*" onChange={onChange} />);
+    await user.click(screen.getByRole('button', { name: 'Expand application' }));
+    await user.click(screen.getByRole('button', { name: 'Rename application.amount' }));
+    const name = screen.getByLabelText('Name application.amount');
+    await user.clear(name);
+    await user.type(name, 'principal');
+    await user.keyboard('{Enter}');
+
+    expect(instance.toPortable().application as object).toHaveProperty('amount');
+    expect(instance.toPortable().application as object).not.toHaveProperty('principal');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText(/unresolved reference 'amount'/)).toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { init, MutableDecisionService } from '@edgerules/web/mutable';
 import { BoxedEditor } from '../../../src/components/boxed-editor';
 
@@ -31,4 +32,15 @@ export const RootReadOnly: Story = {
 export const FocusedFunction: Story = {
   loaders: [async () => ({ service: await buildService() })],
   render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="monthly" readOnly />,
+};
+
+export const Editable: Story = {
+  loaders: [async () => ({ service: await buildService() })],
+  render: (args, { loaded }) => {
+    const [changes, setChanges] = useState(0);
+    return <>
+      <BoxedEditor {...args} service={loaded.service} path="*" languageService={MutableDecisionService} onChange={() => setChanges(value => value + 1)} />
+      <output data-testid="boxed-change-count">Changes: {changes}</output>
+    </>;
+  },
 };

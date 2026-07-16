@@ -761,23 +761,23 @@ Internal boxes and `BoxedRenderNode` MUST NOT be exported.
 
 ### Phase 1 — Read-only rendering
 
-- [ ] Add the `boxed-editor` package entry point and public exports.
-- [ ] Implement authored path resolution and schema loading.
-- [ ] Implement node classification and `BoxedRenderNode`.
-- [ ] Render root, context, expression, input, function, external-function, and editor-link boxes.
-- [ ] Add static EdgeRules highlighting and inferred type labels.
-- [ ] Add collapse/expand and focused-path behavior.
-- [ ] Add read-only Storybook stories and RTL tests.
+- [x] Add the `boxed-editor` package entry point and public exports.
+- [x] Implement authored path resolution and schema loading.
+- [x] Implement node classification and `BoxedRenderNode`.
+- [x] Render root, context, expression, input, function, external-function, and editor-link boxes.
+- [x] Add static EdgeRules highlighting and inferred type labels.
+- [x] Add collapse/expand and focused-path behavior.
+- [x] Add read-only Storybook stories and RTL tests.
 
 ### Phase 2 — Expression and context editing
 
-- [ ] Implement Portable-to-DSL serialization for embed contexts.
-- [ ] Mount one active `CodeEditorCell`.
-- [ ] Implement expression and typed-input `set` operations.
-- [ ] Implement context field add, guarded rename, duplicate, and guarded delete.
-- [ ] Implement inline errors and fatal restore errors.
-- [ ] Implement `onChange`, `revision`, and read-only behavior.
-- [ ] Add keyboard and language-tooling Playwright tests.
+- [x] Implement Portable-to-DSL serialization for embed contexts.
+- [x] Mount one active `CodeEditorCell`.
+- [x] Implement expression and typed-input `set` operations.
+- [x] Implement context field add, guarded rename, duplicate, and guarded delete.
+- [x] Implement inline errors and fatal restore errors.
+- [x] Implement `onChange`, `revision`, and read-only behavior.
+- [x] Add keyboard and language-tooling Playwright tests.
 
 ### Phase 3 — Functions and invocations
 
