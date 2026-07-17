@@ -13,9 +13,9 @@ export function MetadataAction({
     <Button
       size="small"
       aria-label={`Edit metadata ${node.path}`}
-      onClick={() => actions.edit(node)}
+      onClick={() => actions.activate(node)}
     >
-      Metadata
+      {actions.activePath === node.path ? 'Editing metadata' : 'Metadata'}
     </Button>
   );
 }

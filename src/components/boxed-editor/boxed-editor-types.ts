@@ -1,5 +1,9 @@
 import type { SxProps, Theme } from '@mui/material/styles';
-import type { PortableError, PortableNode, PortableRootContext, PortableTypedValue } from '@edgerules/portable';
+import type {
+  PortableError,
+  PortableNode,
+  PortableRootContext,
+} from '@edgerules/portable';
 import type { GetFilter } from '@edgerules/web';
 import type { CodeEditorService } from '../code-editor/language/service';
 
@@ -36,11 +40,6 @@ export interface AddFieldDraft {
   kind: 'expression' | 'input' | 'context' | 'list';
 }
 
-export interface InputDraft {
-  path: string;
-  value: PortableTypedValue;
-}
-
 export interface SignatureParameter {
   name: string;
   type: string;
@@ -52,14 +51,6 @@ export interface SignatureDraft {
   parameters: SignatureParameter[];
   returnType: string;
   node: Record<string, unknown>;
-}
-
-export interface MetadataDraft {
-  path: string;
-  node: Record<string, unknown>;
-  nodeKind: string;
-  nodeName: string;
-  description: string;
 }
 
 export interface InvocationDraft {

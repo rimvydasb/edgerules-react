@@ -12,7 +12,6 @@ import type {
   ContextRenderNode,
   ExternalFunctionRenderNode,
   FunctionRenderNode,
-  InputRenderNode,
   InvocationRenderNode,
   ListRenderNode,
   RelationRenderNode,
@@ -47,10 +46,10 @@ export interface FieldActions {
 }
 
 export interface MetadataActions {
-  edit: (node: BoxedRenderNode) => void;
-}
-export interface InputActions {
-  edit: (node: InputRenderNode) => void;
+  activePath: string | null;
+  activate: (node: BoxedRenderNode) => void;
+  commit: (node: BoxedRenderNode, text: string) => void;
+  cancel: () => void;
 }
 export interface FunctionActions {
   editSignature: (
@@ -81,7 +80,6 @@ const StateContext = createContext<BoxedEditorState | null>(null);
 const ExpressionContext = createContext<ExpressionActions | null>(null);
 const FieldContext = createContext<FieldActions | null>(null);
 const MetadataContext = createContext<MetadataActions | null>(null);
-const InputContext = createContext<InputActions | null>(null);
 const FunctionContext = createContext<FunctionActions | null>(null);
 const InvocationContext = createContext<InvocationActions | null>(null);
 const ListContext = createContext<ListActions | null>(null);
@@ -101,7 +99,6 @@ interface BoxedEditorProviderProps {
   expression: ExpressionActions;
   field: FieldActions;
   metadata: MetadataActions;
-  input: InputActions;
   functions: FunctionActions;
   invocation: InvocationActions;
   list: ListActions;
@@ -118,21 +115,19 @@ export function BoxedEditorProvider(
       <ExpressionContext.Provider value={props.expression}>
         <FieldContext.Provider value={props.field}>
           <MetadataContext.Provider value={props.metadata}>
-            <InputContext.Provider value={props.input}>
-              <FunctionContext.Provider value={props.functions}>
-                <InvocationContext.Provider value={props.invocation}>
-                  <ListContext.Provider value={props.list}>
-                    <RelationContext.Provider value={props.relation}>
-                      <NavigationContext.Provider value={props.navigation}>
-                        <NodeRendererContext.Provider value={props.renderer}>
-                          {props.children}
-                        </NodeRendererContext.Provider>
-                      </NavigationContext.Provider>
-                    </RelationContext.Provider>
-                  </ListContext.Provider>
-                </InvocationContext.Provider>
-              </FunctionContext.Provider>
-            </InputContext.Provider>
+            <FunctionContext.Provider value={props.functions}>
+              <InvocationContext.Provider value={props.invocation}>
+                <ListContext.Provider value={props.list}>
+                  <RelationContext.Provider value={props.relation}>
+                    <NavigationContext.Provider value={props.navigation}>
+                      <NodeRendererContext.Provider value={props.renderer}>
+                        {props.children}
+                      </NodeRendererContext.Provider>
+                    </NavigationContext.Provider>
+                  </RelationContext.Provider>
+                </ListContext.Provider>
+              </InvocationContext.Provider>
+            </FunctionContext.Provider>
           </MetadataContext.Provider>
         </FieldContext.Provider>
       </ExpressionContext.Provider>
@@ -154,8 +149,6 @@ export const useFieldActions = (): FieldActions =>
   required(useContext(FieldContext), 'useFieldActions');
 export const useMetadataActions = (): MetadataActions =>
   required(useContext(MetadataContext), 'useMetadataActions');
-export const useInputActions = (): InputActions =>
-  required(useContext(InputContext), 'useInputActions');
 export const useFunctionActions = (): FunctionActions =>
   required(useContext(FunctionContext), 'useFunctionActions');
 export const useInvocationActions = (): InvocationActions =>

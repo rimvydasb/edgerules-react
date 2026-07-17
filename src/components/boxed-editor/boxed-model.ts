@@ -33,6 +33,8 @@ interface BaseRenderNode {
   invocation?: { path: string; argument: string | number };
   /** A literal collection item is addressed by its owning list and numeric index. */
   listItem?: { path: string; index: number };
+  /** A scalar function body is displayed as `fn.result` but written with its function definition. */
+  functionBody?: { path: string };
   parentListTerminal?: boolean;
   /** Identifies an authored sibling group that can be reordered as one unit. */
   sortable?: BoxedSortableMetadata;
@@ -238,13 +240,16 @@ export function renderNode(
             }),
           )
         : [
-            renderNode(
-              body,
-              `${path}.result`,
-              undefined,
-              'result',
-              indexedLists,
-            ),
+            {
+              ...renderNode(
+                body,
+                `${path}.result`,
+                undefined,
+                'result',
+                indexedLists,
+              ),
+              functionBody: { path },
+            },
           ];
   }
   if (kind === 'invocation' && isObject(authored)) {

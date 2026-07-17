@@ -30,10 +30,8 @@ import { BoxedEntityNode, BoxedNode } from './BoxedNode';
 import {
   AddFieldForm,
   FunctionSignatureForm,
-  InputForm,
   InvocationForm,
   ListItemForm,
-  MetadataForm,
   RelationColumnForm,
   addFieldError,
 } from './forms/EditorForms';
@@ -47,10 +45,8 @@ import {
 import type {
   AddFieldDraft,
   BoxedEditorProps,
-  InputDraft,
   InvocationDraft,
   ListItemDraft,
-  MetadataDraft,
   RelationColumnDraft,
   SignatureDraft,
 } from './boxed-editor-types';
@@ -61,12 +57,11 @@ import {
   findNode,
   indexedLists,
   invocationNode,
-  metadataNode,
+  parseMetadataText,
   parameterDrafts,
   parentPath,
   signatureNode,
   typeText,
-  typedInput,
 } from './boxed-editor-utils';
 
 export type {
@@ -137,11 +132,8 @@ export function BoxedEditor({
   const [editingName, setEditingName] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [addDraft, setAddDraft] = useState<AddFieldDraft | null>(null);
-  const [inputDraft, setInputDraft] = useState<InputDraft | null>(null);
+  const [editingMetadata, setEditingMetadata] = useState<string | null>(null);
   const [signatureDraft, setSignatureDraft] = useState<SignatureDraft | null>(
-    null,
-  );
-  const [metadataDraft, setMetadataDraft] = useState<MetadataDraft | null>(
     null,
   );
   const [invocationDraft, setInvocationDraft] =
@@ -224,6 +216,7 @@ export function BoxedEditor({
     onChange?.(nextSnapshot);
     setErrors({});
     setEditingExpression(null);
+    setEditingMetadata(null);
     setEditingName(null);
     return true;
   }, [load, onChange, service]);
@@ -248,7 +241,19 @@ export function BoxedEditor({
     (node: BoxedRenderNode, text: string): void => {
       let targetPath = node.path;
       let nextNode: PortableNode = text;
-      if (node.invocation) {
+      if (node.functionBody) {
+        const definition =
+          snapshot && resolveAuthoredPath(snapshot, node.functionBody.path);
+        if (!isObject(definition)) {
+          setFatalError(`Function not found: ${node.functionBody.path}`);
+          return;
+        }
+        targetPath = node.functionBody.path;
+        nextNode = {
+          ...definition,
+          '@body': { '@kind': 'expression', expression: text },
+        } as PortableNode;
+      } else if (node.invocation) {
         const invocation =
           snapshot && resolveAuthoredPath(snapshot, node.invocation.path);
         if (!isObject(invocation)) {
@@ -379,16 +384,6 @@ export function BoxedEditor({
     setAddDraft(null);
     refreshCommitted();
   }, [addDraft, refreshCommitted, service, showError]);
-  const commitInput = useCallback((): void => {
-    if (!inputDraft) return;
-    const result = service.set(inputDraft.path, typedInput(inputDraft.value));
-    if (isPortableError(result)) {
-      showError(inputDraft.path, result);
-      return;
-    }
-    setInputDraft(null);
-    refreshCommitted();
-  }, [inputDraft, refreshCommitted, service, showError]);
   const commitSignature = useCallback((): void => {
     if (!signatureDraft) return;
     const result = service.set(
@@ -402,16 +397,45 @@ export function BoxedEditor({
     setSignatureDraft(null);
     refreshCommitted();
   }, [refreshCommitted, service, showError, signatureDraft]);
-  const commitMetadata = useCallback((): void => {
-    if (!metadataDraft) return;
-    const result = service.set(metadataDraft.path, metadataNode(metadataDraft));
-    if (isPortableError(result)) {
-      showError(metadataDraft.path, result);
-      return;
-    }
-    setMetadataDraft(null);
-    refreshCommitted();
-  }, [metadataDraft, refreshCommitted, service, showError]);
+  const commitMetadata = useCallback(
+    (node: BoxedRenderNode, text: string): void => {
+      const parsed = parseMetadataText(text);
+      if (!parsed) {
+        showError(
+          node.path,
+          'Use @NodeKind or @NodeKind(name: "Label") annotation syntax.',
+        );
+        return;
+      }
+      const previousKind = isObject(node.authored)
+        ? node.authored['@node']
+        : undefined;
+      if (!parsed.nodeKind) {
+        if (typeof previousKind !== 'string') {
+          setEditingMetadata(null);
+          return;
+        }
+        const removed = service.remove(`${node.path}.@${previousKind}`);
+        if (isPortableError(removed)) {
+          showError(node.path, removed);
+          return;
+        }
+      } else {
+        const result = service.set(node.path, {
+          '@node': parsed.nodeKind,
+          ...(parsed.nodeName !== undefined
+            ? { '@node-name': parsed.nodeName }
+            : {}),
+        });
+        if (isPortableError(result)) {
+          showError(node.path, result);
+          return;
+        }
+      }
+      refreshCommitted();
+    },
+    [refreshCommitted, service, showError],
+  );
   const commitInvocation = useCallback((): void => {
     if (!invocationDraft || !invocationDraft.method.trim()) return;
     const result = service.set(
@@ -649,16 +673,6 @@ export function BoxedEditor({
         node: node.authored,
       });
   };
-  const openMetadata = (node: BoxedRenderNode): void => {
-    if (isObject(node.authored))
-      setMetadataDraft({
-        path: node.path,
-        node: node.authored,
-        nodeKind: String(node.authored['@node'] ?? ''),
-        nodeName: String(node.authored['@node-name'] ?? ''),
-        description: String(node.authored['@description'] ?? ''),
-      });
-  };
   const openInvocation = (node: BoxedRenderNode): void => {
     if (!isObject(node.authored)) return;
     const argumentsValue = node.authored['@arguments'];
@@ -707,7 +721,10 @@ export function BoxedEditor({
       }}
       expression={{
         activePath: editingExpression,
-        activate: (node) => setEditingExpression(node.path),
+        activate: (node) => {
+          setEditingMetadata(null);
+          setEditingExpression(node.path);
+        },
         commit: commitExpression,
         cancel: () => {
           setEditingExpression(null);
@@ -728,10 +745,17 @@ export function BoxedEditor({
         add: (node) =>
           setAddDraft({ parentPath: node.path, name: '', kind: 'expression' }),
       }}
-      metadata={{ edit: openMetadata }}
-      input={{
-        edit: (node) =>
-          setInputDraft({ path: node.path, value: typedInput(node.authored) }),
+      metadata={{
+        activePath: editingMetadata,
+        activate: (node) => {
+          setEditingExpression(null);
+          setEditingMetadata(node.path);
+        },
+        commit: commitMetadata,
+        cancel: () => {
+          setEditingMetadata(null);
+          setErrors({});
+        },
       }}
       functions={{ editSignature: openSignature }}
       invocation={{ edit: openInvocation }}
@@ -799,12 +823,6 @@ export function BoxedEditor({
         error={addFieldError(addDraft, errors)}
         commit={commitAdd}
       />
-      <InputForm
-        draft={inputDraft}
-        setDraft={setInputDraft}
-        error={inputDraft ? errors[inputDraft.path] : undefined}
-        commit={commitInput}
-      />
       <FunctionSignatureForm
         draft={signatureDraft}
         setDraft={setSignatureDraft}
@@ -826,12 +844,6 @@ export function BoxedEditor({
         draft={columnDraft}
         setDraft={setColumnDraft}
         commit={commitColumn}
-      />
-      <MetadataForm
-        draft={metadataDraft}
-        setDraft={setMetadataDraft}
-        error={metadataDraft ? errors[metadataDraft.path] : undefined}
-        commit={commitMetadata}
       />
     </BoxedEditorProvider>
   );

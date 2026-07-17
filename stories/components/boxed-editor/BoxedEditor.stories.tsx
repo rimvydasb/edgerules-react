@@ -17,6 +17,7 @@ const MODEL = `{
     amount: <number, required: true>
     applicant: <Applicant>
     calculation: amount * 0.2
+    mutableValue: 1
   }
   func monthly(amount: number) -> number: amount / 12
   external func lookup(id: string) -> string
@@ -266,8 +267,30 @@ export const Relation: Story = {
     async () => ({
       service: await buildService(`{
     applicants: [
-      { name: "Ada"; age: 36 }
-      { name: "Grace"; age: 42 }
+      {
+        name: "Ada"
+        age: 36
+        contact: {
+          address: {
+            location: {
+              city: "London"
+              country: "United Kingdom"
+            }
+          }
+        }
+      }
+      {
+        name: "Grace"
+        age: 42
+        contact: {
+          address: {
+            location: {
+              city: "New York"
+              country: "United States"
+            }
+          }
+        }
+      }
     ]
   }`),
     }),

@@ -74,6 +74,7 @@ BoxedEditor                                      BoxedEditor.tsx
 │       ├── ExpressionBox                       boxes/ExpressionBox.tsx
 │       │   └── StaticExpression | CodeEditorCell
 │       ├── InputBox                            boxes/InputBox.tsx
+│       │   └── Static DSL input | CodeEditorCell
 │       ├── InvocationBox                       boxes/InvocationBox.tsx
 │       │   └── InvocationArgumentBox[]         boxes/InvocationArgumentBox.tsx
 │       ├── ListBox                             boxes/ListBox.tsx
@@ -85,12 +86,10 @@ BoxedEditor                                      BoxedEditor.tsx
 │       └── EditorLinkBox                       boxes/EditorLinkBox.tsx
 └── focused forms                               forms/EditorForms.tsx
     ├── AddFieldForm
-    ├── InputForm
     ├── FunctionSignatureForm
     ├── InvocationForm
     ├── ListItemForm
     ├── RelationColumnForm
-    └── MetadataForm
 ```
 
 ### 3.1 Composition diagram
@@ -307,10 +306,9 @@ in the owning collection footer.
 | Hook                   | Consumers and purpose                                                         |
 | ---------------------- | ----------------------------------------------------------------------------- |
 | `useBoxedEditorState`  | Shared read-only mode, snapshot, language service, expansion, and path errors |
-| `useExpressionActions` | `ExpressionBox`; activate, commit, cancel                                     |
+| `useExpressionActions` | `ExpressionBox` and `InputBox`; activate, commit, cancel                      |
 | `useFieldActions`      | Context/field-capable boxes and `BoxHeader`; add, rename, duplicate, remove   |
 | `useMetadataActions`   | Boxes that display editable Portable metadata                                 |
-| `useInputActions`      | `InputBox` only                                                               |
 | `useFunctionActions`   | Function and external-function boxes only                                     |
 | `useInvocationActions` | `InvocationBox` only                                                          |
 | `useListActions`       | List/relation collections and item/row wrappers                               |

@@ -1,10 +1,15 @@
 import type { ReactElement } from 'react';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import { CodeEditorCell } from '../../code-editor-cell';
 import { FieldActions } from '../actions/FieldActions';
 import { MetadataAction } from '../actions/MetadataAction';
-import { isObject, type InputRenderNode } from '../boxed-model';
-import { useBoxedEditorState, useInputActions } from '../BoxedEditorProvider';
+import { expressionEmbedContext } from '../boxed-embed';
+import type { InputRenderNode } from '../boxed-model';
+import {
+  useBoxedEditorState,
+  useExpressionActions,
+} from '../BoxedEditorProvider';
+import { inputText } from '../boxed-editor-utils';
 import { BoxFrame } from '../primitives/BoxFrame';
 import { BoxHeader } from '../primitives/BoxHeader';
 import { BoxTypeChip } from '../primitives/BoxTypeChip';
@@ -16,27 +21,46 @@ export function InputBox({
   actions,
   suppressFieldActions,
 }: { node: InputRenderNode } & BoxPresentationProps): ReactElement {
-  const { readOnly } = useBoxedEditorState();
-  const input = useInputActions();
-  const value = isObject(node.authored) ? (
-    <Button
-      size="small"
-      color="inherit"
-      disabled={readOnly}
-      onClick={() => input.edit(node)}
-    >
-      <Typography component="code">
-        &lt;{String(node.authored.type)}
-        {node.authored.required ? ', required' : ''}&gt;
-      </Typography>
-    </Button>
-  ) : null;
+  const state = useBoxedEditorState();
+  const expression = useExpressionActions();
+  const editing = expression.activePath === node.path;
+  const activate = (): void => expression.activate(node);
   return (
     <BoxFrame
       node={node}
       depth={depth}
       header={<BoxHeader node={node} editable={!suppressFieldActions} />}
-      value={value}
+      value={
+        editing ? (
+          <CodeEditorCell
+            value={inputText(node.authored)}
+            service={state.languageService}
+            embedContext={expressionEmbedContext(state.snapshot, node.path)}
+            autoFocus
+            onCommit={(text) => expression.commit(node, text)}
+            onCancel={expression.cancel}
+          />
+        ) : (
+          <Box component="code" sx={{ minHeight: 24 }}>
+            {inputText(node.authored)}
+          </Box>
+        )
+      }
+      valueProps={
+        !state.readOnly && !editing
+          ? {
+              tabIndex: 0,
+              onClick: activate,
+              onKeyDown: (event) => {
+                if (event.key === 'Enter' || event.key === 'F2') {
+                  event.preventDefault();
+                  activate();
+                }
+              },
+              cursor: 'cell',
+            }
+          : undefined
+      }
       type={<BoxTypeChip schema={node.schema} />}
       actions={
         actions ?? (

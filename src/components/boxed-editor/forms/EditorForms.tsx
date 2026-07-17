@@ -11,10 +11,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type {
   AddFieldDraft,
-  InputDraft,
   InvocationDraft,
   ListItemDraft,
-  MetadataDraft,
   RelationColumnDraft,
   SignatureDraft,
 } from '../boxed-editor-types';
@@ -73,68 +71,6 @@ export function AddFieldForm({
         <MenuItem value="context">Context</MenuItem>
         <MenuItem value="list">Literal list</MenuItem>
       </Select>
-    </EditorDialog>
-  );
-}
-
-export function InputForm({
-  draft,
-  setDraft,
-  error,
-  commit,
-}: {
-  draft: InputDraft | null;
-  setDraft: Setter<InputDraft>;
-  error?: string;
-  commit: () => void;
-}): ReactElement {
-  return (
-    <EditorDialog
-      open={Boolean(draft)}
-      title="Edit input"
-      error={error}
-      onCancel={() => setDraft(null)}
-      onSubmit={commit}
-      submitLabel="Save input"
-      minWidth={300}
-    >
-      <TextField
-        label="Type"
-        value={draft?.value.type ?? ''}
-        onChange={(event) =>
-          setDraft((current) =>
-            current
-              ? {
-                  ...current,
-                  value: { ...current.value, type: event.target.value },
-                }
-              : current,
-          )
-        }
-      />
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={draft?.value.required === true}
-            onChange={(event) =>
-              setDraft((current) =>
-                current
-                  ? {
-                      ...current,
-                      value: {
-                        ...current.value,
-                        ...(event.target.checked
-                          ? { required: true }
-                          : { required: undefined }),
-                      },
-                    }
-                  : current,
-              )
-            }
-          />
-        }
-        label="Required"
-      />
     </EditorDialog>
   );
 }
@@ -472,59 +408,6 @@ export function RelationColumnForm({
       {draft?.action === 'delete' && (
         <Typography>Delete {draft.source} from every row?</Typography>
       )}
-    </EditorDialog>
-  );
-}
-
-export function MetadataForm({
-  draft,
-  setDraft,
-  error,
-  commit,
-}: {
-  draft: MetadataDraft | null;
-  setDraft: Setter<MetadataDraft>;
-  error?: string;
-  commit: () => void;
-}): ReactElement {
-  return (
-    <EditorDialog
-      open={Boolean(draft)}
-      title="Edit metadata"
-      error={error}
-      onCancel={() => setDraft(null)}
-      onSubmit={commit}
-      submitLabel="Save metadata"
-    >
-      <TextField
-        label="Node kind"
-        value={draft?.nodeKind ?? ''}
-        onChange={(event) =>
-          setDraft((current) =>
-            current ? { ...current, nodeKind: event.target.value } : current,
-          )
-        }
-      />
-      <TextField
-        label="Node label"
-        value={draft?.nodeName ?? ''}
-        onChange={(event) =>
-          setDraft((current) =>
-            current ? { ...current, nodeName: event.target.value } : current,
-          )
-        }
-      />
-      <TextField
-        label="Description"
-        multiline
-        minRows={2}
-        value={draft?.description ?? ''}
-        onChange={(event) =>
-          setDraft((current) =>
-            current ? { ...current, description: event.target.value } : current,
-          )
-        }
-      />
     </EditorDialog>
   );
 }

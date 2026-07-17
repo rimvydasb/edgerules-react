@@ -21,6 +21,26 @@ async function dragByHandle(page: Page, source: string, target: string) {
   await page.mouse.up();
 }
 
+async function editExpression(
+  page: Page,
+  path: string,
+  initialValue: string,
+  nextValue: string,
+) {
+  const row = page.getByRole('row', { name: path, exact: true });
+  await row.getByRole('cell').nth(3).click();
+  const editor = page.locator('.cm-content');
+  await expect(editor).toHaveCount(1);
+  await expect(editor).toHaveText(initialValue);
+  await editor.click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await page.keyboard.press(`${modifier}+A`);
+  await page.keyboard.type(nextValue);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
+  await expect(row).toContainText(nextValue);
+}
+
 const BOXED_EDITOR_STORIES = [
   'root-read-only',
   'focused-function',
@@ -113,6 +133,108 @@ test('editable cells retain language-service completions from their portable emb
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText(
     'amount',
   );
+});
+
+test('expression editing initializes and commits every boxed value shape', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+  );
+  await page.getByRole('button', { name: 'Expand application' }).click();
+  await editExpression(
+    page,
+    'application.calculation',
+    'amount * 0.2',
+    'amount * 0.25',
+  );
+  await page.getByRole('button', { name: 'Expand monthly' }).click();
+  await editExpression(page, 'monthly.result', 'amount / 12', 'amount / 6');
+  await expect(page.getByTestId('boxed-change-count')).toContainText(
+    'Changes: 2',
+  );
+
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--context-function&viewMode=story',
+  );
+  await editExpression(page, 'summary.tax', 'amount * 0.2', 'amount * 0.25');
+
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--literal-list&viewMode=story',
+  );
+  await editExpression(page, 'scores[0]', '12', '13');
+
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
+  );
+  await editExpression(page, 'applicants[0].age', '36', '37');
+
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--invocation&viewMode=story',
+  );
+  await editExpression(page, 'payment.@arguments[0]', '1200', '600');
+});
+
+test('one cell editor changes number to input to string without dialogs or errors', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+  );
+  await page.getByRole('button', { name: 'Expand application' }).click();
+  const row = page.getByRole('row', {
+    name: 'application.mutableValue',
+    exact: true,
+  });
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+  await row.getByRole('cell').nth(3).click();
+  let editor = page.locator('.cm-content');
+  await expect(editor).toHaveText('1');
+  await editor.click();
+  await page.keyboard.press(`${modifier}+A`);
+  await page.keyboard.insertText('<number, 5>');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
+  await expect(row).toContainText('<number, default: 5>');
+  await expect(row).toContainText('number · input');
+
+  await row.getByRole('cell').nth(3).click();
+  editor = page.locator('.cm-content');
+  await expect(editor).toHaveText('<number, default: 5>');
+  await editor.click();
+  await page.keyboard.press(`${modifier}+A`);
+  await page.keyboard.insertText('"text"');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
+  await expect(row).toContainText('string · computed');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('metadata annotations use the inline cell editor without a popup', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+  );
+  await page.getByRole('button', { name: 'Expand application' }).click();
+  await page
+    .getByRole('button', {
+      name: 'Edit metadata application',
+      exact: true,
+    })
+    .click();
+  const editor = page.locator('.cm-content');
+  await expect(editor).toHaveCount(1);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await editor.fill('@InputNode(name: "Application")');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
+  await expect(
+    page.getByRole('row', { name: 'application', exact: true }),
+  ).toContainText('Application');
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
 test('read-only boxed story exposes no expression editor activation', async ({
@@ -221,6 +343,46 @@ test('loan-origination overview renders the authored root model without live edi
     'APPROVE',
   );
   await expect(page.locator('.cm-editor')).toHaveCount(0);
+});
+
+test('nested relation contexts indent each level', async ({ page }) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
+  );
+  await page
+    .getByRole('button', { name: 'Expand applicants[0].contact' })
+    .click();
+  await page
+    .getByRole('button', { name: 'Expand applicants[0].contact.address' })
+    .click();
+  await page
+    .getByRole('button', {
+      name: 'Expand applicants[0].contact.address.location',
+    })
+    .click();
+
+  const paths = [
+    'applicants[0]',
+    'applicants[0].contact',
+    'applicants[0].contact.address',
+    'applicants[0].contact.address.location',
+    'applicants[0].contact.address.location.city',
+  ];
+  const leftEdges = await Promise.all(
+    paths.map(async (path) => {
+      const box = await page
+        .getByRole('row', { name: path, exact: true })
+        .getByRole('cell')
+        .first()
+        .boundingBox();
+      if (!box) throw new Error(`First cell is not visible: ${path}`);
+      return box.x;
+    }),
+  );
+
+  for (let index = 1; index < leftEdges.length; index += 1) {
+    expect(leftEdges[index] - leftEdges[index - 1]).toBe(16);
+  }
 });
 
 test('visual error and read-only scenarios retain their distinct UI states', async ({

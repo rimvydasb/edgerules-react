@@ -193,28 +193,56 @@ describe('BoxedEditor', () => {
     expect(container.querySelectorAll('.cm-editor')).toHaveLength(0);
   });
 
+  it('edits a scalar function body through its owning function definition', async () => {
+    const user = userEvent.setup();
+    const instance = service();
+    const onChange = vi.fn();
+    const { container } = render(
+      <BoxedEditor service={instance} path="*" onChange={onChange} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Expand monthly' }));
+    await user.click(
+      within(screen.getByRole('row', { name: 'monthly.result' })).getAllByRole(
+        'cell',
+      )[3],
+    );
+    const editor = container.querySelector<HTMLElement>('.cm-content');
+    expect(editor).toHaveTextContent('amount / 12');
+    await user.click(editor!);
+    await user.keyboard('{Control>}a{/Control}amount / 6{Enter}');
+
+    expect(instance.toPortable().monthly).toMatchObject({
+      '@kind': 'function',
+      '@parameters': { amount: 'number' },
+      '@return': 'number',
+      '@body': { '@kind': 'expression', expression: 'amount / 6' },
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(container.querySelectorAll('.cm-editor')).toHaveLength(0);
+    expect(
+      screen.getByRole('row', { name: 'monthly.result' }),
+    ).toHaveTextContent('amount / 6');
+  });
+
   it('writes complete typed inputs and supports context add, rename, duplicate, and delete', async () => {
     const user = userEvent.setup();
     const instance = service();
-    render(<BoxedEditor service={instance} path="*" />);
+    const { container } = render(<BoxedEditor service={instance} path="*" />);
 
     await user.click(
       screen.getByRole('button', { name: 'Expand application' }),
     );
-    await user.click(
-      screen.getByRole('button', { name: '<number, required>' }),
-    );
-    const inputDialog = screen.getByRole('dialog');
-    await user.click(within(inputDialog).getByLabelText('Required'));
-    await user.click(
-      within(inputDialog).getByRole('button', { name: 'Save input' }),
-    );
+    const amountRow = screen.getByRole('row', { name: 'application.amount' });
+    await user.click(within(amountRow).getAllByRole('cell')[3]);
+    const inputEditor = container.querySelector<HTMLElement>('.cm-content');
+    expect(inputEditor).toHaveTextContent('<number, required: true>');
+    await user.click(inputEditor!);
+    await user.keyboard('{Control>}a{/Control}<number>{Enter}');
     expect(instance.toPortable().application as object).toMatchObject({
       amount: { '@kind': 'type', type: 'number' },
     });
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
-    );
+    expect(container.querySelector('.cm-editor')).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole('button', { name: 'Add field to application' }),
@@ -256,6 +284,40 @@ describe('BoxedEditor', () => {
     );
     expect(instance.toPortable().application as object).not.toHaveProperty(
       'serviceFeeCopy',
+    );
+  });
+
+  it('changes a cell from number to input to string through one inline editor', async () => {
+    const user = userEvent.setup();
+    const instance = service();
+    instance.set('mutable', '1');
+    const { container } = render(<BoxedEditor service={instance} path="*" />);
+
+    const edit = async (initial: string, next: string) => {
+      const row = screen.getByRole('row', { name: 'mutable' });
+      await user.click(within(row).getAllByRole('cell')[3]);
+      const editor = container.querySelector<HTMLElement>('.cm-content');
+      expect(editor).toHaveTextContent(initial);
+      await user.click(editor!);
+      await user.keyboard(`{Control>}a{/Control}${next}{Enter}`);
+      expect(container.querySelector('.cm-editor')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    };
+
+    await edit('1', '<number, 5>');
+    expect(instance.toPortable().mutable).toEqual({
+      '@kind': 'type',
+      type: 'number',
+      default: 5,
+    });
+    expect(screen.getByRole('row', { name: 'mutable' })).toHaveTextContent(
+      'number · input',
+    );
+
+    await edit('<number, default: 5>', '"text"');
+    expect(instance.toPortable().mutable).toBe("'text'");
+    expect(screen.getByRole('row', { name: 'mutable' })).toHaveTextContent(
+      'string · computed',
     );
   });
 
@@ -353,7 +415,7 @@ describe('BoxedEditor', () => {
     });
   });
 
-  it('expands invocation arguments, writes complete invocations, and writes modeler metadata', async () => {
+  it('expands invocation arguments and edits invocations and metadata', async () => {
     const user = userEvent.setup();
     const instance = service();
     instance.set('payment', {
@@ -402,26 +464,15 @@ describe('BoxedEditor', () => {
     await user.click(
       screen.getByRole('button', { name: 'Edit metadata application' }),
     );
-    const metadataDialog = screen.getByRole('dialog');
-    await user.type(
-      within(metadataDialog).getByLabelText('Node kind'),
-      'ChartNode',
-    );
-    await user.type(
-      within(metadataDialog).getByLabelText('Node label'),
-      'Application',
-    );
-    await user.type(
-      within(metadataDialog).getByLabelText('Description'),
-      'Loan inputs',
-    );
-    await user.click(
-      within(metadataDialog).getByRole('button', { name: 'Save metadata' }),
-    );
+    const metadataEditor = container.querySelector<HTMLElement>('.cm-content');
+    expect(metadataEditor).not.toBeNull();
+    await user.click(metadataEditor!);
+    await user.keyboard('@ChartNode(name: "Application"){Enter}');
     expect(instance.toPortable().application).toMatchObject({
       '@node': 'ChartNode',
       '@node-name': 'Application',
     });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('pages and edits CRUD-addressable scalar lists without expanding computed arrays', async () => {

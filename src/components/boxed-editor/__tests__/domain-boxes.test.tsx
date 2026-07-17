@@ -40,8 +40,12 @@ function renderDomainBox(
       remove: vi.fn(),
       add: vi.fn(),
     },
-    metadata: { edit: vi.fn() },
-    input: { edit: vi.fn() },
+    metadata: {
+      activePath: null,
+      activate: vi.fn(),
+      commit: vi.fn(),
+      cancel: vi.fn(),
+    },
     functions: { editSignature: vi.fn() },
     invocation: { edit: vi.fn() },
     list: {
@@ -67,7 +71,6 @@ function renderDomainBox(
       expression={commands.expression}
       field={commands.field}
       metadata={commands.metadata}
-      input={commands.input}
       functions={commands.functions}
       invocation={commands.invocation}
       list={commands.list}
@@ -216,7 +219,7 @@ describe('boxed-editor domain boxes', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('InputBox renders its typed input, reports its error, and invokes the input command', async () => {
+  it('InputBox renders its DSL input and activates inline cell editing', async () => {
     const value = node({
       id: 'amount',
       path: 'amount',
@@ -229,10 +232,10 @@ describe('boxed-editor domain boxes', () => {
       value.path,
     );
     expect(screen.getByText('amount error')).toBeInTheDocument();
-    await userEvent.click(
-      screen.getByRole('button', { name: '<number, required>' }),
-    );
-    expect(commands.input.edit).toHaveBeenCalledWith(value);
+    const row = screen.getByRole('row', { name: 'amount' });
+    expect(row).toHaveTextContent('<number, required: true>');
+    await userEvent.click(within(row).getAllByRole('cell')[3]);
+    expect(commands.expression.activate).toHaveBeenCalledWith(value);
     expect(
       screen.queryByRole('button', { name: /invocation/i }),
     ).not.toBeInTheDocument();
