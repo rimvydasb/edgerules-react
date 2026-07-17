@@ -38,7 +38,10 @@ describe('ProjectExplorer', () => {
     // `classifyFieldNode` maps to `[dt]`.
     const service = buildService();
     const riskNode = service.get('risk');
-    expect(riskNode).toMatchObject({ '@kind': 'ruleset-schema', '@hitPolicy': 'first-match' });
+    expect(riskNode).toMatchObject({
+      '@kind': 'ruleset-schema',
+      '@hitPolicy': 'first-match',
+    });
   });
 
   it('expands Variables client-side with no additional get() call', async () => {
@@ -94,7 +97,12 @@ describe('ProjectExplorer', () => {
   it('fires onOpenVariables with the context path when clicking the group header or a leaf', async () => {
     const onOpenVariables = vi.fn();
     const user = userEvent.setup();
-    render(<ProjectExplorer service={buildService()} onOpenVariables={onOpenVariables} />);
+    render(
+      <ProjectExplorer
+        service={buildService()}
+        onOpenVariables={onOpenVariables}
+      />,
+    );
 
     await user.click(screen.getByText('Variables'));
     expect(onOpenVariables).toHaveBeenLastCalledWith('');
@@ -106,7 +114,9 @@ describe('ProjectExplorer', () => {
   it('fires onOpenTypes with no argument for the group and the type name for a leaf', async () => {
     const onOpenTypes = vi.fn();
     const user = userEvent.setup();
-    render(<ProjectExplorer service={buildService()} onOpenTypes={onOpenTypes} />);
+    render(
+      <ProjectExplorer service={buildService()} onOpenTypes={onOpenTypes} />,
+    );
 
     await user.click(screen.getByText('Types'));
     expect(onOpenTypes).toHaveBeenLastCalledWith();
@@ -121,14 +131,18 @@ describe('ProjectExplorer', () => {
     const service = MutableDecisionService.fromCode('{ func topFn(): 42 }');
     const onOpenFunction = vi.fn();
     const user = userEvent.setup();
-    render(<ProjectExplorer service={service} onOpenFunction={onOpenFunction} />);
+    render(
+      <ProjectExplorer service={service} onOpenFunction={onOpenFunction} />,
+    );
 
     await user.click(screen.getByText('topFn()'));
     expect(onOpenFunction).toHaveBeenCalledWith('topFn');
   });
 
   it('renders an error badge/tooltip and stops expanding once get() fails for a [ctx] node', async () => {
-    const service = MutableDecisionService.fromCode('{ box: { a: 1 b: a + 1 } }');
+    const service = MutableDecisionService.fromCode(
+      '{ box: { a: 1 b: a + 1 } }',
+    );
     const user = userEvent.setup();
     render(<ProjectExplorer service={service} />);
 

@@ -3,7 +3,11 @@ import Box from '@mui/material/Box';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { EditorState, type Extension } from '@codemirror/state';
 import { forceLinting } from '@codemirror/lint';
-import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view';
+import {
+  EditorView,
+  keymap,
+  placeholder as cmPlaceholder,
+} from '@codemirror/view';
 import { edgeRulesExtensions } from '../code-editor/language/extensions';
 import {
   embedService,
@@ -50,7 +54,9 @@ function singleLineFilter(): Extension {
     return [
       {
         changes: { from: 0, to: tr.startState.doc.length, insert: flat },
-        selection: { anchor: Math.min(tr.newSelection.main.anchor, flat.length) },
+        selection: {
+          anchor: Math.min(tr.newSelection.main.anchor, flat.length),
+        },
       },
     ];
   });

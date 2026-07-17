@@ -15,7 +15,9 @@ const service = MutableDecisionService;
 const embedContext = { prefix: CELL_EMBED_PREFIX, suffix: CELL_EMBED_SUFFIX };
 
 function queryEditable(container: HTMLElement): HTMLElement {
-  const editable = container.querySelector('.cm-content[contenteditable="true"]');
+  const editable = container.querySelector(
+    '.cm-content[contenteditable="true"]',
+  );
   if (!editable) {
     throw new Error('Could not find a contenteditable CodeMirror element');
   }
@@ -34,9 +36,11 @@ function getView(container: HTMLElement): EditorView {
 describe('CodeEditorCell', () => {
   it('renders the value with syntax highlighting', async () => {
     const { container } = render(
-      <CodeEditorCell value='applicant.age + 1' service={service} />,
+      <CodeEditorCell value="applicant.age + 1" service={service} />,
     );
-    expect(container.querySelector('.cm-content')?.textContent).toContain('applicant.age + 1');
+    expect(container.querySelector('.cm-content')?.textContent).toContain(
+      'applicant.age + 1',
+    );
     await waitFor(() => {
       expect(container.querySelector('.tok-number')).not.toBeNull();
       expect(container.querySelector('.tok-propertyName')).not.toBeNull();
@@ -64,7 +68,12 @@ describe('CodeEditorCell', () => {
     const onCancel = vi.fn();
     const onCommit = vi.fn();
     const { container } = render(
-      <CodeEditorCell value="1 + 2" onCancel={onCancel} onCommit={onCommit} service={service} />,
+      <CodeEditorCell
+        value="1 + 2"
+        onCancel={onCancel}
+        onCommit={onCommit}
+        service={service}
+      />,
     );
 
     await user.click(queryEditable(container));
@@ -107,7 +116,12 @@ describe('CodeEditorCell', () => {
     const user = userEvent.setup();
     const onCommit = vi.fn();
     const { container } = render(
-      <CodeEditorCell value="1 +" onCommit={onCommit} service={service} multiline />,
+      <CodeEditorCell
+        value="1 +"
+        onCommit={onCommit}
+        service={service}
+        multiline
+      />,
     );
 
     const editable = queryEditable(container);
@@ -124,11 +138,17 @@ describe('CodeEditorCell', () => {
 
   it('lints the cell against the surrounding model via embedContext', async () => {
     const { container } = render(
-      <CodeEditorCell value="bogusReference" service={service} embedContext={embedContext} />,
+      <CodeEditorCell
+        value="bogusReference"
+        service={service}
+        embedContext={embedContext}
+      />,
     );
 
     await waitFor(() => {
-      expect(container.querySelector('.cm-lintRange-error, .cm-lintPoint-error')).not.toBeNull();
+      expect(
+        container.querySelector('.cm-lintRange-error, .cm-lintPoint-error'),
+      ).not.toBeNull();
     });
   });
 
@@ -143,7 +163,9 @@ describe('CodeEditorCell', () => {
 
     // Wait a lint cycle, then assert nothing was marked.
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(container.querySelector('.cm-lintRange-error, .cm-lintPoint-error')).toBeNull();
+    expect(
+      container.querySelector('.cm-lintRange-error, .cm-lintPoint-error'),
+    ).toBeNull();
   });
 
   it('completes from the surrounding model scope via embedContext', async () => {
@@ -161,17 +183,23 @@ describe('CodeEditorCell', () => {
     startCompletion(view);
 
     await waitFor(() => {
-      const labels = currentCompletions(view.state).map((option) => option.label);
+      const labels = currentCompletions(view.state).map(
+        (option) => option.label,
+      );
       expect(labels).toContain('age');
       expect(labels).toContain('address');
     });
   });
 
   it('updates when the value prop changes', async () => {
-    const { container, rerender } = render(<CodeEditorCell value="1" service={service} />);
+    const { container, rerender } = render(
+      <CodeEditorCell value="1" service={service} />,
+    );
     rerender(<CodeEditorCell value="2 + 3" service={service} />);
     await waitFor(() => {
-      expect(container.querySelector('.cm-content')?.textContent).toContain('2 + 3');
+      expect(container.querySelector('.cm-content')?.textContent).toContain(
+        '2 + 3',
+      );
     });
   });
 
@@ -179,7 +207,12 @@ describe('CodeEditorCell', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     const { container } = render(
-      <CodeEditorCell value="1" onChange={onChange} service={service} readOnly />,
+      <CodeEditorCell
+        value="1"
+        onChange={onChange}
+        service={service}
+        readOnly
+      />,
     );
 
     const editable = container.querySelector('.cm-content');

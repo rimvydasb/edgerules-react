@@ -12,16 +12,25 @@ import {
 // The real dev-build engine service — never mocked (see project testing policy).
 const languageService = MutableDecisionService;
 
-function renderRisk(extraProps: Partial<Parameters<typeof DecisionTableEditor>[0]> = {}) {
+function renderRisk(
+  extraProps: Partial<Parameters<typeof DecisionTableEditor>[0]> = {},
+) {
   const service = MutableDecisionService.fromCode(RISK_MODEL_DSL);
   const utils = render(
-    <DecisionTableEditor service={service} path="risk" languageService={languageService} {...extraProps} />,
+    <DecisionTableEditor
+      service={service}
+      path="risk"
+      languageService={languageService}
+      {...extraProps}
+    />,
   );
   return { service, ...utils };
 }
 
 function queryCmContent(container: HTMLElement): HTMLElement {
-  const editable = container.querySelector('.cm-content[contenteditable="true"]');
+  const editable = container.querySelector(
+    '.cm-content[contenteditable="true"]',
+  );
   if (!editable) {
     throw new Error('Expected an active CodeEditorCell');
   }
@@ -42,7 +51,9 @@ function cellByText(scope: HTMLElement, text: string): HTMLElement {
 describe('DecisionTableEditor rendering', () => {
   it('renders input and output columns with type labels', () => {
     renderRisk();
-    const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent);
     expect(headers.join(' ')).toContain('age');
     expect(headers.join(' ')).toContain('income');
     expect(headers.join(' ')).toContain('segment');
@@ -83,19 +94,31 @@ describe('DecisionTableEditor rendering', () => {
   it('detects a scorecard: one score column and a scorecard badge', () => {
     const service = MutableDecisionService.fromCode(SCORECARD_MODEL_DSL);
     const { container } = render(
-      <DecisionTableEditor service={service} path="scoreFactors" languageService={languageService} />,
+      <DecisionTableEditor
+        service={service}
+        path="scoreFactors"
+        languageService={languageService}
+      />,
     );
     expect(container.textContent).toContain('scorecard');
-    const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent ?? '');
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent ?? '');
     expect(headers.some((text) => text.includes('score'))).toBe(true);
   });
 
   it('shows a priority column for best-match', () => {
     const service = MutableDecisionService.fromCode(BEST_MATCH_MODEL_DSL);
     const { container } = render(
-      <DecisionTableEditor service={service} path="tier" languageService={languageService} />,
+      <DecisionTableEditor
+        service={service}
+        path="tier"
+        languageService={languageService}
+      />,
     );
-    const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent ?? '');
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent ?? '');
     expect(headers.some((text) => text.includes('priority'))).toBe(true);
     expect(container.textContent).toContain('1');
     expect(container.textContent).toContain('2');
@@ -120,7 +143,10 @@ describe('DecisionTableEditor editing', () => {
     const onChange = vi.fn();
     const { service, container } = renderRisk({ onChange });
 
-    const limitCell = cellByText(container.querySelectorAll('tbody tr')[0] as HTMLElement, '1000');
+    const limitCell = cellByText(
+      container.querySelectorAll('tbody tr')[0] as HTMLElement,
+      '1000',
+    );
     await user.dblClick(limitCell);
 
     const editable = queryCmContent(container);
@@ -128,7 +154,10 @@ describe('DecisionTableEditor editing', () => {
     await user.keyboard('{Control>}a{/Control}1500{Enter}');
 
     await waitFor(() => {
-      expect(service.execute('decision')).toEqual({ level: 'high', limit: 1500 });
+      expect(service.execute('decision')).toEqual({
+        level: 'high',
+        limit: 1500,
+      });
     });
     expect(onChange).toHaveBeenCalled();
     // Editor unmounts after commit; the display shows the new value.
@@ -166,7 +195,9 @@ describe('DecisionTableEditor editing', () => {
     await waitFor(() => {
       expect(container.querySelector('.cm-editor')).toBeNull();
     });
-    const definition = service.get('risk.*') as { '@rules': Array<{ when?: Record<string, string> }> };
+    const definition = service.get('risk.*') as {
+      '@rules': Array<{ when?: Record<string, string> }>;
+    };
     expect(definition['@rules'][0].when).not.toHaveProperty('income');
   });
 
@@ -194,13 +225,17 @@ describe('DecisionTableEditor editing', () => {
 
     await user.click(screen.getByRole('button', { name: /add rule/i }));
     await waitFor(() => {
-      expect((service.get('risk.*') as { '@rules': unknown[] })['@rules']).toHaveLength(4);
+      expect(
+        (service.get('risk.*') as { '@rules': unknown[] })['@rules'],
+      ).toHaveLength(4);
     });
 
     await user.click(screen.getByLabelText('rule 4 menu'));
     await user.click(screen.getByRole('menuitem', { name: /delete rule/i }));
     await waitFor(() => {
-      expect((service.get('risk.*') as { '@rules': unknown[] })['@rules']).toHaveLength(3);
+      expect(
+        (service.get('risk.*') as { '@rules': unknown[] })['@rules'],
+      ).toHaveLength(3);
     });
     expect(container.querySelectorAll('tbody tr')).toHaveLength(3 + 1 + 1); // rules + default + add-rule
   });
@@ -228,9 +263,13 @@ describe('DecisionTableEditor editing', () => {
     await user.click(screen.getByRole('option', { name: /best match/i }));
 
     await waitFor(() => {
-      expect((service.get('risk.*') as { '@hitPolicy': string })['@hitPolicy']).toBe('best-match');
+      expect(
+        (service.get('risk.*') as { '@hitPolicy': string })['@hitPolicy'],
+      ).toBe('best-match');
     });
-    const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent ?? '');
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent ?? '');
     expect(headers.some((text) => text.includes('priority'))).toBe(true);
   });
 
@@ -246,7 +285,9 @@ describe('DecisionTableEditor editing', () => {
     await user.keyboard('{Control>}a{/Control}99{Enter}');
 
     await waitFor(() => {
-      const definition = service.get('risk.*') as { '@default': Record<string, unknown> };
+      const definition = service.get('risk.*') as {
+        '@default': Record<string, unknown>;
+      };
       expect(definition['@default'].limit).toBe(99);
     });
   });
@@ -258,11 +299,15 @@ describe('DecisionTableEditor editing', () => {
     const firstRow = container.querySelectorAll('tbody tr')[0] as HTMLElement;
     const cells = firstRow.querySelectorAll('td');
     const annotationCell = cells[cells.length - 2] as HTMLElement; // before the row-menu cell
-    await user.dblClick(annotationCell.querySelector('[role="button"]') as HTMLElement);
+    await user.dblClick(
+      annotationCell.querySelector('[role="button"]') as HTMLElement,
+    );
     await user.keyboard('young low income{Enter}');
 
     await waitFor(() => {
-      const definition = service.get('risk.*') as { '@rules': Array<{ name?: string }> };
+      const definition = service.get('risk.*') as {
+        '@rules': Array<{ name?: string }>;
+      };
       expect(definition['@rules'][0].name).toBe('young low income');
     });
   });
@@ -272,7 +317,9 @@ describe('DecisionTableEditor editing', () => {
     const { service } = renderRisk();
 
     await user.click(screen.getByLabelText('table menu'));
-    await user.click(screen.getByRole('menuitem', { name: /add input column/i }));
+    await user.click(
+      screen.getByRole('menuitem', { name: /add input column/i }),
+    );
     await user.type(screen.getByLabelText('Parameter name'), 'channel');
     await user.click(screen.getByRole('button', { name: 'OK' }));
 
@@ -292,7 +339,9 @@ describe('DecisionTableEditor editing', () => {
     const { service } = renderRisk();
 
     await user.click(screen.getByLabelText('table menu'));
-    await user.click(screen.getByRole('menuitem', { name: /add output column/i }));
+    await user.click(
+      screen.getByRole('menuitem', { name: /add output column/i }),
+    );
     await user.type(screen.getByLabelText('Output field name'), 'reason');
     await user.click(screen.getByRole('button', { name: 'OK' }));
 
@@ -308,7 +357,11 @@ describe('DecisionTableEditor editing', () => {
     const user = userEvent.setup();
     const service = MutableDecisionService.fromCode(SCORECARD_MODEL_DSL);
     const { container } = render(
-      <DecisionTableEditor service={service} path="scoreFactors" languageService={languageService} />,
+      <DecisionTableEditor
+        service={service}
+        path="scoreFactors"
+        languageService={languageService}
+      />,
     );
 
     const secondRow = container.querySelectorAll('tbody tr')[1] as HTMLElement;

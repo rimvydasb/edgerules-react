@@ -74,6 +74,8 @@
   },
   "scripts": {
     "build": "tsup",
+    "format": "prettier --write \"src/**/*.tsx\" \"stories/**/*.tsx\"",
+    "format:check": "prettier --check \"src/**/*.tsx\" \"stories/**/*.tsx\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -154,6 +156,7 @@
     "@types/react-dom": "^19.2.3",
     "http-server": "^14.1.1",
     "jsdom": "^29.1.1",
+    "prettier": "^3.9.5",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "storybook": "^10.5.0",

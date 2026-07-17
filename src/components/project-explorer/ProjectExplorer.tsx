@@ -1,4 +1,9 @@
-import { useState, type ReactElement, type ReactNode, type SyntheticEvent } from 'react';
+import {
+  useState,
+  type ReactElement,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -6,7 +11,11 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import type { MutableDecisionService } from '@edgerules/web/mutable';
-import type { PortableContext, PortableError, PortableNode } from '@edgerules/portable';
+import type {
+  PortableContext,
+  PortableError,
+  PortableNode,
+} from '@edgerules/portable';
 import { isPortableError } from '../../lib/portable';
 import {
   groupContextChildren,
@@ -46,9 +55,16 @@ function isFetchableContextPath(itemId: string): boolean {
   return !itemId.includes('::') && !itemId.startsWith('@types.');
 }
 
-function renderLabel(kind: IconKind, text: string, error?: PortableError): ReactNode {
+function renderLabel(
+  kind: IconKind,
+  text: string,
+  error?: PortableError,
+): ReactNode {
   return (
-    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+    <Box
+      component="span"
+      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}
+    >
       <KindIcon kind={kind} error={error} />
       <Typography variant="body2" component="span">
         {text}
@@ -72,15 +88,18 @@ export function ProjectExplorer({
   className,
   sx,
 }: ProjectExplorerProps): ReactElement {
-  const [contextCache, setContextCache] = useState<Map<string, PortableNode | PortableError>>(
-    () => new Map([[ROOT_PATH, service.get(ROOT_FETCH_PATH)]]),
-  );
+  const [contextCache, setContextCache] = useState<
+    Map<string, PortableNode | PortableError>
+  >(() => new Map([[ROOT_PATH, service.get(ROOT_FETCH_PATH)]]));
   const [rootTypes] = useState<PortableNode | PortableError>(() =>
     service.get(ROOT_FETCH_PATH, 'TYPE_DEFINITIONS'),
   );
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  function handleExpandedItemsChange(_event: SyntheticEvent | null, itemIds: string[]): void {
+  function handleExpandedItemsChange(
+    _event: SyntheticEvent | null,
+    itemIds: string[],
+  ): void {
     const newlyExpanded = itemIds.filter((id) => !expandedItems.includes(id));
     const toFetch = newlyExpanded.filter(
       (id) => isFetchableContextPath(id) && !contextCache.has(id),
@@ -104,10 +123,20 @@ export function ProjectExplorer({
     actions.set(itemId, () => onOpenVariables?.(contextPath));
 
     return (
-      <TreeItem key={itemId} itemId={itemId} label={renderLabel('vars', 'Variables')}>
+      <TreeItem
+        key={itemId}
+        itemId={itemId}
+        label={renderLabel('vars', 'Variables')}
+      >
         {vars.map((entry) => {
           actions.set(entry.path, () => onOpenVariables?.(contextPath));
-          return <TreeItem key={entry.path} itemId={entry.path} label={renderLabel('var', entry.name)} />;
+          return (
+            <TreeItem
+              key={entry.path}
+              itemId={entry.path}
+              label={renderLabel('var', entry.name)}
+            />
+          );
         })}
       </TreeItem>
     );
@@ -117,19 +146,33 @@ export function ProjectExplorer({
     const itemId = typesGroupItemId();
 
     if (isPortableError(rootTypes)) {
-      return <TreeItem key={itemId} itemId={itemId} label={renderLabel('types', 'Types', rootTypes)} />;
+      return (
+        <TreeItem
+          key={itemId}
+          itemId={itemId}
+          label={renderLabel('types', 'Types', rootTypes)}
+        />
+      );
     }
 
     actions.set(itemId, () => onOpenTypes?.());
     const entries = listTypeEntries(rootTypes as PortableContext);
 
     return (
-      <TreeItem key={itemId} itemId={itemId} label={renderLabel('types', 'Types')}>
+      <TreeItem
+        key={itemId}
+        itemId={itemId}
+        label={renderLabel('types', 'Types')}
+      >
         {entries.map((entry) => {
           const entryItemId = typeEntryItemId(entry.name);
           actions.set(entryItemId, () => onOpenTypes?.(entry.name));
           return (
-            <TreeItem key={entryItemId} itemId={entryItemId} label={renderLabel('type', entry.name)} />
+            <TreeItem
+              key={entryItemId}
+              itemId={entryItemId}
+              label={renderLabel('type', entry.name)}
+            />
           );
         })}
       </TreeItem>
@@ -140,20 +183,29 @@ export function ProjectExplorer({
     if (entry.kind === 'func') {
       actions.set(entry.path, () => onOpenFunction?.(entry.path));
       return (
-        <TreeItem key={entry.path} itemId={entry.path} label={renderLabel('func', `${entry.name}()`)} />
+        <TreeItem
+          key={entry.path}
+          itemId={entry.path}
+          label={renderLabel('func', `${entry.name}()`)}
+        />
       );
     }
 
     if (entry.kind === 'dt') {
       actions.set(entry.path, () => onOpenDecisionTable?.(entry.path));
       return (
-        <TreeItem key={entry.path} itemId={entry.path} label={renderLabel('dt', `${entry.name}()`)} />
+        <TreeItem
+          key={entry.path}
+          itemId={entry.path}
+          label={renderLabel('dt', `${entry.name}()`)}
+        />
       );
     }
 
     // entry.kind === 'ctx'
     const cached = contextCache.get(entry.path);
-    const error = cached !== undefined && isPortableError(cached) ? cached : undefined;
+    const error =
+      cached !== undefined && isPortableError(cached) ? cached : undefined;
     const label = renderLabel('ctx', entry.name, error);
 
     if (error) {
@@ -172,7 +224,10 @@ export function ProjectExplorer({
     );
   }
 
-  function renderContextChildren(contextPath: string, isRoot: boolean): ReactNode[] {
+  function renderContextChildren(
+    contextPath: string,
+    isRoot: boolean,
+  ): ReactNode[] {
     const node = contextCache.get(contextPath) as PortableContext;
     const { vars, ordered } = groupContextChildren(contextPath, node);
     const children: ReactNode[] = [];

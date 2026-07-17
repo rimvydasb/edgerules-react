@@ -22,12 +22,16 @@ type Story = StoryObj<typeof ProjectExplorer>;
 
 export const Default: Story = {
   loaders: [async () => ({ service: await buildService(MODEL_DSL) })],
-  render: (args, { loaded }) => <ProjectExplorer {...args} service={loaded.service} />,
+  render: (args, { loaded }) => (
+    <ProjectExplorer {...args} service={loaded.service} />
+  ),
 };
 
 export const Expanded: Story = {
   loaders: [async () => ({ service: await buildService(MODEL_DSL) })],
-  render: (args, { loaded }) => <ProjectExplorer {...args} service={loaded.service} />,
+  render: (args, { loaded }) => (
+    <ProjectExplorer {...args} service={loaded.service} />
+  ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByText('Types'));
@@ -44,8 +48,12 @@ export const WithLinkingError: Story = {
   // The `remove()` call happens in `play` (after the story has already mounted successfully),
   // not in the loader — breaking the reference before mount would fail the *root* fetch instead,
   // showing the top-level error state rather than a single node's badge/tooltip.
-  loaders: [async () => ({ service: await buildService('{ box: { a: 1 b: a + 1 } }') })],
-  render: (args, { loaded }) => <ProjectExplorer {...args} service={loaded.service} />,
+  loaders: [
+    async () => ({ service: await buildService('{ box: { a: 1 b: a + 1 } }') }),
+  ],
+  render: (args, { loaded }) => (
+    <ProjectExplorer {...args} service={loaded.service} />
+  ),
   play: async ({ canvasElement, loaded }) => {
     const canvas = within(canvasElement);
     await canvas.findByText('box');

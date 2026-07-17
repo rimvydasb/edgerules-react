@@ -11,7 +11,8 @@ import TableChartIcon from '@mui/icons-material/TableChart';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import type { PortableError } from '@edgerules/portable';
 
-export type IconKind = 'vars' | 'var' | 'ctx' | 'func' | 'dt' | 'types' | 'type';
+export type IconKind =
+  'vars' | 'var' | 'ctx' | 'func' | 'dt' | 'types' | 'type';
 
 const ICON_BY_KIND: Record<IconKind, typeof FolderIcon> = {
   vars: ViewListIcon,
@@ -40,7 +41,9 @@ export function KindIcon({ kind, error }: KindIconProps): ReactElement {
 
   const location = error.location;
   const locationSuffix =
-    location?.line !== undefined ? ` (${location.line}:${location.column ?? 0})` : '';
+    location?.line !== undefined
+      ? ` (${location.line}:${location.column ?? 0})`
+      : '';
 
   return (
     <Tooltip title={`${error.message}${locationSuffix}`}>

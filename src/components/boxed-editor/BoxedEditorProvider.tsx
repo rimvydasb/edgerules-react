@@ -1,4 +1,10 @@
-import { createContext, useContext, type ComponentType, type ReactElement, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  type ComponentType,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import type { PortableRootContext } from '@edgerules/portable';
 import type { CodeEditorService } from '../code-editor/language/service';
 import type {
@@ -40,10 +46,20 @@ export interface FieldActions {
   add: (node: ContextRenderNode) => void;
 }
 
-export interface MetadataActions { edit: (node: BoxedRenderNode) => void }
-export interface InputActions { edit: (node: InputRenderNode) => void }
-export interface FunctionActions { editSignature: (node: FunctionRenderNode | ExternalFunctionRenderNode) => void }
-export interface InvocationActions { edit: (node: InvocationRenderNode) => void }
+export interface MetadataActions {
+  edit: (node: BoxedRenderNode) => void;
+}
+export interface InputActions {
+  edit: (node: InputRenderNode) => void;
+}
+export interface FunctionActions {
+  editSignature: (
+    node: FunctionRenderNode | ExternalFunctionRenderNode,
+  ) => void;
+}
+export interface InvocationActions {
+  edit: (node: InvocationRenderNode) => void;
+}
 export interface ListActions {
   addItem: (node: ListRenderNode | RelationRenderNode) => void;
   duplicateItem: (node: BoxedRenderNode) => void;
@@ -52,9 +68,15 @@ export interface ListActions {
   loadMore: (node: ListRenderNode | RelationRenderNode) => void;
 }
 export interface RelationActions {
-  editColumn: (node: RelationRenderNode, action: 'add' | 'rename' | 'delete', source?: string) => void;
+  editColumn: (
+    node: RelationRenderNode,
+    action: 'add' | 'rename' | 'delete',
+    source?: string,
+  ) => void;
 }
-export interface NavigationActions { open?: (target: BoxedEditorOpenTarget) => void }
+export interface NavigationActions {
+  open?: (target: BoxedEditorOpenTarget) => void;
+}
 
 const StateContext = createContext<BoxedEditorState | null>(null);
 const ExpressionContext = createContext<ExpressionActions | null>(null);
@@ -66,7 +88,12 @@ const InvocationContext = createContext<InvocationActions | null>(null);
 const ListContext = createContext<ListActions | null>(null);
 const RelationContext = createContext<RelationActions | null>(null);
 const NavigationContext = createContext<NavigationActions | null>(null);
-export type BoxedNodeRenderer = ComponentType<{ node: BoxedRenderNode; depth: number; actions?: ReactNode; suppressFieldActions?: boolean }>;
+export type BoxedNodeRenderer = ComponentType<{
+  node: BoxedRenderNode;
+  depth: number;
+  actions?: ReactNode;
+  suppressFieldActions?: boolean;
+}>;
 const NodeRendererContext = createContext<BoxedNodeRenderer | null>(null);
 
 interface BoxedEditorProviderProps {
@@ -84,43 +111,61 @@ interface BoxedEditorProviderProps {
   renderer: BoxedNodeRenderer;
 }
 
-export function BoxedEditorProvider(props: BoxedEditorProviderProps): ReactElement {
-  return <StateContext.Provider value={props.state}>
-    <ExpressionContext.Provider value={props.expression}>
-      <FieldContext.Provider value={props.field}>
-        <MetadataContext.Provider value={props.metadata}>
-          <InputContext.Provider value={props.input}>
-            <FunctionContext.Provider value={props.functions}>
-              <InvocationContext.Provider value={props.invocation}>
-                <ListContext.Provider value={props.list}>
-                  <RelationContext.Provider value={props.relation}>
-                    <NavigationContext.Provider value={props.navigation}>
-                      <NodeRendererContext.Provider value={props.renderer}>{props.children}</NodeRendererContext.Provider>
-                    </NavigationContext.Provider>
-                  </RelationContext.Provider>
-                </ListContext.Provider>
-              </InvocationContext.Provider>
-            </FunctionContext.Provider>
-          </InputContext.Provider>
-        </MetadataContext.Provider>
-      </FieldContext.Provider>
-    </ExpressionContext.Provider>
-  </StateContext.Provider>;
+export function BoxedEditorProvider(
+  props: BoxedEditorProviderProps,
+): ReactElement {
+  return (
+    <StateContext.Provider value={props.state}>
+      <ExpressionContext.Provider value={props.expression}>
+        <FieldContext.Provider value={props.field}>
+          <MetadataContext.Provider value={props.metadata}>
+            <InputContext.Provider value={props.input}>
+              <FunctionContext.Provider value={props.functions}>
+                <InvocationContext.Provider value={props.invocation}>
+                  <ListContext.Provider value={props.list}>
+                    <RelationContext.Provider value={props.relation}>
+                      <NavigationContext.Provider value={props.navigation}>
+                        <NodeRendererContext.Provider value={props.renderer}>
+                          {props.children}
+                        </NodeRendererContext.Provider>
+                      </NavigationContext.Provider>
+                    </RelationContext.Provider>
+                  </ListContext.Provider>
+                </InvocationContext.Provider>
+              </FunctionContext.Provider>
+            </InputContext.Provider>
+          </MetadataContext.Provider>
+        </FieldContext.Provider>
+      </ExpressionContext.Provider>
+    </StateContext.Provider>
+  );
 }
 
 function required<T>(value: T | null, name: string): T {
-  if (!value) throw new Error(`${name} must be used within BoxedEditorProvider`);
+  if (!value)
+    throw new Error(`${name} must be used within BoxedEditorProvider`);
   return value;
 }
 
-export const useBoxedEditorState = (): BoxedEditorState => required(useContext(StateContext), 'useBoxedEditorState');
-export const useExpressionActions = (): ExpressionActions => required(useContext(ExpressionContext), 'useExpressionActions');
-export const useFieldActions = (): FieldActions => required(useContext(FieldContext), 'useFieldActions');
-export const useMetadataActions = (): MetadataActions => required(useContext(MetadataContext), 'useMetadataActions');
-export const useInputActions = (): InputActions => required(useContext(InputContext), 'useInputActions');
-export const useFunctionActions = (): FunctionActions => required(useContext(FunctionContext), 'useFunctionActions');
-export const useInvocationActions = (): InvocationActions => required(useContext(InvocationContext), 'useInvocationActions');
-export const useListActions = (): ListActions => required(useContext(ListContext), 'useListActions');
-export const useRelationActions = (): RelationActions => required(useContext(RelationContext), 'useRelationActions');
-export const useEditorNavigation = (): NavigationActions => required(useContext(NavigationContext), 'useEditorNavigation');
-export const useBoxedNodeRenderer = (): BoxedNodeRenderer => required(useContext(NodeRendererContext), 'useBoxedNodeRenderer');
+export const useBoxedEditorState = (): BoxedEditorState =>
+  required(useContext(StateContext), 'useBoxedEditorState');
+export const useExpressionActions = (): ExpressionActions =>
+  required(useContext(ExpressionContext), 'useExpressionActions');
+export const useFieldActions = (): FieldActions =>
+  required(useContext(FieldContext), 'useFieldActions');
+export const useMetadataActions = (): MetadataActions =>
+  required(useContext(MetadataContext), 'useMetadataActions');
+export const useInputActions = (): InputActions =>
+  required(useContext(InputContext), 'useInputActions');
+export const useFunctionActions = (): FunctionActions =>
+  required(useContext(FunctionContext), 'useFunctionActions');
+export const useInvocationActions = (): InvocationActions =>
+  required(useContext(InvocationContext), 'useInvocationActions');
+export const useListActions = (): ListActions =>
+  required(useContext(ListContext), 'useListActions');
+export const useRelationActions = (): RelationActions =>
+  required(useContext(RelationContext), 'useRelationActions');
+export const useEditorNavigation = (): NavigationActions =>
+  required(useContext(NavigationContext), 'useEditorNavigation');
+export const useBoxedNodeRenderer = (): BoxedNodeRenderer =>
+  required(useContext(NodeRendererContext), 'useBoxedNodeRenderer');

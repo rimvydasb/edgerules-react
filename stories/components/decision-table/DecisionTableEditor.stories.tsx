@@ -45,7 +45,11 @@ function EditorHarness({
         readOnly={readOnly}
         onChange={() => setVersion((current) => current + 1)}
       />
-      <Typography variant="caption" data-testid="live-result" sx={{ display: 'block', mt: 1 }}>
+      <Typography
+        variant="caption"
+        data-testid="live-result"
+        sx={{ display: 'block', mt: 1 }}
+      >
         {resultPath}: {result}
       </Typography>
     </Box>
@@ -96,7 +100,9 @@ export const Scorecard: Story = {
 };
 
 export const BestMatchPriorities: Story = {
-  loaders: [async () => ({ service: await buildService(BEST_MATCH_MODEL_DSL) })],
+  loaders: [
+    async () => ({ service: await buildService(BEST_MATCH_MODEL_DSL) }),
+  ],
   render: (_args, { loaded }) => (
     <EditorHarness
       service={loaded.service as MutableDecisionService}

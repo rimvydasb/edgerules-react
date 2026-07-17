@@ -11,7 +11,9 @@ import { INVALID_MODEL_DSL, VALID_MODEL_DSL } from '../testing/model.dsl';
 const service = MutableDecisionService;
 
 function queryEditable(container: HTMLElement): HTMLElement {
-  const editable = container.querySelector('.cm-content[contenteditable="true"]');
+  const editable = container.querySelector(
+    '.cm-content[contenteditable="true"]',
+  );
   if (!editable) {
     throw new Error('Could not find a contenteditable CodeMirror element');
   }
@@ -31,15 +33,29 @@ describe('CodeEditor', () => {
   it('renders controlled value and updates when props change', async () => {
     const onChange = vi.fn();
     const { container, rerender } = render(
-      <CodeEditor value={VALID_MODEL_DSL} onChange={onChange} service={service} />,
+      <CodeEditor
+        value={VALID_MODEL_DSL}
+        onChange={onChange}
+        service={service}
+      />,
     );
 
-    expect(container.querySelector('.cm-content')?.textContent).toContain('applicant');
+    expect(container.querySelector('.cm-content')?.textContent).toContain(
+      'applicant',
+    );
 
-    rerender(<CodeEditor value="{ answer: 42 }" onChange={onChange} service={service} />);
+    rerender(
+      <CodeEditor
+        value="{ answer: 42 }"
+        onChange={onChange}
+        service={service}
+      />,
+    );
 
     await waitFor(() => {
-      expect(container.querySelector('.cm-content')?.textContent).toContain('answer');
+      expect(container.querySelector('.cm-content')?.textContent).toContain(
+        'answer',
+      );
     });
   });
 
@@ -62,7 +78,11 @@ describe('CodeEditor', () => {
   it('highlights EdgeRules syntax with stable token classes', async () => {
     const onChange = vi.fn();
     const { container } = render(
-      <CodeEditor value={VALID_MODEL_DSL} onChange={onChange} service={service} />,
+      <CodeEditor
+        value={VALID_MODEL_DSL}
+        onChange={onChange}
+        service={service}
+      />,
     );
 
     await waitFor(() => {
@@ -77,18 +97,28 @@ describe('CodeEditor', () => {
   it('surfaces real engine diagnostics as lint markers for invalid code', async () => {
     const onChange = vi.fn();
     const { container } = render(
-      <CodeEditor value={INVALID_MODEL_DSL} onChange={onChange} service={service} />,
+      <CodeEditor
+        value={INVALID_MODEL_DSL}
+        onChange={onChange}
+        service={service}
+      />,
     );
 
     await waitFor(() => {
-      expect(container.querySelector('.cm-lintRange-error, .cm-lintPoint-error')).not.toBeNull();
+      expect(
+        container.querySelector('.cm-lintRange-error, .cm-lintPoint-error'),
+      ).not.toBeNull();
     });
   });
 
   it('shows engine completions on explicit request (Ctrl+Space path)', async () => {
     const onChange = vi.fn();
     const { container } = render(
-      <CodeEditor value={VALID_MODEL_DSL} onChange={onChange} service={service} />,
+      <CodeEditor
+        value={VALID_MODEL_DSL}
+        onChange={onChange}
+        service={service}
+      />,
     );
 
     const view = getView(container);
@@ -110,12 +140,18 @@ describe('CodeEditor', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     const { container } = render(
-      <CodeEditor value={VALID_MODEL_DSL} onChange={onChange} service={service} />,
+      <CodeEditor
+        value={VALID_MODEL_DSL}
+        onChange={onChange}
+        service={service}
+      />,
     );
 
     const view = getView(container);
     const usage =
-      VALID_MODEL_DSL.indexOf('riskScore(applicant') + 'riskScore('.length + 'app'.length;
+      VALID_MODEL_DSL.indexOf('riskScore(applicant') +
+      'riskScore('.length +
+      'app'.length;
     view.dispatch({ selection: { anchor: usage } });
     const editable = queryEditable(container);
     editable.focus();
@@ -124,7 +160,9 @@ describe('CodeEditor', () => {
     await waitFor(() => {
       const selection = view.state.selection.main;
       expect(selection.from).toBe(VALID_MODEL_DSL.indexOf('applicant: {'));
-      expect(view.state.doc.sliceString(selection.from, selection.to)).toBe('applicant');
+      expect(view.state.doc.sliceString(selection.from, selection.to)).toBe(
+        'applicant',
+      );
     });
   });
 
@@ -155,7 +193,12 @@ describe('CodeEditor', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     const { container } = render(
-      <CodeEditor value="{ a: 1 }" onChange={onChange} service={service} readOnly />,
+      <CodeEditor
+        value="{ a: 1 }"
+        onChange={onChange}
+        service={service}
+        readOnly
+      />,
     );
 
     const editable = container.querySelector('.cm-content');

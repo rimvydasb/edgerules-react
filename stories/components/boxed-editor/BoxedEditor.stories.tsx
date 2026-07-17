@@ -23,7 +23,10 @@ const MODEL = `{
   payment: monthly(application.amount)
 }`;
 
-async function buildService(model = MODEL) { await init(); return MutableDecisionService.fromCode(model); }
+async function buildService(model = MODEL) {
+  await init();
+  return MutableDecisionService.fromCode(model);
+}
 
 const LOAN_ORIGINATION_MODEL = `{
   type Applicant: {
@@ -84,144 +87,246 @@ type WorkspaceRoute =
   | { kind: 'type-definition' | 'ruleset' | 'loop'; path: string };
 
 /** A host-level integration example: Project Explorer uses an empty root path, while BoxedEditor uses "*". */
-function IntegrationWorkspace({ service }: { service: MutableDecisionService }) {
-  const [route, setRoute] = useState<WorkspaceRoute>({ kind: 'boxed', path: '*' });
+function IntegrationWorkspace({
+  service,
+}: {
+  service: MutableDecisionService;
+}) {
+  const [route, setRoute] = useState<WorkspaceRoute>({
+    kind: 'boxed',
+    path: '*',
+  });
   const [revision, setRevision] = useState(0);
-  const openBoxed = (projectPath: string) => setRoute({ kind: 'boxed', path: projectPath || '*' });
+  const openBoxed = (projectPath: string) =>
+    setRoute({ kind: 'boxed', path: projectPath || '*' });
 
-  return <Box sx={{ display: 'grid', gridTemplateColumns: '240px minmax(0, 1fr)', gap: 2 }}>
-    <ProjectExplorer
-      service={service}
-      onOpenVariables={openBoxed}
-      onOpenFunction={openBoxed}
-      onOpenTypes={(name) => setRoute({ kind: 'type-definition', path: name ?? '*' })}
-      onOpenDecisionTable={(path) => setRoute({ kind: 'ruleset', path })}
-    />
-    <Box>
-      <Typography data-testid="boxed-workspace-route" variant="caption" sx={{ display: 'block', mb: 1 }}>
-        {route.kind}: {route.path}
-      </Typography>
-      {route.kind === 'boxed' ? <BoxedEditor
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: '240px minmax(0, 1fr)',
+        gap: 2,
+      }}
+    >
+      <ProjectExplorer
         service={service}
-        path={route.path}
-        revision={revision}
-        languageService={MutableDecisionService}
-        onChange={() => setRevision(value => value + 1)}
-        onOpenNode={setRoute}
-      /> : route.kind === 'ruleset' ? <DecisionTableEditor
-        service={service}
-        path={route.path}
-        languageService={MutableDecisionService}
-        onChange={() => setRevision(value => value + 1)}
-      /> : <Alert severity="info">{route.kind === 'type-definition' ? 'Types Editor' : 'Loop Editor'} route: {route.path}</Alert>}
+        onOpenVariables={openBoxed}
+        onOpenFunction={openBoxed}
+        onOpenTypes={(name) =>
+          setRoute({ kind: 'type-definition', path: name ?? '*' })
+        }
+        onOpenDecisionTable={(path) => setRoute({ kind: 'ruleset', path })}
+      />
+      <Box>
+        <Typography
+          data-testid="boxed-workspace-route"
+          variant="caption"
+          sx={{ display: 'block', mb: 1 }}
+        >
+          {route.kind}: {route.path}
+        </Typography>
+        {route.kind === 'boxed' ? (
+          <BoxedEditor
+            service={service}
+            path={route.path}
+            revision={revision}
+            languageService={MutableDecisionService}
+            onChange={() => setRevision((value) => value + 1)}
+            onOpenNode={setRoute}
+          />
+        ) : route.kind === 'ruleset' ? (
+          <DecisionTableEditor
+            service={service}
+            path={route.path}
+            languageService={MutableDecisionService}
+            onChange={() => setRevision((value) => value + 1)}
+          />
+        ) : (
+          <Alert severity="info">
+            {route.kind === 'type-definition' ? 'Types Editor' : 'Loop Editor'}{' '}
+            route: {route.path}
+          </Alert>
+        )}
+      </Box>
     </Box>
-  </Box>;
+  );
 }
 
-const meta: Meta<typeof BoxedEditor> = { title: 'Boxed Editor/BoxedEditor', component: BoxedEditor };
+const meta: Meta<typeof BoxedEditor> = {
+  title: 'Boxed Editor/BoxedEditor',
+  component: BoxedEditor,
+};
 export default meta;
 type Story = StoryObj<typeof BoxedEditor>;
 
 export const RootReadOnly: Story = {
   loaders: [async () => ({ service: await buildService() })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="*" readOnly />,
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="*" readOnly />
+  ),
 };
 
 export const FocusedFunction: Story = {
   loaders: [async () => ({ service: await buildService() })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="monthly" readOnly />,
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="monthly" readOnly />
+  ),
 };
 
 export const Editable: Story = {
   loaders: [async () => ({ service: await buildService() })],
   render: (args, { loaded }) => {
     const [changes, setChanges] = useState(0);
-    return <>
-      <BoxedEditor {...args} service={loaded.service} path="*" languageService={MutableDecisionService} onChange={() => setChanges(value => value + 1)} />
-      <output data-testid="boxed-change-count">Changes: {changes}</output>
-    </>;
+    return (
+      <>
+        <BoxedEditor
+          {...args}
+          service={loaded.service}
+          path="*"
+          languageService={MutableDecisionService}
+          onChange={() => setChanges((value) => value + 1)}
+        />
+        <output data-testid="boxed-change-count">Changes: {changes}</output>
+      </>
+    );
   },
 };
 
 export const InlineFunction: Story = {
-  loaders: [async () => ({ service: await buildService(`{
+  loaders: [
+    async () => ({
+      service: await buildService(`{
     func monthly(amount: number) -> number: amount / 12
-  }`) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="monthly" />,
+  }`),
+    }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="monthly" />
+  ),
 };
 
 export const ContextFunction: Story = {
-  loaders: [async () => ({ service: await buildService(`{
+  loaders: [
+    async () => ({
+      service: await buildService(`{
     func summary(amount: number): {
       tax: amount * 0.2
       result: amount + tax
     }
-  }`) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="summary" />,
+  }`),
+    }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="summary" />
+  ),
 };
 
 export const ExternalFunction: Story = {
-  loaders: [async () => ({ service: await buildService(`{
+  loaders: [
+    async () => ({
+      service: await buildService(`{
     external func lookup(id: string) -> number
-  }`) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="lookup" />,
+  }`),
+    }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="lookup" />
+  ),
 };
 
 export const Invocation: Story = {
-  loaders: [async () => ({ service: await buildService(`{
+  loaders: [
+    async () => ({
+      service: await buildService(`{
     func monthly(amount: number) -> number: amount / 12
     payment: monthly(1200)
-  }`) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="payment" />,
+  }`),
+    }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="payment" />
+  ),
 };
 
 export const LiteralList: Story = {
-  loaders: [async () => ({ service: await buildService(`{
+  loaders: [
+    async () => ({
+      service: await buildService(`{
     scores: [12, 19, 27, 35]
-  }`) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="scores" />,
+  }`),
+    }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="scores" />
+  ),
 };
 
 export const Relation: Story = {
-  loaders: [async () => ({ service: await buildService(`{
+  loaders: [
+    async () => ({
+      service: await buildService(`{
     applicants: [
       { name: "Ada"; age: 36 }
       { name: "Grace"; age: 42 }
     ]
-  }`) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="applicants" />,
+  }`),
+    }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="applicants" />
+  ),
 };
 
 export const LoanOriginationOverview: Story = {
-  loaders: [async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="*" readOnly />,
+  loaders: [
+    async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="*" readOnly />
+  ),
 };
 
 export const ErrorState: Story = {
-  loaders: [async () => {
-    const service = await buildService('{ box: { a: 1 b: a + 1 } }');
-    service.remove('box.a');
-    return { service };
-  }],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="*" />,
+  loaders: [
+    async () => {
+      const service = await buildService('{ box: { a: 1 b: a + 1 } }');
+      service.remove('box.a');
+      return { service };
+    },
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="*" />
+  ),
 };
 
 export const ReadOnlyVisual: Story = {
-  loaders: [async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="*" readOnly />,
+  loaders: [
+    async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="*" readOnly />
+  ),
 };
 
 export const NestedFunctionVisual: Story = {
-  loaders: [async () => ({ service: await buildService(NESTED_FUNCTION_MODEL) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="*" readOnly />,
+  loaders: [
+    async () => ({ service: await buildService(NESTED_FUNCTION_MODEL) }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="*" readOnly />
+  ),
 };
 
 export const LargeModelVisual: Story = {
   loaders: [async () => ({ service: await buildService(LARGE_MODEL) })],
-  render: (args, { loaded }) => <BoxedEditor {...args} service={loaded.service} path="*" readOnly />,
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="*" readOnly />
+  ),
 };
 
 export const ProjectExplorerIntegration: Story = {
   loaders: [async () => ({ service: await buildService(ROUTING_MODEL) })],
-  render: (_args, { loaded }) => <IntegrationWorkspace service={loaded.service} />,
+  render: (_args, { loaded }) => (
+    <IntegrationWorkspace service={loaded.service} />
+  ),
 };
