@@ -349,13 +349,18 @@ entity cannot perform.
 - indentation and grid columns;
 - expand/collapse placement;
 - path-error display;
-- read-only suppression of the action cell; and
+- read-only suppression of action contents while retaining the cell geometry; and
 - optional child rendering.
 
 Sortable rows always receive a leading `DragIndicator` handle so editable and read-only presentations retain the same
 structure. Sorting is pointer/touch driven through `dnd-kit`; drops are restricted to the active row's sibling group.
 In read-only mode the handles remain visible but disabled, and neither field names nor expression values activate an
 editor.
+
+Every row retains the same six-column geometry in both modes: ordering handle, disclosure control, name, value, type,
+and actions. Each boundary is a one-pixel divider. Hierarchy depth indents content inside the name cell rather than
+padding the complete row, so handles and vertical rules remain aligned across nested levels. Function signatures may
+span the name, value, and type columns, but retain the same handle, disclosure, and action boundaries.
 
 Headers, values, types, actions, and children are composed into slots. Never add `kind`, `isFunction`, `isList`, or
 similar dispatch flags to `BoxFrame`.
@@ -393,6 +398,8 @@ persisting the synthetic document. The marker used to split the document must ne
 - The complete relationship table is inset one child level beyond its owning relation row. This inset includes the row
   drag-handle column and accumulates at every surrounding context depth, keeping shallow and deeply nested tables
   aligned with the boxed hierarchy.
+- Relationship table and cell edges use the same one-pixel divider as ordinary boxed rows. Every sortable column
+  header reserves a bordered 34-pixel handle compartment so its label does not depend on icon padding or offsets.
 - Clicking a relationship column name replaces the label with a plain text input. The commit renames that field in
   every underlying object while preserving its position. There is no relationship bottom toolbar.
 - Each relationship row has its own drag handle. Row reordering rewrites the complete terminal collection, while

@@ -61,21 +61,23 @@ export function ListBox({
         children={children}
         renderItem={renderItem}
       />
-      <Box
-        sx={{
-          pl: (depth + 1) * 2,
-          py: 0.5,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        {node.list.error && <Alert severity="error">{node.list.error}</Alert>}
-        {!node.list.terminal && (
-          <Button size="small" onClick={() => list.loadMore(node)}>
-            Load more
-          </Button>
-        )}
-      </Box>
+      {(node.list.error || !node.list.terminal) && (
+        <Box
+          sx={{
+            pl: (depth + 1) * 2,
+            py: 0.5,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          {node.list.error && <Alert severity="error">{node.list.error}</Alert>}
+          {!node.list.terminal && (
+            <Button size="small" onClick={() => list.loadMore(node)}>
+              Load more
+            </Button>
+          )}
+        </Box>
+      )}
     </BoxFrame>
   );
 }

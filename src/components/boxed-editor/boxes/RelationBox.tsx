@@ -64,33 +64,43 @@ function RelationColumnHeader({
       scope="col"
       sx={{
         minWidth: 150,
-        px: 1,
-        py: 0.75,
+        p: 0,
         bgcolor: 'action.hover',
+        borderRight: '1px solid',
+        borderColor: 'divider',
         transform: CSS.Transform.toString(sortable.transform),
         transition: sortable.transition,
         opacity: sortable.isDragging ? 0.72 : 1,
         whiteSpace: 'nowrap',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+      <Box sx={{ display: 'flex', alignItems: 'stretch', minHeight: 40 }}>
         {node.list.terminal && (
-          <IconButton
-            size="small"
-            aria-label={`Drag column ${node.path}.${column.name}`}
-            disabled={state.readOnly}
+          <Box
             sx={{
-              // Offset the IconButton's internal padding so the glyph shares
-              // the same left edge as values in the body cells below it.
-              ml: -1.25,
-              cursor: state.readOnly ? 'default' : 'grab',
-              touchAction: 'none',
+              width: 34,
+              flex: '0 0 34px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRight: '1px solid',
+              borderColor: 'divider',
             }}
-            {...sortable.attributes}
-            {...sortable.listeners}
           >
-            <DragIndicatorIcon fontSize="small" />
-          </IconButton>
+            <IconButton
+              size="small"
+              aria-label={`Drag column ${node.path}.${column.name}`}
+              disabled={state.readOnly}
+              sx={{
+                cursor: state.readOnly ? 'default' : 'grab',
+                touchAction: 'none',
+              }}
+              {...sortable.attributes}
+              {...sortable.listeners}
+            >
+              <DragIndicatorIcon fontSize="small" />
+            </IconButton>
+          </Box>
         )}
         {editing ? (
           <InputBase
@@ -108,7 +118,7 @@ function RelationColumnHeader({
                 setEditing(false);
               }
             }}
-            sx={{ minWidth: 0, flex: 1, fontWeight: 700 }}
+            sx={{ minWidth: 0, flex: 1, px: 1, fontWeight: 700 }}
           />
         ) : (
           <Button
@@ -121,8 +131,9 @@ function RelationColumnHeader({
               minWidth: 0,
               flex: 1,
               justifyContent: 'flex-start',
-              px: 0.5,
+              px: 1,
               fontWeight: 700,
+              fontFamily: 'monospace',
               textTransform: 'none',
             }}
           >
@@ -130,13 +141,25 @@ function RelationColumnHeader({
           </Button>
         )}
         {!state.readOnly && node.list.terminal && (
-          <IconButton
-            size="small"
-            aria-label={`Delete column ${node.path}.${column.name}`}
-            onClick={() => relation.editColumn(node, 'delete', column.name)}
+          <Box
+            sx={{
+              width: 34,
+              flex: '0 0 34px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderLeft: '1px solid',
+              borderColor: 'divider',
+            }}
           >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+            <IconButton
+              size="small"
+              aria-label={`Delete column ${node.path}.${column.name}`}
+              onClick={() => relation.editColumn(node, 'delete', column.name)}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Box>
         )}
       </Box>
     </TableCell>
@@ -182,7 +205,8 @@ export function RelationBox({
           sx={{
             ml: (depth + 1) * 2,
             width: (theme) => `calc(100% - ${theme.spacing((depth + 1) * 2)})`,
-            borderTop: '1px solid',
+            boxSizing: 'border-box',
+            border: '1px solid',
             borderColor: 'divider',
             overflowX: 'auto',
           }}
@@ -195,7 +219,13 @@ export function RelationBox({
             <TableHead>
               <TableRow>
                 <TableCell
-                  sx={{ width: 42, bgcolor: 'action.hover' }}
+                  sx={{
+                    width: 42,
+                    p: 0,
+                    bgcolor: 'action.hover',
+                    borderRight: '1px solid',
+                    borderColor: 'divider',
+                  }}
                   aria-label="Row ordering"
                 />
                 <SortableContext
@@ -213,7 +243,12 @@ export function RelationBox({
                 {!state.readOnly && (
                   <TableCell
                     align="right"
-                    sx={{ width: 82, bgcolor: 'action.hover' }}
+                    sx={{
+                      width: 82,
+                      bgcolor: 'action.hover',
+                      borderLeft: '1px solid',
+                      borderColor: 'divider',
+                    }}
                   >
                     {node.list.terminal && (
                       <IconButton

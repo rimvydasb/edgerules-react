@@ -48,7 +48,16 @@ export function RelationRowBox({
         '&:last-child td': { borderBottom: 0 },
       }}
     >
-      <TableCell padding="checkbox" sx={{ width: 42 }}>
+      <TableCell
+        padding="checkbox"
+        sx={{
+          width: 42,
+          p: 0,
+          textAlign: 'center',
+          borderRight: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
         {node.sortable && (
           <IconButton
             size="small"
@@ -123,6 +132,8 @@ export function RelationRowBox({
                   ? 'cell'
                   : 'default',
               overflow: 'hidden',
+              borderRight: '1px solid',
+              borderColor: 'divider',
               '& code': {
                 display: 'block',
                 overflow: 'hidden',
@@ -203,7 +214,15 @@ export function RelationRowBox({
         );
       })}
       {!state.readOnly && (
-        <TableCell align="right" sx={{ width: 82, whiteSpace: 'nowrap' }}>
+        <TableCell
+          align="right"
+          sx={{
+            width: 82,
+            whiteSpace: 'nowrap',
+            borderLeft: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
           <ListItemActions node={node} />
         </TableCell>
       )}

@@ -27,6 +27,7 @@ export function FunctionBox({
     <BoxFrame
       node={node}
       depth={depth}
+      headerSpan
       header={<BoxHeader node={node} label={label} />}
       type={<BoxTypeChip schema={node.schema} />}
       actions={

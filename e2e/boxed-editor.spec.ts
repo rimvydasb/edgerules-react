@@ -73,6 +73,60 @@ test('read-only loan origination opens from the Storybook manager route', async 
   ).not.toBeVisible();
 });
 
+test('loan origination renders an aligned one-pixel boxed grid', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
+  );
+  await page.getByRole('button', { name: 'Expand application' }).click();
+  await page.getByRole('button', { name: 'Expand recentApplications' }).click();
+
+  const grid = page.getByRole('treegrid');
+  await expect(grid).toHaveCSS('border-top-width', '1px');
+  await expect(grid).toHaveCSS('border-left-width', '1px');
+
+  const applicationDate = page.getByRole('row', {
+    name: 'application.applicationDate',
+  });
+  const propertyValue = page.getByRole('row', {
+    name: 'application.propertyValue',
+  });
+  const dateCells = applicationDate.getByRole('cell');
+  const propertyCells = propertyValue.getByRole('cell');
+  await expect(dateCells).toHaveCount(6);
+  await expect(dateCells.nth(0)).toHaveCSS('width', '34px');
+  await expect(dateCells.nth(1)).toHaveCSS('border-left-width', '1px');
+  await expect(dateCells.nth(2)).toHaveCSS('border-left-width', '1px');
+  await expect(dateCells.nth(3)).toHaveCSS('border-left-width', '1px');
+  await expect(dateCells.nth(4)).toHaveCSS('border-left-width', '1px');
+  await expect(dateCells.nth(5)).toHaveCSS('border-left-width', '1px');
+
+  const dateColumns = await dateCells.evaluateAll((cells) =>
+    cells.map((cell) => Math.round(cell.getBoundingClientRect().x)),
+  );
+  const propertyColumns = await propertyCells.evaluateAll((cells) =>
+    cells.map((cell) => Math.round(cell.getBoundingClientRect().x)),
+  );
+  expect(propertyColumns).toEqual(dateColumns);
+
+  const relation = page.getByRole('table', {
+    name: 'recentApplications relationship',
+  });
+  const relationContainer = relation.locator('..');
+  await expect(relationContainer).toHaveCSS('border-top-width', '1px');
+  await expect(relationContainer).toHaveCSS('border-right-width', '1px');
+  await expect(relationContainer).toHaveCSS('border-bottom-width', '1px');
+  await expect(relationContainer).toHaveCSS('border-left-width', '1px');
+
+  const columnHandle = page.getByRole('button', {
+    name: 'Drag column recentApplications.reference',
+  });
+  const handleCompartment = columnHandle.locator('..');
+  await expect(handleCompartment).toHaveCSS('width', '34px');
+  await expect(handleCompartment).toHaveCSS('border-right-width', '1px');
+});
+
 test('every Boxed Editor story opens without the Storybook render error boundary', async ({
   page,
 }) => {
@@ -485,7 +539,13 @@ test('deeply nested relationship tables retain their complete child inset', asyn
   const table = page.getByRole('table', {
     name: `${relationPath} relationship`,
   });
-  await expect(relation).toHaveCSS('padding-left', '64px');
+  // Nested rows keep the shared grid lines fixed; only the name content is
+  // indented. This avoids pushing handles and cell boundaries out of column.
+  await expect(relation).toHaveCSS('padding-left', '0px');
+  await expect(relation.getByRole('cell').nth(2)).toHaveCSS(
+    'padding-left',
+    '72px',
+  );
   await expect(table.locator('..')).toHaveCSS('margin-left', '80px');
 
   const editorBounds = await page.getByRole('treegrid').boundingBox();

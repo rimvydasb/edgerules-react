@@ -62,7 +62,15 @@ export function BoxHeader({
                 }
               : undefined
           }
-          sx={{ cursor: canEdit ? 'text' : undefined }}
+          sx={{
+            display: 'block',
+            minWidth: 0,
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            cursor: canEdit ? 'text' : undefined,
+          }}
         >
           {label}
         </Box>

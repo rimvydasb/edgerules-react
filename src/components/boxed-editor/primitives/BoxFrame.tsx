@@ -18,6 +18,7 @@ interface BoxFrameProps {
   type?: ReactNode;
   actions?: ReactNode;
   actionsWidth?: number | string;
+  headerSpan?: boolean;
   children?: ReactNode;
   valueProps?: {
     tabIndex?: number;
@@ -35,6 +36,7 @@ export function BoxFrame({
   type,
   actions,
   actionsWidth = 118,
+  headerSpan = false,
   children,
   valueProps,
 }: BoxFrameProps): ReactElement {
@@ -55,26 +57,33 @@ export function BoxFrame({
         aria-level={depth + 1}
         sx={{
           display: 'grid',
-          gridTemplateColumns: readOnly
-            ? '34px 34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr)'
-            : `34px 34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr) ${typeof actionsWidth === 'number' ? `${actionsWidth}px` : actionsWidth}`,
-          alignItems: 'start',
+          gridTemplateColumns: `34px 34px minmax(180px, 0.38fr) minmax(240px, 1fr) minmax(110px, 0.22fr) ${typeof actionsWidth === 'number' ? `${actionsWidth}px` : actionsWidth}`,
+          alignItems: 'stretch',
           borderTop: '1px solid',
           borderColor: 'divider',
-          minHeight: 42,
+          minHeight: 40,
           position: 'relative',
           zIndex: sortable.isDragging ? 1 : 'auto',
           opacity: sortable.isDragging ? 0.72 : 1,
           transform: CSS.Transform.toString(sortable.transform),
           transition: sortable.transition,
           bgcolor: sortable.isDragging ? 'background.paper' : undefined,
-          // Indent the complete row so nested contexts remain visually grouped.
-          // Padding only the disclosure cell leaves every field name on the
-          // same vertical line because that cell has a fixed 34px width.
-          pl: depth * 2,
+          '& > [role="cell"]': {
+            minWidth: 0,
+            borderLeft: '1px solid',
+            borderColor: 'divider',
+          },
+          '& > [role="cell"]:first-of-type': { borderLeft: 0 },
         }}
       >
-        <Box role="cell">
+        <Box
+          role="cell"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {node.sortable && (
             <IconButton
               size="small"
@@ -95,7 +104,14 @@ export function BoxFrame({
             </IconButton>
           )}
         </Box>
-        <Box role="cell">
+        <Box
+          role="cell"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {hasChildren && (
             <IconButton
               size="small"
@@ -109,37 +125,79 @@ export function BoxFrame({
         </Box>
         <Box
           role="cell"
-          sx={{ py: 1, pr: 1, fontWeight: node.path === '*' ? 700 : 500 }}
-        >
-          {header}
-        </Box>
-        <Box
-          role="cell"
-          tabIndex={valueProps?.tabIndex}
-          onClick={valueProps?.onClick}
-          onKeyDown={valueProps?.onKeyDown}
           sx={{
-            py: 1,
+            gridColumn: headerSpan ? '3 / 6' : undefined,
+            display: 'flex',
+            alignItems: 'center',
+            overflow: 'hidden',
+            py: 0.75,
+            pl: depth * 2 + 1,
             pr: 1,
-            cursor: valueProps?.cursor ?? 'default',
-            outline: 'none',
+            fontFamily: 'monospace',
+            fontWeight: node.path === '*' ? 700 : 500,
+            '& > *': { minWidth: 0 },
           }}
         >
-          {value}
-          {errors[node.path] && (
-            <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>
-              {errors[node.path]}
-            </Alert>
+          {headerSpan ? (
+            <Box sx={{ width: '100%', minWidth: 0 }}>
+              {header}
+              {errors[node.path] && (
+                <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>
+                  {errors[node.path]}
+                </Alert>
+              )}
+            </Box>
+          ) : (
+            header
           )}
         </Box>
-        <Box role="cell" sx={{ py: 1 }}>
-          {type}
-        </Box>
-        {!readOnly && (
-          <Box role="cell" sx={{ py: 0.5, display: 'flex', gap: 0.25 }}>
-            {actions}
-          </Box>
+        {!headerSpan && (
+          <>
+            <Box
+              role="cell"
+              tabIndex={valueProps?.tabIndex}
+              onClick={valueProps?.onClick}
+              onKeyDown={valueProps?.onKeyDown}
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                py: 0.75,
+                px: 1,
+                cursor: valueProps?.cursor ?? 'default',
+                outline: 'none',
+              }}
+            >
+              {value}
+              {errors[node.path] && (
+                <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>
+                  {errors[node.path]}
+                </Alert>
+              )}
+            </Box>
+            <Box
+              role="cell"
+              sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.5 }}
+            >
+              {type}
+            </Box>
+          </>
         )}
+        <Box
+          role="cell"
+          sx={{
+            gridColumn: 6,
+            py: 0.25,
+            px: 0.25,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 0.25,
+          }}
+        >
+          {!readOnly && actions}
+        </Box>
       </Box>
       {hasChildren && isExpanded && children}
     </>
