@@ -99,6 +99,29 @@ export function isObject(node: unknown): node is Record<string, unknown> {
   return typeof node === 'object' && node !== null && !Array.isArray(node);
 }
 
+/** Relationship records do not support context presentation metadata. */
+export function clearRelationshipContextMetadata(
+  node: PortableNode,
+): PortableNode {
+  if (Array.isArray(node))
+    return node.map(clearRelationshipContextMetadata) as PortableNode;
+  if (!isObject(node)) return node;
+  const context = node['@kind'] === undefined || node['@kind'] === 'context';
+  return Object.fromEntries(
+    Object.entries(node).flatMap(([name, value]) => {
+      if (context && name.startsWith('@') && name !== '@kind') return [];
+      return [
+        [
+          name,
+          Array.isArray(value) || isObject(value)
+            ? clearRelationshipContextMetadata(value as PortableNode)
+            : value,
+        ],
+      ];
+    }),
+  ) as PortableNode;
+}
+
 export function discoverRelationColumns(
   items: readonly PortableNode[],
   path: string,

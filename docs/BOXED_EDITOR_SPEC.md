@@ -164,16 +164,16 @@ React components do not render raw Portable nodes directly. `BoxedEditor` obtain
 
 The normalized union currently contains:
 
-| `kind`              | Dedicated component   | Important normalized data                                |
-| ------------------- | --------------------- | -------------------------------------------------------- |
-| `context`           | `ContextBox`          | Named children in authored order                         |
-| `expression`        | `ExpressionBox`       | Authored value/expression plus linked schema             |
-| `input`             | `InputBox`            | Portable `@kind: "type"` input                           |
-| `function`          | `FunctionBox`         | Signature and normalized function-body children          |
-| `external-function` | `ExternalFunctionBox` | External signature; no body                              |
-| `list`              | `ListBox`             | Indexed items plus required paging state                 |
+| `kind`              | Dedicated component   | Important normalized data                                                  |
+| ------------------- | --------------------- | -------------------------------------------------------------------------- |
+| `context`           | `ContextBox`          | Named children in authored order                                           |
+| `expression`        | `ExpressionBox`       | Authored value/expression plus linked schema                               |
+| `input`             | `InputBox`            | Portable `@kind: "type"` input                                             |
+| `function`          | `FunctionBox`         | Signature and normalized function-body children                            |
+| `external-function` | `ExternalFunctionBox` | External signature; no body                                                |
+| `list`              | `ListBox`             | Indexed items plus required paging state                                   |
 | `relation`          | `RelationBox`         | Indexed object rows, ordered discovered columns, and required paging state |
-| `editor-link`       | `EditorLinkBox`       | Type-definition, ruleset, or loop route target           |
+| `editor-link`       | `EditorLinkBox`       | Type-definition, ruleset, or loop route target                             |
 
 Three render-only annotations preserve write semantics:
 
@@ -385,6 +385,12 @@ persisting the synthetic document. The marker used to split the document must ne
   every underlying object while preserving its position. There is no relationship bottom toolbar.
 - Each relationship row has its own drag handle. Row reordering rewrites the complete terminal collection, while
   column reordering rewrites field order in every row so the authored model and displayed header order stay aligned.
+- A relationship cell whose normalized node has children is a drill-down control, not an expression editor. Its compact
+  value is the field name rather than serialized Portable JSON. Clicking it (or pressing Enter/F2) expands the existing
+  boxed-node hierarchy inside that same table cell, allowing nested contexts to be opened recursively down to editable
+  scalar leaves. Drill-down remains available in read-only mode.
+- Context presentation metadata is unsupported inside relationship records: nested contexts do not expose metadata
+  editing, and any accidental context metadata is recursively discarded when a relationship element is persisted.
 
 Changing these rules requires integration tests with the real engine, especially around partial pages and rollback.
 

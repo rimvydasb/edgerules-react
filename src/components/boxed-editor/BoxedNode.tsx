@@ -21,6 +21,7 @@ export function BoxedEntityNode({
   depth,
   actions,
   suppressFieldActions,
+  suppressMetadata,
 }: { node: BoxedRenderNode } & BoxPresentationProps): ReactElement {
   switch (node.kind) {
     case 'context':
@@ -30,6 +31,7 @@ export function BoxedEntityNode({
           depth={depth}
           actions={actions}
           suppressFieldActions={suppressFieldActions}
+          suppressMetadata={suppressMetadata}
         />
       );
     case 'expression':
@@ -39,6 +41,7 @@ export function BoxedEntityNode({
           depth={depth}
           actions={actions}
           suppressFieldActions={suppressFieldActions}
+          suppressMetadata={suppressMetadata}
         />
       );
     case 'input':
@@ -48,6 +51,7 @@ export function BoxedEntityNode({
           depth={depth}
           actions={actions}
           suppressFieldActions={suppressFieldActions}
+          suppressMetadata={suppressMetadata}
         />
       );
     case 'list':

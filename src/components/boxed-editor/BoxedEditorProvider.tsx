@@ -91,6 +91,7 @@ export type BoxedNodeRenderer = ComponentType<{
   depth: number;
   actions?: ReactNode;
   suppressFieldActions?: boolean;
+  suppressMetadata?: boolean;
 }>;
 const NodeRendererContext = createContext<BoxedNodeRenderer | null>(null);
 

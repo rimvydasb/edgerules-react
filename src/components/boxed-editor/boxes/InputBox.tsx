@@ -66,7 +66,9 @@ export function InputBox({
         actions ?? (
           <>
             <MetadataAction node={node} />
-            {!suppressFieldActions && <FieldActions node={node} />}
+            {!suppressFieldActions && (
+              <FieldActions node={node} showRename={false} />
+            )}
           </>
         )
       }

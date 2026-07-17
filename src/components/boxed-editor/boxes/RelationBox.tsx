@@ -79,7 +79,13 @@ function RelationColumnHeader({
           <IconButton
             size="small"
             aria-label={`Drag column ${node.path}.${column.name}`}
-            sx={{ cursor: 'grab', touchAction: 'none' }}
+            sx={{
+              // Offset the IconButton's internal padding so the glyph shares
+              // the same left edge as values in the body cells below it.
+              ml: -1.25,
+              cursor: 'grab',
+              touchAction: 'none',
+            }}
             {...sortable.attributes}
             {...sortable.listeners}
           >
@@ -154,11 +160,6 @@ export function RelationBox({
       node={node}
       depth={depth}
       header={<BoxHeader node={node} editable />}
-      value={
-        <Typography color="text.secondary">
-          {node.list.loaded} relationship rows · {node.columns.length} columns
-        </Typography>
-      }
       type={<BoxTypeChip schema={node.schema} />}
       actionsWidth={172}
       actions={

@@ -1,5 +1,8 @@
-import type { ReactElement } from 'react';
+import { Fragment, type ReactElement } from 'react';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
@@ -11,10 +14,10 @@ import { expressionEmbedContext } from '../boxed-embed';
 import type { BoxedRenderNode, RelationColumnRenderNode } from '../boxed-model';
 import {
   useBoxedEditorState,
+  useBoxedNodeRenderer,
   useExpressionActions,
 } from '../BoxedEditorProvider';
 import { cellCode } from '../cell-code';
-import { StaticExpression } from '../primitives/StaticExpression';
 
 export function RelationRowBox({
   node,
@@ -25,6 +28,7 @@ export function RelationRowBox({
 }): ReactElement {
   const state = useBoxedEditorState();
   const expression = useExpressionActions();
+  const BoxedNode = useBoxedNodeRenderer();
   const sortable = useSortable({
     id: node.id,
     data: { reorder: node.sortable },
@@ -64,24 +68,40 @@ export function RelationRowBox({
       {columns.map((column) => {
         const cell = node.children?.find((child) => child.name === column.name);
         const editing = cell && expression.activePath === cell.path;
-        const editable = cell && cell.kind !== 'context';
+        const drillable = Boolean(cell?.children?.length);
+        const expanded = Boolean(cell && state.expanded.has(cell.id));
+        const editable = cell && !drillable;
         return (
           <TableCell
             key={column.id}
             aria-label={cell?.path ?? `${node.path}.${column.name}`}
-            title={cell ? cellCode(cell.authored) : undefined}
-            tabIndex={!state.readOnly && editable && !editing ? 0 : undefined}
-            onClick={
-              !state.readOnly && editable && !editing
-                ? () => expression.activate(cell)
+            title={
+              drillable
+                ? cell?.name
+                : cell
+                  ? cellCode(cell.authored)
+                  : undefined
+            }
+            tabIndex={
+              (drillable || (!state.readOnly && editable)) && !editing
+                ? 0
                 : undefined
             }
+            aria-expanded={drillable ? expanded : undefined}
+            onClick={
+              drillable
+                ? () => state.toggle(cell!.id)
+                : !state.readOnly && editable && !editing
+                  ? () => expression.activate(cell)
+                  : undefined
+            }
             onKeyDown={
-              !state.readOnly && editable && !editing
+              (drillable || (!state.readOnly && editable)) && !editing
                 ? (event) => {
                     if (event.key === 'Enter' || event.key === 'F2') {
                       event.preventDefault();
-                      expression.activate(cell);
+                      if (drillable) state.toggle(cell!.id);
+                      else expression.activate(cell!);
                     }
                   }
                 : undefined
@@ -92,7 +112,11 @@ export function RelationRowBox({
               px: 1.5,
               py: 1,
               verticalAlign: 'middle',
-              cursor: !state.readOnly && editable ? 'cell' : 'default',
+              cursor: drillable
+                ? 'pointer'
+                : !state.readOnly && editable
+                  ? 'cell'
+                  : 'default',
               overflow: 'hidden',
               '& code': {
                 display: 'block',
@@ -112,7 +136,56 @@ export function RelationRowBox({
                 onCancel={expression.cancel}
               />
             ) : cell ? (
-              <StaticExpression value={cell.authored} />
+              <Fragment>
+                <Box
+                  sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}
+                >
+                  {drillable &&
+                    (expanded ? (
+                      <ExpandLessIcon
+                        fontSize="small"
+                        sx={{ mr: 0.5, flex: '0 0 auto' }}
+                      />
+                    ) : (
+                      <ExpandMoreIcon
+                        fontSize="small"
+                        sx={{ mr: 0.5, flex: '0 0 auto' }}
+                      />
+                    ))}
+                  {drillable ? (
+                    <Box sx={{ minWidth: 0, fontWeight: 600 }}>
+                      {cell.name ?? column.name}
+                    </Box>
+                  ) : (
+                    <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
+                      {cellCode(cell.authored)}
+                    </Box>
+                  )}
+                </Box>
+                {drillable && expanded && (
+                  <Box
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                    sx={{
+                      mt: 1,
+                      overflow: 'hidden',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      bgcolor: 'background.paper',
+                    }}
+                  >
+                    {cell.children?.map((child) => (
+                      <BoxedNode
+                        key={child.id}
+                        node={child}
+                        depth={0}
+                        suppressMetadata
+                      />
+                    ))}
+                  </Box>
+                )}
+              </Fragment>
             ) : (
               '—'
             )}

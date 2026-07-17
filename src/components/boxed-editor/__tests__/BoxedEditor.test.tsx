@@ -348,7 +348,7 @@ describe('BoxedEditor', () => {
       screen.getByRole('button', { name: 'Expand application' }),
     );
     await user.click(
-      screen.getByRole('button', { name: 'Rename application.amount' }),
+      screen.getByRole('button', { name: 'Edit name application.amount' }),
     );
     const name = screen.getByLabelText('Name application.amount');
     await user.clear(name);
@@ -582,5 +582,84 @@ describe('BoxedEditor', () => {
     expect(
       (instance.toPortable().people as { expression: string }).expression,
     ).not.toContain('name: "A"');
+  });
+
+  it('drills from a relationship cell through nested contexts to scalar fields', async () => {
+    const user = userEvent.setup();
+    const instance = MutableDecisionService.fromCode(`{
+      people: [{
+        name: "Ada"
+        contact: { address: { location: { city: "London" } } }
+      }]
+    }`);
+    instance.set('people[0].contact', {
+      '@node': 'ChartNode',
+      '@node-name': 'Accidental metadata',
+    });
+    render(<BoxedEditor service={instance} path="people" />);
+
+    expect(
+      screen.queryByText('1 relationship rows · 2 columns'),
+    ).not.toBeInTheDocument();
+
+    const contact = screen.getByRole('cell', {
+      name: 'people[0].contact',
+    });
+    expect(contact).toHaveTextContent('contact');
+    expect(contact).not.toHaveTextContent('@kind');
+    expect(contact).toHaveAttribute('aria-expanded', 'false');
+    await user.click(contact);
+    expect(contact).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      within(contact).getByRole('row', {
+        name: 'people[0].contact.address',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', {
+        name: 'Edit metadata people[0].contact.address',
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', {
+        name: 'Rename people[0].contact.address',
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Edit name people[0].contact.address',
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Expand people[0].contact.address',
+      }),
+    );
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Expand people[0].contact.address.location',
+      }),
+    );
+    expect(
+      screen.getByRole('row', {
+        name: 'people[0].contact.address.location.city',
+      }),
+    ).toHaveTextContent("'London'");
+
+    await user.keyboard('{Escape}');
+    contact.focus();
+    await user.keyboard('{Enter}');
+    expect(
+      screen.queryByRole('row', { name: 'people[0].contact.address' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Duplicate people[0]' }),
+    );
+    expect(instance.get('people[1].contact', 'FIELDS')).not.toMatchObject({
+      '@node': expect.anything(),
+      '@node-name': expect.anything(),
+    });
   });
 });

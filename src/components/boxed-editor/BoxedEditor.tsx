@@ -35,6 +35,7 @@ import {
   addFieldError,
 } from './forms/EditorForms';
 import {
+  clearRelationshipContextMetadata,
   isObject,
   renderNode,
   resolveAuthoredPath,
@@ -410,7 +411,10 @@ export function BoxedEditor({
           ),
         } as PortableNode)
       : listItemDraft.fields[0]?.value || '0';
-    const result = service.set(`${listItemDraft.path}[${length}]`, node);
+    const result = service.set(
+      `${listItemDraft.path}[${length}]`,
+      listItemDraft.relation ? clearRelationshipContextMetadata(node) : node,
+    );
     if (isPortableError(result)) {
       showError(target, result);
       return;
@@ -424,7 +428,9 @@ export function BoxedEditor({
       const list = findNode(model, node.listItem.path);
       const result = service.set(
         `${node.listItem.path}[${list?.children?.length ?? 0}]`,
-        node.authored,
+        list?.kind === 'relation'
+          ? clearRelationshipContextMetadata(node.authored)
+          : node.authored,
       );
       if (isPortableError(result)) {
         showError(node.path, result);
@@ -503,7 +509,11 @@ export function BoxedEditor({
       if (activeSortable.ownerKind === 'collection') {
         result = service.set(
           activeSortable.ownerPath,
-          reordered.map((child) => child.authored) as unknown as PortableNode,
+          reordered.map((child) =>
+            owner.kind === 'relation'
+              ? clearRelationshipContextMetadata(child.authored)
+              : child.authored,
+          ) as unknown as PortableNode,
         );
       } else if (activeSortable.ownerKind === 'function-body') {
         if (!isObject(owner.authored)) return;
@@ -572,7 +582,9 @@ export function BoxedEditor({
       );
       const items = (relation.children ?? []).map((child) =>
         isObject(child.authored)
-          ? reorderContextFields(child.authored, columns)
+          ? clearRelationshipContextMetadata(
+              reorderContextFields(child.authored, columns),
+            )
           : child.authored,
       );
       const result = service.set(ownerPath, items as unknown as PortableNode);
@@ -607,12 +619,14 @@ export function BoxedEditor({
       if (!nextName || nextName === source) return;
       const items = (node.children ?? []).map((child) => {
         if (!isObject(child.authored)) return child.authored;
-        return Object.fromEntries(
-          Object.entries(child.authored).map(([key, value]) => [
-            key === source ? nextName : key,
-            value,
-          ]),
-        ) as PortableNode;
+        return clearRelationshipContextMetadata(
+          Object.fromEntries(
+            Object.entries(child.authored).map(([key, value]) => [
+              key === source ? nextName : key,
+              value,
+            ]),
+          ) as PortableNode,
+        );
       });
       const result = service.set(node.path, items as unknown as PortableNode);
       if (isPortableError(result)) {
@@ -630,13 +644,16 @@ export function BoxedEditor({
       if (!isObject(item)) return item;
       const { '@kind': kind = 'context', ...fields } = item;
       if (columnDraft.action === 'add')
-        return {
+        return clearRelationshipContextMetadata({
           '@kind': kind,
           ...fields,
           [name]: columnDraft.value || '0',
-        } as PortableNode;
+        } as PortableNode);
       const { [columnDraft.source ?? '']: _removed, ...remaining } = fields;
-      return { '@kind': kind, ...remaining } as PortableNode;
+      return clearRelationshipContextMetadata({
+        '@kind': kind,
+        ...remaining,
+      } as PortableNode);
     });
     const result = service.set(
       columnDraft.path,

@@ -2,11 +2,31 @@ import { describe, expect, it } from 'vitest';
 import type { PortableNode } from '@edgerules/portable';
 import {
   classifyNode,
+  clearRelationshipContextMetadata,
   discoverRelationColumns,
   renderNode,
 } from '../boxed-model';
 
 describe('boxed relation model', () => {
+  it('recursively clears presentation metadata from relationship contexts', () => {
+    expect(
+      clearRelationshipContextMetadata({
+        '@kind': 'context',
+        '@node': 'InputNode',
+        '@node-name': 'Accidental',
+        '@description': 'not supported in a relationship record',
+        contact: {
+          '@kind': 'context',
+          '@node': 'ChartNode',
+          city: "'London'",
+        },
+      }),
+    ).toEqual({
+      '@kind': 'context',
+      contact: { '@kind': 'context', city: "'London'" },
+    });
+  });
+
   it('discovers the ordered union of authored fields across relationship rows', () => {
     const columns = discoverRelationColumns(
       [
@@ -52,6 +72,48 @@ describe('boxed relation model', () => {
       'name',
       'age',
     ]);
+  });
+
+  it('preserves nested Portable contexts as drillable relationship cells', () => {
+    const items = [
+      {
+        '@kind': 'context',
+        name: "'Ada'",
+        contact: {
+          '@kind': 'context',
+          address: {
+            '@kind': 'context',
+            city: "'London'",
+          },
+        },
+      },
+    ] as PortableNode[];
+    const rendered = renderNode(
+      items as unknown as PortableNode,
+      'people',
+      { type: 'array', items: { type: 'object' } } as PortableNode,
+      'people',
+      new Map([['people', { items, terminal: true }]]),
+    );
+
+    expect(rendered.kind).toBe('relation');
+    if (rendered.kind !== 'relation') throw new Error('Expected relation');
+    const contact = rendered.children?.[0]?.children?.find(
+      (cell) => cell.name === 'contact',
+    );
+    expect(contact).toMatchObject({
+      kind: 'context',
+      path: 'people[0].contact',
+    });
+    expect(contact?.children?.[0]).toMatchObject({
+      kind: 'context',
+      path: 'people[0].contact.address',
+    });
+    expect(contact?.children?.[0]?.children?.[0]).toMatchObject({
+      kind: 'expression',
+      path: 'people[0].contact.address.city',
+      authored: "'London'",
+    });
   });
 
   it('keeps scalar and mixed arrays as lists', () => {

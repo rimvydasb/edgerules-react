@@ -54,7 +54,7 @@ export function ListBox({
             </IconButton>
           )}
           <MetadataAction node={node} />
-          <FieldActions node={node} />
+          <FieldActions node={node} showRename={false} />
         </>
       }
     >

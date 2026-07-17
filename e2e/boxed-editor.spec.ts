@@ -394,9 +394,38 @@ test('relationship renders object fields as table columns without nested row lab
   await expect(table.getByRole('columnheader').nth(2)).toContainText('age');
   await expect(table.getByRole('columnheader').nth(3)).toContainText('contact');
   await expect(page.getByText('Row 1')).toHaveCount(0);
-  await expect(page.getByRole('row', { name: 'applicants[0]' })).toContainText(
-    'London',
+  await expect(page.getByText('2 relationship rows · 3 columns')).toHaveCount(
+    0,
   );
+  const contact = page.getByRole('cell', {
+    name: 'applicants[0].contact',
+    exact: true,
+  });
+  await expect(contact).toHaveAttribute('aria-expanded', 'false');
+  await expect(contact).toHaveText('contact');
+  await contact.click();
+  await expect(contact).toHaveAttribute('aria-expanded', 'true');
+  await expect(
+    contact.getByRole('row', { name: 'applicants[0].contact.address' }),
+  ).toBeVisible();
+  await expect(
+    contact.getByRole('button', {
+      name: 'Edit metadata applicants[0].contact.address',
+    }),
+  ).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Expand applicants[0].contact.address' })
+    .click();
+  await page
+    .getByRole('button', {
+      name: 'Expand applicants[0].contact.address.location',
+    })
+    .click();
+  await expect(
+    page.getByRole('row', {
+      name: 'applicants[0].contact.address.location.city',
+    }),
+  ).toContainText("'London'");
 });
 
 test('visual error and read-only scenarios retain their distinct UI states', async ({

@@ -17,6 +17,7 @@ export function ContextBox({
   depth,
   actions,
   suppressFieldActions,
+  suppressMetadata,
 }: { node: ContextRenderNode } & BoxPresentationProps): ReactElement {
   const fields = useFieldActions();
   const BoxedNode = useBoxedNodeRenderer();
@@ -24,8 +25,10 @@ export function ContextBox({
   const ownActions =
     node.path === '*' ? null : (
       <>
-        <MetadataAction node={node} />
-        {!suppressFieldActions && <FieldActions node={node} />}
+        {!suppressMetadata && <MetadataAction node={node} />}
+        {!suppressFieldActions && (
+          <FieldActions node={node} showRename={false} />
+        )}
       </>
     );
   return (
@@ -62,7 +65,12 @@ export function ContextBox({
       {children.length > 0 && (
         <SortableChildren nodes={children}>
           {children.map((child) => (
-            <BoxedNode key={child.id} node={child} depth={depth + 1} />
+            <BoxedNode
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              suppressMetadata={suppressMetadata}
+            />
           ))}
         </SortableChildren>
       )}
