@@ -46,15 +46,15 @@ described below is internal and must not be re-exported without an explicit publ
 
 Important prop semantics:
 
-| Prop              | Meaning                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------ |
-| `service`         | The mutable EdgeRules model authority. The editor never maintains a second persisted model.      |
-| `path`            | The authored CRUD path to show. Use `"*"` for the complete model.                                |
-| `languageService` | Supplies diagnostics and completions to the one active expression cell.                          |
-| `revision`        | Host-controlled invalidation token. Change it after model edits made outside this editor.        |
-| `readOnly`        | Suppresses mutation controls and expression activation while retaining navigation links.         |
-| `onChange`        | Called once with the refreshed Portable snapshot after a successful committed mutation.          |
-| `onOpenNode`      | Routes specialized nodes to another host editor; `BoxedEditor` does not implement those editors. |
+| Prop              | Meaning                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| `service`         | The mutable EdgeRules model authority. The editor never maintains a second persisted model.       |
+| `path`            | The authored CRUD path to show. Use `"*"` for the complete model.                                 |
+| `languageService` | Supplies diagnostics and completions to the one active expression cell.                           |
+| `revision`        | Host-controlled invalidation token. Change it after model edits made outside this editor.         |
+| `readOnly`        | Disables name/value editing and ordering while retaining navigation and visible ordering handles. |
+| `onChange`        | Called once with the refreshed Portable snapshot after a successful committed mutation.           |
+| `onOpenNode`      | Routes specialized nodes to another host editor; `BoxedEditor` does not implement those editors.  |
 
 ## 3. Component tree
 
@@ -352,8 +352,10 @@ entity cannot perform.
 - read-only suppression of the action cell; and
 - optional child rendering.
 
-In editable mode, sortable rows receive a leading `DragIndicator` handle. Sorting is pointer/touch driven through
-`dnd-kit`; drops are restricted to the active row's sibling group. Read-only rows do not render the handle gutter.
+Sortable rows always receive a leading `DragIndicator` handle so editable and read-only presentations retain the same
+structure. Sorting is pointer/touch driven through `dnd-kit`; drops are restricted to the active row's sibling group.
+In read-only mode the handles remain visible but disabled, and neither field names nor expression values activate an
+editor.
 
 Headers, values, types, actions, and children are composed into slots. Never add `kind`, `isFunction`, `isList`, or
 similar dispatch flags to `BoxFrame`.

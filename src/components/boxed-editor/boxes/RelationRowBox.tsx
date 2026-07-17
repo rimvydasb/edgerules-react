@@ -48,24 +48,27 @@ export function RelationRowBox({
         '&:last-child td': { borderBottom: 0 },
       }}
     >
-      {!state.readOnly && (
-        <TableCell padding="checkbox" sx={{ width: 42 }}>
-          {node.sortable && (
-            <IconButton
-              size="small"
-              aria-label={`Drag ${node.path}`}
-              sx={{
-                cursor: sortable.isDragging ? 'grabbing' : 'grab',
-                touchAction: 'none',
-              }}
-              {...sortable.attributes}
-              {...sortable.listeners}
-            >
-              <DragIndicatorIcon fontSize="small" />
-            </IconButton>
-          )}
-        </TableCell>
-      )}
+      <TableCell padding="checkbox" sx={{ width: 42 }}>
+        {node.sortable && (
+          <IconButton
+            size="small"
+            aria-label={`Drag ${node.path}`}
+            disabled={state.readOnly}
+            sx={{
+              cursor: state.readOnly
+                ? 'default'
+                : sortable.isDragging
+                  ? 'grabbing'
+                  : 'grab',
+              touchAction: 'none',
+            }}
+            {...sortable.attributes}
+            {...sortable.listeners}
+          >
+            <DragIndicatorIcon fontSize="small" />
+          </IconButton>
+        )}
+      </TableCell>
       {columns.map((column) => {
         const cell = node.children?.find((child) => child.name === column.name);
         const editing = cell && expression.activePath === cell.path;

@@ -65,7 +65,7 @@ export function BoxFrame({
         sx={{
           display: 'grid',
           gridTemplateColumns: readOnly
-            ? '34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr)'
+            ? '34px 34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr)'
             : `34px 34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr) ${typeof actionsWidth === 'number' ? `${actionsWidth}px` : actionsWidth}`,
           alignItems: 'start',
           borderTop: '1px solid',
@@ -83,24 +83,27 @@ export function BoxFrame({
           pl: depth * 2,
         }}
       >
-        {!readOnly && (
-          <Box role="cell">
-            {node.sortable && (
-              <IconButton
-                size="small"
-                aria-label={`Drag ${node.path}`}
-                sx={{
-                  cursor: sortable.isDragging ? 'grabbing' : 'grab',
-                  touchAction: 'none',
-                }}
-                {...sortable.attributes}
-                {...sortable.listeners}
-              >
-                <DragIndicatorIcon fontSize="small" />
-              </IconButton>
-            )}
-          </Box>
-        )}
+        <Box role="cell">
+          {node.sortable && (
+            <IconButton
+              size="small"
+              aria-label={`Drag ${node.path}`}
+              disabled={readOnly}
+              sx={{
+                cursor: readOnly
+                  ? 'default'
+                  : sortable.isDragging
+                    ? 'grabbing'
+                    : 'grab',
+                touchAction: 'none',
+              }}
+              {...sortable.attributes}
+              {...sortable.listeners}
+            >
+              <DragIndicatorIcon fontSize="small" />
+            </IconButton>
+          )}
+        </Box>
         <Box role="cell">
           {hasChildren && (
             <IconButton

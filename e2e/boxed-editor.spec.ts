@@ -379,6 +379,19 @@ test('loan-origination overview renders the authored root model without live edi
   await expect(page.getByRole('row', { name: 'finalDecision' })).toContainText(
     'APPROVE',
   );
+  const applicationHandle = page.getByRole('button', {
+    name: 'Drag application',
+  });
+  await expect(applicationHandle).toBeVisible();
+  await expect(applicationHandle).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Edit name finalDecision' }),
+  ).toHaveCount(0);
+  await page
+    .getByRole('row', { name: 'finalDecision' })
+    .getByRole('cell')
+    .nth(3)
+    .click();
   await expect(page.locator('.cm-editor')).toHaveCount(0);
 });
 

@@ -5,7 +5,7 @@ import InputBase from '@mui/material/InputBase';
 import Typography from '@mui/material/Typography';
 import type { BoxedRenderNode } from '../boxed-model';
 import { isObject } from '../boxed-model';
-import { useFieldActions } from '../BoxedEditorProvider';
+import { useBoxedEditorState, useFieldActions } from '../BoxedEditorProvider';
 
 export function BoxHeader({
   node,
@@ -16,7 +16,9 @@ export function BoxHeader({
   label?: string;
   editable?: boolean;
 }): ReactElement {
+  const { readOnly } = useBoxedEditorState();
   const fields = useFieldActions();
+  const canEdit = editable && !readOnly;
   const annotation =
     isObject(node.authored) && typeof node.authored['@node'] === 'string'
       ? node.authored['@node']
@@ -31,7 +33,7 @@ export function BoxHeader({
       : undefined;
   return (
     <>
-      {editable && fields.editingPath === node.path ? (
+      {canEdit && fields.editingPath === node.path ? (
         <InputBase
           autoFocus
           value={fields.nameDraft}
@@ -46,12 +48,12 @@ export function BoxHeader({
       ) : (
         <Box
           component="span"
-          tabIndex={editable ? 0 : undefined}
-          role={editable ? 'button' : undefined}
-          aria-label={editable ? `Edit name ${node.path}` : undefined}
-          onClick={editable ? () => fields.startRename(node) : undefined}
+          tabIndex={canEdit ? 0 : undefined}
+          role={canEdit ? 'button' : undefined}
+          aria-label={canEdit ? `Edit name ${node.path}` : undefined}
+          onClick={canEdit ? () => fields.startRename(node) : undefined}
           onKeyDown={
-            editable
+            canEdit
               ? (event) => {
                   if (event.key === 'Enter' || event.key === 'F2') {
                     event.preventDefault();
@@ -60,7 +62,7 @@ export function BoxHeader({
                 }
               : undefined
           }
-          sx={{ cursor: editable ? 'text' : undefined }}
+          sx={{ cursor: canEdit ? 'text' : undefined }}
         >
           {label}
         </Box>

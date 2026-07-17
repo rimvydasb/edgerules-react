@@ -69,6 +69,31 @@ describe('BoxedEditor', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('keeps drag handles visible but disables all editing in read-only mode', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <BoxedEditor service={service()} path="*" readOnly />,
+    );
+    const application = screen.getByRole('row', { name: 'application' });
+    const payment = screen.getByRole('row', { name: 'payment' });
+
+    expect(
+      within(application).getByRole('button', { name: 'Drag application' }),
+    ).toBeDisabled();
+    expect(
+      within(payment).getByRole('button', { name: 'Drag payment' }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole('button', { name: 'Edit name payment' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(within(payment).getAllByRole('cell')[3]);
+    expect(container.querySelector('.cm-editor')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: 'Name payment' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('focuses a selected authored path and maps function bodies from CRUD paths', () => {
     render(<BoxedEditor service={service()} path="monthly" readOnly />);
     expect(
@@ -319,7 +344,7 @@ describe('BoxedEditor', () => {
     );
   });
 
-  it('removes all mutation affordances in read-only mode', () => {
+  it('removes mutation controls but preserves disabled ordering affordances in read-only mode', () => {
     render(<BoxedEditor service={service()} path="*" readOnly />);
     expect(
       screen.queryByRole('button', { name: 'Edit payment' }),
@@ -330,9 +355,9 @@ describe('BoxedEditor', () => {
     expect(
       screen.queryByRole('button', { name: 'Rename payment' }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /^Drag / }),
-    ).not.toBeInTheDocument();
+    const handles = screen.getAllByRole('button', { name: /^Drag / });
+    expect(handles.length).toBeGreaterThan(0);
+    handles.forEach((handle) => expect(handle).toBeDisabled());
   });
 
   it('rolls back a rename when linked validation exposes an unresolved reference', async () => {

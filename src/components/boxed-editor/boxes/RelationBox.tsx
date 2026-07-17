@@ -75,15 +75,16 @@ function RelationColumnHeader({
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-        {!state.readOnly && node.list.terminal && (
+        {node.list.terminal && (
           <IconButton
             size="small"
             aria-label={`Drag column ${node.path}.${column.name}`}
+            disabled={state.readOnly}
             sx={{
               // Offset the IconButton's internal padding so the glyph shares
               // the same left edge as values in the body cells below it.
               ml: -1.25,
-              cursor: 'grab',
+              cursor: state.readOnly ? 'default' : 'grab',
               touchAction: 'none',
             }}
             {...sortable.attributes}
@@ -195,12 +196,10 @@ export function RelationBox({
           >
             <TableHead>
               <TableRow>
-                {!state.readOnly && (
-                  <TableCell
-                    sx={{ width: 42, bgcolor: 'action.hover' }}
-                    aria-label="Row ordering"
-                  />
-                )}
+                <TableCell
+                  sx={{ width: 42, bgcolor: 'action.hover' }}
+                  aria-label="Row ordering"
+                />
                 <SortableContext
                   items={node.columns.map((column) => column.id)}
                   strategy={horizontalListSortingStrategy}
