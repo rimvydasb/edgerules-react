@@ -11,10 +11,9 @@ export type BoxedRenderKind =
   | 'invocation'
   | 'editor-link';
 
-export interface BoxedRenderNode {
+interface BaseRenderNode {
   id: string;
   path: string;
-  kind: BoxedRenderKind;
   name?: string;
   authored: PortableNode;
   schema?: PortableNode;
@@ -26,8 +25,36 @@ export interface BoxedRenderNode {
   parentListLength?: number;
   parentListTerminal?: boolean;
   /** Paging data comes from indexed CRUD reads, never from parsing an expression. */
-  list?: { loaded: number; terminal: boolean; error?: string };
 }
+
+export type ContextRenderNode = BaseRenderNode & { kind: 'context'; children?: BoxedRenderNode[] };
+export type ExpressionRenderNode = BaseRenderNode & { kind: 'expression' };
+export type InputRenderNode = BaseRenderNode & { kind: 'input' };
+export type FunctionRenderNode = BaseRenderNode & { kind: 'function'; children?: BoxedRenderNode[] };
+export type ExternalFunctionRenderNode = BaseRenderNode & { kind: 'external-function' };
+export type InvocationRenderNode = BaseRenderNode & { kind: 'invocation'; children?: BoxedRenderNode[] };
+export type EditorLinkRenderNode = BaseRenderNode & { kind: 'editor-link' };
+export type ListRenderNode = BaseRenderNode & {
+  kind: 'list';
+  children?: BoxedRenderNode[];
+  list: { loaded: number; terminal: boolean; error?: string };
+};
+export type RelationRenderNode = BaseRenderNode & {
+  kind: 'relation';
+  children?: BoxedRenderNode[];
+  list: { loaded: number; terminal: boolean; error?: string };
+};
+
+export type BoxedRenderNode =
+  | ContextRenderNode
+  | ExpressionRenderNode
+  | InputRenderNode
+  | ListRenderNode
+  | RelationRenderNode
+  | FunctionRenderNode
+  | ExternalFunctionRenderNode
+  | InvocationRenderNode
+  | EditorLinkRenderNode;
 
 export interface IndexedListPage {
   items: PortableNode[];
@@ -140,5 +167,10 @@ export function renderNode(
       listItem: { path, index },
     }));
   }
-  return { id: path, path, kind, name, authored, schema, children, ...(indexedList ? { list: { loaded: indexedList.items.length, terminal: indexedList.terminal, ...(indexedList.error ? { error: indexedList.error } : {}) } } : {}) };
+  const base = { id: path, path, name, authored, schema, children };
+  if (kind === 'list' || kind === 'relation') {
+    if (!indexedList) throw new Error(`Missing indexed collection data for ${path}`);
+    return { ...base, kind, list: { loaded: indexedList.items.length, terminal: indexedList.terminal, ...(indexedList.error ? { error: indexedList.error } : {}) } } as BoxedRenderNode;
+  }
+  return { ...base, kind } as BoxedRenderNode;
 }

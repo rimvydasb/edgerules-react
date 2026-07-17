@@ -1,0 +1,40 @@
+import { Children, type ReactElement, type ReactNode } from 'react';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import type { BoxedRenderNode } from '../boxed-model';
+import { useBoxedEditorState } from '../BoxedEditorProvider';
+
+interface BoxFrameProps {
+  node: BoxedRenderNode;
+  depth: number;
+  header: ReactNode;
+  value?: ReactNode;
+  type?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+  valueProps?: { tabIndex?: number; onClick?: () => void; onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>; cursor?: string };
+}
+
+export function BoxFrame({ node, depth, header, value, type, actions, children, valueProps }: BoxFrameProps): ReactElement {
+  const { readOnly, expanded, errors, toggle } = useBoxedEditorState();
+  const hasChildren = Children.count(children) > 0;
+  const isExpanded = expanded.has(node.id);
+  return <>
+    <Box role="row" aria-label={node.path} aria-level={depth + 1} sx={{ display: 'grid', gridTemplateColumns: readOnly ? '34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr)' : '34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr) 118px', alignItems: 'start', borderTop: '1px solid', borderColor: 'divider', minHeight: 42 }}>
+      <Box role="cell" sx={{ pl: depth * 2 }}>
+        {hasChildren && <IconButton size="small" aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${node.path}`} aria-expanded={isExpanded} onClick={() => toggle(node.id)}>{isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}</IconButton>}
+      </Box>
+      <Box role="cell" sx={{ py: 1, pr: 1, fontWeight: node.path === '*' ? 700 : 500 }}>{header}</Box>
+      <Box role="cell" tabIndex={valueProps?.tabIndex} onClick={valueProps?.onClick} onKeyDown={valueProps?.onKeyDown} sx={{ py: 1, pr: 1, cursor: valueProps?.cursor ?? 'default', outline: 'none' }}>
+        {value}
+        {errors[node.path] && <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>{errors[node.path]}</Alert>}
+      </Box>
+      <Box role="cell" sx={{ py: 1 }}>{type}</Box>
+      {!readOnly && <Box role="cell" sx={{ py: 0.5, display: 'flex', gap: 0.25 }}>{actions}</Box>}
+    </Box>
+    {hasChildren && isExpanded && children}
+  </>;
+}

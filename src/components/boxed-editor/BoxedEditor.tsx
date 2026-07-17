@@ -5,8 +5,9 @@ import Typography from '@mui/material/Typography';
 import type { PortableError, PortableNode, PortableRootContext } from '@edgerules/portable';
 import type { CodeEditorService } from '../code-editor/language/service';
 import { isPortableError } from '../../lib/portable';
-import { BoxedEditorDialogs } from './BoxedEditorDialogs';
-import { BoxedNodeRow } from './BoxedNodeRow';
+import { BoxedEditorProvider } from './BoxedEditorProvider';
+import { BoxedEntityNode, BoxedNode } from './BoxedNode';
+import { AddFieldForm, FunctionSignatureForm, InputForm, InvocationForm, ListItemForm, MetadataForm, RelationColumnForm, addFieldError } from './forms/EditorForms';
 import { isObject, renderNode, resolveAuthoredPath, type BoxedRenderNode } from './boxed-model';
 import type {
   AddFieldDraft,
@@ -229,110 +230,75 @@ export function BoxedEditor({ service, path, languageService, revision, readOnly
     setColumnDraft(null); refreshCommitted();
   }, [columnDraft, refreshCommitted, service, showError]);
   const loadMore = useCallback((node: BoxedRenderNode): void => {
-    pageSizes.current.set(node.path, (node.list?.loaded ?? 0) + LIST_PAGE_SIZE);
+    if (node.kind !== 'list' && node.kind !== 'relation') return;
+    pageSizes.current.set(node.path, node.list.loaded + LIST_PAGE_SIZE);
     load(service.toPortable(), false);
   }, [load, service]);
 
   if (fatalError) return <Alert severity="error" className={className} sx={sx}>{fatalError}</Alert>;
   if (!model || !snapshot) return <Box className={className} sx={sx} aria-busy="true" />;
-  return <>
+  const openSignature = (node: BoxedRenderNode): void => {
+    if (isObject(node.authored)) setSignatureDraft({
+      path: node.path,
+      external: node.kind === 'external-function',
+      parameters: parameterDrafts(node.authored),
+      returnType: typeText(node.authored['@return']),
+      node: node.authored,
+    });
+  };
+  const openMetadata = (node: BoxedRenderNode): void => {
+    if (isObject(node.authored)) setMetadataDraft({
+      path: node.path,
+      node: node.authored,
+      nodeKind: String(node.authored['@node'] ?? ''),
+      nodeName: String(node.authored['@node-name'] ?? ''),
+      description: String(node.authored['@description'] ?? ''),
+    });
+  };
+  const openInvocation = (node: BoxedRenderNode): void => {
+    if (!isObject(node.authored)) return;
+    const argumentsValue = node.authored['@arguments'];
+    setInvocationDraft({
+      path: node.path,
+      node: node.authored,
+      method: String(node.authored['@method'] ?? ''),
+      named: !Array.isArray(argumentsValue),
+      arguments: Array.isArray(argumentsValue)
+        ? argumentsValue.map(value => ({ name: '', value: expressionText(value as PortableNode) }))
+        : isObject(argumentsValue)
+          ? Object.entries(argumentsValue).map(([name, value]) => ({ name, value: expressionText(value as PortableNode) }))
+          : [],
+    });
+  };
+  const openListItem = (node: BoxedRenderNode): void => {
+    const fields = node.kind === 'relation' && node.children?.[0] && isObject(node.children[0].authored)
+      ? Object.keys(node.children[0].authored).filter(key => !key.startsWith('@')).map(name => ({ name, value: '0' }))
+      : [{ name: 'value', value: '0' }];
+    setListItemDraft({ path: node.path, relation: node.kind === 'relation', fields });
+  };
+  return <BoxedEditorProvider
+    state={{ readOnly, snapshot, languageService: languageService ?? NOOP_LANGUAGE_SERVICE, expanded, errors, toggle }}
+    expression={{ activePath: editingExpression, activate: node => setEditingExpression(node.path), commit: commitExpression, cancel: () => { setEditingExpression(null); setErrors({}); } }}
+    field={{ editingPath: editingName, nameDraft, setNameDraft, startRename: node => { setEditingName(node.path); setNameDraft(node.name ?? ''); }, commitRename: node => guardedRename(node, nameDraft.trim()), duplicate, remove: guardedRemove, add: node => setAddDraft({ parentPath: node.path, name: '', kind: 'expression' }) }}
+    metadata={{ edit: openMetadata }}
+    input={{ edit: node => setInputDraft({ path: node.path, value: typedInput(node.authored) }) }}
+    functions={{ editSignature: openSignature }}
+    invocation={{ edit: openInvocation }}
+    list={{ addItem: openListItem, duplicateItem: duplicateListItem, removeItem: removeListItem, moveItem: moveListItem, loadMore }}
+    relation={{ editColumn: (node, action, source) => setColumnDraft({ path: node.path, items: node.children?.map(child => child.authored) ?? [], action, source, name: action === 'add' ? '' : source ?? '', value: '0' }) }}
+    navigation={{ open: onOpenNode }}
+    renderer={BoxedEntityNode}
+  >
     <Box className={className} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden', ...sx }} role="treegrid" aria-label={`Boxed editor ${path}`}>
       {path === '*' && (snapshot['@model-name'] || snapshot['@model-version']) && <Box sx={{ px: 1, py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}><Typography variant="subtitle2">{snapshot['@model-name'] ?? 'Model'}{snapshot['@model-version'] ? ` · ${snapshot['@model-version']}` : ''}</Typography></Box>}
-      <BoxedNodeRow
-        node={model}
-        depth={0}
-        expanded={expanded}
-        editingExpression={editingExpression}
-        editingName={editingName}
-        nameDraft={nameDraft}
-        readOnly={readOnly}
-        snapshot={snapshot}
-        languageService={languageService ?? NOOP_LANGUAGE_SERVICE}
-        errors={errors}
-        toggle={toggle}
-        startExpression={node => setEditingExpression(node.path)}
-        commitExpression={commitExpression}
-        cancelExpression={() => { setEditingExpression(null); setErrors({}); }}
-        startName={node => { setEditingName(node.path); setNameDraft(node.name ?? ''); }}
-        setNameDraft={setNameDraft}
-        commitName={node => guardedRename(node, nameDraft.trim())}
-        duplicate={duplicate}
-        remove={guardedRemove}
-        openInput={node => setInputDraft({ path: node.path, value: typedInput(node.authored) })}
-        openAdd={parent => setAddDraft({ parentPath: parent, name: '', kind: 'expression' })}
-        openSignature={node => {
-          if (isObject(node.authored)) setSignatureDraft({
-            path: node.path,
-            external: node.kind === 'external-function',
-            parameters: parameterDrafts(node.authored),
-            returnType: typeText(node.authored['@return']),
-            node: node.authored,
-          });
-        }}
-        openMetadata={node => {
-          if (isObject(node.authored)) setMetadataDraft({
-            path: node.path,
-            node: node.authored,
-            nodeKind: String(node.authored['@node'] ?? ''),
-            nodeName: String(node.authored['@node-name'] ?? ''),
-            description: String(node.authored['@description'] ?? ''),
-          });
-        }}
-        openInvocation={node => {
-          if (!isObject(node.authored)) return;
-          const argumentsValue = node.authored['@arguments'];
-          setInvocationDraft({
-            path: node.path,
-            node: node.authored,
-            method: String(node.authored['@method'] ?? ''),
-            named: !Array.isArray(argumentsValue),
-            arguments: Array.isArray(argumentsValue)
-              ? argumentsValue.map(value => ({ name: '', value: expressionText(value as PortableNode) }))
-              : isObject(argumentsValue)
-                ? Object.entries(argumentsValue).map(([name, value]) => ({ name, value: expressionText(value as PortableNode) }))
-                : [],
-          });
-        }}
-        openListItem={node => {
-          const fields = node.kind === 'relation' && node.children?.[0] && isObject(node.children[0].authored)
-            ? Object.keys(node.children[0].authored).filter(key => !key.startsWith('@')).map(name => ({ name, value: '0' }))
-            : [{ name: 'value', value: '0' }];
-          setListItemDraft({ path: node.path, relation: node.kind === 'relation', fields });
-        }}
-        duplicateListItem={duplicateListItem}
-        removeListItem={removeListItem}
-        moveListItem={moveListItem}
-        loadMore={loadMore}
-        openColumn={(node, action, source) => {
-          const items = node.children?.map(child => child.authored) ?? [];
-          setColumnDraft({ path: node.path, items, action, source, name: action === 'add' ? '' : source ?? '', value: '0' });
-        }}
-        onOpenNode={onOpenNode}
-      />
+      <BoxedNode node={model} />
     </Box>
-    <BoxedEditorDialogs
-      errors={errors}
-      addDraft={addDraft}
-      setAddDraft={setAddDraft}
-      commitAdd={commitAdd}
-      inputDraft={inputDraft}
-      setInputDraft={setInputDraft}
-      commitInput={commitInput}
-      signatureDraft={signatureDraft}
-      setSignatureDraft={setSignatureDraft}
-      commitSignature={commitSignature}
-      invocationDraft={invocationDraft}
-      setInvocationDraft={setInvocationDraft}
-      commitInvocation={commitInvocation}
-      listItemDraft={listItemDraft}
-      setListItemDraft={setListItemDraft}
-      commitListItem={commitListItem}
-      columnDraft={columnDraft}
-      setColumnDraft={setColumnDraft}
-      commitColumn={commitColumn}
-      metadataDraft={metadataDraft}
-      setMetadataDraft={setMetadataDraft}
-      commitMetadata={commitMetadata}
-    />
-  </>;
+    <AddFieldForm draft={addDraft} setDraft={setAddDraft} error={addFieldError(addDraft, errors)} commit={commitAdd} />
+    <InputForm draft={inputDraft} setDraft={setInputDraft} error={inputDraft ? errors[inputDraft.path] : undefined} commit={commitInput} />
+    <FunctionSignatureForm draft={signatureDraft} setDraft={setSignatureDraft} error={signatureDraft ? errors[signatureDraft.path] : undefined} commit={commitSignature} />
+    <InvocationForm draft={invocationDraft} setDraft={setInvocationDraft} error={invocationDraft ? errors[invocationDraft.path] : undefined} commit={commitInvocation} />
+    <ListItemForm draft={listItemDraft} setDraft={setListItemDraft} commit={commitListItem} />
+    <RelationColumnForm draft={columnDraft} setDraft={setColumnDraft} commit={commitColumn} />
+    <MetadataForm draft={metadataDraft} setDraft={setMetadataDraft} error={metadataDraft ? errors[metadataDraft.path] : undefined} commit={commitMetadata} />
+  </BoxedEditorProvider>;
 }

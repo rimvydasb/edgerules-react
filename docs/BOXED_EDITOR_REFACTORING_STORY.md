@@ -2,7 +2,7 @@
 
 | Field                | Value                                      |
 |----------------------|--------------------------------------------|
-| Status               | Proposed                                   |
+| Status               | Completed                                  |
 | Component            | `BoxedEditor`                              |
 | Public package       | `edgerules-react/boxed-editor`             |
 | Related specification | `docs/BOXED_EXPRESSIONS_EDITOR_STORY.md` |
@@ -361,50 +361,50 @@ Files SHOULD be grouped by responsibility rather than forced to match this tree 
 
 ### Phase 1 — Establish typed entity dispatch
 
-- [ ] Add an exhaustive `BoxedNode` dispatcher.
-- [ ] Add characterization tests covering every `BoxedRenderNode.kind`.
-- [ ] Route existing rendering through the dispatcher without changing behavior.
-- [ ] Ensure an unknown or newly added kind produces a compile-time exhaustiveness failure.
-- [ ] Refine `BoxedRenderNode` into discriminated entity types where the current normalization is too broad.
-- [ ] Introduce a slot-based `BoxFrame` for shared accessible row and expansion mechanics.
+- [x] Add an exhaustive `BoxedNode` dispatcher.
+- [x] Add characterization tests covering every `BoxedRenderNode.kind`.
+- [x] Route existing rendering through the dispatcher without changing behavior.
+- [x] Ensure an unknown or newly added kind produces a compile-time exhaustiveness failure.
+- [x] Refine `BoxedRenderNode` into discriminated entity types where the current normalization is too broad.
+- [x] Introduce a slot-based `BoxFrame` for shared accessible row and expansion mechanics.
 
 ### Phase 2 — Extract scalar and specialized boxes
 
-- [ ] Implement `ExpressionBox` and preserve one-active-editor behavior.
-- [ ] Implement `InputBox`.
-- [ ] Implement `InvocationBox` and `InvocationArgumentBox`.
-- [ ] Implement `ExternalFunctionBox`.
-- [ ] Implement `EditorLinkBox`.
-- [ ] Give each component focused props or focused hooks only.
-- [ ] Compose shared headers, type chips, static expressions, and action groups instead of copying their markup.
+- [x] Implement `ExpressionBox` and preserve one-active-editor behavior.
+- [x] Implement `InputBox`.
+- [x] Implement `InvocationBox` and `InvocationArgumentBox`.
+- [x] Implement `ExternalFunctionBox`.
+- [x] Implement `EditorLinkBox`.
+- [x] Give each component focused props or focused hooks only.
+- [x] Compose shared headers, type chips, static expressions, and action groups instead of copying their markup.
 
 ### Phase 3 — Extract recursive structural boxes
 
-- [ ] Implement `ContextBox` with recursive `BoxedNode` children.
-- [ ] Implement `FunctionBox` with its signature and body children.
-- [ ] Implement `ListBox` and `ListItemBox` with paging and virtualization.
-- [ ] Implement `RelationBox` and `RelationRowBox` with column operations.
-- [ ] Preserve expansion state and accessible tree/grid semantics.
-- [ ] Share collection paging and virtualization behavior without merging list and relation semantics.
+- [x] Implement `ContextBox` with recursive `BoxedNode` children.
+- [x] Implement `FunctionBox` with its signature and body children.
+- [x] Implement `ListBox` and `ListItemBox` with paging and virtualization.
+- [x] Implement `RelationBox` and `RelationRowBox` with column operations.
+- [x] Preserve expansion state and accessible tree/grid semantics.
+- [x] Share collection paging and virtualization behavior without merging list and relation semantics.
 
 ### Phase 4 — Replace broad callback plumbing
 
-- [ ] Move engine mutations behind focused semantic action hooks/controllers.
-- [ ] Centralize refresh, error mapping, rollback, and `onChange` behavior.
-- [ ] Remove `BoxedNodeRowProps`.
-- [ ] Remove the universal `BoxedNodeRow`, `BoxedValueCell`, and `BoxedActionsCell` condition chains.
-- [ ] Verify that no replacement “god context” exposes all operations to every entity.
-- [ ] Verify that shared primitives use slots/children and contain no entity-kind dispatch.
+- [x] Move engine mutations behind focused semantic action hooks/controllers.
+- [x] Centralize refresh, error mapping, rollback, and `onChange` behavior.
+- [x] Remove `BoxedNodeRowProps`.
+- [x] Remove the universal `BoxedNodeRow`, `BoxedValueCell`, and `BoxedActionsCell` condition chains.
+- [x] Verify that no replacement “god context” exposes all operations to every entity.
+- [x] Verify that shared primitives use slots/children and contain no entity-kind dispatch.
 
 ### Phase 5 — Consolidate forms and finish cleanup
 
-- [ ] Assign each edit form to its owning entity or focused form module.
-- [ ] Retain shared dialog primitives only where they reduce real duplication.
-- [ ] Replace repeated button sets with capability-specific action groups.
-- [ ] Remove pass-through wrappers that add neither semantics nor reusable mechanics.
-- [ ] Remove obsolete compatibility code and unused internal types.
-- [ ] Document the final internal architecture.
-- [ ] Confirm the npm public API and emitted declarations are unchanged.
+- [x] Assign each edit form to its owning entity or focused form module.
+- [x] Retain shared dialog primitives only where they reduce real duplication.
+- [x] Replace repeated button sets with capability-specific action groups.
+- [x] Remove pass-through wrappers that add neither semantics nor reusable mechanics.
+- [x] Remove obsolete compatibility code and unused internal types.
+- [x] Document the final internal architecture.
+- [x] Confirm the npm public API and emitted declarations are unchanged.
 
 ## 11. Testing strategy
 
@@ -447,20 +447,20 @@ components in isolation.
 
 The refactoring is complete when:
 
-- [ ] Every supported boxed entity has a dedicated component with an obvious domain name.
-- [ ] `BoxedNode` contains only exhaustive dispatch logic.
-- [ ] No component has a props contract comparable in scope to `BoxedNodeRowProps`.
-- [ ] Entity components depend only on relevant state and actions.
-- [ ] There is no universal value/action component branching over all node kinds.
-- [ ] Shared box chrome is composed through slots or children rather than duplicated by every entity.
-- [ ] Shared hooks and action groups are capability-specific and do not expose the full editor controller.
-- [ ] Domain components do not use component inheritance or boolean-heavy universal renderers.
-- [ ] Normalized node types make invalid entity/property combinations unrepresentable where practical.
-- [ ] Engine mutation, validation, rollback, refresh, and notification behavior remains centralized.
-- [ ] `BoxedEditorProps` and package exports remain backward compatible.
-- [ ] Existing RTL, build, Storybook, and Playwright suites pass.
-- [ ] New focused tests exist for every dedicated box.
-- [ ] The component tree itself communicates the Boxed Editor mental model without reading a large conditional renderer.
+- [x] Every supported boxed entity has a dedicated component with an obvious domain name.
+- [x] `BoxedNode` contains only exhaustive dispatch logic.
+- [x] No component has a props contract comparable in scope to `BoxedNodeRowProps`.
+- [x] Entity components depend only on relevant state and actions.
+- [x] There is no universal value/action component branching over all node kinds.
+- [x] Shared box chrome is composed through slots or children rather than duplicated by every entity.
+- [x] Shared hooks and action groups are capability-specific and do not expose the full editor controller.
+- [x] Domain components do not use component inheritance or boolean-heavy universal renderers.
+- [x] Normalized node types make invalid entity/property combinations unrepresentable where practical.
+- [x] Engine mutation, validation, rollback, refresh, and notification behavior remains centralized.
+- [x] `BoxedEditorProps` and package exports remain backward compatible.
+- [x] Existing RTL, build, Storybook, and Playwright suites pass.
+- [x] New focused tests exist for every dedicated box.
+- [x] The component tree itself communicates the Boxed Editor mental model without reading a large conditional renderer.
 
 ## 13. Architectural review checklist
 
@@ -475,3 +475,24 @@ Before accepting each phase, reviewers should be able to answer “yes” to the
 - Does the abstraction use composition rather than inheritance or entity-kind flags?
 - Would the code be clearer if two superficially similar cases remained separate?
 - Has abstraction reduced semantic coupling rather than only moving lines between files?
+
+## 14. Final internal architecture
+
+The completed implementation follows the domain-component structure in this story:
+
+- `BoxedEditor` remains the public boundary and centralizes authored snapshots, engine commands, validation rollback,
+  refresh, path errors, and `onChange` notification.
+- `BoxedEditorProvider` publishes separate state, expression, field, metadata, input, function, invocation, collection,
+  relation, and navigation contexts. Domain components consume only the contexts relevant to their entity.
+- `BoxedNode` is an exhaustive discriminated-union dispatcher. `BoxedRenderNode` now makes collection paging data
+  mandatory only for list and relation nodes.
+- `boxes/` contains the domain renderers, including explicit invocation-argument, list-item, and relation-row
+  composition. Recursive boxes obtain the renderer through the provider, avoiding module cycles.
+- `primitives/` owns slot-based row chrome, type chips, highlighted static expressions, collection virtualization, and
+  dialog chrome. None of these primitives dispatches on entity kind.
+- `actions/` contains capability-specific field, metadata, list-item, and relation-column groups.
+- `forms/` contains focused forms for fields, inputs, signatures, invocations, list items, relation columns, and
+  metadata instead of one broad universal dialog contract.
+
+The internal modules are deliberately not re-exported. The `edgerules-react/boxed-editor` entry point continues to
+export only `BoxedEditor` and its existing public types.
