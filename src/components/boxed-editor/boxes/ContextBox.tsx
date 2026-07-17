@@ -9,6 +9,7 @@ import { useBoxedNodeRenderer, useFieldActions } from '../BoxedEditorProvider';
 import { BoxFrame } from '../primitives/BoxFrame';
 import { BoxHeader } from '../primitives/BoxHeader';
 import { BoxTypeChip } from '../primitives/BoxTypeChip';
+import { SortableChildren } from '../primitives/SortableChildren';
 import type { BoxPresentationProps } from './box-props';
 
 export function ContextBox({
@@ -58,9 +59,13 @@ export function ContextBox({
         )
       }
     >
-      {children.map((child) => (
-        <BoxedNode key={child.id} node={child} depth={depth + 1} />
-      ))}
+      {children.length > 0 && (
+        <SortableChildren nodes={children}>
+          {children.map((child) => (
+            <BoxedNode key={child.id} node={child} depth={depth + 1} />
+          ))}
+        </SortableChildren>
+      )}
     </BoxFrame>
   );
 }

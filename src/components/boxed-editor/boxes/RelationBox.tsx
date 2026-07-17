@@ -37,7 +37,6 @@ export function RelationBox({
   const renderRow = (child: BoxedRenderNode): ReactElement => {
     const row = {
       ...child,
-      parentListLength: children.length,
       parentListTerminal: node.list.terminal,
     } as BoxedRenderNode;
     return <RelationRowBox key={child.id} node={row} depth={depth + 1} />;

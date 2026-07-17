@@ -1,4 +1,8 @@
-import type { PortableContext, PortableNode, PortableRootContext } from '@edgerules/portable';
+import type {
+  PortableContext,
+  PortableNode,
+  PortableRootContext,
+} from '@edgerules/portable';
 
 export type BoxedRenderKind =
   | 'context'
@@ -11,6 +15,13 @@ export type BoxedRenderKind =
   | 'invocation'
   | 'editor-link';
 
+export interface BoxedSortableMetadata {
+  groupId: string;
+  ownerPath: string;
+  ownerKind: 'context' | 'function-body' | 'collection';
+  index: number;
+}
+
 interface BaseRenderNode {
   id: string;
   path: string;
@@ -22,17 +33,29 @@ interface BaseRenderNode {
   invocation?: { path: string; argument: string | number };
   /** A literal collection item is addressed by its owning list and numeric index. */
   listItem?: { path: string; index: number };
-  parentListLength?: number;
   parentListTerminal?: boolean;
+  /** Identifies an authored sibling group that can be reordered as one unit. */
+  sortable?: BoxedSortableMetadata;
   /** Paging data comes from indexed CRUD reads, never from parsing an expression. */
 }
 
-export type ContextRenderNode = BaseRenderNode & { kind: 'context'; children?: BoxedRenderNode[] };
+export type ContextRenderNode = BaseRenderNode & {
+  kind: 'context';
+  children?: BoxedRenderNode[];
+};
 export type ExpressionRenderNode = BaseRenderNode & { kind: 'expression' };
 export type InputRenderNode = BaseRenderNode & { kind: 'input' };
-export type FunctionRenderNode = BaseRenderNode & { kind: 'function'; children?: BoxedRenderNode[] };
-export type ExternalFunctionRenderNode = BaseRenderNode & { kind: 'external-function' };
-export type InvocationRenderNode = BaseRenderNode & { kind: 'invocation'; children?: BoxedRenderNode[] };
+export type FunctionRenderNode = BaseRenderNode & {
+  kind: 'function';
+  children?: BoxedRenderNode[];
+};
+export type ExternalFunctionRenderNode = BaseRenderNode & {
+  kind: 'external-function';
+};
+export type InvocationRenderNode = BaseRenderNode & {
+  kind: 'invocation';
+  children?: BoxedRenderNode[];
+};
 export type EditorLinkRenderNode = BaseRenderNode & { kind: 'editor-link' };
 export type ListRenderNode = BaseRenderNode & {
   kind: 'list';
@@ -62,40 +85,68 @@ export interface IndexedListPage {
   error?: string;
 }
 
-const METADATA = new Set(['@kind', '@description', '@node', '@node-name', '@model-name', '@model-version']);
+const METADATA = new Set([
+  '@kind',
+  '@description',
+  '@node',
+  '@node-name',
+  '@model-name',
+  '@model-version',
+]);
 
 export function isObject(node: unknown): node is Record<string, unknown> {
   return typeof node === 'object' && node !== null && !Array.isArray(node);
 }
 
-export function authoredFields(context: PortableContext): Array<[string, PortableNode]> {
+export function authoredFields(
+  context: PortableContext,
+): Array<[string, PortableNode]> {
   return Object.entries(context).flatMap(([name, value]) =>
-    !METADATA.has(name) && !name.startsWith('@') && value !== undefined ? [[name, value as PortableNode] as [string, PortableNode]] : [],
+    !METADATA.has(name) && !name.startsWith('@') && value !== undefined
+      ? [[name, value as PortableNode] as [string, PortableNode]]
+      : [],
   );
 }
 
-export function classifyNode(node: PortableNode, schema?: PortableNode, indexedList?: IndexedListPage): BoxedRenderKind {
+export function classifyNode(
+  node: PortableNode,
+  schema?: PortableNode,
+  indexedList?: IndexedListPage,
+): BoxedRenderKind {
   const rawKind: unknown = isObject(node) ? node['@kind'] : undefined;
-  const kind: string | undefined = typeof rawKind === 'string' ? rawKind : undefined;
-  if (kind === 'type-definition' || kind === 'ruleset' || kind === 'loop') return 'editor-link';
+  const kind: string | undefined =
+    typeof rawKind === 'string' ? rawKind : undefined;
+  if (kind === 'type-definition' || kind === 'ruleset' || kind === 'loop')
+    return 'editor-link';
   if (kind === 'function') return 'function';
   if (kind === 'external-function') return 'external-function';
   if (kind === 'invocation') return 'invocation';
   if (kind === 'type') return 'input';
-  if (kind === 'context' || (isObject(node) && kind === undefined)) return 'context';
+  if (kind === 'context' || (isObject(node) && kind === undefined))
+    return 'context';
   if (indexedList && isObject(schema) && schema.type === 'array') {
-    return indexedList.items[0] && isObject(indexedList.items[0]) && String(indexedList.items[0]['@kind'] ?? '') === 'context'
+    return indexedList.items[0] &&
+      isObject(indexedList.items[0]) &&
+      String(indexedList.items[0]['@kind'] ?? '') === 'context'
       ? 'relation'
       : 'list';
   }
   return 'expression';
 }
 
-function schemaField(schema: PortableNode | undefined, name: string): PortableNode | undefined {
-  return isObject(schema) && name in schema ? (schema[name] as PortableNode) : undefined;
+function schemaField(
+  schema: PortableNode | undefined,
+  name: string,
+): PortableNode | undefined {
+  return isObject(schema) && name in schema
+    ? (schema[name] as PortableNode)
+    : undefined;
 }
 
-function nodeAtPath(root: PortableRootContext, path: string): PortableNode | undefined {
+function nodeAtPath(
+  root: PortableRootContext,
+  path: string,
+): PortableNode | undefined {
   if (path === '*') return root;
   let current: PortableNode | undefined = root;
   for (const part of path.split('.')) {
@@ -105,20 +156,32 @@ function nodeAtPath(root: PortableRootContext, path: string): PortableNode | und
       const list: unknown = current[match[1]];
       current = Array.isArray(list) ? list[Number(match[2])] : undefined;
     } else {
-      current = isObject(current) ? (current[part] as PortableNode | undefined) : undefined;
+      current = isObject(current)
+        ? (current[part] as PortableNode | undefined)
+        : undefined;
     }
   }
   return current;
 }
 
 /** Resolves authored paths, including function-body CRUD paths (e.g. fn.result). */
-export function resolveAuthoredPath(root: PortableRootContext, path: string): PortableNode | undefined {
+export function resolveAuthoredPath(
+  root: PortableRootContext,
+  path: string,
+): PortableNode | undefined {
   const direct = nodeAtPath(root, path);
   if (direct !== undefined) return direct;
   const [functionName, ...bodyPath] = path.split('.');
   const candidate = root[functionName] as PortableNode | undefined;
-  if (isObject(candidate) && String(candidate['@kind']) === 'function' && bodyPath.length > 0) {
-    return nodeAtPath(candidate['@body'] as PortableContext, bodyPath.join('.'));
+  if (
+    isObject(candidate) &&
+    String(candidate['@kind']) === 'function' &&
+    bodyPath.length > 0
+  ) {
+    return nodeAtPath(
+      candidate['@body'] as PortableContext,
+      bodyPath.join('.'),
+    );
   }
   return undefined;
 }
@@ -134,43 +197,120 @@ export function renderNode(
   const kind = classifyNode(authored, schema, indexedList);
   let children: BoxedRenderNode[] | undefined;
   if (kind === 'context' && isObject(authored)) {
-    children = authoredFields(authored as PortableContext).map(([fieldName, field]) =>
-      renderNode(field, path === '*' ? fieldName : `${path}.${fieldName}`, schemaField(schema, fieldName), fieldName, indexedLists),
+    children = authoredFields(authored as PortableContext).map(
+      ([fieldName, field], index) => ({
+        ...renderNode(
+          field,
+          path === '*' ? fieldName : `${path}.${fieldName}`,
+          schemaField(schema, fieldName),
+          fieldName,
+          indexedLists,
+        ),
+        sortable: {
+          groupId: `context:${path}`,
+          ownerPath: path,
+          ownerKind: 'context',
+          index,
+        },
+      }),
     );
   }
   if (kind === 'function' && isObject(authored)) {
     const body = authored['@body'] as PortableNode;
-    children = isObject(body) && (body['@kind'] === 'context' || body['@kind'] === undefined)
-      ? authoredFields(body as PortableContext).map(([fieldName, field]) =>
-        renderNode(field, `${path}.${fieldName}`, undefined, fieldName, indexedLists),
-      )
-      : [renderNode(body, `${path}.result`, undefined, 'result', indexedLists)];
+    children =
+      isObject(body) &&
+      (body['@kind'] === 'context' || body['@kind'] === undefined)
+        ? authoredFields(body as PortableContext).map(
+            ([fieldName, field], index) => ({
+              ...renderNode(
+                field,
+                `${path}.${fieldName}`,
+                undefined,
+                fieldName,
+                indexedLists,
+              ),
+              sortable: {
+                groupId: `function-body:${path}`,
+                ownerPath: path,
+                ownerKind: 'function-body',
+                index,
+              },
+            }),
+          )
+        : [
+            renderNode(
+              body,
+              `${path}.result`,
+              undefined,
+              'result',
+              indexedLists,
+            ),
+          ];
   }
   if (kind === 'invocation' && isObject(authored)) {
     const argumentsValue = authored['@arguments'];
     children = Array.isArray(argumentsValue)
       ? argumentsValue.map((argument, index) => ({
-        ...renderNode(argument as PortableNode, `${path}.@arguments[${index}]`, undefined, `Argument ${index + 1}`, indexedLists),
-        invocation: { path, argument: index },
-      }))
+          ...renderNode(
+            argument as PortableNode,
+            `${path}.@arguments[${index}]`,
+            undefined,
+            `Argument ${index + 1}`,
+            indexedLists,
+          ),
+          invocation: { path, argument: index },
+        }))
       : isObject(argumentsValue)
         ? Object.entries(argumentsValue).map(([argument, value]) => ({
-          ...renderNode(value as PortableNode, `${path}.@arguments.${argument}`, undefined, argument, indexedLists),
-          invocation: { path, argument },
-        }))
+            ...renderNode(
+              value as PortableNode,
+              `${path}.@arguments.${argument}`,
+              undefined,
+              argument,
+              indexedLists,
+            ),
+            invocation: { path, argument },
+          }))
         : [];
   }
   if ((kind === 'list' || kind === 'relation') && indexedList) {
-    const itemSchema = isObject(schema) ? schema.items as PortableNode | undefined : undefined;
+    const itemSchema = isObject(schema)
+      ? (schema.items as PortableNode | undefined)
+      : undefined;
     children = indexedList.items.map((item, index) => ({
-      ...renderNode(item, `${path}[${index}]`, itemSchema, kind === 'relation' ? `Row ${index + 1}` : `Item ${index + 1}`, indexedLists),
+      ...renderNode(
+        item,
+        `${path}[${index}]`,
+        itemSchema,
+        kind === 'relation' ? `Row ${index + 1}` : `Item ${index + 1}`,
+        indexedLists,
+      ),
       listItem: { path, index },
+      ...(indexedList.terminal
+        ? {
+            sortable: {
+              groupId: `collection:${path}`,
+              ownerPath: path,
+              ownerKind: 'collection' as const,
+              index,
+            },
+          }
+        : {}),
     }));
   }
   const base = { id: path, path, name, authored, schema, children };
   if (kind === 'list' || kind === 'relation') {
-    if (!indexedList) throw new Error(`Missing indexed collection data for ${path}`);
-    return { ...base, kind, list: { loaded: indexedList.items.length, terminal: indexedList.terminal, ...(indexedList.error ? { error: indexedList.error } : {}) } } as BoxedRenderNode;
+    if (!indexedList)
+      throw new Error(`Missing indexed collection data for ${path}`);
+    return {
+      ...base,
+      kind,
+      list: {
+        loaded: indexedList.items.length,
+        terminal: indexedList.terminal,
+        ...(indexedList.error ? { error: indexedList.error } : {}),
+      },
+    } as BoxedRenderNode;
   }
   return { ...base, kind } as BoxedRenderNode;
 }

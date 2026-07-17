@@ -8,6 +8,16 @@ import {
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import type {
   PortableError,
   PortableNode,
@@ -32,6 +42,7 @@ import {
   renderNode,
   resolveAuthoredPath,
   type BoxedRenderNode,
+  type BoxedSortableMetadata,
 } from './boxed-model';
 import type {
   AddFieldDraft,
@@ -66,6 +77,43 @@ export type {
 } from './boxed-editor-types';
 
 const NOOP_LANGUAGE_SERVICE: CodeEditorService = { diagnostics: () => [] };
+
+const siblingCollision: CollisionDetection = (args) => {
+  const activeGroup = (
+    args.active.data.current?.reorder as BoxedSortableMetadata | undefined
+  )?.groupId;
+  if (!activeGroup) return [];
+  return closestCenter({
+    ...args,
+    droppableContainers: args.droppableContainers.filter(
+      (container) =>
+        (container.data.current?.reorder as BoxedSortableMetadata | undefined)
+          ?.groupId === activeGroup,
+    ),
+  });
+};
+
+function reorderContextFields(
+  authored: Record<string, unknown>,
+  names: string[],
+): PortableNode {
+  const metadata = Object.entries(authored).filter(([name]) =>
+    name.startsWith('@'),
+  );
+  const fields = new Map(
+    Object.entries(authored).filter(([name]) => !name.startsWith('@')),
+  );
+  const reordered = names.flatMap((name) =>
+    fields.has(name) ? ([[name, fields.get(name)]] as [string, unknown][]) : [],
+  );
+  const named = new Set(names);
+  const remaining = [...fields].filter(([name]) => !named.has(name));
+  return Object.fromEntries([
+    ...metadata,
+    ...reordered,
+    ...remaining,
+  ]) as PortableNode;
+}
 
 export function BoxedEditor({
   service,
@@ -105,6 +153,9 @@ export function BoxedEditor({
     null,
   );
   const pageSizes = useRef(new Map<string, number>());
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
 
   const load = useCallback(
     (nextSnapshot: PortableRootContext, resetExpansion: boolean): boolean => {
@@ -437,26 +488,109 @@ export function BoxedEditor({
     },
     [model, refreshCommitted, service, showError],
   );
-  const moveListItem = useCallback(
-    (node: BoxedRenderNode, direction: -1 | 1): void => {
-      if (!node.listItem || !model) return;
-      const list = findNode(model, node.listItem.path);
-      const items = list?.children?.map((child) => child.authored);
-      const from = node.listItem.index;
-      const to = from + direction;
-      if (!items || to < 0 || to >= items.length) return;
-      [items[from], items[to]] = [items[to], items[from]];
-      const result = service.set(
-        node.listItem.path,
-        items as unknown as PortableNode,
-      );
+  const reorderRootFields = useCallback(
+    (
+      names: string[],
+      values: ReadonlyMap<string, PortableNode>,
+    ): PortableError | undefined => {
+      for (const name of names) {
+        const value = values.get(name);
+        if (value === undefined) continue;
+        const removed = service.remove(name);
+        if (isPortableError(removed)) return removed;
+        const stored = service.set(name, value);
+        if (isPortableError(stored)) return stored;
+      }
+      return undefined;
+    },
+    [service],
+  );
+  const reorderSiblings = useCallback(
+    (activeId: string, overId: string): void => {
+      if (!model || activeId === overId) return;
+      const active = findNode(model, activeId);
+      const over = findNode(model, overId);
+      const activeSortable = active?.sortable;
+      const overSortable = over?.sortable;
+      if (
+        !active ||
+        !over ||
+        !activeSortable ||
+        !overSortable ||
+        activeSortable.groupId !== overSortable.groupId
+      )
+        return;
+      const owner = findNode(model, activeSortable.ownerPath);
+      const siblings = owner?.children ?? [];
+      const from = siblings.findIndex((child) => child.id === active.id);
+      const to = siblings.findIndex((child) => child.id === over.id);
+      if (!owner || from < 0 || to < 0 || from === to) return;
+      const reordered = arrayMove(siblings, from, to);
+      let result: PortableNode | PortableError | void;
+
+      if (activeSortable.ownerKind === 'collection') {
+        result = service.set(
+          activeSortable.ownerPath,
+          reordered.map((child) => child.authored) as unknown as PortableNode,
+        );
+      } else if (activeSortable.ownerKind === 'function-body') {
+        if (!isObject(owner.authored)) return;
+        const body = owner.authored['@body'];
+        if (!isObject(body)) return;
+        result = service.set(activeSortable.ownerPath, {
+          ...owner.authored,
+          '@body': reorderContextFields(
+            body,
+            reordered.flatMap((child) => (child.name ? [child.name] : [])),
+          ),
+        } as PortableNode);
+      } else if (activeSortable.ownerPath === '*') {
+        const originalNames = siblings.flatMap((child) =>
+          child.name ? [child.name] : [],
+        );
+        const values = new Map(
+          siblings.flatMap((child) =>
+            child.name ? [[child.name, child.authored] as const] : [],
+          ),
+        );
+        result = reorderRootFields(
+          reordered.flatMap((child) => (child.name ? [child.name] : [])),
+          values,
+        );
+        if (isPortableError(result)) {
+          const rollback = reorderRootFields(originalNames, values);
+          if (isPortableError(rollback)) {
+            setFatalError(
+              `Could not restore root field order: ${rollback.message}`,
+            );
+            return;
+          }
+        }
+      } else {
+        if (!isObject(owner.authored)) return;
+        result = service.set(
+          activeSortable.ownerPath,
+          reorderContextFields(
+            owner.authored,
+            reordered.flatMap((child) => (child.name ? [child.name] : [])),
+          ),
+        );
+      }
+
       if (isPortableError(result)) {
-        showError(node.path, result);
+        showError(active.path, result);
         return;
       }
       refreshCommitted();
     },
-    [model, refreshCommitted, service, showError],
+    [model, refreshCommitted, reorderRootFields, service, showError],
+  );
+  const finishDrag = useCallback(
+    ({ active, over }: DragEndEvent): void => {
+      if (!over) return;
+      reorderSiblings(String(active.id), String(over.id));
+    },
+    [reorderSiblings],
   );
   const commitColumn = useCallback((): void => {
     if (!columnDraft || !columnDraft.name.trim()) return;
@@ -605,7 +739,6 @@ export function BoxedEditor({
         addItem: openListItem,
         duplicateItem: duplicateListItem,
         removeItem: removeListItem,
-        moveItem: moveListItem,
         loadMore,
       }}
       relation={{
@@ -622,38 +755,44 @@ export function BoxedEditor({
       navigation={{ open: onOpenNode }}
       renderer={BoxedEntityNode}
     >
-      <Box
-        className={className}
-        sx={{
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 1,
-          overflow: 'hidden',
-          ...sx,
-        }}
-        role="treegrid"
-        aria-label={`Boxed editor ${path}`}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={siblingCollision}
+        onDragEnd={finishDrag}
       >
-        {path === '*' &&
-          (snapshot['@model-name'] || snapshot['@model-version']) && (
-            <Box
-              sx={{
-                px: 1,
-                py: 0.5,
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <Typography variant="subtitle2">
-                {snapshot['@model-name'] ?? 'Model'}
-                {snapshot['@model-version']
-                  ? ` · ${snapshot['@model-version']}`
-                  : ''}
-              </Typography>
-            </Box>
-          )}
-        <BoxedNode node={model} />
-      </Box>
+        <Box
+          className={className}
+          sx={{
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            overflow: 'hidden',
+            ...sx,
+          }}
+          role="treegrid"
+          aria-label={`Boxed editor ${path}`}
+        >
+          {path === '*' &&
+            (snapshot['@model-name'] || snapshot['@model-version']) && (
+              <Box
+                sx={{
+                  px: 1,
+                  py: 0.5,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Typography variant="subtitle2">
+                  {snapshot['@model-name'] ?? 'Model'}
+                  {snapshot['@model-version']
+                    ? ` · ${snapshot['@model-version']}`
+                    : ''}
+                </Typography>
+              </Box>
+            )}
+          <BoxedNode node={model} />
+        </Box>
+      </DndContext>
       <AddFieldForm
         draft={addDraft}
         setDraft={setAddDraft}

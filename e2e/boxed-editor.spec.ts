@@ -1,4 +1,25 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function dragByHandle(page: Page, source: string, target: string) {
+  const sourceBox = await page
+    .getByRole('button', { name: `Drag ${source}`, exact: true })
+    .boundingBox();
+  const targetBox = await page
+    .getByRole('button', { name: `Drag ${target}`, exact: true })
+    .boundingBox();
+  if (!sourceBox || !targetBox) throw new Error('Drag handles are not visible');
+  await page.mouse.move(
+    sourceBox.x + sourceBox.width / 2,
+    sourceBox.y + sourceBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    targetBox.x + targetBox.width / 2,
+    targetBox.y + targetBox.height / 2,
+    { steps: 10 },
+  );
+  await page.mouse.up();
+}
 
 const BOXED_EDITOR_STORIES = [
   'root-read-only',
@@ -18,28 +39,46 @@ const BOXED_EDITOR_STORIES = [
   'project-explorer-integration',
 ] as const;
 
-test('read-only visual opens from the Storybook manager route', async ({ page }) => {
+test('read-only visual opens from the Storybook manager route', async ({
+  page,
+}) => {
   await page.goto('/?path=/story/boxed-editor-boxededitor--read-only-visual');
   const story = page.frameLocator('#storybook-preview-iframe');
   await expect(story.getByRole('treegrid')).toBeVisible();
-  await expect(story.getByText('The component failed to render properly')).not.toBeVisible();
+  await expect(
+    story.getByText('The component failed to render properly'),
+  ).not.toBeVisible();
 });
 
-test('every Boxed Editor story opens without the Storybook render error boundary', async ({ page }) => {
+test('every Boxed Editor story opens without the Storybook render error boundary', async ({
+  page,
+}) => {
   for (const story of BOXED_EDITOR_STORIES) {
     await test.step(story, async () => {
-      await page.goto(`/iframe.html?id=boxed-editor-boxededitor--${story}&viewMode=story`);
-      await expect(page.locator('[role="treegrid"], [role="alert"]').first()).toBeVisible();
-      await expect(page.getByText('The component failed to render properly')).not.toBeVisible();
+      await page.goto(
+        `/iframe.html?id=boxed-editor-boxededitor--${story}&viewMode=story`,
+      );
+      await expect(
+        page.locator('[role="treegrid"], [role="alert"]').first(),
+      ).toBeVisible();
+      await expect(
+        page.getByText('The component failed to render properly'),
+      ).not.toBeVisible();
     });
   }
 });
 
-test('editable boxed expression mounts one cell editor and commits', async ({ page }) => {
-  await page.goto('/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story');
+test('editable boxed expression mounts one cell editor and commits', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+  );
   await page.getByRole('button', { name: 'Expand application' }).click();
-  const calculationRow = page.getByRole('row', { name: 'application.calculation' });
-  await calculationRow.getByRole('cell').nth(2).click();
+  const calculationRow = page.getByRole('row', {
+    name: 'application.calculation',
+  });
+  await calculationRow.getByRole('cell').nth(3).click();
   const editor = page.locator('.cm-content');
   await expect(editor).toHaveCount(1);
   await editor.click();
@@ -47,82 +86,231 @@ test('editable boxed expression mounts one cell editor and commits', async ({ pa
   await page.keyboard.press(`${modifier}+A`);
   await page.keyboard.type('1 + 2');
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('boxed-change-count')).toContainText('Changes: 1');
+  await expect(page.getByTestId('boxed-change-count')).toContainText(
+    'Changes: 1',
+  );
   await expect(page.locator('.cm-editor')).toHaveCount(0);
 });
 
-test('editable cells retain language-service completions from their portable embed context', async ({ page }) => {
-  await page.goto('/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story');
+test('editable cells retain language-service completions from their portable embed context', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+  );
   await page.getByRole('button', { name: 'Expand application' }).click();
-  await page.getByRole('row', { name: 'application.calculation' }).getByRole('cell').nth(2).click();
+  await page
+    .getByRole('row', { name: 'application.calculation' })
+    .getByRole('cell')
+    .nth(3)
+    .click();
   const editor = page.locator('.cm-content');
   await editor.click();
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   await page.keyboard.press(`${modifier}+A`);
   await page.keyboard.type('a');
   await page.keyboard.press('Control+Space');
-  await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('amount');
+  await expect(page.locator('.cm-tooltip-autocomplete')).toContainText(
+    'amount',
+  );
 });
 
-test('read-only boxed story exposes no expression editor activation', async ({ page }) => {
-  await page.goto('/iframe.html?id=boxed-editor-boxededitor--root-read-only&viewMode=story');
+test('read-only boxed story exposes no expression editor activation', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--root-read-only&viewMode=story',
+  );
   await expect(page.locator('.cm-editor')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Add field to *' })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Add field to *' }),
+  ).toHaveCount(0);
 });
 
-test('loan-origination overview renders the authored root model without live editors', async ({ page }) => {
-  await page.goto('/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story');
+test('drag handles reorder authored fields, function bodies, lists, and relations', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+  );
+  await dragByHandle(page, 'payment', 'application');
+  await expect
+    .poll(async () => {
+      const payment = await page
+        .getByRole('row', { name: 'payment' })
+        .boundingBox();
+      const application = await page
+        .getByRole('row', { name: 'application' })
+        .boundingBox();
+      return Boolean(payment && application && payment.y < application.y);
+    })
+    .toBe(true);
+  await expect(page.getByTestId('boxed-change-count')).toContainText(
+    'Changes: 1',
+  );
+
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+  );
+  await page.getByRole('button', { name: 'Expand application' }).click();
+  await dragByHandle(page, 'application.calculation', 'application.amount');
+  await expect
+    .poll(async () => {
+      const calculation = await page
+        .getByRole('row', { name: 'application.calculation' })
+        .boundingBox();
+      const amount = await page
+        .getByRole('row', { name: 'application.amount' })
+        .boundingBox();
+      return Boolean(calculation && amount && calculation.y < amount.y);
+    })
+    .toBe(true);
+
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--context-function&viewMode=story',
+  );
+  await dragByHandle(page, 'summary.result', 'summary.tax');
+  await expect
+    .poll(async () => {
+      const result = await page
+        .getByRole('row', { name: 'summary.result' })
+        .boundingBox();
+      const tax = await page
+        .getByRole('row', { name: 'summary.tax' })
+        .boundingBox();
+      return Boolean(result && tax && result.y < tax.y);
+    })
+    .toBe(true);
+
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--literal-list&viewMode=story',
+  );
+  await dragByHandle(page, 'scores[0]', 'scores[2]');
+  await expect(page.getByRole('row', { name: 'scores[0]' })).toContainText(
+    '19',
+  );
+  await expect(page.getByRole('row', { name: 'scores[2]' })).toContainText(
+    '12',
+  );
+
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
+  );
+  await dragByHandle(page, 'applicants[0]', 'applicants[1]');
+  await expect(
+    page.getByRole('row', { name: 'applicants[0].name' }),
+  ).toContainText('Grace');
+  await expect(
+    page.getByRole('row', { name: 'applicants[1].name' }),
+  ).toContainText('Ada');
+});
+
+test('loan-origination overview renders the authored root model without live editors', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
+  );
   await expect(page.getByRole('treegrid')).toContainText('Applicant');
   await expect(page.getByRole('row', { name: 'application' })).toBeVisible();
-  await expect(page.getByText('func creditScore(age: number, income: number) → number')).toBeVisible();
-  await expect(page.getByRole('row', { name: 'finalDecision' })).toContainText('APPROVE');
+  await expect(
+    page.getByText('func creditScore(age: number, income: number) → number'),
+  ).toBeVisible();
+  await expect(page.getByRole('row', { name: 'finalDecision' })).toContainText(
+    'APPROVE',
+  );
   await expect(page.locator('.cm-editor')).toHaveCount(0);
 });
 
-test('visual error and read-only scenarios retain their distinct UI states', async ({ page }) => {
-  await page.goto('/iframe.html?id=boxed-editor-boxededitor--error-state&viewMode=story');
-  await expect(page.getByRole('alert')).toContainText("unresolved reference 'a'");
+test('visual error and read-only scenarios retain their distinct UI states', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--error-state&viewMode=story',
+  );
+  await expect(page.getByRole('alert')).toContainText(
+    "unresolved reference 'a'",
+  );
 
-  await page.goto('/iframe.html?id=boxed-editor-boxededitor--read-only-visual&viewMode=story');
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--read-only-visual&viewMode=story',
+  );
   await expect(page.getByRole('treegrid')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add field to *' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Edit signature creditScore' })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Add field to *' }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Edit signature creditScore' }),
+  ).toHaveCount(0);
   await expect(page.locator('.cm-editor')).toHaveCount(0);
 });
 
-test('visual nested-function and large-model scenarios keep rendering static', async ({ page }) => {
-  await page.goto('/iframe.html?id=boxed-editor-boxededitor--nested-function-visual&viewMode=story');
+test('visual nested-function and large-model scenarios keep rendering static', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--nested-function-visual&viewMode=story',
+  );
   await page.getByRole('button', { name: 'Expand application' }).click();
-  await expect(page.getByText('func affordability(income: number)')).toBeVisible();
-  await page.getByRole('button', { name: 'Expand application.affordability' }).click();
-  await expect(page.getByRole('row', { name: 'application.affordability.threshold' })).toContainText('monthlyIncome * 0.35');
+  await expect(
+    page.getByText('func affordability(income: number)'),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Expand application.affordability' })
+    .click();
+  await expect(
+    page.getByRole('row', { name: 'application.affordability.threshold' }),
+  ).toContainText('monthlyIncome * 0.35');
   await expect(page.locator('.cm-editor')).toHaveCount(0);
 
-  await page.goto('/iframe.html?id=boxed-editor-boxededitor--large-model-visual&viewMode=story');
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--large-model-visual&viewMode=story',
+  );
   await expect(page.getByRole('row', { name: 'value0' })).toBeVisible();
   await expect(page.getByRole('row', { name: 'value199' })).toBeVisible();
   await expect(page.locator('.cm-editor')).toHaveCount(0);
 });
 
-test('Project Explorer root paths and specialized boxed links route to their host editors', async ({ page }) => {
-  await page.goto('/iframe.html?id=boxed-editor-boxededitor--project-explorer-integration&viewMode=story');
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('boxed: *');
+test('Project Explorer root paths and specialized boxed links route to their host editors', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--project-explorer-integration&viewMode=story',
+  );
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
+    'boxed: *',
+  );
 
   await page.getByText('monthly()', { exact: true }).click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('boxed: monthly');
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
+    'boxed: monthly',
+  );
 
   await page.getByText('Variables', { exact: true }).click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('boxed: *');
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
+    'boxed: *',
+  );
   await page.getByRole('button', { name: 'Open Types Editor' }).click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('type-definition: Applicant');
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
+    'type-definition: Applicant',
+  );
 
   await page.getByText('Variables', { exact: true }).click();
-  await page.getByRole('button', { name: 'Open Decision Table Editor' }).click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('ruleset: risk');
+  await page
+    .getByRole('button', { name: 'Open Decision Table Editor' })
+    .click();
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
+    'ruleset: risk',
+  );
   await expect(page.locator('table.MuiTable-root')).toBeVisible();
 
   await page.getByText('Variables', { exact: true }).click();
   await page.getByRole('button', { name: 'Open Loop Editor' }).click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText('loop: counter');
-  await expect(page.getByRole('alert')).toContainText('Loop Editor route: counter');
+  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
+    'loop: counter',
+  );
+  await expect(page.getByRole('alert')).toContainText(
+    'Loop Editor route: counter',
+  );
 });

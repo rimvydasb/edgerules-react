@@ -1,9 +1,12 @@
 import { Children, type ReactElement, type ReactNode } from 'react';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { BoxedRenderNode } from '../boxed-model';
 import { useBoxedEditorState } from '../BoxedEditorProvider';
 
@@ -36,9 +39,15 @@ export function BoxFrame({
   const { readOnly, expanded, errors, toggle } = useBoxedEditorState();
   const hasChildren = Children.count(children) > 0;
   const isExpanded = expanded.has(node.id);
+  const sortable = useSortable({
+    id: node.id,
+    data: { reorder: node.sortable },
+    disabled: readOnly || !node.sortable,
+  });
   return (
     <>
       <Box
+        ref={sortable.setNodeRef}
         role="row"
         aria-label={node.path}
         aria-level={depth + 1}
@@ -46,13 +55,37 @@ export function BoxFrame({
           display: 'grid',
           gridTemplateColumns: readOnly
             ? '34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr)'
-            : '34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr) 118px',
+            : '34px 34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr) 118px',
           alignItems: 'start',
           borderTop: '1px solid',
           borderColor: 'divider',
           minHeight: 42,
+          position: 'relative',
+          zIndex: sortable.isDragging ? 1 : 'auto',
+          opacity: sortable.isDragging ? 0.72 : 1,
+          transform: CSS.Transform.toString(sortable.transform),
+          transition: sortable.transition,
+          bgcolor: sortable.isDragging ? 'background.paper' : undefined,
         }}
       >
+        {!readOnly && (
+          <Box role="cell">
+            {node.sortable && (
+              <IconButton
+                size="small"
+                aria-label={`Drag ${node.path}`}
+                sx={{
+                  cursor: sortable.isDragging ? 'grabbing' : 'grab',
+                  touchAction: 'none',
+                }}
+                {...sortable.attributes}
+                {...sortable.listeners}
+              >
+                <DragIndicatorIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Box>
+        )}
         <Box role="cell" sx={{ pl: depth * 2 }}>
           {hasChildren && (
             <IconButton

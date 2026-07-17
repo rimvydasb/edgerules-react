@@ -29,15 +29,15 @@ The package entry point is `edgerules-react/boxed-editor`. Its public API is int
 
 ```ts
 interface BoxedEditorProps {
-    service: BoxedEditorService;
-    path: string;
-    languageService?: CodeEditorService;
-    revision?: string | number;
-    readOnly?: boolean;
-    onChange?: (snapshot: PortableRootContext) => void;
-    onOpenNode?: (target: BoxedEditorOpenTarget) => void;
-    className?: string;
-    sx?: SxProps<Theme>;
+  service: BoxedEditorService;
+  path: string;
+  languageService?: CodeEditorService;
+  revision?: string | number;
+  readOnly?: boolean;
+  onChange?: (snapshot: PortableRootContext) => void;
+  onOpenNode?: (target: BoxedEditorOpenTarget) => void;
+  className?: string;
+  sx?: SxProps<Theme>;
 }
 ```
 
@@ -47,7 +47,7 @@ described below is internal and must not be re-exported without an explicit publ
 Important prop semantics:
 
 | Prop              | Meaning                                                                                          |
-|-------------------|--------------------------------------------------------------------------------------------------|
+| ----------------- | ------------------------------------------------------------------------------------------------ |
 | `service`         | The mutable EdgeRules model authority. The editor never maintains a second persisted model.      |
 | `path`            | The authored CRUD path to show. Use `"*"` for the complete model.                                |
 | `languageService` | Supplies diagnostics and completions to the one active expression cell.                          |
@@ -139,7 +139,7 @@ entity-specific boolean flags.
 ### 3.2 Directory navigation
 
 | Location                                                                                  | Responsibility                                                                                    | Start here when…                                               |
-|-------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | [`BoxedEditor.tsx`](../src/components/boxed-editor/BoxedEditor.tsx)                       | Loading, editor-wide state, mutation commands, rollback, refresh, callbacks, and form composition | Changing mutation lifecycle, error behavior, or host callbacks |
 | [`BoxedEditorProvider.tsx`](../src/components/boxed-editor/BoxedEditorProvider.tsx)       | Separate focused contexts and hooks for state and entity capabilities                             | Adding or narrowing an entity capability                       |
 | [`BoxedNode.tsx`](../src/components/boxed-editor/BoxedNode.tsx)                           | Exhaustive normalized-kind dispatch                                                               | Adding a new normalized entity kind                            |
@@ -168,7 +168,7 @@ React components do not render raw Portable nodes directly. `BoxedEditor` obtain
 The normalized union currently contains:
 
 | `kind`              | Dedicated component   | Important normalized data                                |
-|---------------------|-----------------------|----------------------------------------------------------|
+| ------------------- | --------------------- | -------------------------------------------------------- |
 | `context`           | `ContextBox`          | Named children in authored order                         |
 | `expression`        | `ExpressionBox`       | Authored value/expression plus linked schema             |
 | `input`             | `InputBox`            | Portable `@kind: "type"` input                           |
@@ -185,6 +185,9 @@ Two render-only annotations preserve write semantics:
   invocation arguments are not independently persisted fields.
 - `listItem: { path, index }` marks an indexed collection item. Item duplication, deletion, and movement operate on
   the owning collection.
+- `sortable: { groupId, ownerPath, ownerKind, index }` marks authored siblings that can be reordered together. Context
+  fields, context function-body fields, and terminal literal collection items receive this annotation; invocation
+  arguments and other generated subrows do not.
 
 Do not add a second persisted boxed-editor model. If a new UI shape is needed, add render-only normalized data and keep
 `PortableRootContext` as the authored snapshot.
@@ -199,15 +202,15 @@ The editor consumes the following service contract:
 
 ```ts
 interface BoxedEditorService {
-    toPortable(): PortableRootContext;
+  toPortable(): PortableRootContext;
 
-    get(path: string, filter?: GetFilter): PortableNode | PortableError;
+  get(path: string, filter?: GetFilter): PortableNode | PortableError;
 
-    set(path: string, node: PortableNode): PortableNode | PortableError;
+  set(path: string, node: PortableNode): PortableNode | PortableError;
 
-    remove(path: string): void | PortableError;
+  remove(path: string): void | PortableError;
 
-    rename(path: string, newName: string): void | PortableError;
+  rename(path: string, newName: string): void | PortableError;
 }
 ```
 
@@ -216,7 +219,7 @@ interface BoxedEditorService {
 ### 5.1 API usage by operation
 
 | API                                        | How `BoxedEditor` uses it                                                                                                                |
-|--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `toPortable()`                             | Reads the complete authored model for normalization, refresh, rollback source data, expression embedding, and `onChange`.                |
 | `get(path, "FIELDS")`                      | Gets the linked/schema-enriched view used for classification, type chips, validation, and collection shape.                              |
 | `get(path + ".*", "FUNCTION_DEFINITIONS")` | Validates that a focused function definition can be resolved.                                                                            |
@@ -302,7 +305,7 @@ in the owning collection footer.
 `BoxedEditorProvider` exposes this through separate contexts:
 
 | Hook                   | Consumers and purpose                                                         |
-|------------------------|-------------------------------------------------------------------------------|
+| ---------------------- | ----------------------------------------------------------------------------- |
 | `useBoxedEditorState`  | Shared read-only mode, snapshot, language service, expansion, and path errors |
 | `useExpressionActions` | `ExpressionBox`; activate, commit, cancel                                     |
 | `useFieldActions`      | Context/field-capable boxes and `BoxHeader`; add, rename, duplicate, remove   |
@@ -331,6 +334,9 @@ entity cannot perform.
 - read-only suppression of the action cell; and
 - optional child rendering.
 
+In editable mode, sortable rows receive a leading `DragIndicator` handle. Sorting is pointer/touch driven through
+`dnd-kit`; drops are restricted to the active row's sibling group. Read-only rows do not render the handle gutter.
+
 Headers, values, types, actions, and children are composed into slots. Never add `kind`, `isFunction`, `isList`, or
 similar dispatch flags to `BoxFrame`.
 
@@ -350,6 +356,9 @@ persisting the synthetic document. The marker used to split the document must ne
 - The initial/request increment is `LIST_PAGE_SIZE` (currently 50).
 - `EntryNotFound` marks the collection terminal; other Portable errors are shown as collection errors.
 - Add, duplicate, and reorder affordances appear only when the complete collection has been loaded.
+- Reordering a terminal collection rewrites the complete collection once. Context and context-function siblings
+  rewrite their owning Portable node while preserving metadata. Root fields use paired `remove`/`set` operations in
+  final order because the engine does not support `set("*", ...)`.
 - `CollectionChildren` virtualizes only when more than 100 children are loaded; virtualization is shared, but list and
   relation semantics remain in separate boxes.
 - Relation columns are derived from the first loaded row. Once paging is terminal, column changes rewrite the complete

@@ -64,7 +64,6 @@ export interface ListActions {
   addItem: (node: ListRenderNode | RelationRenderNode) => void;
   duplicateItem: (node: BoxedRenderNode) => void;
   removeItem: (node: BoxedRenderNode) => void;
-  moveItem: (node: BoxedRenderNode, direction: -1 | 1) => void;
   loadMore: (node: ListRenderNode | RelationRenderNode) => void;
 }
 export interface RelationActions {

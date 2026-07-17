@@ -48,7 +48,6 @@ function renderDomainBox(
       addItem: vi.fn(),
       duplicateItem: vi.fn(),
       removeItem: vi.fn(),
-      moveItem: vi.fn(),
       loadMore: vi.fn(),
     },
     relation: { editColumn: vi.fn() },
@@ -209,7 +208,7 @@ describe('boxed-editor domain boxes', () => {
     await userEvent.click(
       within(screen.getByRole('row', { name: 'answer' })).getAllByRole(
         'cell',
-      )[2],
+      )[3],
     );
     expect(commands.expression.activate).toHaveBeenCalledWith(value);
     expect(

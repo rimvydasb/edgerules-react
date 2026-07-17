@@ -4,8 +4,10 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'components/code-editor/index': 'src/components/code-editor/index.ts',
-    'components/code-editor-cell/index': 'src/components/code-editor-cell/index.ts',
-    'components/project-explorer/index': 'src/components/project-explorer/index.ts',
+    'components/code-editor-cell/index':
+      'src/components/code-editor-cell/index.ts',
+    'components/project-explorer/index':
+      'src/components/project-explorer/index.ts',
     'components/decision-table/index': 'src/components/decision-table/index.ts',
     'components/boxed-editor/index': 'src/components/boxed-editor/index.ts',
   },
@@ -29,5 +31,8 @@ export default defineConfig({
     '@mui/material',
     '@mui/icons-material',
     '@mui/x-tree-view',
+    '@dnd-kit/core',
+    '@dnd-kit/sortable',
+    '@dnd-kit/utilities',
   ],
 });

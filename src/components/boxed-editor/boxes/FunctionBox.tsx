@@ -10,6 +10,7 @@ import { functionSignature } from '../boxed-editor-utils';
 import { BoxFrame } from '../primitives/BoxFrame';
 import { BoxHeader } from '../primitives/BoxHeader';
 import { BoxTypeChip } from '../primitives/BoxTypeChip';
+import { SortableChildren } from '../primitives/SortableChildren';
 
 export function FunctionBox({
   node,
@@ -42,9 +43,13 @@ export function FunctionBox({
         </>
       }
     >
-      {node.children?.map((child) => (
-        <BoxedNode key={child.id} node={child} depth={depth + 1} />
-      ))}
+      {(node.children?.length ?? 0) > 0 && (
+        <SortableChildren nodes={node.children ?? []}>
+          {node.children?.map((child) => (
+            <BoxedNode key={child.id} node={child} depth={depth + 1} />
+          ))}
+        </SortableChildren>
+      )}
     </BoxFrame>
   );
 }

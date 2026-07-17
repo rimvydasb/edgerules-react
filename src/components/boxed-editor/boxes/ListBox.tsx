@@ -27,7 +27,6 @@ export function ListBox({
   const renderItem = (child: BoxedRenderNode): ReactElement => {
     const item = {
       ...child,
-      parentListLength: children.length,
       parentListTerminal: node.list.terminal,
     } as BoxedRenderNode;
     return <ListItemBox key={child.id} node={item} depth={depth + 1} />;

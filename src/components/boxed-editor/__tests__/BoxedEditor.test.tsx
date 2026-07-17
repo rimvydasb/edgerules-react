@@ -56,6 +56,25 @@ describe('BoxedEditor', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('renders leading drag handles for authored sibling fields only in editable mode', async () => {
+    const user = userEvent.setup();
+    render(<BoxedEditor service={service()} path="*" />);
+    expect(
+      screen.getByRole('button', { name: 'Drag application' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Drag monthly' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Drag *' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Expand payment' }));
+    expect(
+      screen.queryByRole('button', { name: 'Drag payment.@arguments[0]' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('focuses a selected authored path and maps function bodies from CRUD paths', () => {
     render(<BoxedEditor service={service()} path="monthly" readOnly />);
     expect(
@@ -158,7 +177,7 @@ describe('BoxedEditor', () => {
     await user.click(
       within(screen.getByRole('row', { name: 'answer' })).getAllByRole(
         'cell',
-      )[2],
+      )[3],
     );
     expect(container.querySelectorAll('.cm-editor')).toHaveLength(1);
     const editor = container.querySelector<HTMLElement>('.cm-content');
@@ -250,6 +269,9 @@ describe('BoxedEditor', () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Rename payment' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^Drag / }),
     ).not.toBeInTheDocument();
   });
 
@@ -346,7 +368,7 @@ describe('BoxedEditor', () => {
       name: 'payment.@arguments[0]',
     });
     expect(argumentRow).toHaveTextContent('application.amount');
-    await user.click(within(argumentRow).getAllByRole('cell')[2]);
+    await user.click(within(argumentRow).getAllByRole('cell')[3]);
     const editor = container.querySelector<HTMLElement>('.cm-content');
     expect(editor).not.toBeNull();
     await user.click(editor!);
@@ -414,6 +436,9 @@ describe('BoxedEditor', () => {
 
     await user.click(screen.getByRole('button', { name: 'Expand nums' }));
     expect(screen.getByRole('row', { name: 'nums[0]' })).toHaveTextContent('1');
+    expect(
+      screen.queryByRole('button', { name: 'Drag nums[0]' }),
+    ).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Load more' })).toHaveLength(
       1,
     );
@@ -427,11 +452,14 @@ describe('BoxedEditor', () => {
       screen.getByRole('button', { name: 'Add item to nums' }),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole('button', { name: 'Drag nums[0]' }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole('button', { name: 'Add item to computed' }),
     ).not.toBeInTheDocument();
 
     const item = screen.getByRole('row', { name: 'nums[0]' });
-    await user.click(within(item).getAllByRole('cell')[2]);
+    await user.click(within(item).getAllByRole('cell')[3]);
     const editor = container.querySelector<HTMLElement>('.cm-content');
     expect(editor).not.toBeNull();
     await user.click(editor!);
