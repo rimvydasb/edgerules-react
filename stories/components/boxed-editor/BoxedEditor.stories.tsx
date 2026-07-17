@@ -39,7 +39,28 @@ const LOAN_ORIGINATION_MODEL = `{
     applicants: <Applicant[], required: true>
     propertyValue: <number, required: true>
     loanAmount: <number, required: true>
+    amount: <number, required: true>
+    calculation: amount * 0.2
+    mutableValue: 1
   }
+  reviewStages: ["Application"; "Underwriting"; "Credit review"; "Closing"]
+  recentApplications: [
+    {
+      reference: "LOAN-2026-001"
+      applicant: "Ada Lovelace"
+      requestedAmount: 320000
+      status: "Underwriting"
+      contact: { city: "London"; preferredChannel: "Email" }
+    }
+    {
+      reference: "LOAN-2026-002"
+      applicant: "Grace Hopper"
+      requestedAmount: 475000
+      status: "Credit review"
+      contact: { city: "New York"; preferredChannel: "Phone" }
+    }
+  ]
+  func monthly(amount: number) -> number: amount / 12
   func creditScore(age: number, income: number) -> number: 300 + age * 2 + income / 1000
   func applicantDecision(applicant: Applicant): {
     netIncome: applicant.income - applicant.expense
@@ -48,6 +69,7 @@ const LOAN_ORIGINATION_MODEL = `{
     return: { score: score, eligible: eligible }
   }
   decisions: for applicant in application.applicants return applicantDecision(applicant)
+  payment: monthly(application.amount)
   finalDecision: if count(decisions[eligible = false]) > 0 then "DECLINE" else "APPROVE"
 }`;
 
@@ -172,25 +194,6 @@ export const FocusedFunction: Story = {
   render: (args, { loaded }) => (
     <BoxedEditor {...args} service={loaded.service} path="monthly" readOnly />
   ),
-};
-
-export const Editable: Story = {
-  loaders: [async () => ({ service: await buildService() })],
-  render: (args, { loaded }) => {
-    const [changes, setChanges] = useState(0);
-    return (
-      <>
-        <BoxedEditor
-          {...args}
-          service={loaded.service}
-          path="*"
-          languageService={MutableDecisionService}
-          onChange={() => setChanges((value) => value + 1)}
-        />
-        <output data-testid="boxed-change-count">Changes: {changes}</output>
-      </>
-    );
-  },
 };
 
 export const InlineFunction: Story = {
@@ -326,6 +329,27 @@ export const LoanOriginationOverview: Story = {
   loaders: [
     async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),
   ],
+  render: (args, { loaded }) => {
+    const [changes, setChanges] = useState(0);
+    return (
+      <>
+        <BoxedEditor
+          {...args}
+          service={loaded.service}
+          path="*"
+          languageService={MutableDecisionService}
+          onChange={() => setChanges((value) => value + 1)}
+        />
+        <output data-testid="boxed-change-count">Changes: {changes}</output>
+      </>
+    );
+  },
+};
+
+export const LoanOriginationOverviewReadOnly: Story = {
+  loaders: [
+    async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),
+  ],
   render: (args, { loaded }) => (
     <BoxedEditor {...args} service={loaded.service} path="*" readOnly />
   ),
@@ -341,15 +365,6 @@ export const ErrorState: Story = {
   ],
   render: (args, { loaded }) => (
     <BoxedEditor {...args} service={loaded.service} path="*" />
-  ),
-};
-
-export const ReadOnlyVisual: Story = {
-  loaders: [
-    async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),
-  ],
-  render: (args, { loaded }) => (
-    <BoxedEditor {...args} service={loaded.service} path="*" readOnly />
   ),
 };
 

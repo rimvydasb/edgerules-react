@@ -5,16 +5,10 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
-import { CodeEditorCell } from '../../code-editor-cell';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { BoxedRenderNode } from '../boxed-model';
-import { metadataEmbedContext } from '../boxed-embed';
-import {
-  useBoxedEditorState,
-  useMetadataActions,
-} from '../BoxedEditorProvider';
-import { metadataText } from '../boxed-editor-utils';
+import { useBoxedEditorState } from '../BoxedEditorProvider';
 
 interface BoxFrameProps {
   node: BoxedRenderNode;
@@ -45,9 +39,6 @@ export function BoxFrame({
   valueProps,
 }: BoxFrameProps): ReactElement {
   const { readOnly, expanded, errors, toggle } = useBoxedEditorState();
-  const state = useBoxedEditorState();
-  const metadata = useMetadataActions();
-  const editingMetadata = metadata.activePath === node.path;
   const hasChildren = Children.count(children) > 0;
   const isExpanded = expanded.has(node.id);
   const sortable = useSortable({
@@ -134,19 +125,7 @@ export function BoxFrame({
             outline: 'none',
           }}
         >
-          {editingMetadata ? (
-            <CodeEditorCell
-              value={metadataText(node.authored)}
-              service={state.languageService}
-              embedContext={metadataEmbedContext(state.snapshot, node.path)}
-              autoFocus
-              placeholder='@NodeKind(name: "Label")'
-              onCommit={(text) => metadata.commit(node, text)}
-              onCancel={metadata.cancel}
-            />
-          ) : (
-            value
-          )}
+          {value}
           {errors[node.path] && (
             <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>
               {errors[node.path]}

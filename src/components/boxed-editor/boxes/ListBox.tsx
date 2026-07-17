@@ -6,7 +6,6 @@ import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { FieldActions } from '../actions/FieldActions';
-import { MetadataAction } from '../actions/MetadataAction';
 import type { BoxedRenderNode, ListRenderNode } from '../boxed-model';
 import { useListActions } from '../BoxedEditorProvider';
 import { BoxFrame } from '../primitives/BoxFrame';
@@ -53,7 +52,6 @@ export function ListBox({
               <AddIcon fontSize="small" />
             </IconButton>
           )}
-          <MetadataAction node={node} />
           <FieldActions node={node} showRename={false} />
         </>
       }

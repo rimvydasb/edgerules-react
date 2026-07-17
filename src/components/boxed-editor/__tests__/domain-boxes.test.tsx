@@ -40,12 +40,6 @@ function renderDomainBox(
       remove: vi.fn(),
       add: vi.fn(),
     },
-    metadata: {
-      activePath: null,
-      activate: vi.fn(),
-      commit: vi.fn(),
-      cancel: vi.fn(),
-    },
     functions: { editSignature: vi.fn() },
     list: {
       addItem: vi.fn(),
@@ -69,7 +63,6 @@ function renderDomainBox(
       }}
       expression={commands.expression}
       field={commands.field}
-      metadata={commands.metadata}
       functions={commands.functions}
       list={commands.list}
       relation={commands.relation}

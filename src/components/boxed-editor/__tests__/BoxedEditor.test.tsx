@@ -438,7 +438,7 @@ describe('BoxedEditor', () => {
     });
   });
 
-  it('edits an invocation as one DSL cell and edits metadata', async () => {
+  it('edits an invocation as one DSL cell without exposing metadata editing', async () => {
     const user = userEvent.setup();
     const instance = service();
     instance.set('payment', {
@@ -467,18 +467,9 @@ describe('BoxedEditor', () => {
       '@arguments': ['application.amount * 2'],
     });
 
-    await user.click(
-      screen.getByRole('button', { name: 'Edit metadata application' }),
-    );
-    const metadataEditor = container.querySelector<HTMLElement>('.cm-content');
-    expect(metadataEditor).not.toBeNull();
-    await user.click(metadataEditor!);
-    await user.keyboard('@ChartNode(name: "Application"){Enter}');
-    expect(instance.toPortable().application).toMatchObject({
-      '@node': 'ChartNode',
-      '@node-name': 'Application',
-    });
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /metadata/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('pages and edits CRUD-addressable scalar lists without expanding computed arrays', async () => {

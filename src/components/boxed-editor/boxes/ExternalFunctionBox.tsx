@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import { MetadataAction } from '../actions/MetadataAction';
 import { isObject, type ExternalFunctionRenderNode } from '../boxed-model';
 import {
   useBoxedEditorState,
@@ -44,16 +43,13 @@ export function ExternalFunctionBox({
       value={value}
       type={<BoxTypeChip schema={node.schema} />}
       actions={
-        <>
-          <Button
-            size="small"
-            aria-label={`Edit signature ${node.path}`}
-            onClick={() => functions.editSignature(node)}
-          >
-            Signature
-          </Button>
-          <MetadataAction node={node} />
-        </>
+        <Button
+          size="small"
+          aria-label={`Edit signature ${node.path}`}
+          onClick={() => functions.editSignature(node)}
+        >
+          Signature
+        </Button>
       }
     />
   );

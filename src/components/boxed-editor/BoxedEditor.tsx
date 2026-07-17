@@ -53,7 +53,6 @@ import {
   childPath,
   findNode,
   indexedLists,
-  parseMetadataText,
   parameterDrafts,
   parentPath,
   signatureNode,
@@ -127,7 +126,6 @@ export function BoxedEditor({
   );
   const [editingName, setEditingName] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
-  const [editingMetadata, setEditingMetadata] = useState<string | null>(null);
   const [signatureDraft, setSignatureDraft] = useState<SignatureDraft | null>(
     null,
   );
@@ -209,7 +207,6 @@ export function BoxedEditor({
     onChange?.(nextSnapshot);
     setErrors({});
     setEditingExpression(null);
-    setEditingMetadata(null);
     setEditingName(null);
     return true;
   }, [load, onChange, service]);
@@ -356,45 +353,6 @@ export function BoxedEditor({
     setSignatureDraft(null);
     refreshCommitted();
   }, [refreshCommitted, service, showError, signatureDraft]);
-  const commitMetadata = useCallback(
-    (node: BoxedRenderNode, text: string): void => {
-      const parsed = parseMetadataText(text);
-      if (!parsed) {
-        showError(
-          node.path,
-          'Use @NodeKind or @NodeKind(name: "Label") annotation syntax.',
-        );
-        return;
-      }
-      const previousKind = isObject(node.authored)
-        ? node.authored['@node']
-        : undefined;
-      if (!parsed.nodeKind) {
-        if (typeof previousKind !== 'string') {
-          setEditingMetadata(null);
-          return;
-        }
-        const removed = service.remove(`${node.path}.@${previousKind}`);
-        if (isPortableError(removed)) {
-          showError(node.path, removed);
-          return;
-        }
-      } else {
-        const result = service.set(node.path, {
-          '@node': parsed.nodeKind,
-          ...(parsed.nodeName !== undefined
-            ? { '@node-name': parsed.nodeName }
-            : {}),
-        });
-        if (isPortableError(result)) {
-          showError(node.path, result);
-          return;
-        }
-      }
-      refreshCommitted();
-    },
-    [refreshCommitted, service, showError],
-  );
   const commitListItem = useCallback((): void => {
     if (!listItemDraft) return;
     const existing = model && findNode(model, listItemDraft.path);
@@ -714,7 +672,6 @@ export function BoxedEditor({
       expression={{
         activePath: editingExpression,
         activate: (node) => {
-          setEditingMetadata(null);
           setEditingExpression(node.path);
         },
         commit: commitExpression,
@@ -740,18 +697,6 @@ export function BoxedEditor({
         duplicate,
         remove: guardedRemove,
         add: addField,
-      }}
-      metadata={{
-        activePath: editingMetadata,
-        activate: (node) => {
-          setEditingExpression(null);
-          setEditingMetadata(node.path);
-        },
-        commit: commitMetadata,
-        cancel: () => {
-          setEditingMetadata(null);
-          setErrors({});
-        },
       }}
       functions={{ editSignature: openSignature }}
       list={{

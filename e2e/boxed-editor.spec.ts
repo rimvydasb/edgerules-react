@@ -46,7 +46,6 @@ async function editExpression(
 const BOXED_EDITOR_STORIES = [
   'root-read-only',
   'focused-function',
-  'editable',
   'inline-function',
   'context-function',
   'external-function',
@@ -54,17 +53,19 @@ const BOXED_EDITOR_STORIES = [
   'literal-list',
   'relation',
   'loan-origination-overview',
+  'loan-origination-overview-read-only',
   'error-state',
-  'read-only-visual',
   'nested-function-visual',
   'large-model-visual',
   'project-explorer-integration',
 ] as const;
 
-test('read-only visual opens from the Storybook manager route', async ({
+test('read-only loan origination opens from the Storybook manager route', async ({
   page,
 }) => {
-  await page.goto('/?path=/story/boxed-editor-boxededitor--read-only-visual');
+  await page.goto(
+    '/?path=/story/boxed-editor-boxededitor--loan-origination-overview-read-only',
+  );
   const story = page.frameLocator('#storybook-preview-iframe');
   await expect(story.getByRole('treegrid')).toBeVisible();
   await expect(
@@ -94,7 +95,7 @@ test('editable boxed expression mounts one cell editor and commits', async ({
   page,
 }) => {
   await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
   );
   await page.getByRole('button', { name: 'Expand application' }).click();
   const calculationRow = page.getByRole('row', {
@@ -118,7 +119,7 @@ test('editable cells retain language-service completions from their portable emb
   page,
 }) => {
   await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
   );
   await page.getByRole('button', { name: 'Expand application' }).click();
   await page
@@ -141,7 +142,7 @@ test('expression editing initializes and commits every boxed value shape', async
   page,
 }) => {
   await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
   );
   await page.getByRole('button', { name: 'Expand application' }).click();
   await editExpression(
@@ -181,7 +182,7 @@ test('one cell editor changes number to input to string without dialogs or error
   page,
 }) => {
   await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
   );
   await page.getByRole('button', { name: 'Expand application' }).click();
   const row = page.getByRole('row', {
@@ -214,29 +215,13 @@ test('one cell editor changes number to input to string without dialogs or error
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
-test('metadata annotations use the inline cell editor without a popup', async ({
-  page,
-}) => {
+test('boxed editor does not expose metadata editing', async ({ page }) => {
   await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
   );
   await page.getByRole('button', { name: 'Expand application' }).click();
-  await page
-    .getByRole('button', {
-      name: 'Edit metadata application',
-      exact: true,
-    })
-    .click();
-  const editor = page.locator('.cm-content');
-  await expect(editor).toHaveCount(1);
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await editor.fill('@InputNode(name: "Application")');
-  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: /metadata/i })).toHaveCount(0);
   await expect(page.locator('.cm-editor')).toHaveCount(0);
-  await expect(
-    page.getByRole('row', { name: 'application', exact: true }),
-  ).toContainText('Application');
-  await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
 test('read-only boxed story exposes no expression editor activation', async ({
@@ -256,7 +241,7 @@ test('drag handles reorder authored fields, function bodies, lists, and relation
 }) => {
   test.setTimeout(60_000);
   await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
   );
   await dragByHandle(page, 'payment', 'application');
   await expect
@@ -265,7 +250,7 @@ test('drag handles reorder authored fields, function bodies, lists, and relation
         .getByRole('row', { name: 'payment' })
         .boundingBox();
       const application = await page
-        .getByRole('row', { name: 'application' })
+        .getByRole('row', { name: 'application', exact: true })
         .boundingBox();
       return Boolean(payment && application && payment.y < application.y);
     })
@@ -275,7 +260,7 @@ test('drag handles reorder authored fields, function bodies, lists, and relation
   );
 
   await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--editable&viewMode=story',
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
   );
   await page.getByRole('button', { name: 'Expand application' }).click();
   await dragByHandle(page, 'application.calculation', 'application.amount');
@@ -365,20 +350,53 @@ test('relationship columns can be added, renamed inline, and reordered', async (
   await expect(table.getByRole('columnheader').nth(2)).toContainText('name');
 });
 
-test('loan-origination overview renders the authored root model without live editors', async ({
+test('loan-origination stories share the same complex list and relationship model', async ({
   page,
 }) => {
   await page.goto(
     '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
   );
   await expect(page.getByRole('treegrid')).toContainText('Applicant');
-  await expect(page.getByRole('row', { name: 'application' })).toBeVisible();
+  await expect(
+    page.getByRole('row', { name: 'application', exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText('func creditScore(age: number, income: number) → number'),
   ).toBeVisible();
   await expect(page.getByRole('row', { name: 'finalDecision' })).toContainText(
     'APPROVE',
   );
+  await page.getByRole('button', { name: 'Expand reviewStages' }).click();
+  await expect(
+    page.getByRole('row', { name: 'reviewStages[0]' }),
+  ).toContainText('Application');
+  await page.getByRole('button', { name: 'Expand recentApplications' }).click();
+  const editableRelation = page.getByRole('table', {
+    name: 'recentApplications relationship',
+  });
+  await expect(editableRelation).toBeVisible();
+  await expect(
+    editableRelation.getByRole('row', { name: 'recentApplications[0]' }),
+  ).toContainText('LOAN-2026-001');
+  await expect(
+    page.getByRole('button', { name: 'Drag recentApplications[0]' }),
+  ).toBeEnabled();
+
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview-read-only&viewMode=story',
+  );
+  await page.getByRole('button', { name: 'Expand reviewStages' }).click();
+  await expect(
+    page.getByRole('row', { name: 'reviewStages[0]' }),
+  ).toContainText('Application');
+  await page.getByRole('button', { name: 'Expand recentApplications' }).click();
+  const readOnlyRelation = page.getByRole('table', {
+    name: 'recentApplications relationship',
+  });
+  await expect(readOnlyRelation).toBeVisible();
+  await expect(
+    readOnlyRelation.getByRole('row', { name: 'recentApplications[0]' }),
+  ).toContainText('LOAN-2026-001');
   const applicationHandle = page.getByRole('button', {
     name: 'Drag application',
   });
@@ -492,7 +510,7 @@ test('visual error and read-only scenarios retain their distinct UI states', asy
   );
 
   await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--read-only-visual&viewMode=story',
+    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview-read-only&viewMode=story',
   );
   await expect(page.getByRole('treegrid')).toBeVisible();
   await expect(

@@ -3,7 +3,6 @@ import AddIcon from '@mui/icons-material/Add';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { FieldActions } from '../actions/FieldActions';
-import { MetadataAction } from '../actions/MetadataAction';
 import type { ContextRenderNode } from '../boxed-model';
 import { useBoxedNodeRenderer, useFieldActions } from '../BoxedEditorProvider';
 import { BoxFrame } from '../primitives/BoxFrame';
@@ -17,7 +16,6 @@ export function ContextBox({
   depth,
   actions,
   suppressFieldActions,
-  suppressMetadata,
 }: { node: ContextRenderNode } & BoxPresentationProps): ReactElement {
   const fields = useFieldActions();
   const BoxedNode = useBoxedNodeRenderer();
@@ -25,7 +23,6 @@ export function ContextBox({
   const ownActions =
     node.path === '*' ? null : (
       <>
-        {!suppressMetadata && <MetadataAction node={node} />}
         {!suppressFieldActions && (
           <FieldActions node={node} showRename={false} />
         )}
@@ -65,12 +62,7 @@ export function ContextBox({
       {children.length > 0 && (
         <SortableChildren nodes={children}>
           {children.map((child) => (
-            <BoxedNode
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              suppressMetadata={suppressMetadata}
-            />
+            <BoxedNode key={child.id} node={child} depth={depth + 1} />
           ))}
         </SortableChildren>
       )}

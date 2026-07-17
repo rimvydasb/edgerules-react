@@ -22,7 +22,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { FieldActions } from '../actions/FieldActions';
-import { MetadataAction } from '../actions/MetadataAction';
 import type {
   RelationColumnRenderNode,
   RelationRenderNode,
@@ -174,7 +173,6 @@ export function RelationBox({
               <AddIcon fontSize="small" />
             </IconButton>
           )}
-          <MetadataAction node={node} />
           <FieldActions node={node} showRename={false} />
         </>
       }

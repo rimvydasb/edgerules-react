@@ -2,7 +2,6 @@ import type { ReactElement } from 'react';
 import Box from '@mui/material/Box';
 import { CodeEditorCell } from '../../code-editor-cell';
 import { FieldActions } from '../actions/FieldActions';
-import { MetadataAction } from '../actions/MetadataAction';
 import { expressionEmbedContext } from '../boxed-embed';
 import type { InputRenderNode } from '../boxed-model';
 import {
@@ -63,14 +62,10 @@ export function InputBox({
       }
       type={<BoxTypeChip schema={node.schema} />}
       actions={
-        actions ?? (
-          <>
-            <MetadataAction node={node} />
-            {!suppressFieldActions && (
-              <FieldActions node={node} showRename={false} />
-            )}
-          </>
-        )
+        actions ??
+        (!suppressFieldActions ? (
+          <FieldActions node={node} showRename={false} />
+        ) : null)
       }
     />
   );

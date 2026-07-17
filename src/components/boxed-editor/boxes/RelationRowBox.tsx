@@ -191,12 +191,7 @@ export function RelationRowBox({
                     }}
                   >
                     {cell.children?.map((child) => (
-                      <BoxedNode
-                        key={child.id}
-                        node={child}
-                        depth={0}
-                        suppressMetadata
-                      />
+                      <BoxedNode key={child.id} node={child} depth={0} />
                     ))}
                   </Box>
                 )}

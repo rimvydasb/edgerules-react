@@ -34,22 +34,6 @@ export function metadataText(node: PortableNode): string {
   return `@${node['@node']}${typeof name === 'string' ? `(name: ${JSON.stringify(name)})` : ''}`;
 }
 
-export function parseMetadataText(
-  text: string,
-): { nodeKind: string; nodeName?: string } | null {
-  const trimmed = text.trim();
-  if (!trimmed) return { nodeKind: '' };
-  const match =
-    /^@([A-Za-z_][A-Za-z0-9_]*)(?:\(\s*name\s*:\s*("(?:[^"\\]|\\.)*")\s*\))?$/.exec(
-      trimmed,
-    );
-  if (!match) return null;
-  return {
-    nodeKind: match[1],
-    ...(match[2] ? { nodeName: JSON.parse(match[2]) as string } : {}),
-  };
-}
-
 export function functionSignature(
   node: Record<string, unknown>,
   name: string | undefined,

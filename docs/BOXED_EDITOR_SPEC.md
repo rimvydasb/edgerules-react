@@ -198,7 +198,8 @@ Do not add a second persisted boxed-editor model. If a new UI shape is needed, a
 
 Portable metadata keys such as `@kind`, `@description`, `@node`, `@node-name`, `@model-name`, and `@model-version` are
 not normalized as child fields. `BoxHeader` presents the applicable modeler metadata, and mutation conversion helpers
-must preserve metadata that is unrelated to the edit.
+must preserve metadata that is unrelated to the edit. Boxed Editor never exposes metadata mutation controls; metadata
+is authored in the appropriate model or specialized editor.
 
 ### 4.1 Portable → Cell Code mapping
 
@@ -239,15 +240,15 @@ interface BoxedEditorService {
 
 ### 5.1 API usage by operation
 
-| API                                        | How `BoxedEditor` uses it                                                                                                                |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `toPortable()`                             | Reads the complete authored model for normalization, refresh, rollback source data, expression embedding, and `onChange`.                |
-| `get(path, "FIELDS")`                      | Gets the linked/schema-enriched view used for classification, type chips, validation, and collection shape.                              |
-| `get(path + ".*", "FUNCTION_DEFINITIONS")` | Validates that a focused function definition can be resolved.                                                                            |
-| `get(path + "[index]", "FIELDS")`          | Pages literal list/relation items until the requested page size or `EntryNotFound`.                                                      |
-| `set(path, node)`                          | Commits expressions, inputs, signatures, invocations, metadata, fields, list items, reordered collections, and relation-column rewrites. |
-| `rename(path, newName)`                    | Renames a field, followed by linked validation and possible reverse rename.                                                              |
-| `remove(path)`                             | Removes a field or list item, followed by linked validation and possible restoration.                                                    |
+| API                                        | How `BoxedEditor` uses it                                                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `toPortable()`                             | Reads the complete authored model for normalization, refresh, rollback source data, expression embedding, and `onChange`.      |
+| `get(path, "FIELDS")`                      | Gets the linked/schema-enriched view used for classification, type chips, validation, and collection shape.                    |
+| `get(path + ".*", "FUNCTION_DEFINITIONS")` | Validates that a focused function definition can be resolved.                                                                  |
+| `get(path + "[index]", "FIELDS")`          | Pages literal list/relation items until the requested page size or `EntryNotFound`.                                            |
+| `set(path, node)`                          | Commits expressions, inputs, signatures, invocations, fields, list items, reordered collections, and relation-column rewrites. |
+| `rename(path, newName)`                    | Renames a field, followed by linked validation and possible reverse rename.                                                    |
+| `remove(path)`                             | Removes a field or list item, followed by linked validation and possible restoration.                                          |
 
 Portable contracts come from `@edgerules/portable`. Do not parse DSL in React or redefine `PortableNode`,
 `PortableError`, path syntax, `@kind` shapes, filters, or CRUD rules. The authoritative engine documents live in the
@@ -329,7 +330,6 @@ in the owning collection footer.
 | `useBoxedEditorState`  | Shared read-only mode, snapshot, language service, expansion, and path errors |
 | `useExpressionActions` | `ExpressionBox` and `InputBox`; activate, commit, cancel                      |
 | `useFieldActions`      | Context/field-capable boxes and `BoxHeader`; add, rename, duplicate, remove   |
-| `useMetadataActions`   | Boxes that display editable Portable metadata                                 |
 | `useFunctionActions`   | Function and external-function boxes only                                     |
 | `useListActions`       | List/relation collections and item/row wrappers                               |
 | `useRelationActions`   | `RelationBox` and relation-column actions only                                |
@@ -401,8 +401,8 @@ persisting the synthetic document. The marker used to split the document must ne
   value is the field name rather than serialized Portable JSON. Clicking it (or pressing Enter/F2) expands the existing
   boxed-node hierarchy inside that same table cell, allowing nested contexts to be opened recursively down to editable
   scalar leaves. Drill-down remains available in read-only mode.
-- Context presentation metadata is unsupported inside relationship records: nested contexts do not expose metadata
-  editing, and any accidental context metadata is recursively discarded when a relationship element is persisted.
+- Context presentation metadata is unsupported inside relationship records, and any accidental context metadata is
+  recursively discarded when a relationship element is persisted.
 
 Changing these rules requires integration tests with the real engine, especially around partial pages and rollback.
 
