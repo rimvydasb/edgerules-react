@@ -40,6 +40,7 @@ import {
   resolveAuthoredPath,
   type BoxedRenderNode,
   type BoxedSortableMetadata,
+  type RelationRenderNode,
 } from './boxed-model';
 import type {
   AddFieldDraft,
@@ -556,12 +557,71 @@ export function BoxedEditor({
     },
     [model, refreshCommitted, reorderRootFields, service, showError],
   );
+  const reorderRelationColumns = useCallback(
+    (ownerPath: string, activeId: string, overId: string): void => {
+      if (!model || activeId === overId) return;
+      const relation = findNode(model, ownerPath);
+      if (!relation || relation.kind !== 'relation') return;
+      const from = relation.columns.findIndex(
+        (column) => column.id === activeId,
+      );
+      const to = relation.columns.findIndex((column) => column.id === overId);
+      if (from < 0 || to < 0 || from === to) return;
+      const columns = arrayMove(relation.columns, from, to).map(
+        (column) => column.name,
+      );
+      const items = (relation.children ?? []).map((child) =>
+        isObject(child.authored)
+          ? reorderContextFields(child.authored, columns)
+          : child.authored,
+      );
+      const result = service.set(ownerPath, items as unknown as PortableNode);
+      if (isPortableError(result)) {
+        showError(ownerPath, result);
+        return;
+      }
+      refreshCommitted();
+    },
+    [model, refreshCommitted, service, showError],
+  );
   const finishDrag = useCallback(
     ({ active, over }: DragEndEvent): void => {
       if (!over) return;
+      const sortable = active.data.current?.reorder as
+        BoxedSortableMetadata | undefined;
+      if (sortable?.ownerKind === 'relation-column') {
+        reorderRelationColumns(
+          sortable.ownerPath,
+          String(active.id),
+          String(over.id),
+        );
+        return;
+      }
       reorderSiblings(String(active.id), String(over.id));
     },
-    [reorderSiblings],
+    [reorderRelationColumns, reorderSiblings],
+  );
+  const renameRelationColumn = useCallback(
+    (node: RelationRenderNode, source: string, name: string): void => {
+      const nextName = name.trim();
+      if (!nextName || nextName === source) return;
+      const items = (node.children ?? []).map((child) => {
+        if (!isObject(child.authored)) return child.authored;
+        return Object.fromEntries(
+          Object.entries(child.authored).map(([key, value]) => [
+            key === source ? nextName : key,
+            value,
+          ]),
+        ) as PortableNode;
+      });
+      const result = service.set(node.path, items as unknown as PortableNode);
+      if (isPortableError(result)) {
+        showError(node.path, result);
+        return;
+      }
+      refreshCommitted();
+    },
+    [refreshCommitted, service, showError],
   );
   const commitColumn = useCallback((): void => {
     if (!columnDraft || !columnDraft.name.trim()) return;
@@ -575,10 +635,6 @@ export function BoxedEditor({
           ...fields,
           [name]: columnDraft.value || '0',
         } as PortableNode;
-      if (columnDraft.action === 'rename' && columnDraft.source) {
-        const { [columnDraft.source]: value, ...remaining } = fields;
-        return { '@kind': kind, ...remaining, [name]: value } as PortableNode;
-      }
       const { [columnDraft.source ?? '']: _removed, ...remaining } = fields;
       return { '@kind': kind, ...remaining } as PortableNode;
     });
@@ -666,6 +722,11 @@ export function BoxedEditor({
           setNameDraft(node.name ?? '');
         },
         commitRename: (node) => guardedRename(node, nameDraft.trim()),
+        cancelRename: () => {
+          setEditingName(null);
+          setNameDraft('');
+          setErrors({});
+        },
         duplicate,
         remove: guardedRemove,
         add: (node) =>
@@ -700,6 +761,7 @@ export function BoxedEditor({
             name: action === 'add' ? '' : (source ?? ''),
             value: '0',
           }),
+        renameColumn: renameRelationColumn,
       }}
       navigation={{ open: onOpenNode }}
       renderer={BoxedEntityNode}

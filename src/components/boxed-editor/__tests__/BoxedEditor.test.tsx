@@ -254,8 +254,16 @@ describe('BoxedEditor', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
     );
 
+    const feeRow = screen.getByRole('row', { name: 'application.fee' });
+    expect(
+      within(feeRow).queryByRole('button', {
+        name: 'Rename application.fee',
+      }),
+    ).not.toBeInTheDocument();
     await user.click(
-      screen.getByRole('button', { name: 'Rename application.fee' }),
+      within(feeRow).getByRole('button', {
+        name: 'Edit name application.fee',
+      }),
     );
     const name = screen.getByLabelText('Name application.fee');
     await user.clear(name);
@@ -509,9 +517,16 @@ describe('BoxedEditor', () => {
     render(<BoxedEditor service={instance} path="*" />);
 
     await user.click(screen.getByRole('button', { name: 'Expand people' }));
+    const table = screen.getByRole('table', { name: 'people relationship' });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(expect.arrayContaining(['name', 'age']));
     expect(screen.getByRole('row', { name: 'people[0]' })).toHaveTextContent(
-      'Row 1',
+      "'A'1",
     );
+    expect(screen.queryByText('Row 1')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add row to people' }));
     const rowDialog = screen.getByRole('dialog');
     await user.clear(within(rowDialog).getByLabelText('name expression'));
@@ -550,17 +565,13 @@ describe('BoxedEditor', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Rename column people.active' }),
+      screen.getByRole('button', {
+        name: 'Edit column name people.active',
+      }),
     );
-    const renameDialog = screen.getByRole('dialog');
-    await user.clear(within(renameDialog).getByLabelText('Column name'));
-    await user.type(
-      within(renameDialog).getByLabelText('Column name'),
-      'enabled',
-    );
-    await user.click(
-      within(renameDialog).getByRole('button', { name: 'Save column' }),
-    );
+    const columnName = screen.getByLabelText('Column name people.active');
+    await user.clear(columnName);
+    await user.type(columnName, 'enabled{Enter}');
     expect(
       (instance.toPortable().people as { expression: string }).expression,
     ).toContain('enabled: true');

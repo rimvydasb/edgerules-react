@@ -39,7 +39,7 @@ export function ExpressionBox({
       actions={
         actions ??
         (!suppressFieldActions && node.path !== '*' ? (
-          <FieldActions node={node} />
+          <FieldActions node={node} showRename={false} />
         ) : null)
       }
       value={

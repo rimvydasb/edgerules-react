@@ -28,7 +28,9 @@ async function editExpression(
   nextValue: string,
 ) {
   const row = page.getByRole('row', { name: path, exact: true });
-  await row.getByRole('cell').nth(3).click();
+  const relationCell = page.getByRole('cell', { name: path, exact: true });
+  const target = row.getByRole('cell').nth(3).or(relationCell).first();
+  await target.click();
   const editor = page.locator('.cm-content');
   await expect(editor).toHaveCount(1);
   await expect(editor).toHaveText(initialValue);
@@ -38,7 +40,7 @@ async function editExpression(
   await page.keyboard.type(nextValue);
   await page.keyboard.press('Enter');
   await expect(page.locator('.cm-editor')).toHaveCount(0);
-  await expect(row).toContainText(nextValue);
+  await expect(target).toContainText(nextValue);
 }
 
 const BOXED_EDITOR_STORIES = [
@@ -320,12 +322,47 @@ test('drag handles reorder authored fields, function bodies, lists, and relation
     '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
   );
   await dragByHandle(page, 'applicants[0]', 'applicants[1]');
+  await expect(page.getByRole('row', { name: 'applicants[0]' })).toContainText(
+    'Grace',
+  );
+  await expect(page.getByRole('row', { name: 'applicants[1]' })).toContainText(
+    'Ada',
+  );
+});
+
+test('relationship columns can be added, renamed inline, and reordered', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
+  );
+  const table = page.getByRole('table', { name: 'applicants relationship' });
+  await expect(table.getByRole('columnheader').nth(1)).toContainText('name');
+  await expect(table.getByRole('columnheader').nth(2)).toContainText('age');
+
+  await page.getByRole('button', { name: 'Add column to applicants' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Column name').fill('active');
+  await dialog.getByLabel('Default expression').fill('true');
+  await dialog.getByRole('button', { name: 'Save column' }).click();
+  await page
+    .getByRole('button', { name: 'Edit column name applicants.active' })
+    .click();
+  const input = page.getByLabel('Column name applicants.active');
+  await input.fill('enabled');
+  await input.press('Enter');
   await expect(
-    page.getByRole('row', { name: 'applicants[0].name' }),
-  ).toContainText('Grace');
-  await expect(
-    page.getByRole('row', { name: 'applicants[1].name' }),
-  ).toContainText('Ada');
+    page.getByRole('button', {
+      name: 'Edit column name applicants.enabled',
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole('row', { name: 'applicants[0]' })).toContainText(
+    'true',
+  );
+
+  await dragByHandle(page, 'column applicants.name', 'column applicants.age');
+  await expect(table.getByRole('columnheader').nth(1)).toContainText('age');
+  await expect(table.getByRole('columnheader').nth(2)).toContainText('name');
 });
 
 test('loan-origination overview renders the authored root model without live editors', async ({
@@ -345,44 +382,21 @@ test('loan-origination overview renders the authored root model without live edi
   await expect(page.locator('.cm-editor')).toHaveCount(0);
 });
 
-test('nested relation contexts indent each level', async ({ page }) => {
+test('relationship renders object fields as table columns without nested row labels', async ({
+  page,
+}) => {
   await page.goto(
     '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
   );
-  await page
-    .getByRole('button', { name: 'Expand applicants[0].contact' })
-    .click();
-  await page
-    .getByRole('button', { name: 'Expand applicants[0].contact.address' })
-    .click();
-  await page
-    .getByRole('button', {
-      name: 'Expand applicants[0].contact.address.location',
-    })
-    .click();
-
-  const paths = [
-    'applicants[0]',
-    'applicants[0].contact',
-    'applicants[0].contact.address',
-    'applicants[0].contact.address.location',
-    'applicants[0].contact.address.location.city',
-  ];
-  const leftEdges = await Promise.all(
-    paths.map(async (path) => {
-      const box = await page
-        .getByRole('row', { name: path, exact: true })
-        .getByRole('cell')
-        .first()
-        .boundingBox();
-      if (!box) throw new Error(`First cell is not visible: ${path}`);
-      return box.x;
-    }),
+  const table = page.getByRole('table', { name: 'applicants relationship' });
+  await expect(table).toBeVisible();
+  await expect(table.getByRole('columnheader').nth(1)).toContainText('name');
+  await expect(table.getByRole('columnheader').nth(2)).toContainText('age');
+  await expect(table.getByRole('columnheader').nth(3)).toContainText('contact');
+  await expect(page.getByText('Row 1')).toHaveCount(0);
+  await expect(page.getByRole('row', { name: 'applicants[0]' })).toContainText(
+    'London',
   );
-
-  for (let index = 1; index < leftEdges.length; index += 1) {
-    expect(leftEdges[index] - leftEdges[index - 1]).toBe(16);
-  }
 });
 
 test('visual error and read-only scenarios retain their distinct UI states', async ({

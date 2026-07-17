@@ -79,8 +79,10 @@ BoxedEditor                                      BoxedEditor.tsx
 │       │   └── ListItemBox[]                   boxes/ListItemBox.tsx
 │       │       └── entity box selected by BoxedEntityNode
 │       ├── RelationBox                         boxes/RelationBox.tsx
-│       │   └── RelationRowBox[]                boxes/RelationRowBox.tsx
-│       │       └── entity box selected by BoxedEntityNode
+│       │   └── relationship table
+│       │       ├── sortable column headers
+│       │       └── RelationRowBox[]            boxes/RelationRowBox.tsx
+│       │           └── value cells
 │       └── EditorLinkBox                       boxes/EditorLinkBox.tsx
 └── focused forms                               forms/EditorForms.tsx
     ├── AddFieldForm
@@ -107,8 +109,10 @@ flowchart TD
     Function --> Dispatcher
     List --> ListItem[ListItemBox]
     ListItem --> Dispatcher
-    Relation --> RelationRow[RelationRowBox]
-    RelationRow --> Dispatcher
+    Relation --> RelationTable[Relationship table]
+    RelationTable --> RelationHeader[Sortable inline-editable headers]
+    RelationTable --> RelationRow[RelationRowBox]
+    RelationRow --> RelationCell[Value cell / CodeEditorCell]
     Context -. composes .-> Frame[BoxFrame]
     Function -. composes .-> Frame
     External -. composes .-> Frame
@@ -168,7 +172,7 @@ The normalized union currently contains:
 | `function`          | `FunctionBox`         | Signature and normalized function-body children          |
 | `external-function` | `ExternalFunctionBox` | External signature; no body                              |
 | `list`              | `ListBox`             | Indexed items plus required paging state                 |
-| `relation`          | `RelationBox`         | Indexed context rows, columns, and required paging state |
+| `relation`          | `RelationBox`         | Indexed object rows, ordered discovered columns, and required paging state |
 | `editor-link`       | `EditorLinkBox`       | Type-definition, ruleset, or loop route target           |
 
 Three render-only annotations preserve write semantics:
@@ -177,7 +181,17 @@ Three render-only annotations preserve write semantics:
   the owning collection.
 - `functionBody: { path }` maps the displayed scalar `fn.result` cell back to its owning Portable function definition.
 - `sortable: { groupId, ownerPath, ownerKind, index }` marks authored siblings that can be reordered together. Context
-  fields, context function-body fields, and terminal literal collection items receive this annotation.
+  fields, context function-body fields, terminal literal collection items, and terminal relationship columns receive
+  this annotation.
+
+Relationship normalization is deliberately tabular:
+
+- a CRUD-addressable array whose loaded items are Portable contexts is a `relation`; scalar arrays remain `list`;
+- columns are the ordered union of every non-metadata field discovered across the loaded object rows, using first
+  authored appearance as the initial order;
+- every object is one row and every discovered field is one cell; missing heterogeneous fields render as an empty
+  placeholder rather than creating nested field rows; and
+- row labels such as `Row 1` and `Row 2` are not presentation data and must never be rendered.
 
 Do not add a second persisted boxed-editor model. If a new UI shape is needed, add render-only normalized data and keep
 `PortableRootContext` as the authored snapshot.
@@ -363,10 +377,14 @@ persisting the synthetic document. The marker used to split the document must ne
 - Reordering a terminal collection rewrites the complete collection once. Context and context-function siblings
   rewrite their owning Portable node while preserving metadata. Root fields use paired `remove`/`set` operations in
   final order because the engine does not support `set("*", ...)`.
-- `CollectionChildren` virtualizes only when more than 100 children are loaded; virtualization is shared, but list and
-  relation semantics remain in separate boxes.
-- Relation columns are derived from the first loaded row. Once paging is terminal, column changes rewrite the complete
-  loaded relation atomically.
+- `CollectionChildren` virtualizes literal scalar lists when more than 100 children are loaded. Relationships use a
+  semantic table so headers and cells remain aligned.
+- Relationship columns are derived from the ordered union of loaded row fields. Column add, delete, inline rename,
+  and drag reordering are enabled only once paging is terminal and rewrite the complete loaded relationship atomically.
+- Clicking a relationship column name replaces the label with a plain text input. The commit renames that field in
+  every underlying object while preserving its position. There is no relationship bottom toolbar.
+- Each relationship row has its own drag handle. Row reordering rewrites the complete terminal collection, while
+  column reordering rewrites field order in every row so the authored model and displayed header order stay aligned.
 
 Changing these rules requires integration tests with the real engine, especially around partial pages and rollback.
 

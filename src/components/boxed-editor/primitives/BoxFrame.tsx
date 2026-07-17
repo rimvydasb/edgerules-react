@@ -23,6 +23,7 @@ interface BoxFrameProps {
   value?: ReactNode;
   type?: ReactNode;
   actions?: ReactNode;
+  actionsWidth?: number | string;
   children?: ReactNode;
   valueProps?: {
     tabIndex?: number;
@@ -39,6 +40,7 @@ export function BoxFrame({
   value,
   type,
   actions,
+  actionsWidth = 118,
   children,
   valueProps,
 }: BoxFrameProps): ReactElement {
@@ -64,7 +66,7 @@ export function BoxFrame({
           display: 'grid',
           gridTemplateColumns: readOnly
             ? '34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr)'
-            : '34px 34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr) 118px',
+            : `34px 34px minmax(140px, 0.35fr) minmax(200px, 1fr) minmax(100px, 0.2fr) ${typeof actionsWidth === 'number' ? `${actionsWidth}px` : actionsWidth}`,
           alignItems: 'start',
           borderTop: '1px solid',
           borderColor: 'divider',

@@ -17,8 +17,14 @@ export type BoxedRenderKind =
 export interface BoxedSortableMetadata {
   groupId: string;
   ownerPath: string;
-  ownerKind: 'context' | 'function-body' | 'collection';
+  ownerKind: 'context' | 'function-body' | 'collection' | 'relation-column';
   index: number;
+}
+
+export interface RelationColumnRenderNode {
+  id: string;
+  name: string;
+  sortable: BoxedSortableMetadata;
 }
 
 interface BaseRenderNode {
@@ -60,6 +66,7 @@ export type ListRenderNode = BaseRenderNode & {
 export type RelationRenderNode = BaseRenderNode & {
   kind: 'relation';
   children?: BoxedRenderNode[];
+  columns: RelationColumnRenderNode[];
   list: { loaded: number; terminal: boolean; error?: string };
 };
 
@@ -92,6 +99,32 @@ export function isObject(node: unknown): node is Record<string, unknown> {
   return typeof node === 'object' && node !== null && !Array.isArray(node);
 }
 
+export function discoverRelationColumns(
+  items: readonly PortableNode[],
+  path: string,
+): RelationColumnRenderNode[] {
+  const names: string[] = [];
+  const discovered = new Set<string>();
+  for (const item of items) {
+    if (!isObject(item)) continue;
+    for (const name of Object.keys(item)) {
+      if (name.startsWith('@') || discovered.has(name)) continue;
+      discovered.add(name);
+      names.push(name);
+    }
+  }
+  return names.map((name, index) => ({
+    id: `relation-column:${path}:${name}`,
+    name,
+    sortable: {
+      groupId: `relation-columns:${path}`,
+      ownerPath: path,
+      ownerKind: 'relation-column',
+      index,
+    },
+  }));
+}
+
 export function authoredFields(
   context: PortableContext,
 ): Array<[string, PortableNode]> {
@@ -121,9 +154,12 @@ export function classifyNode(
   if (kind === 'context' || (isObject(node) && kind === undefined))
     return 'context';
   if (indexedList && isObject(schema) && schema.type === 'array') {
-    return indexedList.items[0] &&
-      isObject(indexedList.items[0]) &&
-      String(indexedList.items[0]['@kind'] ?? '') === 'context'
+    return indexedList.items.length > 0 &&
+      indexedList.items.every(
+        (item) =>
+          isObject(item) &&
+          (item['@kind'] === undefined || item['@kind'] === 'context'),
+      )
       ? 'relation'
       : 'list';
   }
@@ -278,6 +314,9 @@ export function renderNode(
     return {
       ...base,
       kind,
+      ...(kind === 'relation'
+        ? { columns: discoverRelationColumns(indexedList.items, path) }
+        : {}),
       list: {
         loaded: indexedList.items.length,
         terminal: indexedList.terminal,

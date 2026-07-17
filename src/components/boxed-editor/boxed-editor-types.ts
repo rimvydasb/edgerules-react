@@ -62,7 +62,7 @@ export interface ListItemDraft {
 export interface RelationColumnDraft {
   path: string;
   items: PortableNode[];
-  action: 'add' | 'rename' | 'delete';
+  action: 'add' | 'delete';
   source?: string;
   name: string;
   value: string;

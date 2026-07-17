@@ -234,11 +234,7 @@ export function RelationColumnForm({
   commit: () => void;
 }): ReactElement {
   const title =
-    draft?.action === 'add'
-      ? 'Add relation column'
-      : draft?.action === 'rename'
-        ? 'Rename relation column'
-        : 'Delete relation column';
+    draft?.action === 'add' ? 'Add relation column' : 'Delete relation column';
   return (
     <EditorDialog
       open={Boolean(draft)}

@@ -39,6 +39,7 @@ export interface FieldActions {
   setNameDraft: (value: string) => void;
   startRename: (node: BoxedRenderNode) => void;
   commitRename: (node: BoxedRenderNode) => void;
+  cancelRename: () => void;
   duplicate: (node: BoxedRenderNode) => void;
   remove: (node: BoxedRenderNode) => void;
   add: (node: ContextRenderNode) => void;
@@ -64,8 +65,13 @@ export interface ListActions {
 export interface RelationActions {
   editColumn: (
     node: RelationRenderNode,
-    action: 'add' | 'rename' | 'delete',
+    action: 'add' | 'delete',
     source?: string,
+  ) => void;
+  renameColumn: (
+    node: RelationRenderNode,
+    source: string,
+    name: string,
   ) => void;
 }
 export interface NavigationActions {

@@ -35,6 +35,7 @@ function renderDomainBox(
       setNameDraft: vi.fn(),
       startRename: vi.fn(),
       commitRename: vi.fn(),
+      cancelRename: vi.fn(),
       duplicate: vi.fn(),
       remove: vi.fn(),
       add: vi.fn(),
@@ -52,7 +53,7 @@ function renderDomainBox(
       removeItem: vi.fn(),
       loadMore: vi.fn(),
     },
-    relation: { editColumn: vi.fn() },
+    relation: { editColumn: vi.fn(), renameColumn: vi.fn() },
     navigation: { open: vi.fn() },
     ...overrides,
   };
@@ -118,6 +119,7 @@ describe('boxed-editor domain boxes', () => {
         path: 'relation',
         kind: 'relation',
         authored: [],
+        columns: [],
         list: { loaded: 0, terminal: true },
       },
       {
@@ -199,6 +201,13 @@ describe('boxed-editor domain boxes', () => {
       '1 + 2',
     );
     expect(screen.getByText('answer error')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Rename answer' }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit name answer' }),
+    );
+    expect(commands.field.startRename).toHaveBeenCalledWith(value);
     await userEvent.click(
       within(screen.getByRole('row', { name: 'answer' })).getAllByRole(
         'cell',
@@ -368,8 +377,22 @@ describe('boxed-editor domain boxes', () => {
       name: 'Row 1',
       kind: 'context',
       authored: { '@kind': 'context', name: '"Ada"' },
-      children: [],
+      children: [
+        {
+          id: 'people[0].name',
+          path: 'people[0].name',
+          name: 'name',
+          kind: 'expression',
+          authored: '"Ada"',
+        },
+      ],
       listItem: { path: 'people', index: 0 },
+      sortable: {
+        groupId: 'collection:people',
+        ownerPath: 'people',
+        ownerKind: 'collection',
+        index: 0,
+      },
     });
     const value = node({
       id: 'people',
@@ -378,6 +401,18 @@ describe('boxed-editor domain boxes', () => {
       kind: 'relation',
       authored: [],
       children: [row],
+      columns: [
+        {
+          id: 'relation-column:people:name',
+          name: 'name',
+          sortable: {
+            groupId: 'relation-columns:people',
+            ownerPath: 'people',
+            ownerKind: 'relation-column',
+            index: 0,
+          },
+        },
+      ],
       list: { loaded: 1, terminal: true },
     });
     const commands = renderDomainBox(
@@ -385,7 +420,7 @@ describe('boxed-editor domain boxes', () => {
       value.path,
     );
     expect(screen.getByRole('row', { name: 'people[0]' })).toHaveTextContent(
-      'Row 1',
+      'Ada',
     );
     expect(screen.getByText('people error')).toBeInTheDocument();
     await userEvent.click(

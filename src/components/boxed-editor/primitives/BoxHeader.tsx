@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import InputBase from '@mui/material/InputBase';
 import Typography from '@mui/material/Typography';
@@ -39,11 +40,30 @@ export function BoxHeader({
           onBlur={() => fields.commitRename(node)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') fields.commitRename(node);
-            if (event.key === 'Escape') fields.setNameDraft(node.name ?? '');
+            if (event.key === 'Escape') fields.cancelRename();
           }}
         />
       ) : (
-        label
+        <Box
+          component="span"
+          tabIndex={editable ? 0 : undefined}
+          role={editable ? 'button' : undefined}
+          aria-label={editable ? `Edit name ${node.path}` : undefined}
+          onClick={editable ? () => fields.startRename(node) : undefined}
+          onKeyDown={
+            editable
+              ? (event) => {
+                  if (event.key === 'Enter' || event.key === 'F2') {
+                    event.preventDefault();
+                    fields.startRename(node);
+                  }
+                }
+              : undefined
+          }
+          sx={{ cursor: editable ? 'text' : undefined }}
+        >
+          {label}
+        </Box>
       )}
       {annotation && (
         <Chip

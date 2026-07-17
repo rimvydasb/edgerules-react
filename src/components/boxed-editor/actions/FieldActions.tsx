@@ -8,19 +8,23 @@ import { useFieldActions } from '../BoxedEditorProvider';
 
 export function FieldActions({
   node,
+  showRename = true,
 }: {
   node: BoxedRenderNode;
+  showRename?: boolean;
 }): ReactElement {
   const actions = useFieldActions();
   return (
     <>
-      <IconButton
-        size="small"
-        aria-label={`Rename ${node.path}`}
-        onClick={() => actions.startRename(node)}
-      >
-        <DriveFileRenameOutlineIcon fontSize="small" />
-      </IconButton>
+      {showRename && (
+        <IconButton
+          size="small"
+          aria-label={`Rename ${node.path}`}
+          onClick={() => actions.startRename(node)}
+        >
+          <DriveFileRenameOutlineIcon fontSize="small" />
+        </IconButton>
+      )}
       <IconButton
         size="small"
         aria-label={`Duplicate ${node.path}`}
