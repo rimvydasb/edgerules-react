@@ -122,6 +122,68 @@ export function clearRelationshipContextMetadata(
   ) as PortableNode;
 }
 
+function emptyRelationValue(
+  value: PortableNode,
+  schema: PortableNode | undefined,
+): PortableNode {
+  const type = isObject(schema) ? schema.type : undefined;
+  if (type === 'string') return "''";
+  if (type === 'number') return 0;
+  if (type === 'boolean') return false;
+
+  if (
+    isObject(value) &&
+    (value['@kind'] === undefined || value['@kind'] === 'context')
+  ) {
+    return clearRelationshipContextMetadata({
+      '@kind': 'context',
+      ...Object.fromEntries(
+        authoredFields(value as PortableContext).map(([name, child]) => [
+          name,
+          emptyRelationValue(child, schemaField(schema, name)),
+        ]),
+      ),
+    } as PortableNode);
+  }
+
+  // Arrays, dates, invocations, and other non-scalar expressions retain the
+  // first row's valid value. It is a safer draft than inventing syntax or an
+  // element type that disagrees with the homogeneous collection schema.
+  return clearRelationshipContextMetadata(value);
+}
+
+/** Builds a blank row whose field shape and types are anchored by row zero. */
+export function createRelationshipRowDraft(
+  relation: RelationRenderNode,
+): PortableNode | undefined {
+  const first = relation.children?.[0];
+  if (!first || !isObject(first.authored)) return undefined;
+  const itemSchema = isObject(relation.schema)
+    ? (relation.schema.items as PortableNode | undefined)
+    : undefined;
+  return clearRelationshipContextMetadata({
+    '@kind': 'context',
+    ...Object.fromEntries(
+      relation.columns.flatMap((column) => {
+        const cell = first.children?.find(
+          (child) => child.name === column.name,
+        );
+        return cell
+          ? [
+              [
+                column.name,
+                emptyRelationValue(
+                  cell.authored,
+                  schemaField(itemSchema, column.name),
+                ),
+              ],
+            ]
+          : [];
+      }),
+    ),
+  } as PortableNode);
+}
+
 export function discoverRelationColumns(
   items: readonly PortableNode[],
   path: string,

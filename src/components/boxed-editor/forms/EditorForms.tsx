@@ -3,74 +3,16 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type {
-  AddFieldDraft,
   ListItemDraft,
   RelationColumnDraft,
   SignatureDraft,
 } from '../boxed-editor-types';
-import { childPath } from '../boxed-editor-utils';
 import { EditorDialog } from '../primitives/EditorDialog';
 
 type Setter<T> = Dispatch<SetStateAction<T | null>>;
-
-export function AddFieldForm({
-  draft,
-  setDraft,
-  error,
-  commit,
-}: {
-  draft: AddFieldDraft | null;
-  setDraft: Setter<AddFieldDraft>;
-  error?: string;
-  commit: () => void;
-}): ReactElement {
-  return (
-    <EditorDialog
-      open={Boolean(draft)}
-      title="Add field"
-      error={error ?? (draft ? undefined : '')}
-      onCancel={() => setDraft(null)}
-      onSubmit={commit}
-      submitLabel="Add field"
-      minWidth={300}
-    >
-      <TextField
-        autoFocus
-        label="Name"
-        value={draft?.name ?? ''}
-        onChange={(event) =>
-          setDraft((current) =>
-            current ? { ...current, name: event.target.value } : current,
-          )
-        }
-      />
-      <Select
-        aria-label="Field kind"
-        value={draft?.kind ?? 'expression'}
-        onChange={(event) =>
-          setDraft((current) =>
-            current
-              ? {
-                  ...current,
-                  kind: event.target.value as AddFieldDraft['kind'],
-                }
-              : current,
-          )
-        }
-      >
-        <MenuItem value="expression">Expression</MenuItem>
-        <MenuItem value="input">Input</MenuItem>
-        <MenuItem value="context">Context</MenuItem>
-        <MenuItem value="list">Literal list</MenuItem>
-      </Select>
-    </EditorDialog>
-  );
-}
 
 export function FunctionSignatureForm({
   draft,
@@ -192,34 +134,21 @@ export function ListItemForm({
   return (
     <EditorDialog
       open={Boolean(draft)}
-      title={`Add ${draft?.relation ? 'relation row' : 'list item'}`}
+      title="Add list item"
       onCancel={() => setDraft(null)}
       onSubmit={commit}
       submitLabel="Add"
     >
-      {draft?.fields.map((field, index) => (
-        <TextField
-          key={field.name}
-          label={
-            draft.relation ? `${field.name} expression` : 'Item expression'
-          }
-          value={field.value}
-          onChange={(event) =>
-            setDraft((current) =>
-              current
-                ? {
-                    ...current,
-                    fields: current.fields.map((item, itemIndex) =>
-                      itemIndex === index
-                        ? { ...item, value: event.target.value }
-                        : item,
-                    ),
-                  }
-                : current,
-            )
-          }
-        />
-      ))}
+      <TextField
+        autoFocus
+        label="Item expression"
+        value={draft?.value ?? ''}
+        onChange={(event) =>
+          setDraft((current) =>
+            current ? { ...current, value: event.target.value } : current,
+          )
+        }
+      />
     </EditorDialog>
   );
 }
@@ -271,11 +200,4 @@ export function RelationColumnForm({
       )}
     </EditorDialog>
   );
-}
-
-export function addFieldError(
-  draft: AddFieldDraft | null,
-  errors: Readonly<Record<string, string>>,
-): string | undefined {
-  return draft ? errors[childPath(draft.parentPath, draft.name)] : undefined;
 }

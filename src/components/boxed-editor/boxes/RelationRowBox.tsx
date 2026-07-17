@@ -2,6 +2,7 @@ import { Fragment, type ReactElement } from 'react';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import TableCell from '@mui/material/TableCell';
@@ -71,6 +72,7 @@ export function RelationRowBox({
         const drillable = Boolean(cell?.children?.length);
         const expanded = Boolean(cell && state.expanded.has(cell.id));
         const editable = cell && !drillable;
+        const cellError = cell ? state.errors[cell.path] : undefined;
         return (
           <TableCell
             key={column.id}
@@ -127,14 +129,24 @@ export function RelationRowBox({
             }}
           >
             {editing ? (
-              <CodeEditorCell
-                value={cellCode(cell.authored)}
-                service={state.languageService}
-                embedContext={expressionEmbedContext(state.snapshot, cell.path)}
-                autoFocus
-                onCommit={(text) => expression.commit(cell, text)}
-                onCancel={expression.cancel}
-              />
+              <Fragment>
+                <CodeEditorCell
+                  value={cellCode(cell.authored)}
+                  service={state.languageService}
+                  embedContext={expressionEmbedContext(
+                    state.snapshot,
+                    cell.path,
+                  )}
+                  autoFocus
+                  onCommit={(text) => expression.commit(cell, text)}
+                  onCancel={expression.cancel}
+                />
+                {cellError && (
+                  <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>
+                    {cellError}
+                  </Alert>
+                )}
+              </Fragment>
             ) : cell ? (
               <Fragment>
                 <Box

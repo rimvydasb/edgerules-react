@@ -181,6 +181,8 @@ export function RelationBox({
       {node.columns.length > 0 ? (
         <TableContainer
           sx={{
+            ml: (depth + 1) * 2,
+            width: (theme) => `calc(100% - ${theme.spacing((depth + 1) * 2)})`,
             borderTop: '1px solid',
             borderColor: 'divider',
             overflowX: 'auto',

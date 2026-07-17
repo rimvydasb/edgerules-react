@@ -3,6 +3,7 @@ import type { PortableNode } from '@edgerules/portable';
 import {
   classifyNode,
   clearRelationshipContextMetadata,
+  createRelationshipRowDraft,
   discoverRelationColumns,
   renderNode,
 } from '../boxed-model';
@@ -46,6 +47,47 @@ describe('boxed relation model', () => {
       groupId: 'relation-columns:people',
       ownerPath: 'people',
       ownerKind: 'relation-column',
+    });
+  });
+
+  it('uses the first relationship row to create a type-compatible blank row', () => {
+    const items = [
+      {
+        '@kind': 'context',
+        name: "'Ada'",
+        age: 36,
+        active: true,
+        contact: { '@kind': 'context', city: "'London'" },
+      },
+    ] as PortableNode[];
+    const rendered = renderNode(
+      items as unknown as PortableNode,
+      'people',
+      {
+        type: 'array',
+        items: {
+          '@kind': 'type-definition',
+          name: { '@kind': 'type', type: 'string' },
+          age: { '@kind': 'type', type: 'number' },
+          active: { '@kind': 'type', type: 'boolean' },
+          contact: {
+            '@kind': 'type-definition',
+            city: { '@kind': 'type', type: 'string' },
+          },
+        },
+      } as PortableNode,
+      'people',
+      new Map([['people', { items, terminal: true }]]),
+    );
+
+    expect(rendered.kind).toBe('relation');
+    if (rendered.kind !== 'relation') throw new Error('Expected relation');
+    expect(createRelationshipRowDraft(rendered)).toEqual({
+      '@kind': 'context',
+      name: "''",
+      age: 0,
+      active: false,
+      contact: { '@kind': 'context', city: "''" },
     });
   });
 

@@ -241,31 +241,27 @@ describe('BoxedEditor', () => {
     await user.click(
       screen.getByRole('button', { name: 'Add field to application' }),
     );
-    const addDialog = screen.getByRole('dialog');
-    await user.type(within(addDialog).getByLabelText('Name'), 'fee');
-    await user.click(
-      within(addDialog).getByRole('button', { name: 'Add field' }),
-    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(instance.toPortable().application as object).toHaveProperty(
-      'fee',
+      'field',
       0,
     );
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
-    );
+    expect(
+      Object.keys(instance.toPortable().application as object).at(-1),
+    ).toBe('field');
 
-    const feeRow = screen.getByRole('row', { name: 'application.fee' });
+    const feeRow = screen.getByRole('row', { name: 'application.field' });
     expect(
       within(feeRow).queryByRole('button', {
-        name: 'Rename application.fee',
+        name: 'Rename application.field',
       }),
     ).not.toBeInTheDocument();
     await user.click(
       within(feeRow).getByRole('button', {
-        name: 'Edit name application.fee',
+        name: 'Edit name application.field',
       }),
     );
-    const name = screen.getByLabelText('Name application.fee');
+    const name = screen.getByLabelText('Name application.field');
     await user.clear(name);
     await user.type(name, 'serviceFee');
     await user.keyboard('{Enter}');
@@ -514,7 +510,7 @@ describe('BoxedEditor', () => {
     const instance = MutableDecisionService.fromCode(`{
       people: [{ name: "A"; age: 1 }, { name: "B"; age: 2 }]
     }`);
-    render(<BoxedEditor service={instance} path="*" />);
+    const { container } = render(<BoxedEditor service={instance} path="*" />);
 
     await user.click(screen.getByRole('button', { name: 'Expand people' }));
     const table = screen.getByRole('table', { name: 'people relationship' });
@@ -528,18 +524,19 @@ describe('BoxedEditor', () => {
     );
     expect(screen.queryByText('Row 1')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add row to people' }));
-    const rowDialog = screen.getByRole('dialog');
-    await user.clear(within(rowDialog).getByLabelText('name expression'));
-    await user.type(within(rowDialog).getByLabelText('name expression'), '"C"');
-    await user.clear(within(rowDialog).getByLabelText('age expression'));
-    await user.type(within(rowDialog).getByLabelText('age expression'), '3');
-    await user.click(within(rowDialog).getByRole('button', { name: 'Add' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('row', { name: 'people[2]' })).toBeInTheDocument();
     expect(
       (instance.toPortable().people as { expression: string }).expression,
-    ).toContain('name: "C"');
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
-    );
+    ).toContain('name: ""; age: 0');
+
+    await user.click(screen.getByRole('cell', { name: 'people[2].age' }));
+    const ageEditor = container.querySelector<HTMLElement>('.cm-content');
+    expect(ageEditor).not.toBeNull();
+    await user.click(ageEditor!);
+    await user.keyboard('{Control>}a{/Control}"not a number"{Enter}');
+    expect(screen.getByRole('alert')).toHaveTextContent('type mismatch');
+    expect(instance.get('people[2].age', 'FIELDS')).toBe(0);
 
     await user.click(
       screen.getByRole('button', { name: 'Add column to people' }),

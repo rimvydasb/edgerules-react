@@ -374,6 +374,8 @@ persisting the synthetic document. The marker used to split the document must ne
 - The initial/request increment is `LIST_PAGE_SIZE` (currently 50).
 - `EntryNotFound` marks the collection terminal; other Portable errors are shown as collection errors.
 - Add, duplicate, and reorder affordances appear only when the complete collection has been loaded.
+- Clicking a context's add-field action immediately appends a uniquely named `field` expression with value `0`; the
+  resulting inline name and value controls are used to finish authoring it. No add-field dialog is displayed.
 - Reordering a terminal collection rewrites the complete collection once. Context and context-function siblings
   rewrite their owning Portable node while preserving metadata. Root fields use paired `remove`/`set` operations in
   final order because the engine does not support `set("*", ...)`.
@@ -381,6 +383,14 @@ persisting the synthetic document. The marker used to split the document must ne
   semantic table so headers and cells remain aligned.
 - Relationship columns are derived from the ordered union of loaded row fields. Column add, delete, inline rename,
   and drag reordering are enabled only once paging is terminal and rewrite the complete loaded relationship atomically.
+- Clicking add-row immediately appends a blank editable record without a dialog. Row zero establishes the homogeneous
+  field shape and column types; string, number, and boolean fields receive type-compatible empty defaults, nested
+  contexts are blanked recursively, and other valid values are retained as safe templates. The engine rejects a cell
+  edit whose type differs from the established column type, the stored row remains unchanged, and the cell displays
+  the validation error.
+- The complete relationship table is inset one child level beyond its owning relation row. This inset includes the row
+  drag-handle column and accumulates at every surrounding context depth, keeping shallow and deeply nested tables
+  aligned with the boxed hierarchy.
 - Clicking a relationship column name replaces the label with a plain text input. The commit renames that field in
   every underlying object while preserving its position. There is no relationship bottom toolbar.
 - Each relationship row has its own drag handle. Row reordering rewrites the complete terminal collection, while

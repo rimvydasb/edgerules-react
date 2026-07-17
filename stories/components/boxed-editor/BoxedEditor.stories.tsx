@@ -300,6 +300,28 @@ export const Relation: Story = {
   ),
 };
 
+export const DeepRelation: Story = {
+  loaders: [
+    async () => ({
+      service: await buildService(`{
+    organization: {
+      division: {
+        department: {
+          applicants: [
+            { name: "Ada"; age: 36 }
+            { name: "Grace"; age: 42 }
+          ]
+        }
+      }
+    }
+  }`),
+    }),
+  ],
+  render: (args, { loaded }) => (
+    <BoxedEditor {...args} service={loaded.service} path="*" />
+  ),
+};
+
 export const LoanOriginationOverview: Story = {
   loaders: [
     async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),

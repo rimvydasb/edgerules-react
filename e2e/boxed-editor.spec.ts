@@ -428,6 +428,46 @@ test('relationship renders object fields as table columns without nested row lab
   ).toContainText("'London'");
 });
 
+test('deeply nested relationship tables retain their complete child inset', async ({
+  page,
+}, testInfo) => {
+  await page.goto(
+    '/iframe.html?id=boxed-editor-boxededitor--deep-relation&viewMode=story',
+  );
+  await page.getByRole('button', { name: 'Expand organization' }).click();
+  await page
+    .getByRole('button', { name: 'Expand organization.division' })
+    .click();
+  await page
+    .getByRole('button', {
+      name: 'Expand organization.division.department',
+    })
+    .click();
+  await page
+    .getByRole('button', {
+      name: 'Expand organization.division.department.applicants',
+    })
+    .click();
+
+  const relationPath = 'organization.division.department.applicants';
+  const relation = page.getByRole('row', { name: relationPath, exact: true });
+  const table = page.getByRole('table', {
+    name: `${relationPath} relationship`,
+  });
+  await expect(relation).toHaveCSS('padding-left', '64px');
+  await expect(table.locator('..')).toHaveCSS('margin-left', '80px');
+
+  const editorBounds = await page.getByRole('treegrid').boundingBox();
+  const tableBounds = await table.boundingBox();
+  expect(editorBounds).not.toBeNull();
+  expect(tableBounds).not.toBeNull();
+  expect(tableBounds!.x - editorBounds!.x).toBeGreaterThanOrEqual(80);
+  await page.screenshot({
+    path: testInfo.outputPath('deep-relation-padding.png'),
+    fullPage: true,
+  });
+});
+
 test('visual error and read-only scenarios retain their distinct UI states', async ({
   page,
 }) => {

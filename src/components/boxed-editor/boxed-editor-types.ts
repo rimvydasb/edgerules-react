@@ -34,12 +34,6 @@ export interface BoxedEditorProps {
   sx?: SxProps<Theme>;
 }
 
-export interface AddFieldDraft {
-  parentPath: string;
-  name: string;
-  kind: 'expression' | 'input' | 'context' | 'list';
-}
-
 export interface SignatureParameter {
   name: string;
   type: string;
@@ -55,8 +49,7 @@ export interface SignatureDraft {
 
 export interface ListItemDraft {
   path: string;
-  relation: boolean;
-  fields: Array<{ name: string; value: string }>;
+  value: string;
 }
 
 export interface RelationColumnDraft {

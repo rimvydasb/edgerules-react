@@ -28,14 +28,13 @@ import { isPortableError } from '../../lib/portable';
 import { BoxedEditorProvider } from './BoxedEditorProvider';
 import { BoxedEntityNode, BoxedNode } from './BoxedNode';
 import {
-  AddFieldForm,
   FunctionSignatureForm,
   ListItemForm,
   RelationColumnForm,
-  addFieldError,
 } from './forms/EditorForms';
 import {
   clearRelationshipContextMetadata,
+  createRelationshipRowDraft,
   isObject,
   renderNode,
   resolveAuthoredPath,
@@ -44,7 +43,6 @@ import {
   type RelationRenderNode,
 } from './boxed-model';
 import type {
-  AddFieldDraft,
   BoxedEditorProps,
   ListItemDraft,
   RelationColumnDraft,
@@ -129,7 +127,6 @@ export function BoxedEditor({
   );
   const [editingName, setEditingName] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
-  const [addDraft, setAddDraft] = useState<AddFieldDraft | null>(null);
   const [editingMetadata, setEditingMetadata] = useState<string | null>(null);
   const [signatureDraft, setSignatureDraft] = useState<SignatureDraft | null>(
     null,
@@ -327,25 +324,25 @@ export function BoxedEditor({
     },
     [refreshCommitted, service, showError, snapshot],
   );
-  const commitAdd = useCallback((): void => {
-    if (!addDraft || !addDraft.name.trim()) return;
-    const target = childPath(addDraft.parentPath, addDraft.name.trim());
-    const node: PortableNode =
-      addDraft.kind === 'expression'
-        ? '0'
-        : addDraft.kind === 'input'
-          ? { '@kind': 'type', type: 'string' }
-          : addDraft.kind === 'context'
-            ? { '@kind': 'context' }
-            : [];
-    const result = service.set(target, node);
-    if (isPortableError(result)) {
-      showError(target, result);
-      return;
-    }
-    setAddDraft(null);
-    refreshCommitted();
-  }, [addDraft, refreshCommitted, service, showError]);
+  const addField = useCallback(
+    (node: BoxedRenderNode): void => {
+      if (!isObject(node.authored)) return;
+      let name = 'field';
+      let suffix = 2;
+      while (name in node.authored) {
+        name = `field${suffix}`;
+        suffix += 1;
+      }
+      const target = childPath(node.path, name);
+      const result = service.set(target, '0');
+      if (isPortableError(result)) {
+        showError(node.path, result);
+        return;
+      }
+      refreshCommitted();
+    },
+    [refreshCommitted, service, showError],
+  );
   const commitSignature = useCallback((): void => {
     if (!signatureDraft) return;
     const result = service.set(
@@ -403,18 +400,7 @@ export function BoxedEditor({
     const existing = model && findNode(model, listItemDraft.path);
     const length = existing?.children?.length ?? 0;
     const target = `${listItemDraft.path}[${length}]`;
-    const node: PortableNode = listItemDraft.relation
-      ? ({
-          '@kind': 'context',
-          ...Object.fromEntries(
-            listItemDraft.fields.map((field) => [field.name, field.value]),
-          ),
-        } as PortableNode)
-      : listItemDraft.fields[0]?.value || '0';
-    const result = service.set(
-      `${listItemDraft.path}[${length}]`,
-      listItemDraft.relation ? clearRelationshipContextMetadata(node) : node,
-    );
+    const result = service.set(target, listItemDraft.value || '0');
     if (isPortableError(result)) {
       showError(target, result);
       return;
@@ -422,6 +408,26 @@ export function BoxedEditor({
     setListItemDraft(null);
     refreshCommitted();
   }, [listItemDraft, model, refreshCommitted, service, showError]);
+  const addRelationshipRow = useCallback(
+    (node: RelationRenderNode): void => {
+      const draft = createRelationshipRowDraft(node);
+      if (!draft) {
+        showError(
+          node.path,
+          'The first relationship row is required to establish column types.',
+        );
+        return;
+      }
+      const target = `${node.path}[${node.children?.length ?? 0}]`;
+      const result = service.set(target, draft);
+      if (isPortableError(result)) {
+        showError(node.path, result);
+        return;
+      }
+      refreshCommitted();
+    },
+    [refreshCommitted, service, showError],
+  );
   const duplicateListItem = useCallback(
     (node: BoxedRenderNode): void => {
       if (!node.listItem || !model) return;
@@ -693,21 +699,8 @@ export function BoxedEditor({
         node: node.authored,
       });
   };
-  const openListItem = (node: BoxedRenderNode): void => {
-    const fields =
-      node.kind === 'relation' &&
-      node.children?.[0] &&
-      isObject(node.children[0].authored)
-        ? Object.keys(node.children[0].authored)
-            .filter((key) => !key.startsWith('@'))
-            .map((name) => ({ name, value: '0' }))
-        : [{ name: 'value', value: '0' }];
-    setListItemDraft({
-      path: node.path,
-      relation: node.kind === 'relation',
-      fields,
-    });
-  };
+  const openListItem = (node: BoxedRenderNode): void =>
+    setListItemDraft({ path: node.path, value: '0' });
   return (
     <BoxedEditorProvider
       state={{
@@ -746,8 +739,7 @@ export function BoxedEditor({
         },
         duplicate,
         remove: guardedRemove,
-        add: (node) =>
-          setAddDraft({ parentPath: node.path, name: '', kind: 'expression' }),
+        add: addField,
       }}
       metadata={{
         activePath: editingMetadata,
@@ -763,7 +755,10 @@ export function BoxedEditor({
       }}
       functions={{ editSignature: openSignature }}
       list={{
-        addItem: openListItem,
+        addItem: (node) =>
+          node.kind === 'relation'
+            ? addRelationshipRow(node)
+            : openListItem(node),
         duplicateItem: duplicateListItem,
         removeItem: removeListItem,
         loadMore,
@@ -821,12 +816,6 @@ export function BoxedEditor({
           <BoxedNode node={model} />
         </Box>
       </DndContext>
-      <AddFieldForm
-        draft={addDraft}
-        setDraft={setAddDraft}
-        error={addFieldError(addDraft, errors)}
-        commit={commitAdd}
-      />
       <FunctionSignatureForm
         draft={signatureDraft}
         setDraft={setSignatureDraft}
