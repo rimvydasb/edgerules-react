@@ -9,7 +9,7 @@ import {
   useBoxedEditorState,
   useExpressionActions,
 } from '../BoxedEditorProvider';
-import { inputText } from '../boxed-editor-utils';
+import { cellCode } from '../cell-code';
 import { BoxFrame } from '../primitives/BoxFrame';
 import { BoxHeader } from '../primitives/BoxHeader';
 import { BoxTypeChip } from '../primitives/BoxTypeChip';
@@ -33,7 +33,7 @@ export function InputBox({
       value={
         editing ? (
           <CodeEditorCell
-            value={inputText(node.authored)}
+            value={cellCode(node.authored)}
             service={state.languageService}
             embedContext={expressionEmbedContext(state.snapshot, node.path)}
             autoFocus
@@ -42,7 +42,7 @@ export function InputBox({
           />
         ) : (
           <Box component="code" sx={{ minHeight: 24 }}>
-            {inputText(node.authored)}
+            {cellCode(node.authored)}
           </Box>
         )
       }

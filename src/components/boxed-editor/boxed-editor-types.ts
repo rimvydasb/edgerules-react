@@ -53,14 +53,6 @@ export interface SignatureDraft {
   node: Record<string, unknown>;
 }
 
-export interface InvocationDraft {
-  path: string;
-  node: Record<string, unknown>;
-  method: string;
-  named: boolean;
-  arguments: Array<{ name: string; value: string }>;
-}
-
 export interface ListItemDraft {
   path: string;
   relation: boolean;

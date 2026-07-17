@@ -12,7 +12,6 @@ export type BoxedRenderKind =
   | 'relation'
   | 'function'
   | 'external-function'
-  | 'invocation'
   | 'editor-link';
 
 export interface BoxedSortableMetadata {
@@ -29,8 +28,6 @@ interface BaseRenderNode {
   authored: PortableNode;
   schema?: PortableNode;
   children?: BoxedRenderNode[];
-  /** An invocation argument is displayed as a child row but is written with its owner. */
-  invocation?: { path: string; argument: string | number };
   /** A literal collection item is addressed by its owning list and numeric index. */
   listItem?: { path: string; index: number };
   /** A scalar function body is displayed as `fn.result` but written with its function definition. */
@@ -54,10 +51,6 @@ export type FunctionRenderNode = BaseRenderNode & {
 export type ExternalFunctionRenderNode = BaseRenderNode & {
   kind: 'external-function';
 };
-export type InvocationRenderNode = BaseRenderNode & {
-  kind: 'invocation';
-  children?: BoxedRenderNode[];
-};
 export type EditorLinkRenderNode = BaseRenderNode & { kind: 'editor-link' };
 export type ListRenderNode = BaseRenderNode & {
   kind: 'list';
@@ -78,7 +71,6 @@ export type BoxedRenderNode =
   | RelationRenderNode
   | FunctionRenderNode
   | ExternalFunctionRenderNode
-  | InvocationRenderNode
   | EditorLinkRenderNode;
 
 export interface IndexedListPage {
@@ -122,7 +114,9 @@ export function classifyNode(
     return 'editor-link';
   if (kind === 'function') return 'function';
   if (kind === 'external-function') return 'external-function';
-  if (kind === 'invocation') return 'invocation';
+  // Invocations are DSL expressions from the cell's perspective. Their Portable
+  // shape is converted to editable call code by the Portable -> Cell Code mapping.
+  if (kind === 'invocation') return 'expression';
   if (kind === 'type') return 'input';
   if (kind === 'context' || (isObject(node) && kind === undefined))
     return 'context';
@@ -251,32 +245,6 @@ export function renderNode(
               functionBody: { path },
             },
           ];
-  }
-  if (kind === 'invocation' && isObject(authored)) {
-    const argumentsValue = authored['@arguments'];
-    children = Array.isArray(argumentsValue)
-      ? argumentsValue.map((argument, index) => ({
-          ...renderNode(
-            argument as PortableNode,
-            `${path}.@arguments[${index}]`,
-            undefined,
-            `Argument ${index + 1}`,
-            indexedLists,
-          ),
-          invocation: { path, argument: index },
-        }))
-      : isObject(argumentsValue)
-        ? Object.entries(argumentsValue).map(([argument, value]) => ({
-            ...renderNode(
-              value as PortableNode,
-              `${path}.@arguments.${argument}`,
-              undefined,
-              argument,
-              indexedLists,
-            ),
-            invocation: { path, argument },
-          }))
-        : [];
   }
   if ((kind === 'list' || kind === 'relation') && indexedList) {
     const itemSchema = isObject(schema)

@@ -56,8 +56,7 @@ describe('BoxedEditor', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('renders leading drag handles for authored sibling fields only in editable mode', async () => {
-    const user = userEvent.setup();
+  it('renders leading drag handles for authored sibling fields only in editable mode', () => {
     render(<BoxedEditor service={service()} path="*" />);
     expect(
       screen.getByRole('button', { name: 'Drag application' }),
@@ -67,11 +66,6 @@ describe('BoxedEditor', () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Drag *' }),
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Expand payment' }));
-    expect(
-      screen.queryByRole('button', { name: 'Drag payment.@arguments[0]' }),
     ).not.toBeInTheDocument();
   });
 
@@ -415,7 +409,7 @@ describe('BoxedEditor', () => {
     });
   });
 
-  it('expands invocation arguments and edits invocations and metadata', async () => {
+  it('edits an invocation as one DSL cell and edits metadata', async () => {
     const user = userEvent.setup();
     const instance = service();
     instance.set('payment', {
@@ -425,35 +419,18 @@ describe('BoxedEditor', () => {
     });
     const { container } = render(<BoxedEditor service={instance} path="*" />);
 
-    await user.click(screen.getByRole('button', { name: 'Expand payment' }));
-    const argumentRow = screen.getByRole('row', {
-      name: 'payment.@arguments[0]',
-    });
-    expect(argumentRow).toHaveTextContent('application.amount');
-    await user.click(within(argumentRow).getAllByRole('cell')[3]);
+    const invocationRow = screen.getByRole('row', { name: 'payment' });
+    expect(invocationRow).toHaveTextContent('monthly(application.amount)');
+    expect(
+      screen.queryByRole('button', { name: 'Expand payment' }),
+    ).not.toBeInTheDocument();
+    await user.click(within(invocationRow).getAllByRole('cell')[3]);
     const editor = container.querySelector<HTMLElement>('.cm-content');
     expect(editor).not.toBeNull();
+    expect(editor).toHaveTextContent('monthly(application.amount)');
     await user.click(editor!);
-    await user.keyboard('{Control>}a{/Control}application.amount * 3{Enter}');
-    expect(instance.toPortable().payment).toMatchObject({
-      '@arguments': ['application.amount * 3'],
-    });
-    await user.click(
-      screen.getByRole('button', { name: 'Edit invocation payment' }),
-    );
-    const invocationDialog = screen.getByRole('dialog');
-    await user.clear(
-      within(invocationDialog).getByLabelText('Argument 1 expression'),
-    );
-    await user.type(
-      within(invocationDialog).getByLabelText('Argument 1 expression'),
-      'application.amount * 2',
-    );
-    await user.click(
-      within(invocationDialog).getByRole('button', { name: 'Save invocation' }),
-    );
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    await user.keyboard(
+      '{Control>}a{/Control}monthly(application.amount * 2){Enter}',
     );
     expect(instance.toPortable().payment).toMatchObject({
       '@kind': 'invocation',

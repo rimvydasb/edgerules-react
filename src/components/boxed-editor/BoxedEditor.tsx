@@ -30,7 +30,6 @@ import { BoxedEntityNode, BoxedNode } from './BoxedNode';
 import {
   AddFieldForm,
   FunctionSignatureForm,
-  InvocationForm,
   ListItemForm,
   RelationColumnForm,
   addFieldError,
@@ -45,7 +44,6 @@ import {
 import type {
   AddFieldDraft,
   BoxedEditorProps,
-  InvocationDraft,
   ListItemDraft,
   RelationColumnDraft,
   SignatureDraft,
@@ -53,10 +51,8 @@ import type {
 import {
   LIST_PAGE_SIZE,
   childPath,
-  expressionText,
   findNode,
   indexedLists,
-  invocationNode,
   parseMetadataText,
   parameterDrafts,
   parentPath,
@@ -136,8 +132,6 @@ export function BoxedEditor({
   const [signatureDraft, setSignatureDraft] = useState<SignatureDraft | null>(
     null,
   );
-  const [invocationDraft, setInvocationDraft] =
-    useState<InvocationDraft | null>(null);
   const [listItemDraft, setListItemDraft] = useState<ListItemDraft | null>(
     null,
   );
@@ -253,40 +247,6 @@ export function BoxedEditor({
           ...definition,
           '@body': { '@kind': 'expression', expression: text },
         } as PortableNode;
-      } else if (node.invocation) {
-        const invocation =
-          snapshot && resolveAuthoredPath(snapshot, node.invocation.path);
-        if (!isObject(invocation)) {
-          setFatalError(`Invocation not found: ${node.invocation.path}`);
-          return;
-        }
-        const argumentsValue = invocation['@arguments'];
-        if (
-          typeof node.invocation.argument === 'number' &&
-          Array.isArray(argumentsValue)
-        ) {
-          const argumentsCopy = [...argumentsValue];
-          argumentsCopy[node.invocation.argument] = text;
-          nextNode = {
-            ...invocation,
-            '@arguments': argumentsCopy,
-          } as PortableNode;
-        } else if (
-          typeof node.invocation.argument === 'string' &&
-          isObject(argumentsValue)
-        ) {
-          nextNode = {
-            ...invocation,
-            '@arguments': {
-              ...argumentsValue,
-              [node.invocation.argument]: text,
-            },
-          } as PortableNode;
-        } else {
-          setFatalError(`Invocation argument not found: ${node.path}`);
-          return;
-        }
-        targetPath = node.invocation.path;
       }
       const result = service.set(targetPath, nextNode);
       if (isPortableError(result)) {
@@ -436,19 +396,6 @@ export function BoxedEditor({
     },
     [refreshCommitted, service, showError],
   );
-  const commitInvocation = useCallback((): void => {
-    if (!invocationDraft || !invocationDraft.method.trim()) return;
-    const result = service.set(
-      invocationDraft.path,
-      invocationNode(invocationDraft),
-    );
-    if (isPortableError(result)) {
-      showError(invocationDraft.path, result);
-      return;
-    }
-    setInvocationDraft(null);
-    refreshCommitted();
-  }, [invocationDraft, refreshCommitted, service, showError]);
   const commitListItem = useCallback((): void => {
     if (!listItemDraft) return;
     const existing = model && findNode(model, listItemDraft.path);
@@ -673,27 +620,6 @@ export function BoxedEditor({
         node: node.authored,
       });
   };
-  const openInvocation = (node: BoxedRenderNode): void => {
-    if (!isObject(node.authored)) return;
-    const argumentsValue = node.authored['@arguments'];
-    setInvocationDraft({
-      path: node.path,
-      node: node.authored,
-      method: String(node.authored['@method'] ?? ''),
-      named: !Array.isArray(argumentsValue),
-      arguments: Array.isArray(argumentsValue)
-        ? argumentsValue.map((value) => ({
-            name: '',
-            value: expressionText(value as PortableNode),
-          }))
-        : isObject(argumentsValue)
-          ? Object.entries(argumentsValue).map(([name, value]) => ({
-              name,
-              value: expressionText(value as PortableNode),
-            }))
-          : [],
-    });
-  };
   const openListItem = (node: BoxedRenderNode): void => {
     const fields =
       node.kind === 'relation' &&
@@ -758,7 +684,6 @@ export function BoxedEditor({
         },
       }}
       functions={{ editSignature: openSignature }}
-      invocation={{ edit: openInvocation }}
       list={{
         addItem: openListItem,
         duplicateItem: duplicateListItem,
@@ -828,12 +753,6 @@ export function BoxedEditor({
         setDraft={setSignatureDraft}
         error={signatureDraft ? errors[signatureDraft.path] : undefined}
         commit={commitSignature}
-      />
-      <InvocationForm
-        draft={invocationDraft}
-        setDraft={setInvocationDraft}
-        error={invocationDraft ? errors[invocationDraft.path] : undefined}
-        commit={commitInvocation}
       />
       <ListItemForm
         draft={listItemDraft}

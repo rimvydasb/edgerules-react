@@ -5,6 +5,7 @@ import type {
 } from '@edgerules/portable';
 import type { CodeEditorEmbedContext } from '../code-editor-cell';
 import { authoredFields, isObject } from './boxed-model';
+import { cellCode } from './cell-code';
 import { metadataText } from './boxed-editor-utils';
 
 const MARKER = '__boxed_editor_expression__';
@@ -16,28 +17,6 @@ function typeText(value: unknown): string {
   return 'any';
 }
 
-function typedValueText(node: Record<string, unknown>): string {
-  const attributes: string[] = [];
-  if (node.required === true) attributes.push('required: true');
-  if (node.default !== undefined)
-    attributes.push(`default: ${JSON.stringify(node.default)}`);
-  if (Array.isArray(node.enum) && node.enum.length)
-    attributes.push(`enum: ${JSON.stringify(node.enum)}`);
-  if (node.type === 'array' && node.items !== undefined)
-    attributes.push(`items: ${typeText(node.items)}`);
-  return `<${typeText(node)}${attributes.length ? `, ${attributes.join(', ')}` : ''}>`;
-}
-
-function expressionText(node: PortableNode): string {
-  if (isObject(node)) {
-    const object = node as Record<string, unknown>;
-    if (object['@kind'] === 'expression')
-      return String(object.expression ?? '');
-  }
-  if (typeof node === 'string') return node;
-  return JSON.stringify(node);
-}
-
 function nodeText(
   node: PortableNode,
   path: string,
@@ -47,37 +26,14 @@ function nodeText(
   if (path === activePath) return MARKER;
   if (Array.isArray(node))
     return `[${node.map((item, index) => nodeText(item, `${path}[${index}]`, activePath, metadataPath)).join(', ')}]`;
-  if (!isObject(node)) return expressionText(node);
+  if (!isObject(node)) return cellCode(node);
   const object = node as Record<string, unknown>;
   const kind = object['@kind'];
-  if (kind === 'expression') return expressionText(node);
-  if (kind === 'type') return typedValueText(node);
-  if (kind === 'invocation') {
-    const argumentsValue = object['@arguments'];
-    const argumentsText = Array.isArray(argumentsValue)
-      ? argumentsValue
-          .map((value, index) =>
-            nodeText(
-              value as PortableNode,
-              `${path}.@arguments[${index}]`,
-              activePath,
-              metadataPath,
-            ),
-          )
-          .join(', ')
-      : isObject(argumentsValue)
-        ? Object.entries(argumentsValue)
-            .map(
-              ([name, value]) =>
-                `${name}: ${nodeText(value as PortableNode, `${path}.@arguments.${name}`, activePath, metadataPath)}`,
-            )
-            .join(', ')
-        : '';
-    return `${String(object['@method'] ?? '')}(${argumentsText})`;
-  }
+  if (kind === 'expression' || kind === 'type' || kind === 'invocation')
+    return cellCode(node);
   if (kind === 'context' || kind === undefined)
     return contextText(node as PortableContext, path, activePath, metadataPath);
-  return expressionText(node);
+  return cellCode(node);
 }
 
 function contextText(

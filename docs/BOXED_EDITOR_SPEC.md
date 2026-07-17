@@ -3,7 +3,7 @@
 ## 1. Purpose and product context
 
 `BoxedEditor` is the structured, visual authoring surface for EdgeRules models. It presents Portable model entities as
-recognizable boxes—contexts, expressions, inputs, functions, invocations, lists, and relations—rather than requiring
+recognizable boxes—contexts, expressions, inputs, functions, lists, and relations—rather than requiring
 the user to edit the complete EdgeRules DSL document as plain text.
 
 The interaction model is influenced by the boxed-expression and decision-modeling experiences of **Camunda** and
@@ -75,8 +75,6 @@ BoxedEditor                                      BoxedEditor.tsx
 │       │   └── StaticExpression | CodeEditorCell
 │       ├── InputBox                            boxes/InputBox.tsx
 │       │   └── Static DSL input | CodeEditorCell
-│       ├── InvocationBox                       boxes/InvocationBox.tsx
-│       │   └── InvocationArgumentBox[]         boxes/InvocationArgumentBox.tsx
 │       ├── ListBox                             boxes/ListBox.tsx
 │       │   └── ListItemBox[]                   boxes/ListItemBox.tsx
 │       │       └── entity box selected by BoxedEntityNode
@@ -87,7 +85,6 @@ BoxedEditor                                      BoxedEditor.tsx
 └── focused forms                               forms/EditorForms.tsx
     ├── AddFieldForm
     ├── FunctionSignatureForm
-    ├── InvocationForm
     ├── ListItemForm
     ├── RelationColumnForm
 ```
@@ -103,14 +100,11 @@ flowchart TD
     Dispatcher --> External[ExternalFunctionBox]
     Dispatcher --> Expression[ExpressionBox]
     Dispatcher --> Input[InputBox]
-    Dispatcher --> Invocation[InvocationBox]
     Dispatcher --> List[ListBox]
     Dispatcher --> Relation[RelationBox]
     Dispatcher --> Link[EditorLinkBox]
     Context --> Dispatcher
     Function --> Dispatcher
-    Invocation --> InvocationArgument[InvocationArgumentBox]
-    InvocationArgument --> Dispatcher
     List --> ListItem[ListItemBox]
     ListItem --> Dispatcher
     Relation --> RelationRow[RelationRowBox]
@@ -120,7 +114,6 @@ flowchart TD
     External -. composes .-> Frame
     Expression -. composes .-> Frame
     Input -. composes .-> Frame
-    Invocation -. composes .-> Frame
     List -. composes .-> Frame
     Relation -. composes .-> Frame
     Link -. composes .-> Frame
@@ -137,23 +130,24 @@ entity-specific boolean flags.
 
 ### 3.2 Directory navigation
 
-| Location                                                                                  | Responsibility                                                                                    | Start here when…                                               |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| [`BoxedEditor.tsx`](../src/components/boxed-editor/BoxedEditor.tsx)                       | Loading, editor-wide state, mutation commands, rollback, refresh, callbacks, and form composition | Changing mutation lifecycle, error behavior, or host callbacks |
-| [`BoxedEditorProvider.tsx`](../src/components/boxed-editor/BoxedEditorProvider.tsx)       | Separate focused contexts and hooks for state and entity capabilities                             | Adding or narrowing an entity capability                       |
-| [`BoxedNode.tsx`](../src/components/boxed-editor/BoxedNode.tsx)                           | Exhaustive normalized-kind dispatch                                                               | Adding a new normalized entity kind                            |
-| [`boxed-model.ts`](../src/components/boxed-editor/boxed-model.ts)                         | Portable-to-render normalization, path resolution, discriminated render-node types                | Changing classification or render-tree shape                   |
-| [`boxed-editor-utils.ts`](../src/components/boxed-editor/boxed-editor-utils.ts)           | Pure Portable conversions, path helpers, paging reads, and formatting                             | Constructing a node for `set` or reading indexed collections   |
-| [`boxed-embed.ts`](../src/components/boxed-editor/boxed-embed.ts)                         | Synthetic surrounding DSL for expression diagnostics and completions                              | Changing expression language-service context                   |
-| [`boxes/`](../src/components/boxed-editor/boxes)                                          | Entity-specific presentation and composition                                                      | Changing one visible entity                                    |
-| [`actions/`](../src/components/boxed-editor/actions)                                      | Capability-specific reusable button groups                                                        | Reusing a semantic action set                                  |
-| [`forms/EditorForms.tsx`](../src/components/boxed-editor/forms/EditorForms.tsx)           | Focused draft forms                                                                               | Changing entity input fields or form presentation              |
-| [`primitives/`](../src/components/boxed-editor/primitives)                                | Entity-neutral row, header, type, expression, collection, and dialog mechanics                    | Changing shared visual/accessibility mechanics                 |
-| [`boxed-editor-types.ts`](../src/components/boxed-editor/boxed-editor-types.ts)           | Public types plus internal form drafts                                                            | Changing public props or a form draft                          |
-| [`domain-boxes.test.tsx`](../src/components/boxed-editor/__tests__/domain-boxes.test.tsx) | Focused box ownership and dispatcher characterization                                             | Adding or changing a domain box                                |
-| [`BoxedEditor.test.tsx`](../src/components/boxed-editor/__tests__/BoxedEditor.test.tsx)   | Real-engine integration and mutation behavior                                                     | Changing API interaction or user behavior                      |
-| [`BoxedEditor.stories.tsx`](../stories/components/boxed-editor/BoxedEditor.stories.tsx)   | Browser scenarios and host integration examples                                                   | Adding a visual scenario                                       |
-| [`e2e/boxed-editor.spec.ts`](../e2e/boxed-editor.spec.ts)                                 | Story rendering, editing, completion, and routing checks                                          | Changing browser-visible behavior                              |
+| Location                                                                                  | Responsibility                                                                                    | Start here when…                                                |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [`BoxedEditor.tsx`](../src/components/boxed-editor/BoxedEditor.tsx)                       | Loading, editor-wide state, mutation commands, rollback, refresh, callbacks, and form composition | Changing mutation lifecycle, error behavior, or host callbacks  |
+| [`BoxedEditorProvider.tsx`](../src/components/boxed-editor/BoxedEditorProvider.tsx)       | Separate focused contexts and hooks for state and entity capabilities                             | Adding or narrowing an entity capability                        |
+| [`BoxedNode.tsx`](../src/components/boxed-editor/BoxedNode.tsx)                           | Exhaustive normalized-kind dispatch                                                               | Adding a new normalized entity kind                             |
+| [`boxed-model.ts`](../src/components/boxed-editor/boxed-model.ts)                         | Portable-to-render normalization, path resolution, discriminated render-node types                | Changing classification or render-tree shape                    |
+| [`cell-code.ts`](../src/components/boxed-editor/cell-code.ts)                             | Portable-to-Cell-Code mapping for inline DSL values                                               | Changing how a Portable value is shown or initialized in a cell |
+| [`boxed-editor-utils.ts`](../src/components/boxed-editor/boxed-editor-utils.ts)           | Portable construction, path helpers, paging reads, and formatting                                 | Constructing a node for `set` or reading indexed collections    |
+| [`boxed-embed.ts`](../src/components/boxed-editor/boxed-embed.ts)                         | Synthetic surrounding DSL for expression diagnostics and completions                              | Changing expression language-service context                    |
+| [`boxes/`](../src/components/boxed-editor/boxes)                                          | Entity-specific presentation and composition                                                      | Changing one visible entity                                     |
+| [`actions/`](../src/components/boxed-editor/actions)                                      | Capability-specific reusable button groups                                                        | Reusing a semantic action set                                   |
+| [`forms/EditorForms.tsx`](../src/components/boxed-editor/forms/EditorForms.tsx)           | Focused draft forms                                                                               | Changing entity input fields or form presentation               |
+| [`primitives/`](../src/components/boxed-editor/primitives)                                | Entity-neutral row, header, type, expression, collection, and dialog mechanics                    | Changing shared visual/accessibility mechanics                  |
+| [`boxed-editor-types.ts`](../src/components/boxed-editor/boxed-editor-types.ts)           | Public types plus internal form drafts                                                            | Changing public props or a form draft                           |
+| [`domain-boxes.test.tsx`](../src/components/boxed-editor/__tests__/domain-boxes.test.tsx) | Focused box ownership and dispatcher characterization                                             | Adding or changing a domain box                                 |
+| [`BoxedEditor.test.tsx`](../src/components/boxed-editor/__tests__/BoxedEditor.test.tsx)   | Real-engine integration and mutation behavior                                                     | Changing API interaction or user behavior                       |
+| [`BoxedEditor.stories.tsx`](../stories/components/boxed-editor/BoxedEditor.stories.tsx)   | Browser scenarios and host integration examples                                                   | Adding a visual scenario                                        |
+| [`e2e/boxed-editor.spec.ts`](../e2e/boxed-editor.spec.ts)                                 | Story rendering, editing, completion, and routing checks                                          | Changing browser-visible behavior                               |
 
 ## 4. Render model and normalization
 
@@ -173,20 +167,17 @@ The normalized union currently contains:
 | `input`             | `InputBox`            | Portable `@kind: "type"` input                           |
 | `function`          | `FunctionBox`         | Signature and normalized function-body children          |
 | `external-function` | `ExternalFunctionBox` | External signature; no body                              |
-| `invocation`        | `InvocationBox`       | Method and argument children carrying owner metadata     |
 | `list`              | `ListBox`             | Indexed items plus required paging state                 |
 | `relation`          | `RelationBox`         | Indexed context rows, columns, and required paging state |
 | `editor-link`       | `EditorLinkBox`       | Type-definition, ruleset, or loop route target           |
 
-Two render-only annotations preserve write semantics:
+Three render-only annotations preserve write semantics:
 
-- `invocation: { path, argument }` marks an argument row. Editing it rewrites the complete owning invocation because
-  invocation arguments are not independently persisted fields.
 - `listItem: { path, index }` marks an indexed collection item. Item duplication, deletion, and movement operate on
   the owning collection.
+- `functionBody: { path }` maps the displayed scalar `fn.result` cell back to its owning Portable function definition.
 - `sortable: { groupId, ownerPath, ownerKind, index }` marks authored siblings that can be reordered together. Context
-  fields, context function-body fields, and terminal literal collection items receive this annotation; invocation
-  arguments and other generated subrows do not.
+  fields, context function-body fields, and terminal literal collection items receive this annotation.
 
 Do not add a second persisted boxed-editor model. If a new UI shape is needed, add render-only normalized data and keep
 `PortableRootContext` as the authored snapshot.
@@ -194,6 +185,23 @@ Do not add a second persisted boxed-editor model. If a new UI shape is needed, a
 Portable metadata keys such as `@kind`, `@description`, `@node`, `@node-name`, `@model-name`, and `@model-version` are
 not normalized as child fields. `BoxHeader` presents the applicable modeler metadata, and mutation conversion helpers
 must preserve metadata that is unrelated to the edit.
+
+### 4.1 Portable → Cell Code mapping
+
+Portable is the engine-owned authored representation. Cell Code is the intermediate UI representation: the complete
+EdgeRules DSL text owned by one editable cell. `cellCode(...)` is the single mapping boundary from Portable to this
+text; committing Cell Code sends the complete DSL string to `service.set(path, code)`, allowing the engine to parse it
+back into Portable.
+
+| Portable value                             | Render kind  | Cell Code                  |
+| ------------------------------------------ | ------------ | -------------------------- |
+| expression or scalar                       | `expression` | its authored DSL text      |
+| `@kind: "type"`                            | `input`      | `<number, required: true>` |
+| `@kind: "invocation"` with method and args | `expression` | `myFunc(a)`                |
+
+An invocation is therefore one non-expandable expression cell. It has no invocation-specific render node, child
+argument paths, form, action context, or box. Editing the call—including its method and arguments—edits its complete
+Cell Code.
 
 ## 5. EdgeRules API interaction
 
@@ -281,7 +289,6 @@ controller code handles service calls, Portable errors, rollback, refresh, and n
 - Collection items use indexes: `people[0]`.
 - Function bodies are exposed through CRUD paths such as `monthly.result` or `summary.tax`, even though Portable stores
   them beneath `@body`; `resolveAuthoredPath` bridges this authored/CRUD difference.
-- Invocation argument display paths include `@arguments`, but commits rewrite the invocation owner path.
 
 Always use the shared `childPath`, `parentPath`, and engine path conventions. Do not invent UI-only persisted paths.
 
@@ -310,7 +317,6 @@ in the owning collection footer.
 | `useFieldActions`      | Context/field-capable boxes and `BoxHeader`; add, rename, duplicate, remove   |
 | `useMetadataActions`   | Boxes that display editable Portable metadata                                 |
 | `useFunctionActions`   | Function and external-function boxes only                                     |
-| `useInvocationActions` | `InvocationBox` only                                                          |
 | `useListActions`       | List/relation collections and item/row wrappers                               |
 | `useRelationActions`   | `RelationBox` and relation-column actions only                                |
 | `useEditorNavigation`  | `EditorLinkBox` only                                                          |
@@ -340,8 +346,8 @@ similar dispatch flags to `BoxFrame`.
 
 ### 7.2 Expression editing
 
-Only `ExpressionBox` mounts `CodeEditorCell`, and only when its path equals the provider's active expression path. This
-preserves the one-active-editor invariant across the complete tree.
+Only the active `ExpressionBox` or `InputBox` mounts `CodeEditorCell`. This preserves the one-active-editor invariant
+across the complete tree. Both initialize the editor through the Portable → Cell Code mapping.
 
 `expressionEmbedContext(snapshot, activePath)` serializes the surrounding Portable model into a synthetic EdgeRules DSL
 prefix/suffix around the active cell. This gives diagnostics and completions the correct lexical model context without
@@ -373,7 +379,7 @@ Changing these rules requires integration tests with the real engine, especially
 4. **Dispatch once.** Add a discriminated union member and one exhaustive `BoxedNode` branch; do not spread kind checks
    across shared primitives.
 5. **Compose mechanics, do not generalize semantics.** Share row chrome, dialog chrome, and virtualization; keep list,
-   relation, function, and invocation behavior distinct.
+   relation and function behavior distinct.
 6. **Use focused capabilities.** Extend the narrowest existing context or add a focused one. Never pass the complete
    controller through props or context.
 7. **Keep engine mechanics centralized.** Domain boxes request semantic actions; controller code owns CRUD, linked

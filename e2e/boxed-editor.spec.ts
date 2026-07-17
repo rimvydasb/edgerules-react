@@ -172,7 +172,7 @@ test('expression editing initializes and commits every boxed value shape', async
   await page.goto(
     '/iframe.html?id=boxed-editor-boxededitor--invocation&viewMode=story',
   );
-  await editExpression(page, 'payment.@arguments[0]', '1200', '600');
+  await editExpression(page, 'payment', 'monthly(1200)', 'monthly(600)');
 });
 
 test('one cell editor changes number to input to string without dialogs or errors', async ({

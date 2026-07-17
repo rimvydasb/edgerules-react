@@ -7,7 +7,6 @@ import { ExpressionBox } from './boxes/ExpressionBox';
 import { ExternalFunctionBox } from './boxes/ExternalFunctionBox';
 import { FunctionBox } from './boxes/FunctionBox';
 import { InputBox } from './boxes/InputBox';
-import { InvocationBox } from './boxes/InvocationBox';
 import { ListBox } from './boxes/ListBox';
 import { RelationBox } from './boxes/RelationBox';
 
@@ -59,8 +58,6 @@ export function BoxedEntityNode({
       return <FunctionBox node={node} depth={depth} />;
     case 'external-function':
       return <ExternalFunctionBox node={node} depth={depth} />;
-    case 'invocation':
-      return <InvocationBox node={node} depth={depth} />;
     case 'editor-link':
       return <EditorLinkBox node={node} depth={depth} />;
     default:

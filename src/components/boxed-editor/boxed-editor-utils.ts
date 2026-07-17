@@ -7,7 +7,6 @@ import {
 } from './boxed-model';
 import type {
   BoxedEditorService,
-  InvocationDraft,
   SignatureDraft,
   SignatureParameter,
 } from './boxed-editor-types';
@@ -27,34 +26,6 @@ export function typeLabel(
         ? 'input'
         : undefined;
   return direction ? `${type} · ${direction}` : type;
-}
-
-export function expressionText(node: PortableNode): string {
-  if (isObject(node) && String(node['@kind']) === 'expression')
-    return String(node.expression ?? '');
-  if (typeof node === 'string') return node;
-  return JSON.stringify(node);
-}
-
-/** Canonical DSL text for an inline typed-input cell. */
-export function inputText(node: PortableNode): string {
-  if (!isObject(node) || String(node['@kind']) !== 'type')
-    return expressionText(node);
-  const authoredType = (value: unknown): string => {
-    if (typeof value === 'string') return value;
-    if (!isObject(value)) return 'string';
-    if (value.type === 'array') return `${authoredType(value.items)}[]`;
-    return typeof value.type === 'string' ? value.type : 'string';
-  };
-  const attributes: string[] = [];
-  if (node.default !== undefined)
-    attributes.push(`default: ${JSON.stringify(node.default)}`);
-  if (node.required === true) attributes.push('required: true');
-  if (Array.isArray(node.enum) && node.enum.length)
-    attributes.push(`enum: ${JSON.stringify(node.enum)}`);
-  if (typeof node['@description'] === 'string')
-    attributes.push(`description: ${JSON.stringify(node['@description'])}`);
-  return `<${authoredType(node)}${attributes.length ? `, ${attributes.join(', ')}` : ''}>`;
 }
 
 export function metadataText(node: PortableNode): string {
@@ -77,21 +48,6 @@ export function parseMetadataText(
     nodeKind: match[1],
     ...(match[2] ? { nodeName: JSON.parse(match[2]) as string } : {}),
   };
-}
-
-export function invocationText(node: Record<string, unknown>): string {
-  const method = String(node['@method'] ?? '');
-  const argumentsValue = node['@arguments'];
-  if (Array.isArray(argumentsValue))
-    return `${method}(${argumentsValue.map((value) => (typeof value === 'string' ? value : JSON.stringify(value))).join(', ')})`;
-  if (isObject(argumentsValue))
-    return `${method}(${Object.entries(argumentsValue)
-      .map(
-        ([name, value]) =>
-          `${name}: ${typeof value === 'string' ? value : JSON.stringify(value)}`,
-      )
-      .join(', ')})`;
-  return `${method}()`;
 }
 
 export function functionSignature(
@@ -147,24 +103,6 @@ export function signatureNode(draft: SignatureDraft): PortableNode {
     '@kind': external ? 'external-function' : 'function',
     '@parameters': parameters,
     ...(returnType.trim() ? { '@return': returnType.trim() } : {}),
-  } as PortableNode;
-}
-
-export function invocationNode(draft: InvocationDraft): PortableNode {
-  const { node, method, named, arguments: draftArguments } = draft;
-  const argumentsValue = named
-    ? Object.fromEntries(
-        draftArguments
-          .filter((argument) => argument.name.trim())
-          .map((argument) => [argument.name.trim(), argument.value]),
-      )
-    : draftArguments.map((argument) => argument.value);
-  const { '@type': _type, ...authored } = node;
-  return {
-    ...authored,
-    '@kind': 'invocation',
-    '@method': method.trim(),
-    '@arguments': argumentsValue,
   } as PortableNode;
 }
 

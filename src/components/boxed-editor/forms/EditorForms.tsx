@@ -2,8 +2,6 @@ import type { Dispatch, ReactElement, SetStateAction } from 'react';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
@@ -11,7 +9,6 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type {
   AddFieldDraft,
-  InvocationDraft,
   ListItemDraft,
   RelationColumnDraft,
   SignatureDraft,
@@ -179,138 +176,6 @@ export function FunctionSignatureForm({
           )
         }
       />
-    </EditorDialog>
-  );
-}
-
-export function InvocationForm({
-  draft,
-  setDraft,
-  error,
-  commit,
-}: {
-  draft: InvocationDraft | null;
-  setDraft: Setter<InvocationDraft>;
-  error?: string;
-  commit: () => void;
-}): ReactElement {
-  return (
-    <EditorDialog
-      open={Boolean(draft)}
-      title="Edit invocation"
-      error={error}
-      onCancel={() => setDraft(null)}
-      onSubmit={commit}
-      submitLabel="Save invocation"
-      minWidth={420}
-    >
-      <TextField
-        label="Method"
-        value={draft?.method ?? ''}
-        onChange={(event) =>
-          setDraft((current) =>
-            current ? { ...current, method: event.target.value } : current,
-          )
-        }
-      />
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={draft?.named === true}
-            onChange={(event) =>
-              setDraft((current) =>
-                current
-                  ? {
-                      ...current,
-                      named: event.target.checked,
-                      arguments: current.arguments.map((argument) => ({
-                        ...argument,
-                        name: event.target.checked ? argument.name : '',
-                      })),
-                    }
-                  : current,
-              )
-            }
-          />
-        }
-        label="Named arguments"
-      />
-      {draft?.arguments.map((argument, index) => (
-        <Box key={index} sx={{ display: 'flex', gap: 1 }}>
-          <TextField
-            label={
-              draft.named
-                ? `Argument ${index + 1} name`
-                : `Argument ${index + 1}`
-            }
-            value={draft.named ? argument.name : String(index + 1)}
-            disabled={!draft.named}
-            onChange={(event) =>
-              setDraft((current) =>
-                current
-                  ? {
-                      ...current,
-                      arguments: current.arguments.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, name: event.target.value }
-                          : item,
-                      ),
-                    }
-                  : current,
-              )
-            }
-          />
-          <TextField
-            label={`Argument ${index + 1} expression`}
-            value={argument.value}
-            onChange={(event) =>
-              setDraft((current) =>
-                current
-                  ? {
-                      ...current,
-                      arguments: current.arguments.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, value: event.target.value }
-                          : item,
-                      ),
-                    }
-                  : current,
-              )
-            }
-          />
-          <IconButton
-            aria-label={`Remove argument ${index + 1}`}
-            onClick={() =>
-              setDraft((current) =>
-                current
-                  ? {
-                      ...current,
-                      arguments: current.arguments.filter(
-                        (_, itemIndex) => itemIndex !== index,
-                      ),
-                    }
-                  : current,
-              )
-            }
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      ))}
-      <Button
-        onClick={() =>
-          setDraft((current) =>
-            current
-              ? {
-                  ...current,
-                  arguments: [...current.arguments, { name: '', value: '0' }],
-                }
-              : current,
-          )
-        }
-      >
-        Add argument
-      </Button>
     </EditorDialog>
   );
 }

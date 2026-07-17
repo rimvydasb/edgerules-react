@@ -12,7 +12,6 @@ import { ExpressionBox } from '../boxes/ExpressionBox';
 import { ExternalFunctionBox } from '../boxes/ExternalFunctionBox';
 import { FunctionBox } from '../boxes/FunctionBox';
 import { InputBox } from '../boxes/InputBox';
-import { InvocationBox } from '../boxes/InvocationBox';
 import { ListBox } from '../boxes/ListBox';
 import { RelationBox } from '../boxes/RelationBox';
 
@@ -47,7 +46,6 @@ function renderDomainBox(
       cancel: vi.fn(),
     },
     functions: { editSignature: vi.fn() },
-    invocation: { edit: vi.fn() },
     list: {
       addItem: vi.fn(),
       duplicateItem: vi.fn(),
@@ -72,7 +70,6 @@ function renderDomainBox(
       field={commands.field}
       metadata={commands.metadata}
       functions={commands.functions}
-      invocation={commands.invocation}
       list={commands.list}
       relation={commands.relation}
       navigation={commands.navigation}
@@ -142,12 +139,6 @@ describe('boxed-editor domain boxes', () => {
           '@parameters': {},
           '@return': 'any',
         },
-      },
-      {
-        id: 'invocation',
-        path: 'invocation',
-        kind: 'invocation',
-        authored: { '@kind': 'invocation', '@method': 'f', '@arguments': [] },
       },
       {
         id: 'link',
@@ -307,44 +298,29 @@ describe('boxed-editor domain boxes', () => {
     expect(commands.functions.editSignature).toHaveBeenCalledWith(value);
   });
 
-  it('InvocationBox composes InvocationArgumentBox children and owns invocation-wide editing', async () => {
-    const argument = node({
-      id: 'payment.@arguments[0]',
-      path: 'payment.@arguments[0]',
-      name: 'Argument 1',
-      kind: 'expression',
-      authored: 'amount',
-      invocation: { path: 'payment', argument: 0 },
-    });
+  it('ExpressionBox maps a Portable invocation to one editable DSL cell', async () => {
     const value = node({
       id: 'payment',
       path: 'payment',
       name: 'payment',
-      kind: 'invocation',
+      kind: 'expression',
       authored: {
         '@kind': 'invocation',
         '@method': 'monthly',
         '@arguments': ['amount'],
       },
-      children: [argument],
     });
     const commands = renderDomainBox(
-      <InvocationBox node={value} depth={0} />,
+      <ExpressionBox node={value} depth={0} />,
       value.path,
     );
-    expect(screen.getByRole('row', { name: argument.path })).toHaveTextContent(
-      'amount',
-    );
+    const row = screen.getByRole('row', { name: value.path });
+    expect(row).toHaveTextContent('monthly(amount)');
     expect(screen.getByText('payment error')).toBeInTheDocument();
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Edit invocation payment' }),
-    );
-    expect(commands.invocation.edit).toHaveBeenCalledWith(value);
+    await userEvent.click(within(row).getAllByRole('cell')[3]);
+    expect(commands.expression.activate).toHaveBeenCalledWith(value);
     expect(
-      within(screen.getByRole('row', { name: argument.path })).queryByRole(
-        'button',
-        { name: /rename/i },
-      ),
+      screen.queryByRole('button', { name: /expand/i }),
     ).not.toBeInTheDocument();
   });
 

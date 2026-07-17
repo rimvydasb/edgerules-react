@@ -8,7 +8,7 @@ import {
   useBoxedEditorState,
   useExpressionActions,
 } from '../BoxedEditorProvider';
-import { expressionText } from '../boxed-editor-utils';
+import { cellCode } from '../cell-code';
 import { BoxFrame } from '../primitives/BoxFrame';
 import { BoxHeader } from '../primitives/BoxHeader';
 import { BoxTypeChip } from '../primitives/BoxTypeChip';
@@ -45,7 +45,7 @@ export function ExpressionBox({
       value={
         editing ? (
           <CodeEditorCell
-            value={expressionText(node.authored)}
+            value={cellCode(node.authored)}
             service={state.languageService}
             embedContext={expressionEmbedContext(state.snapshot, node.path)}
             autoFocus
