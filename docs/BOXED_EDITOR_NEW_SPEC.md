@@ -1,5 +1,10 @@
 # Boxed Editor Specification
 
+A lot of complexities and poor design patterns where used in the current Boxed Editor
+implementation: [BOXED_EDITOR_OLD_SPEC.md](BOXED_EDITOR_OLD_SPEC.md); [boxed-editor](../src/components/boxed-editor)
+This document is a specification for the new Boxed Editor implementation that will implement GUI language and
+state-of-the-art design patterns.
+
 - GUI Reference Frames `/Users/rimvydasbingelis/Projects/EdgeRules/edgerules-react-frames/src`
 - ![reference.png](/Users/rimvydasbingelis/Projects/EdgeRules/edgerules-react-frames/docs/reference.png)
 
@@ -164,9 +169,13 @@ interface BoxedEditorProps {
 ```typescript
 interface BoxedEditorService {
     setDescriptionService(descriptionService: DocumentationService): void;
+
     setTestCasesService(testCasesService: TestCasesService): void;
+
     getBoxedRowData(path: string): BoxedRowData | undefined;
+
     getBoxedRowsData(path: string): BoxedRowData[];
+
     // ... TBC
 }
 ```
