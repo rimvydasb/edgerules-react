@@ -83,8 +83,8 @@ The package entry point is `edgerules-react/boxed-editor`. Its public API is int
 ```ts
 interface BoxedEditorProps {
     service: BoxedEditorService; // The mutable EdgeRules model authority. The editor never maintains a second persisted model.
-    testCasesService: TestCasesService; // Can provide executed test cases and their results for `TestResultsColumn`.
-    documentationService: DocumentationService; // For each fully qualified path can provide a or set description that will be used in `DescriptionColumn`.
+    testCasesService?: TestCasesService; // Can provide executed test cases and their results for `TestResultsColumn`.
+    documentationService?: DocumentationService; // For each fully qualified path can provide a or set description that will be used in `DescriptionColumn`.
     path: string; // The authored CRUD path to show. Use `"*"` for the complete model.
     languageService?: CodeEditorService; // Supplies diagnostics and completions to the one active expression cell.
     revision?: string | number; // Host-controlled invalidation token. Change it after model edits made outside this editor.
@@ -159,15 +159,38 @@ interface BoxedEditorProps {
 
 ## `BoxedEditorService` API
 
-TODO: need to finish this part
+> TODO: need to finish this part
 
 ```typescript
+interface BoxedEditorService {
+    setDescriptionService(descriptionService: DocumentationService): void;
+    setTestCasesService(testCasesService: TestCasesService): void;
+    getBoxedRowData(path: string): BoxedRowData | undefined;
+    getBoxedRowsData(path: string): BoxedRowData[];
+    // ... TBC
+}
+```
 
+`BoxedEditorService` returns `BoxedRowData` that contains all normalized data from the EdgeRules Portable.
+`BoxedRowData` is also used to convert edited DSL data to back to Portable to persist back to EdgeRules
+`MutableDecisionService`.
+
+```typescript
+interface BoxedRowData {
+    depth: number; // Depth of the item within the context tree. Basically calculated by counting dots in path.
+    path: string; // Fully qualified path to the item within the context tree used for `get` and `set` operations.
+    name: string; // for `NameColumn` 
+    value?: string; // for `ValueColumn`
+    type?: string; // for `TypeColumn`
+    description?: string; // for `DescriptionColumn`
+    testResults?: TestResult[]; // for `TestResultsColumn`
+    children?: BoxedRowData[]; // for nested rows
+}
 ```
 
 ## `TestCasesService` API
 
-TODO: need to finish this part
+> TODO: need to finish this part
 
 ```typescript
 
@@ -175,7 +198,7 @@ TODO: need to finish this part
 
 ## `DocumentationService` API
 
-TODO: need to finish this part
+> TODO: need to finish this part
 
 ```typescript
 
