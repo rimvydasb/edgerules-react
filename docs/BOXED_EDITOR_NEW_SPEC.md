@@ -22,8 +22,9 @@ conventions and proposes much more convenient and compact layouts and ergonomics
 - `FunctionRow` - standard functions, loops and optimise functions
 - `ListRow` - it is just a name of the function, list does not have a header
 - `ListItemRow` - single item of the list
-- `RelationsRow` - list of complex objects share same fields that are used to display column names in relation
-  table header
+- `RelationsRow` - header of a list of complex objects that share the same fields; those fields are used to display
+  the column names in the relation table header
+- `RelationsItemRow` - single record (row) of a relation, one cell per relation column
 - `ContextRow` - complex object that can contain other rows
 - `ComplexTypeRow` - complex object that can contain other rows
 - `TypeDefinitionRow` - class field definition row
@@ -45,9 +46,11 @@ conventions and proposes much more convenient and compact layouts and ergonomics
 
 **Clarifications:**
 
-(**) - Before `RelationsHeaderRow` there's always `ContextRow`, because as usual relationships are assigned to the
-field.
-(*) - lists are homogenous
+(*) - lists are homogenous, so `ListItemRow` never repeats the element type; the type is carried once by the
+parent `ListRow`.
+
+- A `RelationsRow` is normally nested under a `ContextRow` (or the model header), because relations are usually
+  assigned to a named field. `RelationsItemRow`s are always children of a `RelationsRow` and share its columns.
 
 **Common Columns for all row types:**
 
@@ -88,8 +91,6 @@ The package entry point is `edgerules-react/boxed-editor`. Its public API is int
 ```ts
 interface BoxedEditorProps {
     service: BoxedEditorService; // The mutable EdgeRules model authority. The editor never maintains a second persisted model.
-    testCasesService?: TestCasesService; // Can provide executed test cases and their results for `TestResultsColumn`.
-    documentationService?: DocumentationService; // For each fully qualified path can provide a or set description that will be used in `DescriptionColumn`.
     path: string; // The authored CRUD path to show. Use `"*"` for the complete model.
     languageService?: CodeEditorService; // Supplies diagnostics and completions to the one active expression cell.
     revision?: string | number; // Host-controlled invalidation token. Change it after model edits made outside this editor.
@@ -105,6 +106,23 @@ interface BoxedEditorProps {
     sx?: SxProps<Theme>; // Optional MUI `sx` prop for styling the root element.
 }
 ```
+
+**Notes:**
+
+- `onOpenNode` routes specialized nodes to their host editors.
+
+```ts
+type BoxedEditorTargetKind = 'type-definition' | 'ruleset' | 'loop' | 'boxed-editor' | `code-editor`;
+
+interface BoxedEditorOpenTarget {
+    path: string;
+    kind: BoxedEditorTargetKind;
+}
+```
+
+- `expanded` sets the **initial** global expand state only. After first render each `FunctionRow` / `ContextRow` /
+  `ComplexTypeRow` keeps its own expand/collapse state, toggled from its context menu. Changing `revision` does not
+  reset per-row expand state.
 
 ## Context Menu
 
@@ -137,11 +155,44 @@ interface BoxedEditorProps {
 - Add Relation - adds new relation row to the context
 - Add Complex Type - adds new complex type row to the context
 
+`ListRow`:
+
+- Add Item - appends a new (empty) `ListItemRow` to the list
+
+`ListItemRow`:
+
+- Add Item Below - inserts a new (empty) `ListItemRow` after the selected item
+
+`RelationsRow`:
+
+- Add Row - appends a new empty `RelationsItemRow` to the relation
+- Add Column - appends a new field/column to every record in the relation
+
+`RelationsItemRow`:
+
+- Add Row Below - inserts a new empty `RelationsItemRow` after the selected record
+
+`ComplexTypeRow`:
+
+- Add Field - adds a new `TypeDefinitionRow` to the complex type
+
+`TypeDefinitionRow`:
+
+- Add Field Below - inserts a new `TypeDefinitionRow` after the selected field
+
 `FunctionRow`, `ContextRow`, `ComplexTypeRow`:
 
 - Expand / Collapse toggle - expands or collapses the row to show or hide its children
 
-> TODO: need to finish this part
+**Enablement rules:**
+
+- `Delete` is hidden/disabled for rows the engine marks read-only (`BoxedRowData.deletable === false`) — e.g. the
+  synthesized `result` field of a function, or a field required by the model.
+- `Paste Below` is enabled only when the clipboard row kind is valid in the target context (for example a
+  `TypeDefinitionRow` can only be pasted inside a `ComplexTypeRow`, a `ListItemRow` only inside a `ListRow`).
+- All add-actions insert at the position implied by their name (a child at the end of the container, or a sibling
+  directly below the selected row) and then re-apply the [Normalization Rules](#normalization-rules) sort order.
+- In `readOnly` mode every mutating action is hidden; only `Copy` and the view toggles remain.
 
 ## Special Actions
 
@@ -162,53 +213,251 @@ interface BoxedEditorProps {
 2. All context elements are re-sorted by type in this order: `Types`, `Functions`, everything else. `result` field to
    the bottom.
 
+## Service composition
+
+`BoxedEditorService` is the single facade the `BoxedEditor` component talks to. It is a **normalizing adapter**: it
+owns a reference to the authoritative `MutableDecisionService` (from `@edgerules/web` / `@edgerules/node`) and
+enriches its Portable data with descriptions and test results before handing rows to the view. The component itself
+holds no second persisted model.
+
+```mermaid
+classDiagram
+    class BoxedEditor {
+        <<Reactcomponent>>
+        +props: BoxedEditorProps
+    }
+    class BoxedEditorService {
+        <<facade>>
+        +getBoxedRowsData(path) BoxedRowData[]
+        +getBoxedRowData(path) BoxedRowData?
+        +setBoxedRowData(path, row) PortableNode|PortableError
+        +remove(path) void|PortableError
+        +rename(path, newName) void|PortableError
+        +move(fromPath, toParentPath, index) void|PortableError
+        +toPortable() PortableRootContext
+    }
+    class MutableDecisionService {
+<<engine, @edgerules/web>>
++get(path, filter?) PortableNode|PortableError
++set(path, node) PortableNode|PortableError
++remove(path) void|PortableError
++rename(path, newName) void|PortableError
+}
+class DocumentationService {
++getDescription(path) string?
++setDescription(path, text) void
+}
+class TestCasesService {
++listTestCases() TestCase[]
++getResults(testCaseId) TestResultsByPath
+}
+
+BoxedEditor --> BoxedEditorService: reads rows / commits edits
+BoxedEditorService --> MutableDecisionService: get / set / remove / rename
+BoxedEditorService --> DocumentationService : enrich description
+BoxedEditorService --> TestCasesService: enrich testResults
+```
+
 ## `BoxedEditorService` API
 
-> TODO: need to finish this part
+`BoxedEditorService` returns `BoxedRowData` that contains all normalized data from the EdgeRules Portable.
+`BoxedRowData` is also used to convert edited data back to Portable to persist to the underlying
+`MutableDecisionService`. The facade is constructed with the mutable service; the two enrichment services are
+optional and can be injected up front or via setters.
 
 ```typescript
 interface BoxedEditorService {
-    setDescriptionService(descriptionService: DocumentationService): void;
+    // --- Enrichment wiring (optional) ---
+    setDocumentationService(documentationService: DocumentationService): void;
 
     setTestCasesService(testCasesService: TestCasesService): void;
 
-    getBoxedRowData(path: string): BoxedRowData | undefined;
-
+    // --- Normalized read ---
+    // Children rows of the context/container at `path`, already normalized and sorted
+    // (see Normalization Rules). Pass `"*"` for the whole model.
     getBoxedRowsData(path: string): BoxedRowData[];
 
-    // ... TBC
+    // A single row (without materializing its children). Returns `undefined` if the path is absent.
+    getBoxedRowData(path: string): BoxedRowData | undefined;
+
+    // --- Mutation (denormalizes the row to Portable, delegates to the mutable service) ---
+    setBoxedRowData(path: string, row: BoxedRowData): PortableNode | PortableError;
+
+    remove(path: string): void | PortableError;
+
+    rename(path: string, newName: string): void | PortableError;
+
+    // Drag & drop reorder / reparent. `index` is the target position among the destination's children.
+    move(fromPath: string, toParentPath: string, index: number): void | PortableError;
+
+    // --- Escape hatch ---
+    toPortable(): PortableRootContext;
 }
 ```
 
-`BoxedEditorService` returns `BoxedRowData` that contains all normalized data from the EdgeRules Portable.
-`BoxedRowData` is also used to convert edited DSL data to back to Portable to persist back to EdgeRules
-`MutableDecisionService`.
+`BoxedRowData` is the normalized, render-ready shape for one row. Optional fields are populated only for the row
+kinds that use them (e.g. `parameters` for `FunctionRow`, `columns`/`cells` for relations).
 
 ```typescript
+type BoxedRowKind =
+    | 'model-header'
+    | 'expression'
+    | 'function'
+    | 'list'
+    | 'list-item'
+    | 'relations'
+    | 'relations-item'
+    | 'context'
+    | 'complex-type'
+    | 'type-definition';
+
 interface BoxedRowData {
-    depth: number; // Depth of the item within the context tree. Basically calculated by counting dots in path.
-    path: string; // Fully qualified path to the item within the context tree used for `get` and `set` operations.
-    name: string; // for `NameColumn` 
-    value?: string; // for `ValueColumn`
-    type?: string; // for `TypeColumn`
-    description?: string; // for `DescriptionColumn`
-    testResults?: TestResult[]; // for `TestResultsColumn`
-    children?: BoxedRowData[]; // for nested rows
+    kind: BoxedRowKind; // Discriminant that selects the row renderer and its context menu.
+    depth: number; // Depth within the context tree (dot count in `path`); drives NameColumn indent cells.
+    path: string; // Fully qualified path used for get / set / remove / rename / move.
+    name: string; // NameColumn label. Generated `Item N` for list-item and relations-item rows.
+    value?: string; // ValueColumn content (expression text, list value, type constraint, ...).
+    type?: string; // TypeColumn chip; omitted for unnamed complex objects.
+    description?: string; // DescriptionColumn; sourced from the DocumentationService when wired.
+    readOnly?: boolean; // Engine-marked read-only (e.g. synthesized `result`, linked type).
+    deletable?: boolean; // Whether the Delete action is offered (defaults to true when omitted).
+    parameters?: SignatureParameter[]; // FunctionRow argument headers rendered in the ValueColumn.
+    columns?: string[]; // RelationsRow column names (relation table header).
+    cells?: string[]; // RelationsItemRow per-column values, aligned to the parent `columns`.
+    testResults?: TestResult[]; // One entry per test case, aligned to `TestCasesService.listTestCases()` order.
+    children?: BoxedRowData[]; // Nested rows (context / function / type / list / relation bodies).
 }
+```
+
+> Todo: we need to think if we should keep testResults in BoxedRowData - maybe testResults should have their own shallow
+> state (not buried inside boxed items) - this is important because we will use previous and next buttons to quickly
+> navigate test cases and I do not want to trigger React to re-check deep states of Boxed items. What would you advise?
+
+> Todo: Same with `description` as with `testResults` - descriptions will be stored in IndexedDB by model name and
+> path - descriptions will not be in EdgeRules DSL!
+
+### Edit → persist → refresh flow
+
+Every committed edit follows the same path: the view denormalizes the changed row, the facade delegates to the
+mutable service, then a fresh normalized snapshot is read back and `onChange` fires once.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant BoxedEditor
+    participant BoxedEditorService
+    participant MutableDecisionService as MutableDecisionService (engine)
+    User ->> BoxedEditor: edit cell / drag row / menu action
+    BoxedEditor ->> BoxedEditorService: setBoxedRowData(path, row) / move / remove / rename
+    BoxedEditorService ->> BoxedEditorService: denormalize row → PortableNode (Normalization Rules)
+    BoxedEditorService ->> MutableDecisionService: set / remove / rename(path, ...)
+    alt PortableError
+        MutableDecisionService -->> BoxedEditorService: PortableError
+        BoxedEditorService -->> BoxedEditor: PortableError (edit rejected, cell keeps focus)
+    else success
+        MutableDecisionService -->> BoxedEditorService: PortableNode (linked, type-enriched)
+        BoxedEditor ->> BoxedEditorService: getBoxedRowsData(path)
+        BoxedEditorService -->> BoxedEditor: normalized BoxedRowData[]
+        BoxedEditor ->> BoxedEditor: onChange(service.toPortable())
+    end
 ```
 
 ## `TestCasesService` API
 
-> TODO: need to finish this part
+Supplies the `TestResultsColumn`. The service owns the list of executed test cases and their per-path results; the
+`BoxedEditor` is a pure consumer and never runs the engine itself. The header of the column shows the current test
+case name and a `1/N` counter with previous/next buttons; each expression/field row shows that case's computed value
+on its own line.
+
+> Todo: Test case results are stored in IndexedDB by test execution service (execution is out of scope). The point is
+> that `TestCasesService` will find out how many test cases with results are stored in indexed db and allow user to
+> check
+> them.
+
+The results are keyed by the same fully qualified `path` used by `BoxedRowData`, so the facade can align them per
+row. Values are rendered as already-serialized display strings (the engine's wire form: `320000`, `'Ada'`,
+`2 items`, `Missing('x')`, ...).
 
 ```typescript
+interface TestCase {
+    id: string; // Stable identifier used to fetch results.
+    name: string; // Display name shown in the TestResultsColumn header, e.g. "Standard application".
+}
 
+type TestResultStatus = 'ok' | 'error' | 'missing' | 'pending';
+
+interface TestResult {
+    testCaseId: string; // The owning test case.
+    path: string; // Fully qualified path this result belongs to.
+    value?: string; // Serialized display value; omitted when status is 'error'.
+    error?: string; // Message when the path failed to evaluate for this case.
+    status: TestResultStatus;
+}
+
+interface TestCasesService {
+    // Ordered list of test cases; index drives the previous/next navigation and the `1/N` counter.
+    listTestCases(): TestCase[];
+
+    // All results for one test case, keyed by path. The facade folds these into each BoxedRowData.testResults.
+    getResults(testCaseId: string): Record<string, TestResult>;
+}
 ```
+
+> Recomputation is the host's responsibility. When the model changes, the host re-executes its cases and bumps the
+> `revision` prop; the editor then re-reads rows (and their folded-in `testResults`). The editor does not trigger
+> execution — keeping `BoxedEditor` free of any engine dependency.
 
 ## `DocumentationService` API
 
-> TODO: need to finish this part
+Provides and persists the free-text description shown in the `DescriptionColumn`, keyed by fully qualified path.
+Descriptions live outside the Portable model (they are authoring metadata), so the host decides how they are stored.
 
 ```typescript
-
+interface DocumentationService {
+    getDescription(path: string): string | undefined; // Description for a path, or undefined when none is set.
+    setDescription(path: string, description: string): void; // Persist an edited description (empty string clears it).
+}
 ```
+
+> Todo: all descriptions are stored in IndexedDB by model name and path. The point is that `DocumentationService` will
+> find them or not.
+
+When no `documentationService` is supplied (as prop or via the facade setter), the `DescriptionColumn` renders
+empty and its cells are read-only.
+
+## Open Questions
+
+2. **`BoxedEditorService` layering — facade vs. the mutable service itself.** The old spec made `BoxedEditorService`
+   the `get`/`set`/`remove`/`rename` mutable-service subset; this spec makes it a higher-level normalizing facade
+   returning `BoxedRowData`. It must reach a real `MutableDecisionService` to persist.
+   Question to address: how does the facade obtain the mutable service?
+   Option 1 (recommended): the facade is constructed with a `MutableDecisionService` (`new BoxedEditorService(mutable)`)
+   and delegates internally; the component only ever sees `BoxedEditorService`.
+   Option 2: `BoxedEditorService extends` the mutable-service subset, so it exposes both the raw CRUD and the
+   normalized rows on one object.
+
+> Todo: we missed the point that we probably need `useMutableDecisionService` hook to provide the mutable service to the
+> `BoxedEditorService` facade. How should we solve that based on the best React practices? Maybe we also need
+`useBoxedEditorService` hook to provide the facade to the `BoxedEditor` component. What do you think? Also, where boxed
+> editor rows state will be stored in React?
+
+4. **`readOnly` mode still shows ordering handles.** The `readOnly` prop is described as disabling ordering while
+   "retaining ... visible ordering handles". A visible drag handle that does nothing is a misleading affordance.
+   Question to address: what should `readOnly` do to drag handles?
+   Option 1 (recommended): hide the drag/reorder handles entirely in `readOnly` mode.
+   Option 2: render them disabled (greyed, non-interactive) if the handle doubles as a purely visual grouping/indent
+   cue — but then say so explicitly.
+
+> This is a tricky part: we cannot hide drag and drop handles, because function and type icons are drag drop handles by
+> themselves! Better leave 6 dot handle as well.
+
+5. **Result-column value serialization contract.** `TestResult.value` and `BoxedRowData` cell values are "already
+   serialized display strings". The engine's wire form (`Missing('x')`, ISO dates) is precise but not always
+   user-friendly, and `2 items` in the reference frame is a UI summary, not an engine value.
+   Question to address: does the host pre-format display strings, or does `BoxedEditor` own presentation (e.g. array →
+   `"N items"`, truncation, locale/number formatting)?
+   Option 1: host supplies raw engine serialization; `BoxedEditor` applies all display formatting (summaries,
+   truncation) so formatting is consistent across hosts.
+   Option 2: host supplies final display strings; `BoxedEditor` renders them verbatim.
+
+> Answer: `BoxedEditor` applies all display formatting
