@@ -67,7 +67,7 @@ Exact column occupancy (which rows span `NameColumn`+`ValueColumn` as one cell v
 here — read it straight from `App.tsx`, which is the living reference for every row's layout.
 
 | Row Type                      | Row Type Key                    | Actions                                                                                                           | Short Description                                                                    |
-|-------------------------------|---------------------------------|-------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| ----------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Model Header                  | `model`                         | Add Field, Add Function, Add Optimisation, Add Decision Table, Add Relation, Add List, Model Settings             | Root row: model name; fixed position, not sortable, not deletable                    |
 | Type Field                    | `field`                         | Convert to Context, Convert to Relation, Convert to List, Duplicate, Delete                                       | Generic leaf: a class field, a typed input, or a computed expression                 |
 | Context                       | `context`                       | Add Field, Add Function, Add Decision Table, Add Relation, Add List, Duplicate, Delete, Expand/Collapse           | Named nested object                                                                  |
@@ -81,14 +81,14 @@ here — read it straight from `App.tsx`, which is the living reference for ever
 | Decision Table                | `ruleset`                       | Add Rule, Add Condition Column, Add Action Column, Delete "‹column›" Column (per column), Delete, Expand/Collapse | A named rule matrix (DMN-style decision table)                                       |
 | Rule                          | `rule`                          | Duplicate, Delete                                                                                                 | One row of a decision table's rule matrix                                            |
 | Ruleset Default               | `ruleset-default`               | Delete                                                                                                            | Singleton fallback row shown when no rule matches; not duplicable                    |
-| Ruleset Hit Policy            | `ruleset-hit-policy`            | *(none — edited via its own picker chip)*                                                                         | Fixed `hitPolicy` setting                                                            |
+| Ruleset Hit Policy            | `ruleset-hit-policy`            | _(none — edited via its own picker chip)_                                                                         | Fixed `hitPolicy` setting                                                            |
 | Optimisation                  | `optimisation`                  | Duplicate, Delete, Expand/Collapse                                                                                | A named linear optimisation problem (`optimise`)                                     |
 | Optimisation Variable Group   | `optimisation-variable-group`   | Add Variable                                                                                                      | Fixed `variables:` section header; not draggable                                     |
 | Optimisation Variable         | `optimisation-variable`         | Duplicate, Delete                                                                                                 | One decision variable (a Typed Input Wrapper)                                        |
 | Optimisation Objective        | `optimisation-objective`        | Switch to Minimise/Maximise                                                                                       | Fixed `maximise`/`minimise` row; exactly one, required; not draggable                |
 | Optimisation Constraint Group | `optimisation-constraint-group` | Add Constraint                                                                                                    | Fixed `constraints:` section header; not draggable                                   |
 | Optimisation Constraint       | `optimisation-constraint`       | Duplicate, Delete                                                                                                 | One named linear constraint                                                          |
-| Optimisation Setting          | `optimisation-setting`          | *(none — edited via its own control)*                                                                             | Fixed `using` / `bottlenecks` / `timeLimit` settings                                 |
+| Optimisation Setting          | `optimisation-setting`          | _(none — edited via its own control)_                                                                             | Fixed `using` / `bottlenecks` / `timeLimit` settings                                 |
 
 **Common to every row:**
 
@@ -308,11 +308,12 @@ interface BoxedEditorProps {
 - `onOpenNode` routes specialized nodes to their host editors.
 
 ```ts
-type BoxedEditorTargetKind = 'type-definition' | 'ruleset' | 'loop' | 'boxed-editor' | 'code-editor';
+type BoxedEditorTargetKind =
+  'type-definition' | 'ruleset' | 'loop' | 'boxed-editor' | 'code-editor';
 
 interface BoxedEditorOpenTarget {
-    path: string;
-    kind: BoxedEditorTargetKind;
+  path: string;
+  kind: BoxedEditorTargetKind;
 }
 ```
 
@@ -321,7 +322,7 @@ interface BoxedEditorOpenTarget {
 backs the `View as code` action (opens the CodeMirror editor on the model text). The host owns those editor
 instances; `BoxedEditor` only emits the routing request — a `code-editor` target carries just the `path`, and
 resolving that into actual code text or a rendered editor is entirely the host's responsibility, not `BoxedEditor`'s.
-`ruleset` is the one target kind whose node is *also* fully
+`ruleset` is the one target kind whose node is _also_ fully
 editable inline (see [Ruleset and optimisation row composition](#ruleset-and-optimisation-row-composition)) — opening it
 is for the dedicated full-screen
 ergonomics, not because the inline view is read-only. `optimise` is edited exclusively inline, through `BoxedEditor`'s
@@ -346,7 +347,7 @@ defines what each action does; a "per instance" action (e.g. one Delete-column e
 once here and is repeated once per instance in the actual menu.
 
 | Action                                      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-|---------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Delete                                      | Deletes the selected row. Hidden/disabled when `BoxedRowData.deletable` is `false` (e.g. a function's synthesized `result`, `ruleset-default`, or a field required by the model).                                                                                                                                                                                                                                                                                           |
 | Duplicate                                   | Copies the row — and, for a container, all its children — and inserts the copy directly below the original. Auto-renames on a **named** kind (`field`, `context`, `complexType`, `function`, `optimisation`, `optimisation-variable`, `optimisation-constraint`) to avoid an immediate collision with the source's own name; a **positional** kind (`list-item`, `relation-item`, `rule`) needs no rename, so Duplicate doubles as "insert a new one right after this one". |
 | Model Settings                              | Opens a form for model-level metadata (name, version, description). Whether `View as code` also lives here is unresolved — see [Open Questions](#open-questions) #1.                                                                                                                                                                                                                                                                                                        |
@@ -392,7 +393,7 @@ Every appendable container also renders a trailing placeholder row — interacti
 listed kind without opening the context menu:
 
 | Container Kind                               | Placeholder Row Kind      | Label              |
-|----------------------------------------------|---------------------------|--------------------|
+| -------------------------------------------- | ------------------------- | ------------------ |
 | `model` (root), `context`, `function` (body) | `field`                   | "(new item)"       |
 | `complexType`                                | `field`                   | "(new field)"      |
 | `list`                                       | `list-item`               | "(new item)"       |
@@ -429,7 +430,7 @@ Valid drop targets (a drop outside these is rejected, the row snaps back):
 
 1. Inline functions will have a `result` field.
 2. All context elements are re-sorted in this order: `Types` (`complexType`), `Functions` (`function`), `Decision
-   Tables` (`ruleset`), `Optimisations` (`optimisation`), everything else (`context`/`list`/`relation`/`field`), with
+Tables` (`ruleset`), `Optimisations` (`optimisation`), everything else (`context`/`list`/`relation`/`field`), with
    the synthesized `result` field of a function body sorted to the bottom. This order is read directly off the
    wireframe's `App.tsx` composition (Applicant type → monthly/creditScore functions → risk ruleset →
    factoryProduction optimisation → application context → reviewStages list → relations → plain expressions).
@@ -444,7 +445,7 @@ Valid drop targets (a drop outside these is rejected, the row snaps back):
 A CRUD-addressable array normalizes to one of two row shapes depending on its item type:
 
 | Dimension           | List                                    | Relation                                                                                                                                                       |
-|---------------------|-----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Item shape          | scalar                                  | complex object (context)                                                                                                                                       |
 | Header row kind     | `list`                                  | `relation`                                                                                                                                                     |
 | Item row kind       | `list-item`                             | `relation-item`                                                                                                                                                |
@@ -473,7 +474,7 @@ Furthermore, each `BoxedEditorService` boxed editor data change will invoke Edge
 but test cases navigation or description update will not trigger re-calculations.
 
 | Source                 | Owns                                        | Keyed by | Storage                          | Feeds                       |
-|------------------------|---------------------------------------------|----------|----------------------------------|-----------------------------|
+| ---------------------- | ------------------------------------------- | -------- | -------------------------------- | --------------------------- |
 | `BoxedEditorService`   | Portable-derived structure (`BoxedRowData`) | `path`   | the authored model (via engine)  | Name/Value/description cols |
 | `DocumentationService` | free-text descriptions                      | `path`   | IndexedDB (by model name + path) | DescriptionColumn           |
 | `TestCasesService`     | executed test cases and their results       | `path`   | IndexedDB (by model + case)      | TestResultsColumn           |
@@ -537,39 +538,46 @@ descriptions and test results are separate overlays (above) and are not wired in
 type Unsubscribe = () => void;
 
 interface BoxedEditorService {
-    // --- Normalized read ---
-    // Children rows of the context/container at `path`, already normalized and sorted
-    // (see Normalization Rules). Pass `"*"` for the whole model.
-    getBoxedRowsData(path: string): BoxedRowData[];
+  // --- Normalized read ---
+  // Children rows of the context/container at `path`, already normalized and sorted
+  // (see Normalization Rules). Pass `"*"` for the whole model.
+  getBoxedRowsData(path: string): BoxedRowData[];
 
-    // A single row (without materializing its children). Returns `undefined` if the path is absent.
-    getBoxedRowData(path: string): BoxedRowData | undefined;
+  // A single row (without materializing its children). Returns `undefined` if the path is absent.
+  getBoxedRowData(path: string): BoxedRowData | undefined;
 
-    // --- Mutation (denormalizes the row to Portable, delegates to the mutable service) ---
-    setBoxedRowData(path: string, row: BoxedRowData): PortableNode | PortableError;
+  // --- Mutation (denormalizes the row to Portable, delegates to the mutable service) ---
+  setBoxedRowData(
+    path: string,
+    row: BoxedRowData,
+  ): PortableNode | PortableError;
 
-    remove(path: string): void | PortableError;
+  remove(path: string): void | PortableError;
 
-    rename(path: string, newName: string): void | PortableError;
+  rename(path: string, newName: string): void | PortableError;
 
-    // Drag & drop reorder / reparent. `index` is the target position among the destination's children.
-    move(fromPath: string, toParentPath: string, index: number): void | PortableError;
+  // Drag & drop reorder / reparent. `index` is the target position among the destination's children.
+  move(
+    fromPath: string,
+    toParentPath: string,
+    index: number,
+  ): void | PortableError;
 
-    // --- Reactivity ---
-    // Notifies after any internal mutation commits, and after `invalidate()`, so the view can re-read via
-    // useSyncExternalStore.
-    subscribe(listener: () => void): Unsubscribe;
+  // --- Reactivity ---
+  // Notifies after any internal mutation commits, and after `invalidate()`, so the view can re-read via
+  // useSyncExternalStore.
+  subscribe(listener: () => void): Unsubscribe;
 
-    // Drops cached normalized rows for `path` (and its ancestors), or the whole cache when `path` is omitted, and
-    // notifies `subscribe` listeners. Call this after mutating the underlying `MutableDecisionService` through a
-    // surface other than this facade's own methods — e.g. a co-mounted Flow Editor (ReactFlow) editing the same
-    // model — so `BoxedEditorService`'s cache does not go stale. `BoxedEditorProps.revision` (the future React
-    // layer's host-controlled invalidation token) is expected to call this on change; the service itself has no
-    // notion of `revision`.
-    invalidate(path?: string): void;
+  // Drops cached normalized rows for `path` (and its ancestors), or the whole cache when `path` is omitted, and
+  // notifies `subscribe` listeners. Call this after mutating the underlying `MutableDecisionService` through a
+  // surface other than this facade's own methods — e.g. a co-mounted Flow Editor (ReactFlow) editing the same
+  // model — so `BoxedEditorService`'s cache does not go stale. `BoxedEditorProps.revision` (the future React
+  // layer's host-controlled invalidation token) is expected to call this on change; the service itself has no
+  // notion of `revision`.
+  invalidate(path?: string): void;
 
-    // --- Escape hatch ---
-    toPortable(): PortableRootContext;
+  // --- Escape hatch ---
+  toPortable(): PortableRootContext;
 }
 ```
 
@@ -580,69 +588,69 @@ optional fields on every row.
 
 ```typescript
 type BoxedRowKind =
-    | 'model'
-    | 'field'
-    | 'context'
-    | 'complexType'
-    | 'list'
-    | 'list-item'
-    | 'relation'
-    | 'relation-item'
-    | 'function'
-    | 'function-result'
-    | 'ruleset'
-    | 'rule'
-    | 'ruleset-default'
-    | 'ruleset-hit-policy'
-    | 'optimisation'
-    | 'optimisation-setting'
-    | 'optimisation-variable-group'
-    | 'optimisation-variable'
-    | 'optimisation-objective'
-    | 'optimisation-constraint-group'
-    | 'optimisation-constraint';
+  | 'model'
+  | 'field'
+  | 'context'
+  | 'complexType'
+  | 'list'
+  | 'list-item'
+  | 'relation'
+  | 'relation-item'
+  | 'function'
+  | 'function-result'
+  | 'ruleset'
+  | 'rule'
+  | 'ruleset-default'
+  | 'ruleset-hit-policy'
+  | 'optimisation'
+  | 'optimisation-setting'
+  | 'optimisation-variable-group'
+  | 'optimisation-variable'
+  | 'optimisation-objective'
+  | 'optimisation-constraint-group'
+  | 'optimisation-constraint';
 
 interface BoxedRowData {
-    kind: BoxedRowKind; // Discriminant that selects the row renderer and its context menu.
-    depth: number; // Depth within the context tree (dot count in `path`); drives NameColumn indent cells.
-    path: string; // Fully qualified path used for get / set / remove / rename / move.
-    name: string; // NameColumn label. Generated `Item N` for list-item/relation-item rows, `Rule N` for rule rows
-                  // unless the rule carries an authored `name` (rules are the one row kind whose generated name is
-                  // just a fallback — RULESET_METAPHOR_SPEC's `name?` field on a rule row is user-settable).
-    value?: string; // ValueColumn content (expression text, list value, type constraint, objective/constraint expression, ...).
-    type?: string; // The tooltip shown on hover / Alt-held; omitted for unnamed complex objects (see GUI Language).
-    readOnly?: boolean; // Engine-marked read-only (e.g. synthesized `result`, linked type).
-    deletable?: boolean; // Whether the Delete action is offered (defaults to true when omitted).
-    children?: BoxedRowData[]; // Nested rows (context / function / ruleset / optimisation / type / list / relation bodies).
+  kind: BoxedRowKind; // Discriminant that selects the row renderer and its context menu.
+  depth: number; // Depth within the context tree (dot count in `path`); drives NameColumn indent cells.
+  path: string; // Fully qualified path used for get / set / remove / rename / move.
+  name: string; // NameColumn label. Generated `Item N` for list-item/relation-item rows, `Rule N` for rule rows
+  // unless the rule carries an authored `name` (rules are the one row kind whose generated name is
+  // just a fallback — RULESET_METAPHOR_SPEC's `name?` field on a rule row is user-settable).
+  value?: string; // ValueColumn content (expression text, list value, type constraint, objective/constraint expression, ...).
+  type?: string; // The tooltip shown on hover / Alt-held; omitted for unnamed complex objects (see GUI Language).
+  readOnly?: boolean; // Engine-marked read-only (e.g. synthesized `result`, linked type).
+  deletable?: boolean; // Whether the Delete action is offered (defaults to true when omitted).
+  children?: BoxedRowData[]; // Nested rows (context / function / ruleset / optimisation / type / list / relation bodies).
 }
 
 // Extends BoxedRowData with the fields needed by rows that carry argument headers, table columns, or per-column
 // cells. A row's `kind` alone determines whether it's actually a BoxedTableRowData — see the list below.
 interface BoxedTableRowData extends BoxedRowData {
-    parameters?: SignatureParameter[]; // Argument headers: function / ruleset / optimisation.
-    columns?: string[]; // Relation table header column names: relation.
-    cells?: string[]; // Per-column values aligned to the parent's `columns`: relation-item.
-    conditionColumns?: string[]; // Condition column names: ruleset.
-    actionColumns?: string[]; // Action column names: ruleset.
-    conditions?: string[]; // Per-condition-column unary-test cells (the cell-map `when` form), aligned to
-                           // `conditionColumns`; empty string means "any": rule. Mutually exclusive with `conditionsExpression`.
-    conditionsExpression?: string; // `when` authored as a single boolean expression over the ruleset's parameters
-    // (RULESETS_REFERENCE.md § "when as a boolean expression") instead of per-column
-    // cells: rule. When set, the row renders one cell spanning every condition column
-    // instead of one cell per column. Mutually exclusive with `conditions`.
-    actions?: string[]; // Per-action-column cells, aligned to `actionColumns`: rule, ruleset-default.
-    priority?: number; // Explicit rank, shown and editable only while the parent ruleset's hit policy is
-                       // `"best-match"` (required there, absent/rejected under every other hit policy): rule.
+  parameters?: SignatureParameter[]; // Argument headers: function / ruleset / optimisation.
+  columns?: string[]; // Relation table header column names: relation.
+  cells?: string[]; // Per-column values aligned to the parent's `columns`: relation-item.
+  conditionColumns?: string[]; // Condition column names: ruleset.
+  actionColumns?: string[]; // Action column names: ruleset.
+  conditions?: string[]; // Per-condition-column unary-test cells (the cell-map `when` form), aligned to
+  // `conditionColumns`; empty string means "any": rule. Mutually exclusive with `conditionsExpression`.
+  conditionsExpression?: string; // `when` authored as a single boolean expression over the ruleset's parameters
+  // (RULESETS_REFERENCE.md § "when as a boolean expression") instead of per-column
+  // cells: rule. When set, the row renders one cell spanning every condition column
+  // instead of one cell per column. Mutually exclusive with `conditions`.
+  actions?: string[]; // Per-action-column cells, aligned to `actionColumns`: rule, ruleset-default.
+  priority?: number; // Explicit rank, shown and editable only while the parent ruleset's hit policy is
+  // `"best-match"` (required there, absent/rejected under every other hit policy): rule.
 }
 
 // One argument-header cell of a function / ruleset / optimisation signature. Order matches `@parameters`'
 // key-insertion order (Portable's `@parameters` is a plain object, and JS/JSON preserve string-key order).
 interface SignatureParameter {
-    name: string; // Parameter name; the header cell label.
-    type?: string; // Tooltip text (hover / Alt-held), same TypeName treatment as a field's `type`; omitted when the
-                  // `@parameters` entry is `null` (an untyped/unannotated parameter).
-    required?: boolean; // From a `PortableTypedValue` parameter's `required`; absent for a bare type-reference or
-                        // untyped (`null`) parameter.
+  name: string; // Parameter name; the header cell label.
+  type?: string; // Tooltip text (hover / Alt-held), same TypeName treatment as a field's `type`; omitted when the
+  // `@parameters` entry is `null` (an untyped/unannotated parameter).
+  required?: boolean; // From a `PortableTypedValue` parameter's `required`; absent for a bare type-reference or
+  // untyped (`null`) parameter.
 }
 ```
 
@@ -671,7 +679,7 @@ Portable node and sent back verbatim on commit (the engine re-parses it). This i
 the view never parses DSL itself.
 
 | Portable node                                  | `kind`                          | Cell text                                                                                                                               |
-|------------------------------------------------|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | expression / scalar                            | `field`                         | its authored DSL text (`amount / 12`)                                                                                                   |
 | typed input (`@kind: "type"`)                  | `field`                         | a type constraint, e.g. `<number, required: true>`                                                                                      |
 | invocation (`@kind: "invocation"`)             | `field`                         | the call text, e.g. `monthly(application.amount)`                                                                                       |
@@ -693,6 +701,11 @@ A `RelationItemRow` cell whose value is itself a complex object is a drill-down,
 rows rather than JSON text. An invocation is a single, non-expandable expression cell — editing the call (method or
 arguments) edits its `value` text.
 
+Engine representation exception: when a whole `complexType` is persisted, its typed child text is written as the
+raw wrapper string (for example `"<number, required: true>"`) rather than an `@kind: "expression"` object. The
+installed engine accepts and parses the string form but rejects the otherwise-uniform expression wrapper in a
+`type-definition`; see `docs/BUG_REPORTS.md`.
+
 ### Path conventions
 
 Paths are the engine's CRUD paths — do not invent UI-only paths. `"*"` is the model root; context fields use dot
@@ -700,6 +713,10 @@ paths (`application.amount`); collection items use indexes (`applicants[0]`); fu
 are addressed through their authored field path (`monthly.result`, `risk.rules[2].then.limit`,
 `factoryProduction.variables.chairs`) even though Portable stores function bodies under `@body`. Authoritative
 syntax and filters live in `../edgerules-v2/doc/architecture/CRUD_SPEC.md`.
+
+Current engine limitation: the npm `alpha` can parse and project optimisation definitions but its mutable API rejects
+the optimisation paths above and a whole-definition `set`. The facade still normalizes/denormalizes the Portable
+shape and passes the engine error through; the upstream gap is recorded in `docs/BUG_REPORTS.md`.
 
 ### Edit → persist → refresh flow
 
@@ -733,14 +750,14 @@ How the services are provided as hooks and where row state lives.
 
 **Single source of truth — do not duplicate the model in React state.** The authored model lives behind the
 `MutableDecisionService`; `BoxedEditorService` is a stateless-derivation facade over it. React stores **no copy of
-the row tree**. Rows are *derived* on demand and cached inside the facade, and components subscribe to that external
+the row tree**. Rows are _derived_ on demand and cached inside the facade, and components subscribe to that external
 store with React 18's `useSyncExternalStore`. This keeps the spec's promise that "the editor never maintains a second
 persisted model", and it is the idiomatic way to bind React to a mutable non-React store.
 
 Two kinds of state, kept apart:
 
 | State                                                                            | Owner                                                   | Lifetime            |
-|----------------------------------------------------------------------------------|---------------------------------------------------------|---------------------|
+| -------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------- |
 | Model structure (rows)                                                           | `MutableDecisionService` (external, via facade cache)   | persisted           |
 | Descriptions / test results                                                      | `DocumentationService` / `TestCasesService` (IndexedDB) | persisted (overlay) |
 | UI state: per-row expand, active editing cell, Alt-held, current test-case index | React context (`BoxedEditorUiContext`)                  | ephemeral           |
@@ -751,12 +768,12 @@ Two kinds of state, kept apart:
   so no `useMutableDecisionService` hook is needed inside the library. A `createBoxedEditorService(mutable)` factory is
   offered as a convenience; hosts that want a memoized instance wrap it in their own `useMemo`.
 - `BoxedEditor` seeds a context from its props; the subtree reads through hooks:
-    - `useBoxedEditorService()` → the facade.
-    - `useBoxedRows(path)` → `useSyncExternalStore(service.subscribe, () => service.getBoxedRowsData(path))`.
-    - `useDescription(path)` → subscribes to `DocumentationService` for that path.
-    - `useTestCases()` → the ordered cases + current index + `next()`/`prev()` from `BoxedEditorUiContext`.
-    - `useTestResult(path)` → the current case's result for `path` from `TestCasesService`.
-    - `useAltHeld()` → whether Alt is currently held, from `BoxedEditorUiContext`.
+  - `useBoxedEditorService()` → the facade.
+  - `useBoxedRows(path)` → `useSyncExternalStore(service.subscribe, () => service.getBoxedRowsData(path))`.
+  - `useDescription(path)` → subscribes to `DocumentationService` for that path.
+  - `useTestCases()` → the ordered cases + current index + `next()`/`prev()` from `BoxedEditorUiContext`.
+  - `useTestResult(path)` → the current case's result for `path` from `TestCasesService`.
+  - `useAltHeld()` → whether Alt is currently held, from `BoxedEditorUiContext`.
 
 ```mermaid
 flowchart TD
@@ -827,29 +844,29 @@ truncated, numbers/dates are locale-formatted. See [Resolved Decisions](#resolve
 type TestResultsByPath = Record<string, TestResult>; // keyed by fully qualified path
 
 interface TestCase {
-    id: string; // Stable identifier used to fetch results.
-    name: string; // Display name shown in the TestResultsColumn header, e.g. "Standard application".
+  id: string; // Stable identifier used to fetch results.
+  name: string; // Display name shown in the TestResultsColumn header, e.g. "Standard application".
 }
 
 type TestResultStatus = 'ok' | 'error' | 'missing' | 'pending';
 
 interface TestResult {
-    testCaseId: string; // The owning test case.
-    path: string; // Fully qualified path this result belongs to.
-    value?: string; // Raw engine serialization; BoxedEditor formats it. Omitted when status is 'error'.
-    error?: string; // Message when the path failed to evaluate for this case.
-    status: TestResultStatus;
+  testCaseId: string; // The owning test case.
+  path: string; // Fully qualified path this result belongs to.
+  value?: string; // Raw engine serialization; BoxedEditor formats it. Omitted when status is 'error'.
+  error?: string; // Message when the path failed to evaluate for this case.
+  status: TestResultStatus;
 }
 
 interface TestCasesService {
-    // Ordered list of test cases discovered in IndexedDB; index drives previous/next and the `1/N` counter.
-    listTestCases(): TestCase[];
+  // Ordered list of test cases discovered in IndexedDB; index drives previous/next and the `1/N` counter.
+  listTestCases(): TestCase[];
 
-    // All results for one test case, keyed by path. Read directly by TestResultsColumn cells.
-    getResults(testCaseId: string): TestResultsByPath;
+  // All results for one test case, keyed by path. Read directly by TestResultsColumn cells.
+  getResults(testCaseId: string): TestResultsByPath;
 
-    // Migrate result entries when a node's path changes (called after a successful rename/move).
-    renamePath(from: string, to: string): void;
+  // Migrate result entries when a node's path changes (called after a successful rename/move).
+  renamePath(from: string, to: string): void;
 }
 ```
 
@@ -866,9 +883,9 @@ and writes edits back.
 
 ```typescript
 interface DocumentationService {
-    getDescription(path: string): string | undefined; // Description for a path, or undefined when none is set.
-    setDescription(path: string, description: string): void; // Persist an edited description (empty string clears it).
-    renamePath(from: string, to: string): void; // Migrate the description entry when a node's path changes.
+  getDescription(path: string): string | undefined; // Description for a path, or undefined when none is set.
+  setDescription(path: string, description: string): void; // Persist an edited description (empty string clears it).
+  renamePath(from: string, to: string): void; // Migrate the description entry when a node's path changes.
 }
 ```
 
@@ -911,29 +928,29 @@ the **real** engine — never a mock.
 
 These were open in earlier iterations and are now settled; kept for traceability.
 
-| #  | Decision                                         | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-|----|--------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1  | Enrichment-service wiring                        | Removed `testCasesService` / `documentationService` from `BoxedEditorProps`. Descriptions and test results are separate path-keyed overlays consumed via hooks, not folded into the facade or rows.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| 2  | `BoxedEditorService` layering                    | The facade is **constructed with** a `MutableDecisionService` (`createBoxedEditorService(mutable)`) and delegates internally. The component only ever sees `BoxedEditorService`. (Was Open Q "Option 1".)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 3  | `BoxedRowData` flat vs. union                    | Keep the **flat optional-field** interface; renderers read only the fields their `kind` uses.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| 4  | `readOnly` and drag handles                      | Handles stay **visible** — the function/ruleset/optimisation/type icons *are* the drag handles and the 6-dot handle is a grouping cue — but drag is **suppressed** in `readOnly` (no drag cursor, `dragstart` blocked). Neither hidden nor greyed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 5  | Result / value formatting                        | Services supply **raw engine serialization**; `BoxedEditor` owns all display formatting (array → `N items`, truncation, locale number/date formatting).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| 6  | React binding model                              | **`useSyncExternalStore` + facade cache** (rows re-derive lazily; only changed subtrees get new references) over an immutable-snapshot reducer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| 7  | Overlay migration on move                        | `DocumentationService` and `TestCasesService` expose `renamePath(from, to)`. The editor command layer calls it after a successful `rename`/`move`; the facade stays overlay-agnostic and just surfaces the `{ from, to }`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| 8  | Copy/Paste vs. Duplicate                         | Dropped the two-step clipboard `Copy` + `Paste Below` in favor of a single one-click `Duplicate` action (the wireframe's `rowActionRegistry` has no copy/paste ids at all). Named rows auto-rename on Duplicate — see [Context Menu](#context-menu)'s `Duplicate` entry.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 9  | Type disclosure                                  | Every type renders as a tooltip on its owning name/header cell, opened on hover or, for the whole tree at once, while **Alt** is held; `showType` gates that tooltip interaction (see [GUI Language](#gui-language)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 10 | Descriptions storage                             | **Option 1**: descriptions stay an IndexedDB overlay via `DocumentationService`; `@description` metadata is left untouched for now. Folding descriptions into `@description` (portable export/import) is out of scope for this iteration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 11 | Large-collection strategy                        | **Option 1**: eager load for `getBoxedRowsData` — no paging/virtualization in this iteration. Windowed reads and a virtualized `RelationItemRow`/`RuleRow` are tracked as a [follow-up story](#follow-up-stories), not built now.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| 12 | Linked-validation failures                       | **Option 1, with no rollback.** Per `CRUD_SPEC.md` ("CRUD writes can succeed structurally but fail to link... a broken reference only surfaces as a `LinkerError` on the _next_ evaluation/get"), `set`/`rename`/`remove` already return success even when they break a reference elsewhere — the facade does not re-validate or reverse the mutation. The broken reference then surfaces as an ordinary path-scoped error (see [Error handling](#error-handling)) wherever the affected path is next read/evaluated. A rollback-on-write policy was rejected deliberately: it would make renaming a field that's referenced elsewhere impossible, since the reference update always lands in a separate, later commit. |
-| 13 | Ruleset inline editing vs. `DecisionTableEditor` | Both coexist: `BoxedEditor` implements full inline decision-table-style CRUD for `ruleset` rows (as this document's [Row Types](#row-types)/[Context Menu](#context-menu) specify), and the standalone `DecisionTableEditor` remains reachable via `onOpenNode({kind: 'ruleset'})`. The exact division of responsibility between the two is expected to be revisited in a later story.                                                                                                                                                                                                                                                                                                                                  |
-| 14 | Expand/Collapse                                  | A context-menu `Expand`/`Collapse` toggle action (Material UI expand/collapse icon), offered on every collapsible container kind: `function`, `context`, `complexType`, `ruleset`, `optimisation`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| #   | Decision                                         | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Enrichment-service wiring                        | Removed `testCasesService` / `documentationService` from `BoxedEditorProps`. Descriptions and test results are separate path-keyed overlays consumed via hooks, not folded into the facade or rows.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 2   | `BoxedEditorService` layering                    | The facade is **constructed with** a `MutableDecisionService` (`createBoxedEditorService(mutable)`) and delegates internally. The component only ever sees `BoxedEditorService`. (Was Open Q "Option 1".)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 3   | `BoxedRowData` flat vs. union                    | Keep the **flat optional-field** interface; renderers read only the fields their `kind` uses.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 4   | `readOnly` and drag handles                      | Handles stay **visible** — the function/ruleset/optimisation/type icons _are_ the drag handles and the 6-dot handle is a grouping cue — but drag is **suppressed** in `readOnly` (no drag cursor, `dragstart` blocked). Neither hidden nor greyed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 5   | Result / value formatting                        | Services supply **raw engine serialization**; `BoxedEditor` owns all display formatting (array → `N items`, truncation, locale number/date formatting).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 6   | React binding model                              | **`useSyncExternalStore` + facade cache** (rows re-derive lazily; only changed subtrees get new references) over an immutable-snapshot reducer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 7   | Overlay migration on move                        | `DocumentationService` and `TestCasesService` expose `renamePath(from, to)`. The editor command layer calls it after a successful `rename`/`move`; the facade stays overlay-agnostic and just surfaces the `{ from, to }`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 8   | Copy/Paste vs. Duplicate                         | Dropped the two-step clipboard `Copy` + `Paste Below` in favor of a single one-click `Duplicate` action (the wireframe's `rowActionRegistry` has no copy/paste ids at all). Named rows auto-rename on Duplicate — see [Context Menu](#context-menu)'s `Duplicate` entry.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 9   | Type disclosure                                  | Every type renders as a tooltip on its owning name/header cell, opened on hover or, for the whole tree at once, while **Alt** is held; `showType` gates that tooltip interaction (see [GUI Language](#gui-language)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 10  | Descriptions storage                             | **Option 1**: descriptions stay an IndexedDB overlay via `DocumentationService`; `@description` metadata is left untouched for now. Folding descriptions into `@description` (portable export/import) is out of scope for this iteration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 11  | Large-collection strategy                        | **Option 1**: eager load for `getBoxedRowsData` — no paging/virtualization in this iteration. Windowed reads and a virtualized `RelationItemRow`/`RuleRow` are tracked as a [follow-up story](#follow-up-stories), not built now.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 12  | Linked-validation failures                       | **Option 1, with no rollback.** Per `CRUD_SPEC.md` ("CRUD writes can succeed structurally but fail to link... a broken reference only surfaces as a `LinkerError` on the _next_ evaluation/get"), `set`/`rename`/`remove` already return success even when they break a reference elsewhere — the facade does not re-validate or reverse the mutation. The broken reference then surfaces as an ordinary path-scoped error (see [Error handling](#error-handling)) wherever the affected path is next read/evaluated. A rollback-on-write policy was rejected deliberately: it would make renaming a field that's referenced elsewhere impossible, since the reference update always lands in a separate, later commit. |
+| 13  | Ruleset inline editing vs. `DecisionTableEditor` | Both coexist: `BoxedEditor` implements full inline decision-table-style CRUD for `ruleset` rows (as this document's [Row Types](#row-types)/[Context Menu](#context-menu) specify), and the standalone `DecisionTableEditor` remains reachable via `onOpenNode({kind: 'ruleset'})`. The exact division of responsibility between the two is expected to be revisited in a later story.                                                                                                                                                                                                                                                                                                                                  |
+| 14  | Expand/Collapse                                  | A context-menu `Expand`/`Collapse` toggle action (Material UI expand/collapse icon), offered on every collapsible container kind: `function`, `context`, `complexType`, `ruleset`, `optimisation`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ## Follow-up Stories
 
 Work items this spec deliberately defers rather than blocks on. Each needs its own story before being built.
 
 - [ ] Paging / virtualization for large `list` / `relation` / `ruleset` bodies (`getBoxedRowsData(path, {offset,
-      limit})` plus virtualized `RelationItemRow` and `RuleRow` renderers) — see Resolved Decision #11.
+    limit})` plus virtualized `RelationItemRow` and `RuleRow` renderers) — see Resolved Decision #11.
 
 ## Open Questions
 

@@ -4,7 +4,7 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { init, MutableDecisionService } from '@edgerules/web/mutable';
-import { BoxedEditor } from '../../../src/components/boxed-editor';
+import { BoxedEditor } from '../../../src/components/!!! boxed-editor_OLD_DEPRECATED';
 import { DecisionTableEditor } from '../../../src/components/decision-table';
 import { ProjectExplorer } from '../../../src/components/project-explorer';
 

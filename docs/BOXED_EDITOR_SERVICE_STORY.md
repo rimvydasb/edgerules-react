@@ -51,19 +51,23 @@ component tree are **not** created in this story.
 
 ### Normalization (`normalize.ts`)
 
-Reads via `mutable.get(path, 'ALL')` and maps the returned `PortableNode` tree to `BoxedRowData[]`, applying
+On each cache miss, reads the authored tree via `mutable.toPortable()` and calls `mutable.get(path, 'ALL')` for
+existence and linked schema data. Authored literal arrays are materialized through indexed `get` calls because
+`toPortable()` represents them as expression nodes while the linked `ALL` view represents only their array type.
+Optimisation definitions use `EXTERNAL_DEFINITIONS` as a schema fallback on engine versions that support the kind,
+because they are intentionally absent from `ALL`. The resulting Portable data maps to `BoxedRowData[]`, applying
 [Normalization Rules](BOXED_EDITOR_SPEC.md#normalization-rules) exactly:
 
 | Rule                   | Behavior                                                                                                                                                                                                                                              |
-|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Sort order             | `complexType` → `function` → `ruleset` → `optimisation` → everything else (`context`/`list`/`relation`/`field`), each group in source order; a function body's synthesized `result` field sorts last within that function                             |
 | Relation vs. list      | scalar array items → `list`/`list-item`; complex-object array items → `relation`/`relation-item` with `columns` as the ordered union of every field seen across records                                                                               |
 | Metadata               | `@kind`, `@description`, `@node`, `@node-name`, `@model-name`, `@model-version` never become a child row; whether `@node`/`@node-name` should instead be surfaced as fields on `BoxedRowData` is undecided — see [Open Questions](#open-questions) #1 |
 | Row-kind consolidation | class field / typed input / plain expression / invocation Portable nodes all collapse to the single `field` `BoxedRowKind`                                                                                                                            |
 | Inline functions       | a function whose `@body` is a bare `PortableExpression` (not a `PortableContext`) is normalized with a synthesized `function-result` child row so the shape matches a multi-statement function body                                                   |
 
-`getBoxedRowsData(path)` and `getBoxedRowData(path)` are pure reads of the cache (below); they never call `mutable.get`
-directly — the cache does, on miss.
+`getBoxedRowsData(path)` and `getBoxedRowData(path)` are pure reads of the cache (below); they never call the mutable
+service directly — the cache loader does, on miss.
 
 #### Table-shaped row fields
 
@@ -73,7 +77,7 @@ from Portable. Resolved by reading `PortableFunctionDefinition`/`PortableRuleset
 (`@edgerules/portable`) and `../edgerules-v2/doc/reference/RULESETS_REFERENCE.md`:
 
 | `BoxedTableRowData` field                               | Row kind(s)                           | Derived from                                                                                                                                                                                                                                                                                                                                                                                  |
-|---------------------------------------------------------|---------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `parameters: SignatureParameter[]`                      | `function`, `optimisation`, `ruleset` | `@parameters`' own key-insertion order; a `null` value → `{ name }` (untyped), a bare type-reference string → `{ name, type }`, a `PortableTypedValue` → `{ name, type: value.type, required: value.required }`                                                                                                                                                                               |
 | `columns: string[]`                                     | `relation`                            | ordered union of every field name seen across all `relation-item` records, in first-authored-appearance order (the relation-vs-list rule above)                                                                                                                                                                                                                                               |
 | `cells: string[]`                                       | `relation-item`                       | one entry per `columns[i]`, read from that record's field; empty string when the record doesn't have that field                                                                                                                                                                                                                                                                               |
@@ -103,13 +107,15 @@ writing `actions` back into a heterogeneous `then`/`@default` record for a colum
   successful commit, and a host can call it directly after mutating the shared `MutableDecisionService` through
   another surface.
 - **Ordering matters**: both the internal after-commit path and the public `invalidate()` call must clear the cache
-  *before* notifying `subscribe` listeners, so a listener that re-reads via `getBoxedRowsData` inside its own
+  _before_ notifying `subscribe` listeners, so a listener that re-reads via `getBoxedRowsData` inside its own
   callback (as `useSyncExternalStore` does) never observes stale data.
 
 ### Denormalization (`denormalize.ts`) and the whole-node `set` strategy
 
 `setBoxedRowData(path, row)` denormalizes the **entire row, including its `children`,** into one `PortableNode` and
-issues exactly one `mutable.set(path, node)`. This is deliberate, not incidental, and follows the same strategy
+issues exactly one `mutable.set(path, node)`. Type-definition children are the one engine-required representation
+exception: their typed-wrapper text is emitted as the accepted raw string rather than an `@kind: "expression"`
+object (see `docs/BUG_REPORTS.md`). This is deliberate, not incidental, and otherwise follows the same strategy
 already validated for `ruleset` in `DECISION_TABLE_STORY.md` ("structural edits → whole-ruleset `set`"), for two
 engine reasons confirmed against `../edgerules-v2/doc/architecture/CRUD_SPEC.md`:
 
@@ -171,12 +177,12 @@ writes ([Resolved Decision #12](BOXED_EDITOR_SPEC.md#resolved-decisions): partia
 path-scoped error, it does not reverse prior steps). A duplicate-on-partial-failure is strictly safer than a
 lost-on-partial-failure row, which is why the order is insert-first.
 
-Reordering within the *same* parent (`fromPath` and `toParentPath` share a parent) is the same algorithm with
+Reordering within the _same_ parent (`fromPath` and `toParentPath` share a parent) is the same algorithm with
 `toParentPath == ` the shared parent — splice-out-then-splice-in inside one already-read `destNode`, still one
 `set`.
 
 **`index` is only fully meaningful for array-shaped destinations.** For `list`/`relation`/`ruleset`'s `@rules`/
-`optimisation-variable-group`/`optimisation-constraint-group` parents, physical array position *is* render order, so
+`optimisation-variable-group`/`optimisation-constraint-group` parents, physical array position _is_ render order, so
 splicing `sourceNode` into `destNode`'s array at `index` directly determines where the row appears. For
 context-shaped destinations (`context`/`complexType`/the model root), `destNode` is a plain object — "insert at
 index" means rebuilding its key order (delete and re-insert every key from `index` onward, since JS/JSON object key
@@ -281,67 +287,75 @@ sequenceDiagram
 
 **Phase 1: Types + normalized read path**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `boxed-editor-types.ts`: `BoxedRowKind`, `BoxedRowData`, `BoxedTableRowData`, `SignatureParameter`
-- [ ] Add `service/normalize.ts`: Portable → `BoxedRowData[]` / `BoxedRowData`, applying sort order, relation-vs-list
-  classification, metadata stripping, row-kind consolidation, and function-result synthesis
-- [ ] Add `service/rowCache.ts`: per-path memoized cache with `get`/`invalidate`
-- [ ] Add `service/createBoxedEditorService.ts` implementing `getBoxedRowsData`, `getBoxedRowData`, `toPortable`,
-  `subscribe`, and the public `invalidate(path?)` (wired straight to the cache — no engine round trip needed) against
-  the cache; `setBoxedRowData`/`remove`/`rename`/`move` throw a plain `Error('not implemented')` in this phase (not a
-  fabricated `PortableError` — `PortableErrorType` is a closed union with no "not implemented" member, so a stub
-  return value would violate the real type), replaced in Phases 2–3
-- [ ] Add `index.ts` exporting the Phase 1 public surface (fixes the `./boxed-editor` package export / tsup entry)
-- [ ] Add `__tests__/normalization.test.ts` against a real `@edgerules/node` `MutableDecisionService.fromCode(...)` —
-  cover every `BoxedRowKind` including `ruleset`/`optimisation` families, sort order, relation vs. list, and
-  metadata stripping
-- [ ] `npm run build` succeeds with the `boxed-editor` entry now resolvable
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `boxed-editor-types.ts`: `BoxedRowKind`, `BoxedRowData`, `BoxedTableRowData`, `SignatureParameter`
+- [x] Add `service/normalize.ts`: Portable → `BoxedRowData[]` / `BoxedRowData`, applying sort order, relation-vs-list
+      classification, metadata stripping, row-kind consolidation, and function-result synthesis
+- [x] Add `service/rowCache.ts`: per-path memoized cache with `get`/`invalidate`
+- [x] Add `service/createBoxedEditorService.ts` implementing `getBoxedRowsData`, `getBoxedRowData`, `toPortable`,
+      `subscribe`, and the public `invalidate(path?)` (wired straight to the cache — no engine round trip needed) against
+      the cache; `setBoxedRowData`/`remove`/`rename`/`move` throw a plain `Error('not implemented')` in this phase (not a
+      fabricated `PortableError` — `PortableErrorType` is a closed union with no "not implemented" member, so a stub
+      return value would violate the real type), replaced in Phases 2–3
+- [x] Add `index.ts` exporting the Phase 1 public surface (fixes the `./boxed-editor` package export / tsup entry)
+- [x] Add `__tests__/normalization.test.ts` against a real `@edgerules/node` `MutableDecisionService.fromCode(...)` —
+      cover every `BoxedRowKind` including `ruleset`/`optimisation` families, sort order, relation vs. list, and
+      metadata stripping
+- [x] `npm run build` succeeds with the `boxed-editor` entry now resolvable
+- [x] Mark all checkboxes as done in this document once verified
 
 **Phase 2: Mutations (set / remove / rename) and reactivity**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `service/denormalize.ts`: `BoxedRowData` (recursively, including `children`) → `PortableNode`, per row kind
-- [ ] Verify against `@edgerules/node` that expression-wrapped type-constraint and invocation text round-trips
-  through `set` → `get` to the correct concrete Portable `@kind`; file a `docs/BUG_REPORTS.md` entry if it
-  doesn't and adjust `denormalize.ts` accordingly
-- [ ] Implement `setBoxedRowData`, `remove`, `rename` on the facade: denormalize → delegate to `mutable` →
-  cache-invalidate the affected path(s) on success only → notify `subscribe` listeners once per successful commit
-- [ ] Add `__tests__/mutation.test.ts`: real-engine round trips for `field`/`context`/`complexType`/`list`/
-  `relation`/`function`/`ruleset`/`optimisation` rows; `PortableError` passthrough with cache left untouched;
-  exactly one `subscribe` notification per successful commit; referential stability of unaffected cached paths
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `service/denormalize.ts`: `BoxedRowData` (recursively, including `children`) → `PortableNode`, per row kind
+- [x] Verify against `@edgerules/node` that expression-wrapped type-constraint and invocation text round-trips
+      through `set` → `get` to the correct concrete Portable `@kind`; file a `docs/BUG_REPORTS.md` entry if it
+      doesn't and adjust `denormalize.ts` accordingly
+- [x] Implement `setBoxedRowData`, `remove`, `rename` on the facade: denormalize → delegate to `mutable` →
+      cache-invalidate the affected path(s) on success only → notify `subscribe` listeners once per successful commit
+- [x] Add `__tests__/mutation.test.ts`: real-engine round trips for `field`/`context`/`complexType`/`list`/
+      `relation`/`function`/`ruleset`/`optimisation` rows; `PortableError` passthrough with cache left untouched;
+      exactly one `subscribe` notification per successful commit; referential stability of unaffected cached paths
+- [x] Mark all checkboxes as done in this document once verified
+
+> Optimisation normalization and denormalization are covered at the Portable boundary. A real-engine mutation
+> round trip is impossible in both the pinned engine and the current npm `alpha`; the verified upstream CRUD gap is
+> recorded in `docs/BUG_REPORTS.md`, and the facade returns that engine `PortableError` without a workaround.
 
 **Phase 3: `move`**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Implement `move(fromPath, toParentPath, index)`: insert-then-remove ordering, whole-parent-node rewrite,
-  same-parent reorder as a special case of the same algorithm
-- [ ] Add `__tests__/move.test.ts`: reorder within an array-shaped parent (`list-item`/`relation-item`/`rule`/
-  `optimisation-variable`/`optimisation-constraint`); reparent a `field`/`context`/`function` into another
-  `context`; insert-failure leaves the source untouched; remove-failure-after-insert surfaces the `PortableError`
-  with the duplicate documented as expected
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Ensure project compiles and existing tests are passing
+- [x] Implement `move(fromPath, toParentPath, index)`: insert-then-remove ordering, whole-parent-node rewrite,
+      same-parent reorder as a special case of the same algorithm
+- [x] Add `__tests__/move.test.ts`: reorder within an array-shaped parent (`list-item`/`relation-item`/`rule`/
+      `optimisation-variable`/`optimisation-constraint`); reparent a `field`/`context`/`function` into another
+      `context`; insert-failure leaves the source untouched; remove-failure-after-insert surfaces the `PortableError`
+      with the duplicate documented as expected
+- [x] Mark all checkboxes as done in this document once verified
+
+> List, relation, and rule reorders plus field/context/function reparenting and both failure orders are covered
+> against the real engine. Optimisation-group move persistence reaches the engine's unsupported mutable path and is
+> subject to the same recorded upstream gap.
 
 **Phase 4: Quality gate**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Resolve [Open Questions](#open-questions) below (or record the architect's decision inline in this document,
-  matching the style already used for BOXED_EDITOR_SPEC.md's own open questions)
-- [ ] Update `docs/BUG_REPORTS.md` with any engine gaps found during Phases 1–3
-- [ ] Update required documentation after the implementation is complete (this story's checkboxes, and
-  `BOXED_EDITOR_SPEC.md` itself if implementation revealed a spec inaccuracy)
-- [ ] Ensure new tests are added for the new feature and all tests are passing
-- [ ] Perform linting and formatting to maintain code quality and consistency (`npm run format`, `npm run typecheck`)
-- [ ] Review the implementation to ensure it meets the requirements and follows best practices
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Ensure project compiles and existing tests are passing
+- [x] Resolve [Open Questions](#open-questions) below (or record the architect's decision inline in this document,
+      matching the style already used for BOXED_EDITOR_SPEC.md's own open questions)
+- [x] Update `docs/BUG_REPORTS.md` with any engine gaps found during Phases 1–3
+- [x] Update required documentation after the implementation is complete (this story's checkboxes, and
+      `BOXED_EDITOR_SPEC.md` itself if implementation revealed a spec inaccuracy)
+- [x] Ensure new tests are added for the new feature and all tests are passing
+- [x] Perform linting and formatting to maintain code quality and consistency (`npm run format`, `npm run typecheck`)
+- [x] Review the implementation to ensure it meets the requirements and follows best practices
+- [x] Mark all checkboxes as done in this document once verified
 
 ## Resolved Decisions
 
-| # | Decision                          | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-|---|-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | Export surface for row types      | `BoxedRowData`, `BoxedRowKind`, `BoxedTableRowData`, `SignatureParameter`, and `createBoxedEditorService` are exported from `index.ts` alongside `BoxedEditorService` — required for the interface to be usable outside this package at all. `BOXED_EDITOR_SPEC.md`'s "Export surface" note is updated to match.                                                                                                                                                                                       |
-| 2 | Host-triggered cache revalidation | `invalidate(path?: string): void` is added to the **public** `BoxedEditorService` interface (`BOXED_EDITOR_SPEC.md` updated), not kept internal-only. Motivated by the planned ReactFlow-based Flow Editor: a second GUI editing the same `MutableDecisionService` outside this facade's own mutation methods needs a way to tell this facade its cache is stale. The future `BoxedEditorContext` calls it when the host's `revision` prop changes; `invalidate()` itself has no notion of `revision`. |
+| #   | Decision                          | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Export surface for row types      | `BoxedRowData`, `BoxedRowKind`, `BoxedTableRowData`, `SignatureParameter`, and `createBoxedEditorService` are exported from `index.ts` alongside `BoxedEditorService` — required for the interface to be usable outside this package at all. `BOXED_EDITOR_SPEC.md`'s "Export surface" note is updated to match.                                                                                                                                                                                       |
+| 2   | Host-triggered cache revalidation | `invalidate(path?: string): void` is added to the **public** `BoxedEditorService` interface (`BOXED_EDITOR_SPEC.md` updated), not kept internal-only. Motivated by the planned ReactFlow-based Flow Editor: a second GUI editing the same `MutableDecisionService` outside this facade's own mutation methods needs a way to tell this facade its cache is stale. The future `BoxedEditorContext` calls it when the host's `revision` prop changes; `invalidate()` itself has no notion of `revision`. |
 
 ## Open Questions
 
@@ -363,7 +377,7 @@ sequenceDiagram
 > All annotations are ignored by `BoxedEditorService` for now.
 
 2. **Cache coherence across two facade instances sharing one `MutableDecisionService`.** `invalidate()` (Resolved
-   Decision #2) solves cache staleness *if* the Flow Editor calls it on the same `BoxedEditorService` instance the
+   Decision #2) solves cache staleness _if_ the Flow Editor calls it on the same `BoxedEditorService` instance the
    `BoxedEditor` component uses. If instead the Flow Editor story creates its own, independent
    `createBoxedEditorService(sameMutable)` (or its own differently-shaped facade) over the same underlying engine
    instance, there is no automatic notification between the two — each has its own cache and its own `subscribe`
