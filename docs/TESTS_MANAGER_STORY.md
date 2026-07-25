@@ -15,7 +15,7 @@ consumers (see [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md
 
 Because persistence is engine-free, any component can display results without running anything.
 [`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md#testcasesservice-api)'s `TestResultsColumn` is one such consumer, and
-Phase 4 points that spec at this package's types. The dependency runs one way only: consumers import from
+Phase 5 points that spec at this package's types. The dependency runs one way only: consumers import from
 `edgerules-react/test-cases-service`, never the reverse.
 
 ## Tests Manager GUI
@@ -287,7 +287,7 @@ the reading component's job, not the service's.
 
 These types are defined here and depend on nothing outside this package — no engine types, and no knowledge of any
 component that reads them. `BoxedEditor`'s `TestResultsColumn` is a **consumer**: it imports `TestCase` /
-`TestResultSet` from `edgerules-react/test-cases-service` (Phase 4 updates
+`TestResultSet` from `edgerules-react/test-cases-service` (Phase 5 updates
 [`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md#testcasesservice-api) accordingly). The dependency only ever points that
 way.
 
@@ -422,12 +422,16 @@ src/components/test-cases-service/
 │                                       TestValuesByPath, TestCellKind, TestSectionId, TestResultStatus,
 │                                       TestCasesServiceOptions, Unsubscribe
 ├─ createTestCasesService.ts         — factory: (modelName, subjectId, options?) -> TestCasesService
+├─ renameTestSubject.ts              — standalone key rewrite across both stores when a callable or a containing
+│                                       context is renamed/moved
 ├─ indexedDbStore.ts                 — IndexedDB adapter: open/upgrade, hydrate-all-for-subject, put, delete
 ├─ useTestCases.ts                   — hook: ordered cases + current index + next()/prev()
 ├─ useTestResult.ts                  — hook: one path's TestResult out of the current case's TestResultSet
 └─ __tests__/
    ├─ createTestCasesService.test.ts — hydration, case CRUD, row sync, cell round trip, result-set save/clear,
    │                                     renamePath across rows/values/results, dispose
+   ├─ renameTestSubject.test.ts      — a renamed callable keeps its data; a renamed context carries every subject
+   │                                     beneath it; an unrelated subject is untouched
    ├─ no-indexeddb-fallback.test.ts  — indexedDB unavailable -> in-memory only, no throw
    └─ hooks.test.tsx                 — RTL: both hooks re-render on service writes, unsubscribe on unmount
 
@@ -445,8 +449,15 @@ src/components/tests-manager/
 │  ├─ values.ts                      — parseCell / formatValue / matches (type-directed)
 │  └─ inputs.ts                      — dotted subject-relative paths -> nested input object for execute()
 ├─ runner/
-│  └─ createTestRunner.ts            — factory: (service, testCasesService, subject) -> TestRunner;
-│                                       solver pre-flight, serialized runs, PortableError handling
+│  ├─ createTestRunner.ts            — factory: (service, testCasesService, subject) -> TestRunner;
+│  │                                    solver pre-flight, serialized runs, PortableError handling
+│  └─ __tests__/
+│     └─ createTestRunner.test.ts    — the runner as a standalone unit, no React: real MutableDecisionService +
+│                                       real TestCasesService. Binding (nested expansion, empty cells, type-directed
+│                                       parsing), result flattening incl. scalar returns and call-site leaves, the
+│                                       written TestResultSet (ranAt/modelRevision/status), run-level PortableError,
+│                                       missing-solver pre-flight, optimise run via a registerSolver stub,
+│                                       run serialization (a run requested mid-flight supersedes the queued one)
 ├─ context/
 │  ├─ TestsManagerContext.tsx        — services, subject, readOnly, revision
 │  └─ TestsManagerUiContext.tsx      — ephemeral UI: page index, active editing cell, running case ids
@@ -545,7 +556,23 @@ function createTestCasesService(
     subjectId: TestSubjectId,
     options?: TestCasesServiceOptions,
 ): TestCasesService;
+
+// Rewrites stored test data when a callable — or a context containing callables — is renamed or moved.
+// Standalone rather than an instance method: one rename can affect many subjects at once and typically none of
+// them has a live TestCasesService instance. Rewrites every subject id equal to `from` or prefixed `from.`,
+// across both object stores. Async because there is no in-memory cache to serve it from.
+function renameTestSubject(
+    modelName: string,
+    from: TestSubjectId,
+    to: TestSubjectId,
+    options?: Pick<TestCasesServiceOptions, 'dbName' | 'onPersistError'>,
+): Promise<void>;
 ```
+
+Renaming `library` to `lib` therefore carries `library.eligibility`'s cases, rows, and results to `lib.eligibility`
+along with every other subject under that context. The host's command layer calls this after a successful
+`rename`/`move`, exactly as it already calls `renamePath` on the description and test overlays. A live instance for
+an affected subject is disposed and reconstructed with the new id — the rewrite does not reach into open instances.
 
 ### IndexedDB schema
 
@@ -793,11 +820,35 @@ interface TestsManagerProps {
 
 ## Testing Strategy
 
-- Unit and RTL tests run against a **real** `MutableDecisionService` from `@edgerules/node`, per
-  [`CLAUDE.md`](../CLAUDE.md) — never a mocked engine.
-- IndexedDB is supplied by `fake-indexeddb`, imported locally in the test files that need it (a substitute for a
-  missing browser API in `jsdom`, not a mock of application logic), matching
+Each of the three units is tested on its own, before anything composes them. Only two things are ever substituted, and
+both are environment, not logic: the browser's `indexedDB` (absent from `jsdom`) and the LP solver (which EdgeRules
+does not ship). The engine is never mocked, per [`CLAUDE.md`](../CLAUDE.md).
+
+| Unit                                      | Runs against                                                      | Substituted                             | Kind           |
+|-------------------------------------------|-------------------------------------------------------------------|-----------------------------------------|----------------|
+| `TestCasesService`                        | itself — no engine import exists in the package                   | `fake-indexeddb`                        | unit           |
+| `useTestCases` / `useTestResult`          | a real `TestCasesService`                                         | `fake-indexeddb`                        | RTL            |
+| `subjects` / `rows` / `values` / `inputs` | a real `MutableDecisionService` from `@edgerules/node`            | nothing                                 | unit, pure     |
+| `TestRunner`                              | a real `MutableDecisionService` **and** a real `TestCasesService` | `fake-indexeddb`, `registerSolver` stub | unit, no React |
+| `TestsManager`                            | all of the above, really wired                                    | `fake-indexeddb`, `registerSolver` stub | RTL            |
+
+- **`TestCasesService` needs no engine at all.** Its tests construct it directly and assert persistence behavior:
+  hydration, case CRUD, row sync, cell round trips, result-set replacement, `renamePath` across rows/values/results,
+  and the no-`indexedDB` in-memory fallback. If a test in this package ever needs `@edgerules/node`, the package has
+  taken on a dependency it should not have.
+- **`TestRunner` is tested with the real engine**, because its entire job is binding to and interpreting `execute` —
+  a stubbed engine would only assert that the stub matches the author's belief about the engine, which is exactly the
+  belief that has already been wrong three times in this story (input echo, `Missing` on a missing solver, `loop`
+  invisibility). It uses a real `TestCasesService` too: it is an in-repo collaborator with no I/O beyond IndexedDB,
+  so there is nothing to gain from faking it.
+- **`fake-indexeddb`** is a spec-compliant in-memory implementation of the browser API, imported locally in the files
+  that need it rather than globally in `vitest.setup.ts`, so the no-`indexedDB` fallback test can still observe a
+  genuinely absent global. Same arrangement as
   [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md)'s Testing Strategy.
+- **The solver stub** returns a fixed `LpOutcome` for a known small problem. It substitutes a component EdgeRules
+  deliberately does not ship (the host wires one — see [Optimise Testing](#optimise-testing)); the engine still
+  verifies the returned solution itself, so the stub cannot fake a passing test. `highs` is not a dependency of this
+  repo.
 - If a run exposes a WASM/DSL gap, append a reproducible entry to [`BUG_REPORTS.md`](BUG_REPORTS.md) rather than
   compensating in React.
 
@@ -827,26 +878,42 @@ interface TestsManagerProps {
 - [ ] Add `indexedDbStore.ts`: the `testCases` and `testCells` stores, hydrate/put/delete
 - [ ] Add `createTestCasesService.ts`: in-memory cache, synchronous API, async hydration, best-effort persistence,
   `onPersistError`, no-`indexedDB` in-memory-only fallback
+- [ ] Add `renameTestSubject.ts`: prefix-aware key rewrite across the `testCases` and `testResults` stores
 - [ ] Add `useTestCases.ts` and `useTestResult.ts`
 - [ ] Add `package.json` `./test-cases-service` export and the matching `tsup.config.ts` entry
-- [ ] Add the three `__tests__/` files listed in [Components](#components)
+- [ ] Add the four `__tests__/` files listed in [Components](#components)
 - [ ] Mark all checkboxes as done in this document once verified
 
-**Phase 2: Model derivation and execution**
+**Phase 2: Model derivation**
 
 - [ ] Ensure project compiles and existing tests are passing
 - [ ] Add `model/subjects.ts` — the `ALL` view recursed into nested contexts, the `EXTERNAL_DEFINITIONS` view, and the
-  `toPortable()` `loop` scan — plus `model/rows.ts` (including `optimise` `@result` leaves and `flattenResult`),
-  `model/values.ts`, `model/inputs.ts`
-- [ ] Add `runner/createTestRunner.ts` including the solver pre-flight, serialized runs, and `PortableError` handling
-- [ ] Add `subjects.test.ts`, `rows.test.ts`, `values.test.ts`, and runner coverage against `@edgerules/node`
-  (a `registerSolver` stub covers the `optimise` path — `highs` is not a dependency of this repo)
+  `toPortable()` `loop` scan
+- [ ] Add `model/rows.ts` — input vs computed classification, user-type expansion, `optimise` `@result` leaves, and
+  `flattenResult` for call-site paths the schema hides
+- [ ] Add `model/values.ts` (type-directed `parseCell` / `formatValue` / `matches`) and `model/inputs.ts`
+  (subject-relative dotted paths to a nested `execute` input object)
+- [ ] Add `subjects.test.ts`, `rows.test.ts`, `values.test.ts` against a real `MutableDecisionService`
 - [ ] Mark all checkboxes as done in this document once verified
 
-**Phase 3: The grid**
+**Phase 3: `TestRunner`**
+
+Depends on Phases 1–2; nothing in this story assumes a runner already exists. No React in this phase — the runner is
+a plain factory, verifiable end to end without rendering anything.
 
 - [ ] Ensure project compiles and existing tests are passing
-- [ ] Add contexts, hooks, `grid/`, `menu/`, `dnd/`, and `TestsManager.tsx` per [Components](#components)
+- [ ] Add `tests-manager-types.ts` with the `TestRunner` and `TestSubject` types
+- [ ] Add `runner/createTestRunner.ts`: input binding, `execute` dispatch per subject kind, result flattening,
+  `TestResultSet` assembly, run-level `PortableError` handling, missing-solver pre-flight, serialized runs
+- [ ] Add `runner/__tests__/createTestRunner.test.ts` against a real `MutableDecisionService` and a real
+  `TestCasesService`, covering every bullet above — including the `optimise` path via a `registerSolver` stub
+- [ ] Mark all checkboxes as done in this document once verified
+
+**Phase 4: The grid**
+
+- [ ] Ensure project compiles and existing tests are passing
+- [ ] Add contexts, hooks, `grid/`, `menu/`, `dnd/`, and `TestsManager.tsx` per [Components](#components), wiring
+  the `TestCasesService` and `TestRunner` delivered in Phases 1 and 3
 - [ ] Implement pre-generation and reconciliation per [Tests Pre-Generation](#tests-pre-generation), including
   appending call-site paths discovered in run results
 - [ ] Implement stale-result rendering per [Stale results](#stale-results) and the missing-solver banner
@@ -855,7 +922,7 @@ interface TestsManagerProps {
 - [ ] Add the Storybook stories listed above
 - [ ] Mark all checkboxes as done in this document once verified
 
-**Phase 4: Quality gate**
+**Phase 5: Quality gate**
 
 - [ ] Ensure project compiles and existing tests are passing
 - [ ] Update `docs/BOXED_EDITOR_SPEC.md`'s [`TestCasesService` API](BOXED_EDITOR_SPEC.md#testcasesservice-api) section
@@ -863,46 +930,38 @@ interface TestsManagerProps {
   Resolved Decision #9), and its ["Service composition"](BOXED_EDITOR_SPEC.md#service-composition) table row
   accordingly
 - [ ] Update `README.md`'s Project Structure to list `tests-manager` and `test-cases-service`
-- [ ] Update `docs/BUG_REPORTS.md` with any engine gaps found during Phases 1–3
+- [ ] Update `docs/BUG_REPORTS.md` with any engine gaps found during Phases 1–4
 - [ ] Perform linting and formatting (`npm run format`, `npm run typecheck`)
 - [ ] Review the implementation against this document
 - [ ] Mark all checkboxes as done in this document once verified
 
 ## Resolved Decisions
 
-| #  | Decision                                               | Resolution                                                                                                                                                                                                                                                                                                                                                                                              |
-|----|--------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1  | Persistence split from execution                       | `TestCasesService` never imports the engine; `TestRunner` is the only piece that does. Any component can then read and display results with no engine dependency, and the persistence contract stays testable without a WASM instance.                                                                                                                                                                  |
-| 2  | One service instance per `(model, subject)`            | `createTestCasesService(modelName, subjectId)` rather than a subject argument on every method. Any view over test data — a grid, a results column — shows one subject at a time, so threading a subject through every call would be noise. `TestsManager` swaps instances when the drop-down changes.                                                                                                   |
-| 3  | Stable `id` for a test case                            | Cells and results key off `TestCase.id`, not the display name, so renaming a column never rewrites its data.                                                                                                                                                                                                                                                                                            |
-| 4  | Results are persisted, not recomputed on read          | Results live in IndexedDB so a component can display them without an engine dependency. `ranAt` and `modelRevision` sit on the `TestResultSet` — properties of the run, not of each value — and let any consumer detect a set produced against a since-edited model.                                                                                                                                    |
-| 5  | Subject-relative paths in storage                      | Rows and results store paths relative to the subject; `qualifyPath` derives the model-level form for `DocumentationService` lookups and for any consumer that addresses paths model-wide. Keeps a callable's `approved` from colliding with a root field of the same name.                                                                                                                              |
-| 6  | Type-directed cell parsing                             | Cells store raw text and are parsed using the row's declared type, rather than requiring the user to type JSON. The engine coerces some mistyped input silently (a `"5"` string still arithmetics as `5`) but echoes the original string back in the result, which would make assertions confusing.                                                                                                     |
-| 7  | Only writable paths are bound                          | Inputs are restricted to typed holes and callable parameters. Overriding a computed field is not supported by the engine and is silently ignored — see [Open Questions](#open-questions) #1 and the entry in [`BUG_REPORTS.md`](BUG_REPORTS.md).                                                                                                                                                        |
-| 8  | Rulesets and optimisations are subjects too            | All three callable metaphors are executed identically (`execute(name, args)` — verified for `func`, `ruleset`, and `optimise`), so all three are subjects. Excluding `ruleset` would leave decision tables untestable and excluding `optimise` would leave it with no test surface at all, since it has no standalone editor either.                                                                    |
-| 9  | `TestResult.value` is `unknown`, not `string`          | `execute` returns real JS values — numbers, booleans, arrays, nested objects — and only dates, durations, and special values arrive as strings. Typing `value` as `string` would force every producer to stringify and every consumer to parse back, and would deny a reading component the array it needs to render something like "N items". `BOXED_EDITOR_SPEC.md` is corrected to match in Phase 4. |
-| 10 | Run results are a second row source                    | A `@kind: 'invocation'` field is opaque in every `get` view (`@type: 'object'`, no leaves), so a schema-only derivation would leave every call site — including every `optimise` call site — as one unusable row. Reconciling the flattened run result through the same `syncRows` path covers that generically, instead of special-casing invocations.                                                 |
-| 11 | Solver wiring stays the host's job                     | `TestRunner` never registers a solver: EdgeRules ships none, and choosing one is a host deployment decision. The runner only pre-flights the condition, because a missing solver produces `Missing('<name>')` rather than an error and would otherwise look like a modelling mistake.                                                                                                                   |
-| 12 | Every callable is a subject, at any depth              | The drop-down lists callables by dotted path rather than root-level names only, so a model that organizes its logic under a `library:` context is testable. Callables declared inside another callable's **body** stay out: they are implementation details, and subject discovery walks contexts, not function bodies.                                                                                 |
-| 13 | `tests-manager` is the GUI, `TestRunner` the executor  | The component directory and subpath are `tests-manager`; `TestRunner` names the execution service only. `README.md`'s Project Structure is updated to match in Phase 4, so one name never refers to two things.                                                                                                                                                                                         |
-| 14 | Stale results are greyed and unasserted                | When `TestResultSet.modelRevision` no longer matches the current `revision`, values render muted and assertion highlighting is suppressed until the case re-runs — a green tick against a value the current model would not produce is worse than no tick. See [Stale results](#stale-results).                                                                                                         |
-| 15 | Descriptions key off the qualified path alone          | No section discriminator in the `DocumentationService` key. A collision needs a model that names a context exactly like a callable, which the engine already rejects as a duplicate name.                                                                                                                                                                                                               |
-| 16 | Values live on the test case, results in their own set | A `TestCase` owns the two maps the user authored (`inputs`, `assertions`); a `TestResultSet` owns one run's output plus its metadata. Splitting them keeps authored data and derived data from sharing a lifetime, makes "run the case again" a single whole-set replace, and stops run metadata from being duplicated onto every path.                                                                 |
+| #  | Decision                                                           | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+|----|--------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1  | Persistence split from execution                                   | `TestCasesService` never imports the engine; `TestRunner` is the only piece that does. Any component can then read and display results with no engine dependency, and the persistence contract stays testable without a WASM instance.                                                                                                                                                                                                      |
+| 2  | One service instance per `(model, subject)`                        | `createTestCasesService(modelName, subjectId)` rather than a subject argument on every method. Any view over test data — a grid, a results column — shows one subject at a time, so threading a subject through every call would be noise. `TestsManager` swaps instances when the drop-down changes.                                                                                                                                       |
+| 3  | Stable `id` for a test case                                        | Cells and results key off `TestCase.id`, not the display name, so renaming a column never rewrites its data.                                                                                                                                                                                                                                                                                                                                |
+| 4  | Results are persisted, not recomputed on read                      | Results live in IndexedDB so a component can display them without an engine dependency. `ranAt` and `modelRevision` sit on the `TestResultSet` — properties of the run, not of each value — and let any consumer detect a set produced against a since-edited model.                                                                                                                                                                        |
+| 5  | Subject-relative paths in storage                                  | Rows and results store paths relative to the subject; `qualifyPath` derives the model-level form for `DocumentationService` lookups and for any consumer that addresses paths model-wide. Keeps a callable's `approved` from colliding with a root field of the same name.                                                                                                                                                                  |
+| 6  | Type-directed cell parsing                                         | Cells store raw text and are parsed using the row's declared type, rather than requiring the user to type JSON. The engine coerces some mistyped input silently (a `"5"` string still arithmetics as `5`) but echoes the original string back in the result, which would make assertions confusing.                                                                                                                                         |
+| 7  | Only writable paths are bound                                      | Inputs are restricted to typed holes and callable parameters. Overriding a computed field is not supported by the engine and is silently ignored — see [Open Questions](#open-questions) #1 and the entry in [`BUG_REPORTS.md`](BUG_REPORTS.md).                                                                                                                                                                                            |
+| 8  | Rulesets and optimisations are subjects too                        | All three callable metaphors are executed identically (`execute(name, args)` — verified for `func`, `ruleset`, and `optimise`), so all three are subjects. Excluding `ruleset` would leave decision tables untestable and excluding `optimise` would leave it with no test surface at all, since it has no standalone editor either.                                                                                                        |
+| 9  | `TestResult.value` is `unknown`, not `string`                      | `execute` returns real JS values — numbers, booleans, arrays, nested objects — and only dates, durations, and special values arrive as strings. Typing `value` as `string` would force every producer to stringify and every consumer to parse back, and would deny a reading component the array it needs to render something like "N items". `BOXED_EDITOR_SPEC.md` is corrected to match in Phase 5.                                     |
+| 10 | Run results are a second row source                                | A `@kind: 'invocation'` field is opaque in every `get` view (`@type: 'object'`, no leaves), so a schema-only derivation would leave every call site — including every `optimise` call site — as one unusable row. Reconciling the flattened run result through the same `syncRows` path covers that generically, instead of special-casing invocations.                                                                                     |
+| 11 | Solver wiring stays the host's job                                 | `TestRunner` never registers a solver: EdgeRules ships none, and choosing one is a host deployment decision. The runner only pre-flights the condition, because a missing solver produces `Missing('<name>')` rather than an error and would otherwise look like a modelling mistake.                                                                                                                                                       |
+| 12 | Every callable is a subject, at any depth                          | The drop-down lists callables by dotted path rather than root-level names only, so a model that organizes its logic under a `library:` context is testable. Callables declared inside another callable's **body** stay out: they are implementation details, and subject discovery walks contexts, not function bodies.                                                                                                                     |
+| 13 | `tests-manager` is the GUI, `TestRunner` the executor              | The component directory and subpath are `tests-manager`; `TestRunner` names the execution service only. `README.md`'s Project Structure is updated to match in Phase 5, so one name never refers to two things.                                                                                                                                                                                                                             |
+| 14 | Stale results are greyed and unasserted                            | When `TestResultSet.modelRevision` no longer matches the current `revision`, values render muted and assertion highlighting is suppressed until the case re-runs — a green tick against a value the current model would not produce is worse than no tick. See [Stale results](#stale-results).                                                                                                                                             |
+| 15 | Descriptions key off the qualified path alone                      | No section discriminator in the `DocumentationService` key. A collision needs a model that names a context exactly like a callable, which the engine already rejects as a duplicate name.                                                                                                                                                                                                                                                   |
+| 16 | Values live on the test case, results in their own set             | A `TestCase` owns the two maps the user authored (`inputs`, `assertions`); a `TestResultSet` owns one run's output plus its metadata. Splitting them keeps authored data and derived data from sharing a lifetime, makes "run the case again" a single whole-set replace, and stops run metadata from being duplicated onto every path.                                                                                                     |
+| 17 | `TestRunner` ships inside `tests-manager`, not as a fourth package | It is exported from `edgerules-react/tests-manager` and buildable/testable on its own (Phase 3 has no React in it), but it does not get its own subpath: it has exactly one consumer and, unlike `TestCasesService`, no reason to be importable without the engine. A separate package would add an export surface with nothing behind it. Revisit if a headless CI runner ever wants it alone.                                             |
+| 18 | Subject renames rewrite keys, via a standalone `renameTestSubject` | A subject id is a dotted path and part of the IndexedDB key, so a context rename would otherwise strand every subject beneath it. The rewrite is a module-level function, not an instance method, because one rename usually affects subjects that have no live instance. Keeping the path as the key — rather than a synthetic id stored in the model — avoids putting authoring metadata into a model the engine currently drops it from. |
 
 ## Open Questions
 
-1. **Renaming a context orphans every subject beneath it.** A subject id is a dotted path, and it is part of the
-   IndexedDB key for that subject's cases, rows, and results. `TestCasesService.renamePath(from, to)` migrates paths
-   *within* one subject, but nothing migrates the subject id itself: renaming `library` to `lib` silently strands all
-   test data for `library.eligibility`, which reappears as a brand-new empty subject. The same happens when a callable
-   is renamed or moved between contexts. `BoxedEditor` and `ProjectExplorer` can both perform such renames.
-   Question to address: how does a subject's stored test data follow its callable?
-   Option 1: add `renameSubject(from, to)` to `TestCasesService` (a key rewrite across both stores), and have the
-   editor command layer call it after a successful rename/move, exactly as it already calls `renamePath` on the
-   overlays.
-   Option 2: key stored test data by a stable synthetic subject id held in the model as an annotation, so paths can
-   change freely — heavier, and it puts authoring metadata into the model that the engine currently drops
-   (see [`BUG_REPORTS.md`](BUG_REPORTS.md)'s `@description` entry).
+None open — every question raised against this story has been answered and moved into
+[Resolved Decisions](#resolved-decisions).
 
 ## Follow-up Stories
 
