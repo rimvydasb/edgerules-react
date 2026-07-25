@@ -108,8 +108,8 @@ parameters (complex parameter types expanded to leaves); its computed rows are t
 
 All four callable metaphors execute identically (`execute(dottedPath, args)`), but each is discovered differently:
 
-| Subject kind | Discovered by                                       | `@kind`           | Input rows    | Computed rows       |
-|--------------|-----------------------------------------------------|-------------------|---------------|---------------------|
+| Subject kind | Discovered by                                        | `@kind`           | Input rows    | Computed rows       |
+|--------------|------------------------------------------------------|-------------------|---------------|---------------------|
 | `function`   | `get('*', 'ALL')`, recursing into nested contexts    | `function-schema` | `@parameters` | leaves of `@return` |
 | `ruleset`    | `get('*', 'ALL')`, recursing into nested contexts    | `ruleset-schema`  | `@parameters` | leaves of `@return` |
 | `optimise`   | `get('*', 'EXTERNAL_DEFINITIONS')`                   | `optimise`        | `@parameters` | leaves of `@result` |
@@ -185,23 +185,23 @@ An `optimise` subject's computed rows are the synthesized result record: the dec
 }
 ```
 
-| factoryProduction ▼             | Description         | Test Case 1 : | ... |
-|---------------------------------|---------------------|---------------|-----|
-| Inputs                          |                     |               | ... |
-| `workers`                       | `Available Workers` | `8`           | ... |
-| `sticks`                        | `Sticks In Stock`   | `40`          | ... |
-| `plates`                        | `Plates In Stock`   | `12`          | ... |
-| ___                             | ___                 | ___           | ___ |
-| Assertions                      |                     | `2/2` ✓       | ... |
-| `status`                        | `Solve Status`      | `optimal`     | ... |
-| `objective`                     | `Total Value`       | `120`         | ... |
-| ___                             | ___                 | ___           | ___ |
-| Validations                     |                     |               | ... |
-| `chairs`                        | `Chairs To Build`   | `8`           | ... |
-| `tables`                        | `Tables To Build`   | `0`           | ... |
-| `bottlenecks.workerCapacity`    | `Worker Bottleneck` | `15`          | ... |
-| `solver`                        | `Solver Used`       | `highs-js 1.15.1` | ... |
-| `notes`                         | `Solver Notes`      | `5 items`     | ... |
+| factoryProduction ▼          | Description         | Test Case 1 :     | ... |
+|------------------------------|---------------------|-------------------|-----|
+| Inputs                       |                     |                   | ... |
+| `workers`                    | `Available Workers` | `8`               | ... |
+| `sticks`                     | `Sticks In Stock`   | `40`              | ... |
+| `plates`                     | `Plates In Stock`   | `12`              | ... |
+| ___                          | ___                 | ___               | ___ |
+| Assertions                   |                     | `2/2` ✓           | ... |
+| `status`                     | `Solve Status`      | `optimal`         | ... |
+| `objective`                  | `Total Value`       | `120`             | ... |
+| ___                          | ___                 | ___               | ___ |
+| Validations                  |                     |                   | ... |
+| `chairs`                     | `Chairs To Build`   | `8`               | ... |
+| `tables`                     | `Tables To Build`   | `0`               | ... |
+| `bottlenecks.workerCapacity` | `Worker Bottleneck` | `15`              | ... |
+| `solver`                     | `Solver Used`       | `highs-js 1.15.1` | ... |
+| `notes`                      | `Solver Notes`      | `5 items`         | ... |
 
 **EdgeRules ships no solver.** An `optimise` subject only runs if the host has registered one on the same
 `MutableDecisionService` (see the engine repo's `OPTIMISE_SOLVER_HOSTING.md`). Without it the run does not fail loudly
@@ -508,8 +508,10 @@ interface TestCasesService {
     // --- test cases (grid columns) ---
     listTestCases(): TestCase[]; // Ordered by TestCase.order; each carries its own inputs/assertions.
     getTestCase(testCaseId: string): TestCase | undefined;
+
     addTestCase(name?: string): TestCase; // Appends with empty value maps; defaults the name to "Test Case N".
     renameTestCase(testCaseId: string, name: string): void;
+
     removeTestCase(testCaseId: string): void; // Also drops that case's values and its result set.
     moveTestCase(testCaseId: string, toIndex: number): void;
 
@@ -550,12 +552,12 @@ function createTestCasesService(
 Two object stores in one database, split along the two write rhythms: authored values change on cell commit, results
 change on run.
 
-| Item         | `testCases` store                                              | `testResults` store                                        |
-|--------------|----------------------------------------------------------------|-------------------------------------------------------------|
-| Key path     | `['modelName', 'subjectId']`                                   | `['modelName', 'subjectId', 'testCaseId']`                 |
-| Record shape | `{ modelName, subjectId, cases: TestCase[], rows: TestRow[] }` | `{ modelName, subjectId, testCaseId, set: TestResultSet }` |
+| Item         | `testCases` store                                              | `testResults` store                                                                           |
+|--------------|----------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| Key path     | `['modelName', 'subjectId']`                                   | `['modelName', 'subjectId', 'testCaseId']`                                                    |
+| Record shape | `{ modelName, subjectId, cases: TestCase[], rows: TestRow[] }` | `{ modelName, subjectId, testCaseId, set: TestResultSet }`                                    |
 | Hydration    | one `get` on construction                                      | one cursor read over `IDBKeyRange.bound([modelName, subjectId], [modelName, subjectId, '￿'])` |
-| Write        | whole-record `put` on any case/row/cell change                 | one `put` per completed run; `delete` on clear or case removal |
+| Write        | whole-record `put` on any case/row/cell change                 | one `put` per completed run; `delete` on clear or case removal                                |
 
 Each store writes whole records rather than per-cell rows. A subject's authored data is one small JSON document — tens
 of cases by tens of paths — so a whole-record `put` on cell commit is cheaper than maintaining a key per cell, and it
@@ -634,7 +636,8 @@ Binding rules:
 `Missing('<name>')`, which would otherwise be recorded as an ordinary result and fail every assertion for an unclear
 reason. `TestRunner` therefore refuses the run up front when `service.requiresSolver()` is `true` and no
 `service.solverHandler` is set, saving the same run-level `status: 'error'` set with a message naming the missing
-solver. `TestsManager` shows a grid-level banner rather than a per-cell failure. Registering the solver is the host's job, done
+solver. `TestsManager` shows a grid-level banner rather than a per-cell failure. Registering the solver is the host's
+job, done
 once before `TestsManager` mounts.
 
 Runs are triggered by: committing an `Inputs` cell edit (debounced, that case only), a `revision` prop change (all
@@ -643,7 +646,8 @@ while one is in flight replaces any queued run for the same case.
 
 ### Stale results
 
-A result set is stale when its `modelRevision` differs from the `revision` currently in force — the model has been edited
+A result set is stale when its `modelRevision` differs from the `revision` currently in force — the model has been
+edited
 since the value was computed. A stale result is **greyed out and no longer asserted**: `Validations` cells render the
 last known value in the muted style, and `Assertions` cells drop their pass/fail highlighting entirely rather than
 score an expected value against a value the current model would not produce. The `Assertions` section header shows no
@@ -866,24 +870,24 @@ interface TestsManagerProps {
 
 ## Resolved Decisions
 
-| # | Decision                                      | Resolution                                                                                                                                                                                                                                                                                                                                                                            |
-|---|-----------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | Persistence split from execution              | `TestCasesService` never imports the engine; `TestRunner` is the only piece that does. Any component can then read and display results with no engine dependency, and the persistence contract stays testable without a WASM instance.                                                                                                                                               |
-| 2 | One service instance per `(model, subject)`   | `createTestCasesService(modelName, subjectId)` rather than a subject argument on every method. Any view over test data — a grid, a results column — shows one subject at a time, so threading a subject through every call would be noise. `TestsManager` swaps instances when the drop-down changes.                                                                                |
-| 3 | Stable `id` for a test case                   | Cells and results key off `TestCase.id`, not the display name, so renaming a column never rewrites its data.                                                                                                                                                                                                                                                                          |
-| 4 | Results are persisted, not recomputed on read | Results live in IndexedDB so a component can display them without an engine dependency. `ranAt` and `modelRevision` sit on the `TestResultSet` — properties of the run, not of each value — and let any consumer detect a set produced against a since-edited model.                                                                                                                 |
-| 5 | Subject-relative paths in storage             | Rows and results store paths relative to the subject; `qualifyPath` derives the model-level form for `DocumentationService` lookups and for any consumer that addresses paths model-wide. Keeps a callable's `approved` from colliding with a root field of the same name.                                                                                                                                               |
-| 6 | Type-directed cell parsing                    | Cells store raw text and are parsed using the row's declared type, rather than requiring the user to type JSON. The engine coerces some mistyped input silently (a `"5"` string still arithmetics as `5`) but echoes the original string back in the result, which would make assertions confusing.                                                                                   |
-| 7 | Only writable paths are bound                 | Inputs are restricted to typed holes and callable parameters. Overriding a computed field is not supported by the engine and is silently ignored — see [Open Questions](#open-questions) #1 and the entry in [`BUG_REPORTS.md`](BUG_REPORTS.md).                                                                                                                                      |
-| 8 | Rulesets and optimisations are subjects too   | All three callable metaphors are executed identically (`execute(name, args)` — verified for `func`, `ruleset`, and `optimise`), so all three are subjects. Excluding `ruleset` would leave decision tables untestable and excluding `optimise` would leave it with no test surface at all, since it has no standalone editor either.                                                  |
-| 9 | `TestResult.value` is `unknown`, not `string` | `execute` returns real JS values — numbers, booleans, arrays, nested objects — and only dates, durations, and special values arrive as strings. Typing `value` as `string` would force every producer to stringify and every consumer to parse back, and would deny a reading component the array it needs to render something like "N items". `BOXED_EDITOR_SPEC.md` is corrected to match in Phase 4. |
-| 10 | Run results are a second row source          | A `@kind: 'invocation'` field is opaque in every `get` view (`@type: 'object'`, no leaves), so a schema-only derivation would leave every call site — including every `optimise` call site — as one unusable row. Reconciling the flattened run result through the same `syncRows` path covers that generically, instead of special-casing invocations.                              |
-| 11 | Solver wiring stays the host's job           | `TestRunner` never registers a solver: EdgeRules ships none, and choosing one is a host deployment decision. The runner only pre-flights the condition, because a missing solver produces `Missing('<name>')` rather than an error and would otherwise look like a modelling mistake.                                                                                                  |
-| 12 | Every callable is a subject, at any depth    | The drop-down lists callables by dotted path rather than root-level names only, so a model that organizes its logic under a `library:` context is testable. Callables declared inside another callable's **body** stay out: they are implementation details, and subject discovery walks contexts, not function bodies.                                                              |
-| 13 | `tests-manager` is the GUI, `TestRunner` the executor | The component directory and subpath are `tests-manager`; `TestRunner` names the execution service only. `README.md`'s Project Structure is updated to match in Phase 4, so one name never refers to two things.                                                                                                                                                            |
-| 14 | Stale results are greyed and unasserted      | When `TestResultSet.modelRevision` no longer matches the current `revision`, values render muted and assertion highlighting is suppressed until the case re-runs — a green tick against a value the current model would not produce is worse than no tick. See [Stale results](#stale-results).                                                                                        |
-| 15 | Descriptions key off the qualified path alone | No section discriminator in the `DocumentationService` key. A collision needs a model that names a context exactly like a callable, which the engine already rejects as a duplicate name.                                                                                                                                                                                            |
-| 16 | Values live on the test case, results in their own set | A `TestCase` owns the two maps the user authored (`inputs`, `assertions`); a `TestResultSet` owns one run's output plus its metadata. Splitting them keeps authored data and derived data from sharing a lifetime, makes "run the case again" a single whole-set replace, and stops run metadata from being duplicated onto every path. |
+| #  | Decision                                               | Resolution                                                                                                                                                                                                                                                                                                                                                                                              |
+|----|--------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1  | Persistence split from execution                       | `TestCasesService` never imports the engine; `TestRunner` is the only piece that does. Any component can then read and display results with no engine dependency, and the persistence contract stays testable without a WASM instance.                                                                                                                                                                  |
+| 2  | One service instance per `(model, subject)`            | `createTestCasesService(modelName, subjectId)` rather than a subject argument on every method. Any view over test data — a grid, a results column — shows one subject at a time, so threading a subject through every call would be noise. `TestsManager` swaps instances when the drop-down changes.                                                                                                   |
+| 3  | Stable `id` for a test case                            | Cells and results key off `TestCase.id`, not the display name, so renaming a column never rewrites its data.                                                                                                                                                                                                                                                                                            |
+| 4  | Results are persisted, not recomputed on read          | Results live in IndexedDB so a component can display them without an engine dependency. `ranAt` and `modelRevision` sit on the `TestResultSet` — properties of the run, not of each value — and let any consumer detect a set produced against a since-edited model.                                                                                                                                    |
+| 5  | Subject-relative paths in storage                      | Rows and results store paths relative to the subject; `qualifyPath` derives the model-level form for `DocumentationService` lookups and for any consumer that addresses paths model-wide. Keeps a callable's `approved` from colliding with a root field of the same name.                                                                                                                              |
+| 6  | Type-directed cell parsing                             | Cells store raw text and are parsed using the row's declared type, rather than requiring the user to type JSON. The engine coerces some mistyped input silently (a `"5"` string still arithmetics as `5`) but echoes the original string back in the result, which would make assertions confusing.                                                                                                     |
+| 7  | Only writable paths are bound                          | Inputs are restricted to typed holes and callable parameters. Overriding a computed field is not supported by the engine and is silently ignored — see [Open Questions](#open-questions) #1 and the entry in [`BUG_REPORTS.md`](BUG_REPORTS.md).                                                                                                                                                        |
+| 8  | Rulesets and optimisations are subjects too            | All three callable metaphors are executed identically (`execute(name, args)` — verified for `func`, `ruleset`, and `optimise`), so all three are subjects. Excluding `ruleset` would leave decision tables untestable and excluding `optimise` would leave it with no test surface at all, since it has no standalone editor either.                                                                    |
+| 9  | `TestResult.value` is `unknown`, not `string`          | `execute` returns real JS values — numbers, booleans, arrays, nested objects — and only dates, durations, and special values arrive as strings. Typing `value` as `string` would force every producer to stringify and every consumer to parse back, and would deny a reading component the array it needs to render something like "N items". `BOXED_EDITOR_SPEC.md` is corrected to match in Phase 4. |
+| 10 | Run results are a second row source                    | A `@kind: 'invocation'` field is opaque in every `get` view (`@type: 'object'`, no leaves), so a schema-only derivation would leave every call site — including every `optimise` call site — as one unusable row. Reconciling the flattened run result through the same `syncRows` path covers that generically, instead of special-casing invocations.                                                 |
+| 11 | Solver wiring stays the host's job                     | `TestRunner` never registers a solver: EdgeRules ships none, and choosing one is a host deployment decision. The runner only pre-flights the condition, because a missing solver produces `Missing('<name>')` rather than an error and would otherwise look like a modelling mistake.                                                                                                                   |
+| 12 | Every callable is a subject, at any depth              | The drop-down lists callables by dotted path rather than root-level names only, so a model that organizes its logic under a `library:` context is testable. Callables declared inside another callable's **body** stay out: they are implementation details, and subject discovery walks contexts, not function bodies.                                                                                 |
+| 13 | `tests-manager` is the GUI, `TestRunner` the executor  | The component directory and subpath are `tests-manager`; `TestRunner` names the execution service only. `README.md`'s Project Structure is updated to match in Phase 4, so one name never refers to two things.                                                                                                                                                                                         |
+| 14 | Stale results are greyed and unasserted                | When `TestResultSet.modelRevision` no longer matches the current `revision`, values render muted and assertion highlighting is suppressed until the case re-runs — a green tick against a value the current model would not produce is worse than no tick. See [Stale results](#stale-results).                                                                                                         |
+| 15 | Descriptions key off the qualified path alone          | No section discriminator in the `DocumentationService` key. A collision needs a model that names a context exactly like a callable, which the engine already rejects as a duplicate name.                                                                                                                                                                                                               |
+| 16 | Values live on the test case, results in their own set | A `TestCase` owns the two maps the user authored (`inputs`, `assertions`); a `TestResultSet` owns one run's output plus its metadata. Splitting them keeps authored data and derived data from sharing a lifetime, makes "run the case again" a single whole-set replace, and stops run metadata from being duplicated onto every path.                                                                 |
 
 ## Open Questions
 
