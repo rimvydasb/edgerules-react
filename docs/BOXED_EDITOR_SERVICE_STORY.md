@@ -112,12 +112,14 @@ writing `actions` back into a heterogeneous `then`/`@default` record for a colum
 
 ### Denormalization (`denormalize.ts`) and the whole-node `set` strategy
 
-`setBoxedRowData(path, row)` denormalizes the **entire row, including its `children`,** into one `PortableNode` and
-issues exactly one `mutable.set(path, node)`. Type-definition children are the one engine-required representation
-exception: their typed-wrapper text is emitted as the accepted raw string rather than an `@kind: "expression"`
-object (see `docs/BUG_REPORTS.md`). This is deliberate, not incidental, and otherwise follows the same strategy
-already validated for `ruleset` in `DECISION_TABLE_STORY.md` ("structural edits → whole-ruleset `set`"), for two
-engine reasons confirmed against `../edgerules-v2/doc/architecture/CRUD_SPEC.md`:
+`setBoxedRowData(path, row)` denormalizes the **entire row, including its `children`,** into one `PortableNode`.
+Ordinary rows issue `mutable.set(path, node)` directly. Because the engine defines an `optimise` declaration as a
+root-only whole-node CRUD surface, an optimisation child edit is merged into the authored declaration and issued as
+one `mutable.set(optimiseName, definition)` call. Type-definition children are the other engine-required
+representation exception: their typed-wrapper text is emitted as the accepted raw string rather than an
+`@kind: "expression"` object. These choices follow the same strategy already validated for `ruleset` in
+`DECISION_TABLE_STORY.md` ("structural edits → whole-ruleset `set`"), for two engine reasons confirmed against
+`../edgerules-v2/doc/architecture/CRUD_SPEC.md`:
 
 1. **Arrays are append-only; gaps are rejected** (`ResolvedLocation::NewListElement` — "New tail slot (gaps rejected
    → `WrongFieldPath`)"). There is no engine primitive to insert or reorder at an arbitrary array index, so
@@ -179,7 +181,8 @@ lost-on-partial-failure row, which is why the order is insert-first.
 
 Reordering within the _same_ parent (`fromPath` and `toParentPath` share a parent) is the same algorithm with
 `toParentPath == ` the shared parent — splice-out-then-splice-in inside one already-read `destNode`, still one
-`set`.
+`set`. Optimisation variable/constraint moves rebuild and write their owning whole declaration; root reorders rely
+on the engine's whole-root replacement semantics, including the payload's authored key order.
 
 **`index` is only fully meaningful for array-shaped destinations.** For `list`/`relation`/`ruleset`'s `@rules`/
 `optimisation-variable-group`/`optimisation-constraint-group` parents, physical array position _is_ render order, so
@@ -319,10 +322,9 @@ sequenceDiagram
       `__tests__/normalization.test.ts`.
 - [x] Mark all checkboxes as done in this document once verified
 
-> `0.0.0-alpha.202607251019` fully supports optimisation parsing, linking, Portable whole-model round trips, solver
-> registration, and execution. The normalisation test now exercises that complete real-engine path. The narrower
-> path-scoped mutable CRUD surface still does not address an `optimise` declaration; that separately verified API gap
-> is recorded in `docs/BUG_REPORTS.md`, and the facade passes its `PortableError` through.
+> `0.0.1-alpha.202607252017` adds the authored `PortableOptimiseDefinition` contract and whole-definition
+> `get`/`set`/`remove`/`rename` support. The normalisation and mutation tests exercise that published API directly;
+> the facade coalesces child-row edits into the engine-required whole-definition write.
 
 **Phase 3: `move`**
 
@@ -335,9 +337,9 @@ sequenceDiagram
       with the duplicate documented as expected
 - [x] Mark all checkboxes as done in this document once verified
 
-> List, relation, and rule reorders plus field/context/function reparenting and both failure orders are covered
-> against the real engine. Optimisation-group move persistence is the one operation that requires path-scoped
-> mutation of an `optimise` declaration and is therefore subject to the recorded CRUD-path gap.
+> List, relation, rule, optimisation-group, and model-root reorders plus field/context/function reparenting and both
+> failure orders are covered against the real engine. Optimisation-group moves persist by writing the owning
+> declaration as one whole node.
 
 **Phase 4: Quality gate**
 

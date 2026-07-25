@@ -703,8 +703,8 @@ arguments) edits its `value` text.
 
 Engine representation exception: when a whole `complexType` is persisted, its typed child text is written as the
 raw wrapper string (for example `"<number, required: true>"`) rather than an `@kind: "expression"` object. The
-installed engine accepts and parses the string form but rejects the otherwise-uniform expression wrapper in a
-`type-definition`; see `docs/BUG_REPORTS.md`.
+installed engine accepts and parses the string form; `PortableTypeDefinition` intentionally permits a
+`PortableTypedValue` or type-ref string, not a computed `PortableExpression`.
 
 ### Path conventions
 
@@ -714,11 +714,10 @@ are addressed through their authored field path (`monthly.result`, `risk.rules[2
 `factoryProduction.variables.chairs`) even though Portable stores function bodies under `@body`. Authoritative
 syntax and filters live in `../edgerules-v2/doc/architecture/CRUD_SPEC.md`.
 
-`0.0.0-alpha.202607251019` supports optimisation end to end: DSL parsing/linking, Portable whole-model conversion,
-solver registration, and execution. The paths above describe the editor's authored row identities. The engine's
-path-scoped mutable CRUD API does not yet resolve those `optimise` paths (or a whole-definition `set`), so an attempted
-inline optimisation mutation is passed through as a `PortableError`; the focused API gap is recorded in
-`docs/BUG_REPORTS.md`.
+`0.0.1-alpha.202607252017` exposes the authored `PortableOptimiseDefinition` through
+`get(optimiseName, "ALL")` and accepts it through whole-definition `set`, `remove`, and `rename`. Optimisation child
+paths above remain editor row identities rather than engine CRUD locations: the facade merges a child edit,
+remove, rename, or move into the owning definition and writes that definition once, as required by the engine API.
 
 ### Edit → persist → refresh flow
 

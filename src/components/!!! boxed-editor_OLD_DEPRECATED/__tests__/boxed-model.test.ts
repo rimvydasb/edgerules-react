@@ -64,6 +64,7 @@ describe('boxed relation model', () => {
       items as unknown as PortableNode,
       'people',
       {
+        '@kind': 'type',
         type: 'array',
         items: {
           '@kind': 'type-definition',
