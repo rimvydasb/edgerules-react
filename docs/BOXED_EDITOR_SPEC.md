@@ -9,7 +9,8 @@ needed to implement `BoxedEditor` is in this document.
   authoritative wireframe. Every row layout, column, action list, and interaction described below is a direct read of
   that code (`App.tsx` for composition/occupancy, `boxed/actions.ts` for row kinds and their context menus,
   `boxed/*.tsx` for per-construct rendering, `hooks/useAltHeld.ts` for the type-reveal interaction).
-- ![reference.png](/Users/rimvydasbingelis/Projects/EdgeRules/edgerules-react-frames/docs/reference.png)
+- ![reference.png](screenshots/reference.png)
+- Actions with Icons: `/Users/rimvydasbingelis/Projects/EdgeRules/edgerules-react-frames/src/boxed/actions.ts`
 
 ## Introduction
 
@@ -873,6 +874,17 @@ the **real** engine — never a mock.
   `TestCasesService` overlays, test-case navigation, a `ruleset`-bearing model, and an `optimisation`-bearing model).
 - If a mutation or normalization exposes a WASM/DSL bug, append a reproducible entry to `docs/BUG_REPORTS.md` rather
   than compensating in React.
+
+### Storybook stories
+
+1. `BoxedEditor` with a full model (all row kinds) and a `DocumentationService` overlay.
+2. `BoxedEditor` with a `TestCasesService` overlay and previous/next navigation.
+3. `BoxedEditor` with a `ruleset`-bearing model, showing inline rule CRUD and `ruleset-hit-policy`/`ruleset-default`
+   rows.
+4. `BoxedEditor` with an `optimisation`-bearing model, showing inline variable/objective/constraint CRUD and
+   `optimisation-setting`/`optimisation-variable-group` rows.
+5. `BoxedEditor` with a `func` bearing model, showing inline and complex function overlays and editing. Function with no
+   arguments and deeper nested functions will be there as well.
 
 ## Resolved Decisions
 
