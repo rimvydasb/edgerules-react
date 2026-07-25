@@ -35,7 +35,8 @@ complete list — derived from, and cross-checked against, the reference wirefra
 - `function` - a named callable (`func`); tall row, argument headers under the value column
 - `function-result` - the synthesized `result` line of a function body
 - `ruleset` - a named rule matrix (DMN-style decision table, EdgeRules `ruleset`); tall row, condition/action column
-  headers under the value column. See [Ruleset and optimisation row composition](#ruleset-and-optimisation-row-composition).
+  headers under the value column.
+  See [Ruleset and optimisation row composition](#ruleset-and-optimisation-row-composition).
 - `rule` - one row of a `ruleset`'s rule matrix
 - `ruleset-default` - the singleton fallback-result row of a `ruleset` (shown when no rule matches)
 - `optimisation` - a named linear optimisation problem (EdgeRules `optimise`); tall row, argument headers under the
@@ -45,10 +46,6 @@ complete list — derived from, and cross-checked against, the reference wirefra
 - `optimisation-objective` - the fixed `maximise`/`minimise` row (exactly one, required)
 - `optimisation-constraint-group` - the fixed `constraints:` section header inside an `optimisation`
 - `optimisation-constraint` - one named linear constraint
-
-Two more kinds are **recommended additions**, not present in the wireframe's `RowKind` union today — see
-[Row kind review](#row-kind-review-of-actionsts) item R6:
-
 - `ruleset-hit-policy` - the fixed `hitPolicy` setting row of a `ruleset`
 - `optimisation-setting` - the fixed `using` / `bottlenecks` / `timeLimit` setting rows of an `optimisation`
 
@@ -68,29 +65,29 @@ Full-height ("tall", 80px) rows carry their own argument/column headers in the `
 Exact column occupancy (which rows span `NameColumn`+`ValueColumn` as one cell vs. keep them separate) is not repeated
 here — read it straight from `App.tsx`, which is the living reference for every row's layout.
 
-| Row Type                  | Row Type Key                    | Actions                                                                                            | Short Description                                                                 |
-|----------------------------|----------------------------------|------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
-| Model Header               | `model`                          | Add Field, Add Function, Add Optimisation, Add Decision Table, Add Relation, Add List, Model Settings | Root row: model name; fixed position, not sortable, not deletable                  |
-| Type Field                 | `field`                          | Convert to Context, Convert to Relation, Convert to List, Duplicate, Delete                          | Generic leaf: a class field, a typed input, or a computed expression               |
-| Context                    | `context`                        | Add Field, Add Function, Add Decision Table, Add Relation, Add List, Duplicate, Delete                | Named nested object                                                              |
-| Complex Type               | `complexType`                    | Add Field, Duplicate, Delete                                                                          | Reusable named type definition                                                     |
-| List                       | `list`                           | Duplicate, Delete                                                                                     | Header of a homogeneous scalar list; items appended via the trailing placeholder row |
-| List Item                  | `list-item`                      | Duplicate, Delete                                                                                     | One scalar list element; Duplicate inserts a copy directly below it                |
-| Relation                   | `relation`                       | Add Column, Delete "‹column›" Column (per column), Delete                                            | Header of a homogeneous complex-object collection                                 |
-| Relation Item              | `relation-item`                  | Duplicate, Delete                                                                                     | One record of a relation, one cell per column                                     |
-| Function                   | `function`                       | Add Argument, Duplicate, Delete "‹arg›" Argument (per arg), Delete                                    | A named callable (`func`)                                                          |
-| Function Result            | `function-result`                | Duplicate, Delete                                                                                     | The synthesized `result` line of a function body; not draggable                    |
-| Decision Table             | `ruleset`                        | Add Rule, Add Condition Column, Add Action Column, Delete "‹column›" Column (per column), Delete      | A named rule matrix (DMN-style decision table)                                     |
-| Rule                       | `rule`                           | Duplicate, Delete                                                                                     | One row of a decision table's rule matrix                                          |
-| Ruleset Default            | `ruleset-default`                | Delete                                                                                                | Singleton fallback row shown when no rule matches; not duplicable                  |
-| Ruleset Hit Policy *(rec.)*| `ruleset-hit-policy`             | *(none — edited via its own picker chip)*                                                            | Fixed `hitPolicy` setting                                                          |
-| Optimisation                | `optimisation`                   | Add Argument, Add Variable, Add Constraint, Duplicate, Delete "‹arg›" Argument (per arg), Delete      | A named linear optimisation problem (`optimise`)                                  |
-| Optimisation Variable Group | `optimisation-variable-group`   | Add Variable                                                                                          | Fixed `variables:` section header; not draggable                                  |
-| Optimisation Variable       | `optimisation-variable`         | Duplicate, Delete                                                                                     | One decision variable (a Typed Input Wrapper)                                     |
-| Optimisation Objective      | `optimisation-objective`        | Switch to Minimise/Maximise                                                                           | Fixed `maximise`/`minimise` row; exactly one, required; not draggable              |
-| Optimisation Constraint Group | `optimisation-constraint-group`| Add Constraint                                                                                        | Fixed `constraints:` section header; not draggable                                |
-| Optimisation Constraint     | `optimisation-constraint`       | Duplicate, Delete                                                                                     | One named linear constraint                                                       |
-| Optimisation Setting *(rec.)*| `optimisation-setting`          | *(none — edited via its own control)*                                                                | Fixed `using` / `bottlenecks` / `timeLimit` settings                              |
+| Row Type                      | Row Type Key                    | Actions                                                                                                           | Short Description                                                                    |
+|-------------------------------|---------------------------------|-------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| Model Header                  | `model`                         | Add Field, Add Function, Add Optimisation, Add Decision Table, Add Relation, Add List, Model Settings             | Root row: model name; fixed position, not sortable, not deletable                    |
+| Type Field                    | `field`                         | Convert to Context, Convert to Relation, Convert to List, Duplicate, Delete                                       | Generic leaf: a class field, a typed input, or a computed expression                 |
+| Context                       | `context`                       | Add Field, Add Function, Add Decision Table, Add Relation, Add List, Duplicate, Delete, Expand/Collapse           | Named nested object                                                                  |
+| Complex Type                  | `complexType`                   | Add Field, Duplicate, Delete, Expand/Collapse                                                                     | Reusable named type definition                                                       |
+| List                          | `list`                          | Duplicate, Delete                                                                                                 | Header of a homogeneous scalar list; items appended via the trailing placeholder row |
+| List Item                     | `list-item`                     | Duplicate, Delete                                                                                                 | One scalar list element; Duplicate inserts a copy directly below it                  |
+| Relation                      | `relation`                      | Add Column, Delete "‹column›" Column (per column), Delete                                                         | Header of a homogeneous complex-object collection                                    |
+| Relation Item                 | `relation-item`                 | Duplicate, Delete                                                                                                 | One record of a relation, one cell per column                                        |
+| Function                      | `function`                      | Add Argument, Duplicate, Delete "‹arg›" Argument (per arg), Delete, Expand/Collapse                               | A named callable (`func`)                                                            |
+| Function Result               | `function-result`               | Duplicate, Delete                                                                                                 | The synthesized `result` line of a function body; not draggable                      |
+| Decision Table                | `ruleset`                       | Add Rule, Add Condition Column, Add Action Column, Delete "‹column›" Column (per column), Delete, Expand/Collapse | A named rule matrix (DMN-style decision table)                                       |
+| Rule                          | `rule`                          | Duplicate, Delete                                                                                                 | One row of a decision table's rule matrix                                            |
+| Ruleset Default               | `ruleset-default`               | Delete                                                                                                            | Singleton fallback row shown when no rule matches; not duplicable                    |
+| Ruleset Hit Policy            | `ruleset-hit-policy`            | *(none — edited via its own picker chip)*                                                                         | Fixed `hitPolicy` setting                                                            |
+| Optimisation                  | `optimisation`                  | Duplicate, Delete, Expand/Collapse                                                                                | A named linear optimisation problem (`optimise`)                                     |
+| Optimisation Variable Group   | `optimisation-variable-group`   | Add Variable                                                                                                      | Fixed `variables:` section header; not draggable                                     |
+| Optimisation Variable         | `optimisation-variable`         | Duplicate, Delete                                                                                                 | One decision variable (a Typed Input Wrapper)                                        |
+| Optimisation Objective        | `optimisation-objective`        | Switch to Minimise/Maximise                                                                                       | Fixed `maximise`/`minimise` row; exactly one, required; not draggable                |
+| Optimisation Constraint Group | `optimisation-constraint-group` | Add Constraint                                                                                                    | Fixed `constraints:` section header; not draggable                                   |
+| Optimisation Constraint       | `optimisation-constraint`       | Duplicate, Delete                                                                                                 | One named linear constraint                                                          |
+| Optimisation Setting          | `optimisation-setting`          | *(none — edited via its own control)*                                                                             | Fixed `using` / `bottlenecks` / `timeLimit` settings                                 |
 
 **Common to every row:**
 
@@ -137,7 +134,6 @@ flowchart TD
         Con2["optimisation-constraint (repeatable, sortable)"]
         ConNew["(new constraint) placeholder"]
         TimeLimit["optimisation-setting: timeLimit — fixed"]
-
         VarGroup --> Var1 & Var2 & VarNew
         ConGroup --> Con1 & Con2 & ConNew
     end
@@ -150,48 +146,12 @@ add-column / delete-column actions, matching how `relation`/`list` are already e
 "open" anything. The existing `onOpenNode({kind: 'ruleset'})` routing to `DecisionTableEditor` is kept as an escape
 hatch for the dedicated full-screen ergonomics (bulk column resize, keyboard cell navigation, large rule counts) —
 symmetric with how `code-editor` stays available via "View as code" even though expression cells are already editable
-inline. **This coexistence is inferred, not confirmed — see [Open Questions](#open-questions).**
+inline (see [Resolved Decisions](#resolved-decisions) #13).
 
 **Optimisation has no standalone editor at all.** Unlike `ruleset`, there is no dedicated host editor for `optimise`
 anywhere in the library's component list (Code Editor, Boxed Editor, Decision Table Editor, Flow Editor, Test Runner,
 Types Editor, Project Explorer) — `BoxedEditor` is its only GUI, so the inline row tree above must be complete on its
 own, not a preview.
-
-## Row kind review of `actions.ts`
-
-Cross-checking the wireframe's `rowActionRegistry` / `rowActions` against every `RowKind` it declares surfaced six
-things worth deciding before the real implementation copies this design verbatim:
-
-1. **`insert-above` / `insert-below` are dead.** Both ids are declared in `rowActionRegistry` but never appear in any
-   `rowActions[kind]` list. Either wire them to a real use (a mid-sequence "insert blank sibling" distinct from
-   Duplicate-with-content) or drop them — right now they're reserved-but-unused surface area.
-2. **The append affordance is inconsistent.** Some containers get an explicit "Add X" in their own three-dot menu
-   (`complexType`, `context`/`model`, `ruleset`, `relation`'s "Add Column", `optimisation`'s groups) while others rely
-   solely on the trailing "(new …)" placeholder row with no menu equivalent (`list` has no "Add Item"; `relation` has
-   no "Add Row"). Recommend picking one policy — either every appendable container gets a menu entry mirroring its
-   placeholder, or the placeholder is the sole affordance everywhere and the menu entries are dropped for consistency.
-3. **`optimisation`'s add-variable/add-constraint is triple-redundant.** The top-level `optimisation` row's own menu
-   offers `add-variable`/`add-constraint`, the nested `optimisation-variable-group`/`optimisation-constraint-group`
-   rows offer the same action again, and a trailing placeholder row exists too. Recommend dropping the top-level
-   copies — the group row is where the insertion actually happens and is never more than one row away.
-4. **`change-hit-policy` is orphaned.** It's declared in the registry but no `rowActions[kind]` list references it —
-   `hitPolicy` is rendered as a bare `DropdownChip` with no `kind`/menu at all in the wireframe. Confirm the intent is
-   "click the chip to open the picker" rather than a three-dot menu entry, and either wire the id to that chip or
-   remove it from the registry.
-5. **Duplicating a *named* row needs an auto-rename rule that isn't specified anywhere.** `optimisation-variable`,
-   `optimisation-constraint`, `field`, `function`, `context`, `complexType`, `ruleset` are all named children of a
-   record — cloning one verbatim collides with its own name immediately. `list-item`/`relation-item`/`rule` are
-   positional and don't have this problem. The real implementation needs a stated rule (e.g. `chairs` → `chairs2`)
-   for Duplicate on named kinds — a one-click action has no point at which the user chooses the new name before the
-   copy is inserted, so the rename has to be automatic and then left in place for the user to edit.
-6. **No row kind exists for the fixed setting rows.** `hitPolicy`, `using`, `bottlenecks`, and `timeLimit` render via
-   the `SettingRow` primitive with no `kind` prop at all (no menu, and no discriminant for a renderer dispatch table
-   either). Recommend adding `ruleset-hit-policy` and `optimisation-setting` as real `BoxedRowKind` values with an
-   empty action list, purely so `BoxedRowData.kind` stays a complete discriminated union for every rendered row —
-   these are the two kinds listed as "(recommended)" throughout this document.
-
-**Not a gap, by design:** the registry has no `copy`/`paste` ids at all — `duplicate` covers copy-and-insert-below in
-one action (see [Resolved Decisions](#resolved-decisions) #8).
 
 ## GUI Language
 
@@ -216,9 +176,8 @@ header, list row, etc. `BoxedEditor` has the following main columns:
 - `TestResultsColumn` - column is used for that single expression calculation result. This column has a header with a
   test name and with `previous` and `next` buttons to navigate through all test cases.
 
-There is **no `TypeColumn`.** Types are not a rendered column at all — they are attached as a tooltip on the relevant
-name/header cell (`NameColumn` for a `field`/`context`/`complexType`, argument/column headers for
-`function`/`ruleset`/`optimisation`/`relation`), and revealed two ways:
+Every type is a tooltip on its owning name/header cell (`NameColumn` for a `field`/`context`/`complexType`,
+argument/column headers for `function`/`ruleset`/`optimisation`/`relation`), revealed two ways:
 
 - **Hover** a name/header cell → its tooltip opens, showing that one type.
 - **Hold Alt** anywhere on the page → every type tooltip in the tree opens at once, so the whole model's types can be
@@ -277,7 +236,7 @@ src/components/boxed-editor/
 │  ├─ RulesetRow.tsx                — kind: ruleset (renders ArgumentHeaders + two-group column headers)
 │  ├─ RuleRow.tsx                   — kind: rule
 │  ├─ RulesetDefaultRow.tsx         — kind: ruleset-default
-│  ├─ RulesetHitPolicyRow.tsx       — kind: ruleset-hit-policy (recommended addition, see review item R6)
+│  ├─ RulesetHitPolicyRow.tsx       — kind: ruleset-hit-policy
 │  ├─ OptimisationRow.tsx           — kind: optimisation (renders ArgumentHeaders)
 │  ├─ OptimisationSettingRow.tsx    — kind: optimisation-setting (using / bottlenecks / timeLimit)
 │  ├─ OptimisationVariableGroupRow.tsx — kind: optimisation-variable-group
@@ -336,8 +295,7 @@ interface BoxedEditorProps {
     showHeader?: boolean; // Whether to show the model header row. Defaults to `true`.
     showTestResults?: boolean; // Whether to show the test results column. Defaults to `true`.
     showDescription?: boolean; // Whether to show the description column. Defaults to `true`.
-    showType?: boolean; // Whether type tooltips (hover + Alt-reveal) are available at all. There is no type
-                        // column to hide/show — this only gates the tooltip interaction. Defaults to `true`.
+    showType?: boolean; // Whether the type tooltip (hover + Alt-reveal, see GUI Language) is available. Defaults to `true`.
     expanded?: boolean; // Whether to expand all rows (types, contexts, functions, rulesets, optimisations). Defaults to `true`.
     className?: string; // Optional class name for the root element.
     sx?: SxProps<Theme>; // Optional MUI `sx` prop for styling the root element.
@@ -360,15 +318,18 @@ interface BoxedEditorOpenTarget {
 `type-definition`, `ruleset`, and `loop` route to their specialized host editors (Types / Decision Table / Loop).
 `boxed-editor` asks the host to open the target context in its own nested `BoxedEditor` instance, and `code-editor`
 backs the `View as code` action (opens the CodeMirror editor on the model text). The host owns those editor
-instances; `BoxedEditor` only emits the routing request. `ruleset` is the one target kind whose node is *also* fully
-editable inline (see [Ruleset and optimisation row composition](#ruleset-and-optimisation-row-composition)) — opening it is for the dedicated full-screen
-ergonomics, not because the inline view is read-only. There is no `optimise` target kind: `optimise` has no
-standalone host editor, so its inline `BoxedEditor` rendering must be complete on its own.
+instances; `BoxedEditor` only emits the routing request — a `code-editor` target carries just the `path`, and
+resolving that into actual code text or a rendered editor is entirely the host's responsibility, not `BoxedEditor`'s.
+`ruleset` is the one target kind whose node is *also* fully
+editable inline (see [Ruleset and optimisation row composition](#ruleset-and-optimisation-row-composition)) — opening it
+is for the dedicated full-screen
+ergonomics, not because the inline view is read-only. `optimise` is edited exclusively inline, through `BoxedEditor`'s
+own `optimisation`-family rows — it carries no entry in `BoxedEditorTargetKind`.
 
 - `expanded` sets the **initial** global expand state only. After first render each `FunctionRow` / `ContextRow` /
-  `ComplexTypeRow` / `RulesetRow` / `OptimisationRow` keeps its own expand/collapse state. Changing `revision` does not
-  reset per-row expand state. **Whether this toggle lives in the three-dot menu or as a direct disclosure control on
-  the row is unresolved** — see [Open Questions](#open-questions) #5.
+  `ComplexTypeRow` / `RulesetRow` / `OptimisationRow` keeps its own expand/collapse state, toggled by its own
+  `Expand` / `Collapse` context-menu action (see [Context Menu](#context-menu)). Changing `revision` does not reset
+  per-row expand state.
 - **Export surface.** The `boxed-editor` entry point exports only `BoxedEditor`, `BoxedEditorProps`,
   `BoxedEditorService`, `BoxedEditorOpenTarget`, `BoxedEditorTargetKind`, and the service contracts
   (`DocumentationService`, `TestCasesService`, and their data types). Rows, cells, primitives, hooks, contexts, and
@@ -376,103 +337,65 @@ standalone host editor, so its inline `BoxedEditor` rendering must be complete o
 
 ## Context Menu
 
-**Common:** (except `model`)
+Which actions a row kind offers is already in the [Row Types](#row-types) table's Actions column. This section
+defines what each action does; a "per instance" action (e.g. one Delete-column entry per existing column) appears
+once here and is repeated once per instance in the actual menu.
 
-- Delete - deletes the selected row, if it is allowed to delete
-- Duplicate - copies the row (and, for a container, all its children) and inserts the copy directly below the
-  original. On a **named** row kind (`field`, `context`, `complexType`, `function`, `ruleset`, `optimisation`,
-  `optimisation-variable`, `optimisation-constraint`) the copy is auto-renamed to avoid an immediate name collision
-  with its source (see [Row kind review](#row-kind-review-of-actionsts) #5); on a positional kind (`list-item`,
-  `relation-item`, `rule`) it needs no rename and doubles as "insert a new one right after this one".
-
-`model`:
-
-- Model Settings - opens a form for model-level metadata (name, version, description). **Whether "View as code" also
-  lives here, given it has no home in the wireframe's registry, is unresolved** — see
-  [Open Questions](#open-questions) #6.
-
-`model`:
-
-- Add Field - adds a new `field` row to the model root
-- Add Function - adds a new `function` row to the model root
-- Add Decision Table - adds a new `ruleset` row to the model root
-- Add Optimisation - adds a new `optimisation` row to the model root. **Root-only**: `optimise` may only be
-  declared at the model root (a nested declaration is a link-time error, see
-  `../edgerules-v2/doc/architecture/dsl/OPTIMISATION_METAPHOR_SPEC.md` §3, "Root-only. Like `external func`") — this
-  action does not appear on `context`.
-- Add Relation - adds a new `relation` row to the model root
-- Add List - adds a new `list` row to the model root
-
-`context`:
-
-- Add Field - adds a new `field` row to the context
-- Add Function - adds a new `function` row to the context
-- Add Decision Table - adds a new `ruleset` row to the context
-- Add Relation - adds a new `relation` row to the context
-- Add List - adds a new `list` row to the context
-
-`field`:
-
-- Convert to Context - converts the field into an empty `context`
-- Convert to Relation - converts the field into an empty `relation`
-- Convert to List - converts the field into an empty `list`
-
-`complexType`:
-
-- Add Field - adds a new `field` row to the complex type
-
-`function`:
-
-- Add Argument - adds a new argument to the function's signature
-- Delete "‹argument›" Argument (per argument) - removes that argument from the signature
-
-`relation`:
-
-- Add Column - appends a new field/column to every record in the relation
-- Delete "‹column›" Column (per column) - removes that field/column from every record
-
-`ruleset`:
-
-- Add Rule - appends a new empty `rule` row to the rule matrix
-- Add Condition Column - appends a new condition column, extending every `rule`/`ruleset-default` row
-- Add Action Column - appends a new action column, extending every `rule`/`ruleset-default` row
-- Delete "‹column›" Column (per condition/action column) - removes that column from every row
-
-`optimisation`:
-
-- Add Argument - adds a new argument to the problem's signature
-- Delete "‹argument›" Argument (per argument) - removes that argument from the signature
-
-`optimisation-variable-group`:
-
-- Add Variable - appends a new `optimisation-variable` row
-
-`optimisation-constraint-group`:
-
-- Add Constraint - appends a new `optimisation-constraint` row
-
-`optimisation-objective`:
-
-- Switch to Minimise / Switch to Maximise - flips the section keyword, keeping the expression
+| Action                                      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+|---------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Delete                                      | Deletes the selected row. Hidden/disabled when `BoxedRowData.deletable` is `false` (e.g. a function's synthesized `result`, `ruleset-default`, or a field required by the model).                                                                                                                                                                                                                                                                                           |
+| Duplicate                                   | Copies the row — and, for a container, all its children — and inserts the copy directly below the original. Auto-renames on a **named** kind (`field`, `context`, `complexType`, `function`, `optimisation`, `optimisation-variable`, `optimisation-constraint`) to avoid an immediate collision with the source's own name; a **positional** kind (`list-item`, `relation-item`, `rule`) needs no rename, so Duplicate doubles as "insert a new one right after this one". |
+| Model Settings                              | Opens a form for model-level metadata (name, version, description). Whether `View as code` also lives here is unresolved — see [Open Questions](#open-questions) #1.                                                                                                                                                                                                                                                                                                        |
+| Add Field                                   | Appends a new `field` row to the container (`model`, `context`, `complexType`).                                                                                                                                                                                                                                                                                                                                                                                             |
+| Add Function                                | Appends a new `function` row to the container (`model`, `context`).                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Add Decision Table                          | Appends a new `ruleset` row to the container (`model`, `context`).                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Add Optimisation                            | Appends a new `optimisation` row. **`model` only** — `optimise` may only be declared at the model root; a nested declaration is a link-time error (`OPTIMISATION_METAPHOR_SPEC.md` §3, "Root-only. Like `external func`").                                                                                                                                                                                                                                                  |
+| Add Relation                                | Appends a new `relation` row to the container (`model`, `context`).                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Add List                                    | Appends a new `list` row to the container (`model`, `context`).                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Add Item                                    | Appends a new `list-item` row to a `list`.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Add Row                                     | Appends a new `relation-item` row to a `relation`.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Add Argument                                | Appends a new argument to a `function`'s signature.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Delete "‹argument›" Argument (per argument) | Removes that argument from a `function`'s signature.                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Add Rule                                    | Appends a new `rule` row to a `ruleset`'s rule matrix.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Add Condition Column                        | Appends a new condition column to a `ruleset`, extending every `rule`/`ruleset-default` row.                                                                                                                                                                                                                                                                                                                                                                                |
+| Add Action Column                           | Appends a new action column to a `ruleset`, extending every `rule`/`ruleset-default` row.                                                                                                                                                                                                                                                                                                                                                                                   |
+| Add Column                                  | Appends a new field/column to every record in a `relation`.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Delete "‹column›" Column (per column)       | Removes that column from every row (a `relation`'s records, or a `ruleset`'s `rule`/`ruleset-default` rows).                                                                                                                                                                                                                                                                                                                                                                |
+| Add Variable                                | Appends a new `optimisation-variable` row to an `optimisation-variable-group`.                                                                                                                                                                                                                                                                                                                                                                                              |
+| Add Constraint                              | Appends a new `optimisation-constraint` row to an `optimisation-constraint-group`.                                                                                                                                                                                                                                                                                                                                                                                          |
+| Convert to Context                          | Converts a `field` into an empty `context`.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Convert to Relation                         | Converts a `field` into an empty `relation`.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Convert to List                             | Converts a `field` into an empty `list`.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Switch to Minimise / Maximise               | Flips an `optimisation-objective`'s section keyword, keeping the expression unchanged.                                                                                                                                                                                                                                                                                                                                                                                      |
+| Expand / Collapse                           | Toggles whether the row's children are shown, on `function`, `context`, `complexType`, `ruleset`, and `optimisation` (a Material UI expand/collapse icon marks the current state).                                                                                                                                                                                                                                                                                          |
 
 **Enablement rules:**
 
-- `Delete` is hidden/disabled for rows the engine marks read-only (`BoxedRowData.deletable === false`) — e.g. the
-  synthesized `result` field of a function, `ruleset-default`, or a field required by the model.
 - All add-actions insert at the position implied by their name (a child at the end of the container, or a sibling
   directly below the selected row) and then re-apply the [Normalization Rules](#normalization-rules) sort order.
-- In `readOnly` mode every mutating action is hidden; only `Duplicate` and the view toggles remain — and `Duplicate`
+- In `readOnly` mode every mutating action is hidden; only `Duplicate` and the view toggles remain — `Duplicate`
   itself is a copy, so it does not mutate the source.
 
 ## Special Actions
 
-- When user removes argument name, then argument is removed from function/ruleset/optimisation definition
-- When user removes expression name and expression value is empty, then expression is removed from context
-- There is a placeholder `(new …)` row at the end of every appendable container (complex type, context, function
-  body, list, relation, ruleset's rule matrix, optimisation's variable/constraint groups) — interacting with it
-  appends a new empty row of that container's child kind, without needing the context menu. See
-  [Row kind review](#row-kind-review-of-actionsts) #2 for the inconsistency between which containers also expose an
-  equivalent menu action.
+- When the user clears an argument's name, the argument is removed from the `function`/`ruleset`/`optimisation`
+  signature.
+- When the user clears an expression's name while its value is also empty, the `field` is removed from its context.
+
+### Append placeholders
+
+Every appendable container also renders a trailing placeholder row — interacting with it appends a new row of the
+listed kind without opening the context menu:
+
+| Container Kind                               | Placeholder Row Kind      | Label              |
+|----------------------------------------------|---------------------------|--------------------|
+| `model` (root), `context`, `function` (body) | `field`                   | "(new item)"       |
+| `complexType`                                | `field`                   | "(new field)"      |
+| `list`                                       | `list-item`               | "(new item)"       |
+| `relation`                                   | `relation-item`           | "(new row)"        |
+| `ruleset`                                    | `rule`                    | "(new rule)"       |
+| `optimisation-variable-group`                | `optimisation-variable`   | "(new variable)"   |
+| `optimisation-constraint-group`              | `optimisation-constraint` | "(new constraint)" |
 
 ## Drag and Drop
 
@@ -514,16 +437,20 @@ Valid drop targets (a drop outside these is rejected, the row snaps back):
 
 ### Relation vs. list classification
 
-- A CRUD-addressable array whose items are complex objects (contexts) normalizes to a **relation** (`relation` +
-  `relation-item` rows); an array of scalars stays a **list** (`list` + `list-item` rows).
-- Relation `columns` are the ordered union of every field discovered across the records, using first authored
-  appearance as the initial order. Portable metadata keys (`@kind`, `@node`, ...) are never columns.
-- Every record is one `relation-item` row; every column is one `cells[i]`. A field missing from a heterogeneous record
-  renders as an empty cell — it does **not** create a nested field row.
-- Only computed/literal arrays that are CRUD-addressable expand into item rows. A computed array expression (e.g. a
-  `for … return …` loop) stays a single `field` row showing its result summary, not expanded records — loops are not
-  a distinct `BoxedRowKind`; they are opaque expression text like any other scalar expression (see
-  [Cell value mapping](#cell-value-mapping)).
+A CRUD-addressable array normalizes to one of two row shapes depending on its item type:
+
+| Dimension           | List                                    | Relation                                                                                                                                                       |
+|---------------------|-----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Item shape          | scalar                                  | complex object (context)                                                                                                                                       |
+| Header row kind     | `list`                                  | `relation`                                                                                                                                                     |
+| Item row kind       | `list-item`                             | `relation-item`                                                                                                                                                |
+| Header's `columns`  | n/a                                     | the ordered union of every field seen across all records, in first-authored-appearance order; Portable metadata keys (`@kind`, `@node`, ...) are never columns |
+| Item's cell mapping | one `value` per item                    | one `cells[i]` per column, aligned to the header's `columns`                                                                                                   |
+| Heterogeneous items | n/a — every item shares one scalar type | a record missing a field renders an **empty cell** for that column, never a nested field row                                                                   |
+
+A computed, non-CRUD-addressable array (e.g. a `for … return …` loop) is neither a list nor a relation: it renders as
+a single `field` row showing its result summary. Loops have no distinct `BoxedRowKind` — the loop text is opaque
+expression content, like any other scalar expression (see [Cell value mapping](#cell-value-mapping)).
 
 ### Metadata handling
 
@@ -541,11 +468,11 @@ the structural row tree — see [React integration](#react-integration).
 Furthermore, each `BoxedEditorService` boxed editor data change will invoke EdgeRules decision service re-calculation,
 but test cases navigation or description update will not trigger re-calculations.
 
-| Source                 | Owns                                        | Keyed by | Storage                          | Feeds                |
-|------------------------|---------------------------------------------|----------|-----------------------------------|----------------------|
+| Source                 | Owns                                        | Keyed by | Storage                          | Feeds                       |
+|------------------------|---------------------------------------------|----------|----------------------------------|-----------------------------|
 | `BoxedEditorService`   | Portable-derived structure (`BoxedRowData`) | `path`   | the authored model (via engine)  | Name/Value/description cols |
-| `DocumentationService` | free-text descriptions                      | `path`   | IndexedDB (by model name + path) | DescriptionColumn    |
-| `TestCasesService`     | executed test cases and their results       | `path`   | IndexedDB (by model + case)      | TestResultsColumn    |
+| `DocumentationService` | free-text descriptions                      | `path`   | IndexedDB (by model name + path) | DescriptionColumn           |
+| `TestCasesService`     | executed test cases and their results       | `path`   | IndexedDB (by model + case)      | TestResultsColumn           |
 
 `BoxedEditorService` is the single facade for the model. It is a **normalizing adapter** over the authoritative
 `MutableDecisionService` (from `@edgerules/web` / `@edgerules/node`); it holds no second persisted model. It does
@@ -555,44 +482,44 @@ but test cases navigation or description update will not trigger re-calculations
 ```mermaid
 classDiagram
     class BoxedEditor {
-<<Reactcomponent>>
-+props BoxedEditorProps
-}
-class BoxedEditorService {
-<<facadeoverMutableDecisionService>>
-+getBoxedRowsData(path) BoxedRowData[]
-+getBoxedRowData(path) BoxedRowData?
-+setBoxedRowData(path, row) PortableNode|PortableError
-+remove(path) void|PortableError
-+rename(path, newName) void|PortableError
-+move(fromPath, toParentPath, index) void|PortableError
-+subscribe(listener) Unsubscribe
-+toPortable() PortableRootContext
-}
-class MutableDecisionService {
-<<engine>>
-+get(path, filter?) PortableNode|PortableError
-+set(path, node) PortableNode|PortableError
-+remove(path) void|PortableError
-+rename(path, newName) void|PortableError
-}
-class DocumentationService {
-<<IndexedDBoverlay>>
-+getDescription(path) string?
-+setDescription(path, text) void
-+renamePath(from, to) void
- }
-class TestCasesService {
-<<IndexedDBoverlay>>
-+listTestCases() TestCase[]
-+getResults(testCaseId) TestResultsByPath
-+renamePath(from, to) void
-}
+        <<Reactcomponent>>
+        +props BoxedEditorProps
+    }
+    class BoxedEditorService {
+        <<facadeoverMutableDecisionService>>
+        +getBoxedRowsData(path) BoxedRowData[]
+        +getBoxedRowData(path) BoxedRowData?
+        +setBoxedRowData(path, row) PortableNode|PortableError
+        +remove(path) void|PortableError
+        +rename(path, newName) void|PortableError
+        +move(fromPath, toParentPath, index) void|PortableError
+        +subscribe(listener) Unsubscribe
+        +toPortable() PortableRootContext
+    }
+    class MutableDecisionService {
+        <<engine>>
+        +get(path, filter?) PortableNode|PortableError
+        +set(path, node) PortableNode|PortableError
+        +remove(path) void|PortableError
+        +rename(path, newName) void|PortableError
+    }
+    class DocumentationService {
+        <<IndexedDBoverlay>>
+        +getDescription(path) string?
+        +setDescription(path, text) void
+        +renamePath(from, to) void
+    }
+    class TestCasesService {
+        <<IndexedDBoverlay>>
+        +listTestCases() TestCase[]
+        +getResults(testCaseId) TestResultsByPath
+        +renamePath(from, to) void
+    }
 
-BoxedEditor --> BoxedEditorService: rows + commits (structure)
-BoxedEditor --> DocumentationService: DescriptionColumn cells
-BoxedEditor --> TestCasesService: TestResultsColumn cells
-BoxedEditorService --> MutableDecisionService: get / set / remove / rename
+    BoxedEditor --> BoxedEditorService: rows + commits (structure)
+    BoxedEditor --> DocumentationService: DescriptionColumn cells
+    BoxedEditor --> TestCasesService: TestResultsColumn cells
+    BoxedEditorService --> MutableDecisionService: get / set / remove / rename
 ```
 
 ## `BoxedEditorService` API
@@ -634,8 +561,10 @@ interface BoxedEditorService {
 }
 ```
 
-`BoxedRowData` is the normalized, render-ready shape for one row. Optional fields are populated only for the row
-kinds that use them.
+`BoxedRowData` is the normalized, render-ready shape common to every row. Row kinds whose rendering needs argument
+headers, columns, or per-column cells extend it with `BoxedTableRowData` instead of growing the common shape — this
+keeps "does this row have tabular structure" a single, explicit type-level question instead of an ever-growing set of
+optional fields on every row.
 
 ```typescript
 type BoxedRowKind =
@@ -652,9 +581,9 @@ type BoxedRowKind =
     | 'ruleset'
     | 'rule'
     | 'ruleset-default'
-    | 'ruleset-hit-policy'   // recommended addition — see Row kind review #6
+    | 'ruleset-hit-policy'
     | 'optimisation'
-    | 'optimisation-setting' // recommended addition — see Row kind review #6
+    | 'optimisation-setting'
     | 'optimisation-variable-group'
     | 'optimisation-variable'
     | 'optimisation-objective'
@@ -669,26 +598,38 @@ interface BoxedRowData {
                   // unless the rule carries an authored `name` (rules are the one row kind whose generated name is
                   // just a fallback — RULESET_METAPHOR_SPEC's `name?` field on a rule row is user-settable).
     value?: string; // ValueColumn content (expression text, list value, type constraint, objective/constraint expression, ...).
-    type?: string; // The tooltip shown on hover / Alt-held; omitted for unnamed complex objects. There is no rendered type column — see GUI Language.
+    type?: string; // The tooltip shown on hover / Alt-held; omitted for unnamed complex objects (see GUI Language).
     readOnly?: boolean; // Engine-marked read-only (e.g. synthesized `result`, linked type).
     deletable?: boolean; // Whether the Delete action is offered (defaults to true when omitted).
-    parameters?: SignatureParameter[]; // Argument headers for function / ruleset / optimisation rows.
-    columns?: string[]; // RelationRow column names (relation table header).
-    cells?: string[]; // RelationItemRow per-column values, aligned to the parent `columns`.
-    conditionColumns?: string[]; // RulesetRow condition-column names.
-    actionColumns?: string[]; // RulesetRow action-column names.
-    conditions?: string[]; // RuleRow per-condition-column unary-test cells (the cell-map `when` form), aligned to
-                           // `conditionColumns`. Empty string means "any". Mutually exclusive with `conditionsExpression`.
-    conditionsExpression?: string; // RuleRow's `when` authored as a single boolean expression over the ruleset's
-                                    // parameters (RULESETS_REFERENCE.md § "when as a boolean expression") instead of
-                                    // per-column cells. When set, the row renders one cell spanning every condition
-                                    // column instead of one cell per column; mutually exclusive with `conditions`.
-    actions?: string[]; // RuleRow / RulesetDefaultRow per-action-column cells, aligned to `actionColumns`.
-    priority?: number; // RuleRow's explicit rank, shown and editable only while the parent ruleset's hit policy is
-                       // `"best-match"` (required there, absent/rejected under every other hit policy).
     children?: BoxedRowData[]; // Nested rows (context / function / ruleset / optimisation / type / list / relation bodies).
 }
+
+// Extends BoxedRowData with the fields needed by rows that carry argument headers, table columns, or per-column
+// cells. A row's `kind` alone determines whether it's actually a BoxedTableRowData — see the list below.
+interface BoxedTableRowData extends BoxedRowData {
+    parameters?: SignatureParameter[]; // Argument headers: function / ruleset / optimisation.
+    columns?: string[]; // Relation table header column names: relation.
+    cells?: string[]; // Per-column values aligned to the parent's `columns`: relation-item.
+    conditionColumns?: string[]; // Condition column names: ruleset.
+    actionColumns?: string[]; // Action column names: ruleset.
+    conditions?: string[]; // Per-condition-column unary-test cells (the cell-map `when` form), aligned to
+                           // `conditionColumns`; empty string means "any": rule. Mutually exclusive with `conditionsExpression`.
+    conditionsExpression?: string; // `when` authored as a single boolean expression over the ruleset's parameters
+    // (RULESETS_REFERENCE.md § "when as a boolean expression") instead of per-column
+    // cells: rule. When set, the row renders one cell spanning every condition column
+    // instead of one cell per column. Mutually exclusive with `conditions`.
+    actions?: string[]; // Per-action-column cells, aligned to `actionColumns`: rule, ruleset-default.
+    priority?: number; // Explicit rank, shown and editable only while the parent ruleset's hit policy is
+                       // `"best-match"` (required there, absent/rejected under every other hit policy): rule.
+}
 ```
+
+- **Plain `BoxedRowData`:** `model`, `field`, `context`, `complexType`, `list`, `list-item`, `function-result`,
+  `ruleset-hit-policy`, `optimisation-setting`, `optimisation-variable-group`, `optimisation-variable`,
+  `optimisation-objective`, `optimisation-constraint-group`, `optimisation-constraint`.
+- **`BoxedTableRowData`:** `function` and `optimisation` (`parameters`), `relation` (`columns`), `relation-item`
+  (`cells`), `ruleset` (`parameters`, `conditionColumns`, `actionColumns`), `rule` (`conditions`/`conditionsExpression`,
+  `actions`, `priority`), `ruleset-default` (`actions`).
 
 **Why `description` and `testResults` are not on `BoxedRowData`**: baking them into the row tree
 would (a) force the tree to re-derive whenever a description is edited or the user clicks previous/next on test
@@ -707,24 +648,24 @@ never the boxes. See [React integration](#react-integration).
 Portable node and sent back verbatim on commit (the engine re-parses it). This is the only Portable↔text boundary;
 the view never parses DSL itself.
 
-| Portable node                                | `kind`                        | Cell text                                                    |
-|-----------------------------------------------|-------------------------------|----------------------------------------------------------------|
-| expression / scalar                           | `field`                       | its authored DSL text (`amount / 12`)                          |
-| typed input (`@kind: "type"`)                | `field`                       | a type constraint, e.g. `<number, required: true>`             |
-| invocation (`@kind: "invocation"`)            | `field`                       | the call text, e.g. `monthly(application.amount)`               |
-| computed array / loop (`for … return …`)      | `field`                       | the raw loop text; never expands into item rows                |
-| list item                                     | `list-item` (`value`)         | the item's DSL literal (`'Underwriting'`)                       |
-| relation cell                                 | `relation-item` (in `cells`)  | the field's DSL literal, per column                             |
-| ruleset condition cell (`when`, cell-map form)| `rule` (in `conditions`)      | the unary test literal, e.g. `18..25`, `< 30000`; empty = "any" |
-| ruleset condition, boolean-expression form    | `rule` (`conditionsExpression`) | one spanning cell holding the whole `when` expression, e.g. `age >= 18 and income < 30000` |
-| ruleset action cell (`then`)                  | `rule` (in `actions`)         | the output field's DSL literal, e.g. `"high"`, `1000`           |
-| ruleset rule priority                         | `rule` (`priority`)           | an integer, editable only under `hitPolicy: "best-match"`        |
-| ruleset default cell                          | `ruleset-default` (`actions`) | the fallback output field's DSL literal; the row itself is absent when `hitPolicy` is `"collect-matches"` (`default` is rejected there) |
-| ruleset `hitPolicy`                           | `ruleset-hit-policy`          | `"first-match"` \| `"unique-match"` \| `"collect-matches"` \| `"best-match"` |
-| optimise decision variable                    | `optimisation-variable`       | a Typed Input Wrapper, e.g. `<number, integer: true, min: 0>`   |
-| optimise objective                            | `optimisation-objective`      | the linear expression, e.g. `15 * chairs + 40 * tables`         |
-| optimise constraint                           | `optimisation-constraint`     | the named linear comparison, e.g. `1 * chairs + 3 * tables <= workers` |
-| optimise `using` / `bottlenecks` / `timeLimit`| `optimisation-setting`        | the literal enum/boolean/number, e.g. `"highs"`, `true`, `1000` |
+| Portable node                                  | `kind`                          | Cell text                                                                                                                               |
+|------------------------------------------------|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| expression / scalar                            | `field`                         | its authored DSL text (`amount / 12`)                                                                                                   |
+| typed input (`@kind: "type"`)                  | `field`                         | a type constraint, e.g. `<number, required: true>`                                                                                      |
+| invocation (`@kind: "invocation"`)             | `field`                         | the call text, e.g. `monthly(application.amount)`                                                                                       |
+| computed array / loop (`for … return …`)       | `field`                         | the raw loop text; never expands into item rows                                                                                         |
+| list item                                      | `list-item` (`value`)           | the item's DSL literal (`'Underwriting'`)                                                                                               |
+| relation cell                                  | `relation-item` (in `cells`)    | the field's DSL literal, per column                                                                                                     |
+| ruleset condition cell (`when`, cell-map form) | `rule` (in `conditions`)        | the unary test literal, e.g. `18..25`, `< 30000`; empty = "any"                                                                         |
+| ruleset condition, boolean-expression form     | `rule` (`conditionsExpression`) | one spanning cell holding the whole `when` expression, e.g. `age >= 18 and income < 30000`                                              |
+| ruleset action cell (`then`)                   | `rule` (in `actions`)           | the output field's DSL literal, e.g. `"high"`, `1000`                                                                                   |
+| ruleset rule priority                          | `rule` (`priority`)             | an integer, editable only under `hitPolicy: "best-match"`                                                                               |
+| ruleset default cell                           | `ruleset-default` (`actions`)   | the fallback output field's DSL literal; the row itself is absent when `hitPolicy` is `"collect-matches"` (`default` is rejected there) |
+| ruleset `hitPolicy`                            | `ruleset-hit-policy`            | `"first-match"` \| `"unique-match"` \| `"collect-matches"` \| `"best-match"`                                                            |
+| optimise decision variable                     | `optimisation-variable`         | a Typed Input Wrapper, e.g. `<number, integer: true, min: 0>`                                                                           |
+| optimise objective                             | `optimisation-objective`        | the linear expression, e.g. `15 * chairs + 40 * tables`                                                                                 |
+| optimise constraint                            | `optimisation-constraint`       | the named linear comparison, e.g. `1 * chairs + 3 * tables <= workers`                                                                  |
+| optimise `using` / `bottlenecks` / `timeLimit` | `optimisation-setting`          | the literal enum/boolean/number, e.g. `"highs"`, `true`, `1000`                                                                         |
 
 A `RelationItemRow` cell whose value is itself a complex object is a drill-down, not a scalar cell: it renders nested
 rows rather than JSON text. An invocation is a single, non-expandable expression cell — editing the call (method or
@@ -776,11 +717,11 @@ persisted model", and it is the idiomatic way to bind React to a mutable non-Rea
 
 Two kinds of state, kept apart:
 
-| State                                                                             | Owner                                                   | Lifetime            |
-|-----------------------------------------------------------------------------------|-----------------------------------------------------------|---------------------|
-| Model structure (rows)                                                            | `MutableDecisionService` (external, via facade cache)   | persisted           |
-| Descriptions / test results                                                       | `DocumentationService` / `TestCasesService` (IndexedDB) | persisted (overlay) |
-| UI state: per-row expand, active editing cell, Alt-held, current test-case index  | React context (`BoxedEditorUiContext`)                  | ephemeral           |
+| State                                                                            | Owner                                                   | Lifetime            |
+|----------------------------------------------------------------------------------|---------------------------------------------------------|---------------------|
+| Model structure (rows)                                                           | `MutableDecisionService` (external, via facade cache)   | persisted           |
+| Descriptions / test results                                                      | `DocumentationService` / `TestCasesService` (IndexedDB) | persisted (overlay) |
+| UI state: per-row expand, active editing cell, Alt-held, current test-case index | React context (`BoxedEditorUiContext`)                  | ephemeral           |
 
 **Providers and hooks** (the library's internal contract; only `BoxedEditor` is exported):
 
@@ -937,20 +878,22 @@ the **real** engine — never a mock.
 
 These were open in earlier iterations and are now settled; kept for traceability.
 
-| # | Decision                      | Resolution                                                                                                                                                                                                                    |
-|---|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | Enrichment-service wiring     | Removed `testCasesService` / `documentationService` from `BoxedEditorProps`. Descriptions and test results are separate path-keyed overlays consumed via hooks, not folded into the facade or rows.                           |
-| 2 | `BoxedEditorService` layering | The facade is **constructed with** a `MutableDecisionService` (`createBoxedEditorService(mutable)`) and delegates internally. The component only ever sees `BoxedEditorService`. (Was Open Q "Option 1".)                     |
-| 3 | `BoxedRowData` flat vs. union | Keep the **flat optional-field** interface; renderers read only the fields their `kind` uses.                                                                                                                                 |
-| 4 | `readOnly` and drag handles   | Handles stay **visible** — the function/ruleset/optimisation/type icons *are* the drag handles and the 6-dot handle is a grouping cue — but drag is **suppressed** in `readOnly` (no drag cursor, `dragstart` blocked). Neither hidden nor greyed. |
-| 5 | Result / value formatting     | Services supply **raw engine serialization**; `BoxedEditor` owns all display formatting (array → `N items`, truncation, locale number/date formatting).                                                                       |
-| 6 | React binding model           | **`useSyncExternalStore` + facade cache** (rows re-derive lazily; only changed subtrees get new references) over an immutable-snapshot reducer.                                                                               |
-| 7 | Overlay migration on move     | `DocumentationService` and `TestCasesService` expose `renamePath(from, to)`. The editor command layer calls it after a successful `rename`/`move`; the facade stays overlay-agnostic and just surfaces the `{ from, to }`.    |
-| 8 | Copy/Paste vs. Duplicate      | Dropped the two-step clipboard `Copy` + `Paste Below` in favor of a single one-click `Duplicate` action (matches the wireframe's `rowActionRegistry`, which has no copy/paste ids at all). Named rows auto-rename on Duplicate — see [Row kind review](#row-kind-review-of-actionsts) #5. |
-| 9 | Type column removal           | There is no `TypeColumn`. Types are a tooltip on the owning name/header cell, opened on hover or, for the whole tree at once, while **Alt** is held (`showType` now gates that interaction, not a column). |
-| 10 | Descriptions storage         | **Option 1**: descriptions stay an IndexedDB overlay via `DocumentationService`; `@description` metadata is left untouched for now. Folding descriptions into `@description` (portable export/import) is out of scope for this iteration. |
-| 11 | Large-collection strategy    | **Option 1**: eager load for `getBoxedRowsData` — no paging/virtualization in this iteration. Windowed reads and a virtualized `RelationItemRow`/`RuleRow` are tracked as a [follow-up story](#follow-up-stories), not built now. |
-| 12 | Linked-validation failures    | **Option 1, with no rollback.** Per `CRUD_SPEC.md` ("CRUD writes can succeed structurally but fail to link... a broken reference only surfaces as a `LinkerError` on the _next_ evaluation/get"), `set`/`rename`/`remove` already return success even when they break a reference elsewhere — the facade does not re-validate or reverse the mutation. The broken reference then surfaces as an ordinary path-scoped error (see [Error handling](#error-handling)) wherever the affected path is next read/evaluated. A rollback-on-write policy was rejected deliberately: it would make renaming a field that's referenced elsewhere impossible, since the reference update always lands in a separate, later commit. |
+| #  | Decision                                         | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+|----|--------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1  | Enrichment-service wiring                        | Removed `testCasesService` / `documentationService` from `BoxedEditorProps`. Descriptions and test results are separate path-keyed overlays consumed via hooks, not folded into the facade or rows.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 2  | `BoxedEditorService` layering                    | The facade is **constructed with** a `MutableDecisionService` (`createBoxedEditorService(mutable)`) and delegates internally. The component only ever sees `BoxedEditorService`. (Was Open Q "Option 1".)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 3  | `BoxedRowData` flat vs. union                    | Keep the **flat optional-field** interface; renderers read only the fields their `kind` uses.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 4  | `readOnly` and drag handles                      | Handles stay **visible** — the function/ruleset/optimisation/type icons *are* the drag handles and the 6-dot handle is a grouping cue — but drag is **suppressed** in `readOnly` (no drag cursor, `dragstart` blocked). Neither hidden nor greyed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 5  | Result / value formatting                        | Services supply **raw engine serialization**; `BoxedEditor` owns all display formatting (array → `N items`, truncation, locale number/date formatting).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 6  | React binding model                              | **`useSyncExternalStore` + facade cache** (rows re-derive lazily; only changed subtrees get new references) over an immutable-snapshot reducer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 7  | Overlay migration on move                        | `DocumentationService` and `TestCasesService` expose `renamePath(from, to)`. The editor command layer calls it after a successful `rename`/`move`; the facade stays overlay-agnostic and just surfaces the `{ from, to }`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 8  | Copy/Paste vs. Duplicate                         | Dropped the two-step clipboard `Copy` + `Paste Below` in favor of a single one-click `Duplicate` action (the wireframe's `rowActionRegistry` has no copy/paste ids at all). Named rows auto-rename on Duplicate — see [Context Menu](#context-menu)'s `Duplicate` entry.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 9  | Type disclosure                                  | Every type renders as a tooltip on its owning name/header cell, opened on hover or, for the whole tree at once, while **Alt** is held; `showType` gates that tooltip interaction (see [GUI Language](#gui-language)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 10 | Descriptions storage                             | **Option 1**: descriptions stay an IndexedDB overlay via `DocumentationService`; `@description` metadata is left untouched for now. Folding descriptions into `@description` (portable export/import) is out of scope for this iteration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 11 | Large-collection strategy                        | **Option 1**: eager load for `getBoxedRowsData` — no paging/virtualization in this iteration. Windowed reads and a virtualized `RelationItemRow`/`RuleRow` are tracked as a [follow-up story](#follow-up-stories), not built now.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 12 | Linked-validation failures                       | **Option 1, with no rollback.** Per `CRUD_SPEC.md` ("CRUD writes can succeed structurally but fail to link... a broken reference only surfaces as a `LinkerError` on the _next_ evaluation/get"), `set`/`rename`/`remove` already return success even when they break a reference elsewhere — the facade does not re-validate or reverse the mutation. The broken reference then surfaces as an ordinary path-scoped error (see [Error handling](#error-handling)) wherever the affected path is next read/evaluated. A rollback-on-write policy was rejected deliberately: it would make renaming a field that's referenced elsewhere impossible, since the reference update always lands in a separate, later commit. |
+| 13 | Ruleset inline editing vs. `DecisionTableEditor` | Both coexist: `BoxedEditor` implements full inline decision-table-style CRUD for `ruleset` rows (as this document's [Row Types](#row-types)/[Context Menu](#context-menu) specify), and the standalone `DecisionTableEditor` remains reachable via `onOpenNode({kind: 'ruleset'})`. The exact division of responsibility between the two is expected to be revisited in a later story.                                                                                                                                                                                                                                                                                                                                  |
+| 14 | Expand/Collapse                                  | A context-menu `Expand`/`Collapse` toggle action (Material UI expand/collapse icon), offered on every collapsible container kind: `function`, `context`, `complexType`, `ruleset`, `optimisation`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ## Follow-up Stories
 
@@ -961,37 +904,7 @@ Work items this spec deliberately defers rather than blocks on. Each needs its o
 
 ## Open Questions
 
-1. **Is inline `ruleset` editing meant to fully coexist with the standalone `DecisionTableEditor`, or replace it for
-   simple cases?** This spec assumes coexistence — inline for quick, in-place edits; `onOpenNode({kind: 'ruleset'})`
-   still routes to `DecisionTableEditor` for the dedicated full-screen experience — because that's the only reading
-   consistent with both the wireframe (which gives `ruleset` full inline CRUD, not a read-only preview) and
-   CLAUDE.md's existing "Decision Table Editor" as a separate top-level component. But this is inferred, not stated
-   anywhere. If the intent is different (e.g. the standalone editor is being retired, or the inline view really is
-   meant to be a lighter read-mostly preview with editing reserved for the dedicated editor), the
-   [Row Types](#row-types) table's `ruleset`/`rule`/`ruleset-default` action lists need to shrink accordingly.
-   Question to address: does the dedicated `DecisionTableEditor` stay as an optional escape hatch alongside full
-   inline editing, or does one of the two views give way to the other?
-   Option 1: coexist as designed above (inline is fully editable; the standalone editor is an alternate, more
-   spacious ergonomics for the same node).
-   Option 2: inline is a read-mostly compact preview; all mutation of a `ruleset`'s rules/columns routes to
-   `DecisionTableEditor` (shrinks the `ruleset`/`rule`/`ruleset-default` action lists to `Delete` only).
-   Option 3: `DecisionTableEditor` is retired; `BoxedEditor`'s inline rendering becomes the only ruleset GUI (matches
-   how `optimise` already has no standalone editor).
-
-> Architect notes: implement ruleset as decision table UI for now. We will come back later to this separation.
-
-2. **Where does Expand/Collapse live?** `FunctionRow`/`ContextRow`/`ComplexTypeRow`/`RulesetRow`/`OptimisationRow`
-   each need a way to collapse their children, but the wireframe's `rowActionRegistry` has no expand/collapse id at
-   all, and none of its static demo rows show a collapsed state, so there's no direct evidence either way.
-   Question to address: does collapsing move to a direct disclosure control on the row (a chevron, like
-   `DropdownChip`'s arrow) instead of the three-dot menu, and does it now also apply to `RulesetRow`/`OptimisationRow`
-   given they can also hold many children?
-   Option 1: keep it as a context-menu entry, extended to `RulesetRow`/`OptimisationRow`.
-   Option 2: replace it with a disclosure chevron rendered directly on every collapsible row's `NameColumn` cell.
-
-> Architect notes: for now, context menu should have a toggle expand/collapse with Material UI expand ot collapse icon where it makes sense.
-
-3. **Where does "View as code" live?** `BoxedEditorTargetKind` still includes `'code-editor'` for it, but the
+1. **Where does "View as code" live?** `BoxedEditorTargetKind` still includes `'code-editor'` for it, but the
    wireframe's `model` action list has no action for it (column-visibility toggling is fully covered by
    `BoxedEditorProps` — `showType`/`showDescription`/`showTestResults` — with no in-editor menu equivalent, which this
    spec treats as resolved).
@@ -1002,4 +915,27 @@ Work items this spec deliberately defers rather than blocks on. Each needs its o
    Option 3: drop it from this iteration; hosts that want a code view route through `onOpenNode({kind: 'code-editor'})`
    from elsewhere in their own chrome instead of from within `BoxedEditor`.
 
-> 'code-editor' just accepts path of the code - do not worry how to get it, this is not Boxed Editor responsibility.
+> Architect notes: "View as code" is for each knowledge element (func, ruleset, optimise) and model itself Context Menu
+> option. For now, you do not need to worry where Code Editor gets the code.
+
+2. **`ruleset` has no `Duplicate` action.** Every other named container kind (`function`, `context`, `complexType`,
+   `optimisation`) offers `Duplicate`, but `ruleset`'s action list is `Add Rule`, `Add Condition Column`,
+   `Add Action Column`, `Delete` only.
+   Question to address: is omitting `Duplicate` on `ruleset` intentional (cloning a whole rule matrix might be
+   considered too heavyweight/risky for a one-click action), or should it be added for consistency with the other
+   named container kinds?
+   Option 1: intentional — leave `ruleset` without `Duplicate`.
+   Option 2: add `Duplicate` to `ruleset`, applying the same auto-rename rule as every other named kind.
+
+> Architect notes: Option 2: add `Duplicate` to `ruleset`,
+
+3. **`optimisation` has no `Add Argument` / `Delete Argument` actions.** `function` manages its signature through
+   `Add Argument` and a per-argument `Delete Argument`, but `optimisation`'s action list is `Duplicate`, `Delete`
+   only — there is currently no menu path to add or remove a parameter from an `optimise` element's signature.
+   Question to address: is this a deliberate simplification (optimise signatures are fixed at creation), or a gap to
+   close?
+   Option 1: intentional — an `optimisation`'s parameters are set once, at creation, and not edited afterward through
+   the menu.
+   Option 2: add `Add Argument` / `Delete "‹argument›" Argument` to `optimisation`, matching `function`.
+
+> Architect notes: Option 2: add `Add Argument` / `Delete "‹argument›" Argument` to `optimisation`, matching `function`.
