@@ -7,18 +7,22 @@ expected values, and their last computed results are persisted through `TestCase
 The three concerns are deliberately separate packages, mirroring how `DocumentationService` is separated from its
 consumers (see [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md)):
 
-- `TestCasesService` — persistence only, engine-free. `BoxedEditor`'s `TestResultsColumn` consumes exactly the read
-  subset of it defined in [`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md#testcasesservice-api), which is what lets
-  `BoxedEditor` display results without ever touching the engine.
+- `TestCasesService` — persistence only. It knows nothing about the engine and nothing about any component that reads
+  it; its whole vocabulary is test cases, rows, values, and results.
 - `TestRunner` — execution only. Binds inputs, calls `execute`, flattens the result, writes results back through
   `TestCasesService`.
 - `TestsManager` — the React grid.
 
+Because persistence is engine-free, any component can display results without running anything.
+[`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md#testcasesservice-api)'s `TestResultsColumn` is one such consumer, and
+Phase 4 points that spec at this package's types. The dependency runs one way only: consumers import from
+`edgerules-react/test-cases-service`, never the reverse.
+
 ## Tests Manager GUI
 
 - **Path column**: shows the path to the model field that is being tested, relative to the selected test subject.
-- **Path column header**: a drop-down that selects the **test subject** — the whole model, or any root-level `func` /
-  `ruleset` / `optimise` whose parameters are all typed.
+- **Path column header**: a drop-down that selects the **test subject** — the whole model, or any callable whose
+  parameters are all typed, at any context depth, listed by its dotted path.
 - **Description column**: filled by `DocumentationService`, which either pulls an existing description found by model
   name + fully qualified path or lets the user add a new one.
 - **Test Case columns**: each column is one test case. Test cases are added and removed through the column's context
@@ -98,9 +102,28 @@ and its tooltip reads `0`.
 
 ### Decision Service Testing
 
-A root-level `func` or `ruleset`, or `optimise` with fully typed parameters is a decision-service entry point and gets
-its own subject. Its `Inputs` rows are the parameters (complex parameter types expanded to leaves); its computed rows
-are the leaves of the return type.
+Every callable whose parameters are all typed is a decision-service entry point and gets its own subject, at any
+context depth — `library.eligibility` is as testable as a root-level `creditDecision`. Its `Inputs` rows are the
+parameters (complex parameter types expanded to leaves); its computed rows are the leaves of the return type.
+
+All four callable metaphors execute identically (`execute(dottedPath, args)`), but each is discovered differently:
+
+| Subject kind | Discovered by                                       | `@kind`           | Input rows    | Computed rows       |
+|--------------|-----------------------------------------------------|-------------------|---------------|---------------------|
+| `function`   | `get('*', 'ALL')`, recursing into nested contexts    | `function-schema` | `@parameters` | leaves of `@return` |
+| `ruleset`    | `get('*', 'ALL')`, recursing into nested contexts    | `ruleset-schema`  | `@parameters` | leaves of `@return` |
+| `optimise`   | `get('*', 'EXTERNAL_DEFINITIONS')`                   | `optimise`        | `@parameters` | leaves of `@result` |
+| `loop`       | `toPortable()` scan, then `get(path)` for the schema | `loop-schema`     | `@parameters` | leaves of `@return` |
+
+The last two rows are engine quirks, not design choices. An `optimise` declaration is absent from `FIELDS` and `ALL`
+entirely — its catalog row lives only in `EXTERNAL_DEFINITIONS`. A `loop` declaration is absent from *every* `get`
+filter view, so the only way to enumerate loops is to scan `toPortable()` for `@kind: "loop"` entries and then
+`get(path)` each one; this is filed in [`BUG_REPORTS.md`](BUG_REPORTS.md) and the scan can be dropped once listing
+projects loops. `optimise` and `loop` are root-only by language rule, so only functions and rulesets nest.
+
+A callable declared inside **another callable's body** (`func outer(): { func inner(): … }`) is an implementation
+detail of its parent, not an entry point, and is not offered as a subject — even though the engine will happily
+execute `outer.inner`. Subject discovery walks contexts, not function bodies.
 
 A `func` body cannot read the enclosing context — the engine rejects it with `E101: function 'x' cannot read 'y' from
 an enclosing context`. Everything a decision service needs must therefore arrive as a parameter, which is why
@@ -136,10 +159,59 @@ an enclosing context`. Everything a decision service needs must therefore arrive
 A callable whose return type is a scalar (`-> boolean`) has exactly one computed row, whose path is the empty string
 and whose Path cell renders as `(result)`.
 
+### Optimise Testing
+
+An `optimise` subject's computed rows are the synthesized result record: the decision variables, plus the reserved
+`status` / `objective` / `solver` / `notes` fields, plus one `bottlenecks.<constraint>` row per named constraint when
+`bottlenecks: true`.
+
+```edgerules
+{
+    optimise factoryProduction(workers: number, sticks: number, plates: number): {
+        using: "highs"
+        bottlenecks: true
+        variables: {
+            chairs: <number, integer: true, min: 0>
+            tables: <number, integer: true, min: 0>
+        }
+        maximise: 15 * chairs + 40 * tables
+        constraints: {
+            workerCapacity: 1 * chairs + 3 * tables <= workers
+            stickSupply: 4 * chairs + 4 * tables <= sticks
+            plateSupply: 1 * chairs + 2 * tables <= plates
+        }
+        timeLimit: 1000
+    }
+}
+```
+
+| factoryProduction ▼             | Description         | Test Case 1 : | ... |
+|---------------------------------|---------------------|---------------|-----|
+| Inputs                          |                     |               | ... |
+| `workers`                       | `Available Workers` | `8`           | ... |
+| `sticks`                        | `Sticks In Stock`   | `40`          | ... |
+| `plates`                        | `Plates In Stock`   | `12`          | ... |
+| ___                             | ___                 | ___           | ___ |
+| Assertions                      |                     | `2/2` ✓       | ... |
+| `status`                        | `Solve Status`      | `optimal`     | ... |
+| `objective`                     | `Total Value`       | `120`         | ... |
+| ___                             | ___                 | ___           | ___ |
+| Validations                     |                     |               | ... |
+| `chairs`                        | `Chairs To Build`   | `8`           | ... |
+| `tables`                        | `Tables To Build`   | `0`           | ... |
+| `bottlenecks.workerCapacity`    | `Worker Bottleneck` | `15`          | ... |
+| `solver`                        | `Solver Used`       | `highs-js 1.15.1` | ... |
+| `notes`                         | `Solver Notes`      | `5 items`     | ... |
+
+**EdgeRules ships no solver.** An `optimise` subject only runs if the host has registered one on the same
+`MutableDecisionService` (see the engine repo's `OPTIMISE_SOLVER_HOSTING.md`). Without it the run does not fail loudly
+— `execute` returns `Missing('factoryProduction')` — so `TestRunner` pre-flights the condition instead of recording
+that as a result; see [Execution](#execution).
+
 ## Object Model
 
 Paths are **relative to the subject**. `TestCasesService` stores them that way, and the qualified form used for
-`DocumentationService` lookups and for `BoxedEditor` interop is derived:
+`DocumentationService` lookups and by consumers that address paths model-wide is derived:
 
 ```typescript
 // '*' + 'credit.balance' -> 'credit.balance'; 'creditDecision' + 'approved' -> 'creditDecision.approved'
@@ -147,19 +219,20 @@ function qualifyPath(subjectId: string, path: string): string;
 ```
 
 ```typescript
-// '*' for the whole model, otherwise the callable's root-level name.
+// '*' for the whole model, otherwise the callable's dotted path (e.g. 'library.eligibility').
 type TestSubjectId = string;
 
-type TestSubjectKind = 'model' | 'function' | 'ruleset' | 'optimise';
+type TestSubjectKind = 'model' | 'function' | 'ruleset' | 'optimise' | 'loop';
 
 interface TestSubject {
-    id: TestSubjectId; // '*' or the callable's name.
+    id: TestSubjectId; // '*' or the callable's dotted path.
     kind: TestSubjectKind;
-    name: string; // Label in the Path column header: the model name for '*', otherwise the callable name.
+    name: string; // Label in the Path column header: the model name for '*', otherwise the dotted path.
 }
 
 type TestSectionId = 'inputs' | 'assertions' | 'validations';
 
+// One grid row: which path it addresses and where it sits. Rows are subject-wide — every test case shares them.
 interface TestRow {
     path: string; // Subject-relative; '' for a scalar-returning callable's single result row.
     section: TestSectionId;
@@ -168,44 +241,55 @@ interface TestRow {
     present: boolean; // False once the model no longer declares this path — hidden in the GUI, kept in IndexedDB.
 }
 
+// Raw cell text exactly as typed, keyed by subject-relative path. Parsed per the row's type at run time.
+type TestValuesByPath = Record<string, string>;
+
+// One grid column: everything the user authored for it. A test case owns its values and nothing else —
+// results are produced by running it and live separately (below).
 interface TestCase {
     id: string; // Stable identifier; survives renames.
     name: string; // Column header, e.g. "Standard application".
     order: number;
+    inputs: TestValuesByPath; // Values bound before execution; only `inputs`-section paths.
+    assertions: TestValuesByPath; // Expected values; only `assertions`-section paths.
 }
 
 type TestResultStatus = 'ok' | 'error' | 'missing' | 'pending';
 
+// One path's computed outcome. Carries no run metadata — that belongs to the run, not to each value.
 interface TestResult {
-    testCaseId: string;
     path: string; // Subject-relative, matching TestRow.path.
     value?: unknown; // Exactly what the engine returned for this path. Omitted when status is 'error'.
-    error?: string; // Message when the path failed to evaluate for this case.
+    error?: string; // Message when this path failed to evaluate.
     status: TestResultStatus;
-    ranAt: number; // Epoch ms of the run that produced this result.
-    modelRevision?: string; // The `revision` prop in force during that run; drives staleness.
 }
 
-type TestResultsByPath = Record<string, TestResult>;
+// The outcome of running one test case once: run-level metadata plus one TestResult per path.
+// Running the case again replaces the whole set — there is never more than one per test case.
+interface TestResultSet {
+    testCaseId: string;
+    ranAt: number; // Epoch ms of the run.
+    modelRevision?: string; // The `revision` in force during the run; drives staleness.
+    status: 'ok' | 'error'; // 'error' when the run itself failed and no path was evaluated.
+    error?: string; // Run-level failure: a PortableError from `execute`, or a missing solver.
+    results: Record<string, TestResult>; // Keyed by subject-relative path.
+}
 ```
 
-> Architect notes: all model around TestCase is confusing for me - maybe I misunderstood it and/or ite requires better
-> explanation: I expected that TestCase owns user entered sets of Record<Path,Value> that are input values and
-> assertions. TestResult better not have ranAt and modelRevision on each path/value mapping. I expected One TestCase
-> will have one TestResultSet that will have many TestResult[]... fix these things or explain what is the point of this
-> model.
+Three separate things, deliberately: `TestRow` is the grid's shape and is shared by every column; `TestCase` is what
+the user authored in one column; `TestResultSet` is what came back from running that column. Run metadata (`ranAt`,
+`modelRevision`) and run-level failures sit once on the set rather than being copied onto every path.
 
-"`TestResult` extends" - test result must not extend anything! Tests manager and the whole     
-testing framework does not know anything about boxed editor!
+`TestResult.value` is the engine's own return value, not a string: a `number` for a numeric path, an `array` for a
+list, the engine's string form for dates (`2024-01-15`), durations (`P1D`), and special values (`Missing('credit')`).
+Every shape the engine returns is JSON-serializable, so IndexedDB stores it by structured clone. Display formatting is
+the reading component's job, not the service's.
 
-`TestResult` extends [`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md#testcasesservice-api)'s with `ranAt` and
-`modelRevision`, so a consumer can tell a fresh result from one produced against a since-edited model. `BoxedEditor`
-may ignore both.
-
-`value` is the engine's own return value, not a string: a `number` for a numeric path, an `array` for a list, the
-engine's string form for dates (`2024-01-15`), durations (`P1D`), and special values (`Missing('credit')`). Every
-shape the engine returns is JSON-serializable, so IndexedDB stores it by structured clone. Display formatting stays
-the consumer's job — which is what lets `BoxedEditor` render an array as `N items` (Resolved Decision #9).
+These types are defined here and depend on nothing outside this package — no engine types, and no knowledge of any
+component that reads them. `BoxedEditor`'s `TestResultsColumn` is a **consumer**: it imports `TestCase` /
+`TestResultSet` from `edgerules-react/test-cases-service` (Phase 4 updates
+[`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md#testcasesservice-api) accordingly). The dependency only ever points that
+way.
 
 ```mermaid
 classDiagram
@@ -226,12 +310,31 @@ classDiagram
         +setRowSection(path, section) void
         +getCell(testCaseId, path, kind) string?
         +setCell(testCaseId, path, kind, text) void
-        +getResults(testCaseId) TestResultsByPath
-        +setResults(testCaseId, results) void
+        +getResultSet(testCaseId) TestResultSet?
+        +saveResultSet(set) void
+        +clearResultSet(testCaseId) void
         +renamePath(from, to) void
         +subscribe(listener) Unsubscribe
         +dispose() void
     }
+    class TestCase {
+        <<data>>
+        +id string
+        +name string
+        +order number
+        +inputs Record~path, text~
+        +assertions Record~path, text~
+    }
+    class TestResultSet {
+        <<data>>
+        +testCaseId string
+        +ranAt number
+        +modelRevision string?
+        +status ok|error
+        +results Record~path, TestResult~
+    }
+    TestCasesService --> TestCase: owns, one per column
+    TestCasesService --> TestResultSet: owns, at most one per case
     class TestRunner {
         <<enginedriver>>
         +run(testCaseId) Promise~void~
@@ -239,6 +342,7 @@ classDiagram
         +getRunning() string[]
         +subscribe(listener) Unsubscribe
     }
+    TestRunner ..> TestResultSet: produces
     class MutableDecisionService {
         <<engine>>
         +get(path, filter?) PortableNode|PortableError
@@ -271,9 +375,9 @@ classDiagram
     TestsManager --> rows: pre-generation
     TestsManager --> values: cell parse / compare
     TestRunner --> MutableDecisionService: execute(subjectId, input)
-    TestRunner --> TestCasesService: setResults
-    subjects --> MutableDecisionService: get('*', 'ALL')
-    rows --> MutableDecisionService: get('*', 'ALL')
+    TestRunner --> TestCasesService: saveResultSet
+    subjects --> MutableDecisionService: get ALL + EXTERNAL_DEFINITIONS + toPortable
+    rows --> MutableDecisionService: get ALL + EXTERNAL_DEFINITIONS + toPortable
 ```
 
 ### High-level structure
@@ -314,14 +418,16 @@ importable by `BoxedEditor` without dragging in the grid or the engine.
 ```text
 src/components/test-cases-service/
 ├─ index.ts                          — public exports
-├─ test-cases-service-types.ts       — TestCasesService, TestCase, TestRow, TestResult, TestResultsByPath,
-│                                       TestSectionId, TestResultStatus, TestCasesServiceOptions, Unsubscribe
+├─ test-cases-service-types.ts       — TestCasesService, TestCase, TestRow, TestResult, TestResultSet,
+│                                       TestValuesByPath, TestCellKind, TestSectionId, TestResultStatus,
+│                                       TestCasesServiceOptions, Unsubscribe
 ├─ createTestCasesService.ts         — factory: (modelName, subjectId, options?) -> TestCasesService
 ├─ indexedDbStore.ts                 — IndexedDB adapter: open/upgrade, hydrate-all-for-subject, put, delete
 ├─ useTestCases.ts                   — hook: ordered cases + current index + next()/prev()
-├─ useTestResult.ts                  — hook: one path's TestResult for the current case
+├─ useTestResult.ts                  — hook: one path's TestResult out of the current case's TestResultSet
 └─ __tests__/
-   ├─ createTestCasesService.test.ts — hydration, case CRUD, row sync, cell round trip, results, renamePath, dispose
+   ├─ createTestCasesService.test.ts — hydration, case CRUD, row sync, cell round trip, result-set save/clear,
+   │                                     renamePath across rows/values/results, dispose
    ├─ no-indexeddb-fallback.test.ts  — indexedDB unavailable -> in-memory only, no throw
    └─ hooks.test.tsx                 — RTL: both hooks re-render on service writes, unsubscribe on unmount
 
@@ -331,12 +437,16 @@ src/components/tests-manager/
 ├─ TestsManagerProps.ts              — TestsManagerProps (public)
 ├─ tests-manager-types.ts            — TestSubject, TestSubjectKind, TestRunner (public)
 ├─ model/
-│  ├─ subjects.ts                    — listTestSubjects: root callables with fully typed parameters, plus '*'
-│  ├─ rows.ts                        — deriveRows: input vs computed leaves, user-type expansion
+│  ├─ subjects.ts                    — listTestSubjects: '*' plus every fully typed callable — func/ruleset at
+│  │                                    any context depth (ALL view), optimise (EXTERNAL_DEFINITIONS view),
+│  │                                    loop (toPortable scan + get)
+│  ├─ rows.ts                        — deriveRows: input vs computed leaves, user-type expansion, optimise
+│  │                                    @result leaves; flattenResult for call-site paths the schema hides
 │  ├─ values.ts                      — parseCell / formatValue / matches (type-directed)
 │  └─ inputs.ts                      — dotted subject-relative paths -> nested input object for execute()
 ├─ runner/
-│  └─ createTestRunner.ts            — factory: (service, testCasesService, subject) -> TestRunner
+│  └─ createTestRunner.ts            — factory: (service, testCasesService, subject) -> TestRunner;
+│                                       solver pre-flight, serialized runs, PortableError handling
 ├─ context/
 │  ├─ TestsManagerContext.tsx        — services, subject, readOnly, revision
 │  └─ TestsManagerUiContext.tsx      — ephemeral UI: page index, active editing cell, running case ids
@@ -363,16 +473,20 @@ src/components/tests-manager/
    ├─ TestsManager.test.tsx          — rendering, subject switch, sections, paging, readOnly
    ├─ pre-generation.test.tsx        — first-run generation, new field appended to Validations, removed field hidden
    ├─ execution.test.tsx             — input edit -> run -> results, assertion pass/fail highlighting
-   ├─ subjects.test.ts               — subject discovery incl. untyped-parameter exclusion
-   ├─ rows.test.ts                   — input vs computed classification, user-type expansion, scalar return
+   ├─ subjects.test.ts               — discovery of all four callable kinds, nested callables by dotted path,
+   │                                    body-nested callables excluded, untyped-parameter exclusion
+   ├─ rows.test.ts                   — input vs computed classification, user-type expansion, scalar return,
+   │                                    optimise @result leaves, call-site paths appended from a run result
+   ├─ optimise.test.tsx              — optimise subject end to end with a registered solver; the missing-solver
+   │                                    pre-flight banner when none is registered
    └─ values.test.ts                 — parse / format / compare per type, special values
 ```
 
 ## Persistence
 
-`TestCasesService` is loaded for one `(modelName, subjectId)` pair and disposed when that pair is unloaded. One
-instance therefore has the exact read surface `BoxedEditor` expects (`listTestCases()` / `getResults(testCaseId)` with
-no subject argument); `TestsManager` constructs a new instance when the subject drop-down changes.
+`TestCasesService` is loaded for one `(modelName, subjectId)` pair and disposed when that pair is unloaded, so no
+method takes a subject argument — a grid, or a results column, only ever shows one subject at a time. `TestsManager`
+constructs a new instance when the subject drop-down changes.
 
 Like `DocumentationService`, the API is synchronous over an in-memory cache, with IndexedDB written in the background;
 persistence failures never roll back the in-memory value.
@@ -380,7 +494,7 @@ persistence failures never roll back the in-memory value.
 ```typescript
 type Unsubscribe = () => void;
 
-type TestCellKind = 'input' | 'assertion';
+type TestCellKind = 'input' | 'assertion'; // Which of a TestCase's two value maps a cell belongs to.
 
 interface TestCasesServiceOptions {
     // IndexedDB database name. Defaults to 'edgerules-test-cases'.
@@ -392,29 +506,29 @@ interface TestCasesServiceOptions {
 
 interface TestCasesService {
     // --- test cases (grid columns) ---
-    listTestCases(): TestCase[]; // Ordered by TestCase.order.
-    addTestCase(name?: string): TestCase; // Appends; defaults the name to "Test Case N".
+    listTestCases(): TestCase[]; // Ordered by TestCase.order; each carries its own inputs/assertions.
+    getTestCase(testCaseId: string): TestCase | undefined;
+    addTestCase(name?: string): TestCase; // Appends with empty value maps; defaults the name to "Test Case N".
     renameTestCase(testCaseId: string, name: string): void;
-
-    removeTestCase(testCaseId: string): void; // Also removes that case's cells and results.
+    removeTestCase(testCaseId: string): void; // Also drops that case's values and its result set.
     moveTestCase(testCaseId: string, toIndex: number): void;
 
-    // --- rows ---
+    // --- rows (shared by every column) ---
     listRows(): TestRow[]; // Ordered by section, then TestRow.order.
     syncRows(rows: TestRow[]): void; // Reconciles derived rows with persisted ones (see Tests Pre-Generation).
     moveRow(path: string, toIndex: number): void; // Within the row's own section.
     setRowSection(path: string, section: TestSectionId): void; // Promote/demote between assertions and validations.
 
-    // --- cells ---
+    // --- cells: accessors into one test case's inputs/assertions map ---
     getCell(testCaseId: string, path: string, kind: TestCellKind): string | undefined; // Raw text as typed.
-    setCell(testCaseId: string, path: string, kind: TestCellKind, text: string): void; // Empty string clears it.
+    setCell(testCaseId: string, path: string, kind: TestCellKind, text: string): void; // Empty string removes the entry.
 
     // --- results ---
-    getResults(testCaseId: string): TestResultsByPath;
+    getResultSet(testCaseId: string): TestResultSet | undefined; // Undefined until the case has been run.
+    saveResultSet(set: TestResultSet): void; // Replaces the case's previous set outright.
+    clearResultSet(testCaseId: string): void;
 
-    setResults(testCaseId: string, results: TestResultsByPath): void; // Replaces the whole set for that case.
-
-    // Migrate rows, cells, and results when a node's path changes (called after a successful rename/move).
+    // Migrate rows, cell keys, and result keys when a node's path changes (called after a successful rename/move).
     renamePath(from: string, to: string): void;
 
     // Notified after any in-memory change, and once after initial IndexedDB hydration completes.
@@ -433,16 +547,19 @@ function createTestCasesService(
 
 ### IndexedDB schema
 
-Two object stores in one database, because cases/rows are per-subject metadata while cells and results are per-cell
-data with a much higher write rate.
+Two object stores in one database, split along the two write rhythms: authored values change on cell commit, results
+change on run.
 
-| Item          | `testCases` store                                              | `testCells` store                                                                                                                                                                                       |
-|---------------|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Key path      | `['modelName', 'subjectId']`                                   | `['modelName', 'subjectId', 'testCaseId', 'kind', 'path']`                                                                                                                                              |
-| Record shape  | `{ modelName, subjectId, cases: TestCase[], rows: TestRow[] }` | `{ modelName, subjectId, testCaseId, kind, path, text?, result? }`                                                                                                                                      |
-| `kind` values | —                                                              | the two `TestCellKind`s plus `'result'`, so a run's output shares one store and one hydration pass with the values that produced it; `text` is set for `'input'`/`'assertion'`, `result` for `'result'` |
-| Hydration     | one `get` on construction                                      | one cursor read over `IDBKeyRange.bound([modelName, subjectId], [modelName, subjectId, '￿'])`                                                                                                           |
-| Write         | whole-record `put` on any case/row change                      | per-cell `put`; `delete` when `text` is cleared                                                                                                                                                         |
+| Item         | `testCases` store                                              | `testResults` store                                        |
+|--------------|----------------------------------------------------------------|-------------------------------------------------------------|
+| Key path     | `['modelName', 'subjectId']`                                   | `['modelName', 'subjectId', 'testCaseId']`                 |
+| Record shape | `{ modelName, subjectId, cases: TestCase[], rows: TestRow[] }` | `{ modelName, subjectId, testCaseId, set: TestResultSet }` |
+| Hydration    | one `get` on construction                                      | one cursor read over `IDBKeyRange.bound([modelName, subjectId], [modelName, subjectId, '￿'])` |
+| Write        | whole-record `put` on any case/row/cell change                 | one `put` per completed run; `delete` on clear or case removal |
+
+Each store writes whole records rather than per-cell rows. A subject's authored data is one small JSON document — tens
+of cases by tens of paths — so a whole-record `put` on cell commit is cheaper than maintaining a key per cell, and it
+keeps `TestCase` atomic: a case and its values can never be half-persisted.
 
 Compound array keys avoid inventing (and escaping) a delimiter that cannot appear in an EdgeRules path — the same
 reasoning as [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md)'s Resolved Decision #5.
@@ -506,12 +623,35 @@ Binding rules:
 - Subject `*` executes `execute('*', input)`; a callable subject executes `execute(subjectId, args)` with `args` keyed
   by parameter name.
 - The returned object is flattened back into subject-relative paths. A scalar return flattens to the single path `''`.
-- `execute` rejecting with a `PortableError` (`EntryNotFound`, `Execution`, …) fails the whole case: every row of that
-  column gets `status: 'error'` with the message, and the column header shows the error badge.
+  Paths in the result that have no row yet are reported back for reconciliation (see
+  [Rows the schema does not reveal](#rows-the-schema-does-not-reveal)).
+- `execute` rejecting with a `PortableError` (`EntryNotFound`, `Execution`, …) fails the whole run: the saved
+  `TestResultSet` carries `status: 'error'` and the message, with no per-path results at all. The column header shows
+  the error badge and its cells render empty — a run-level failure is recorded once, not smeared across every row.
+
+**Solver pre-flight.** A model or subject that involves an `optimise` needs a solver the host registered on the same
+`MutableDecisionService`; EdgeRules ships none. When one is missing, `execute` does not reject — it returns
+`Missing('<name>')`, which would otherwise be recorded as an ordinary result and fail every assertion for an unclear
+reason. `TestRunner` therefore refuses the run up front when `service.requiresSolver()` is `true` and no
+`service.solverHandler` is set, saving the same run-level `status: 'error'` set with a message naming the missing
+solver. `TestsManager` shows a grid-level banner rather than a per-cell failure. Registering the solver is the host's job, done
+once before `TestsManager` mounts.
 
 Runs are triggered by: committing an `Inputs` cell edit (debounced, that case only), a `revision` prop change (all
 cases), and the explicit **Run** / **Run all** menu actions. Runs for one subject are serialized — a run requested
 while one is in flight replaces any queued run for the same case.
+
+### Stale results
+
+A result set is stale when its `modelRevision` differs from the `revision` currently in force — the model has been edited
+since the value was computed. A stale result is **greyed out and no longer asserted**: `Validations` cells render the
+last known value in the muted style, and `Assertions` cells drop their pass/fail highlighting entirely rather than
+score an expected value against a value the current model would not produce. The `Assertions` section header shows no
+counter for a stale column. Re-running the case restores normal rendering.
+
+With the default `autoRun: true` a `revision` change re-runs every case immediately, so staleness is a brief
+transitional state; with `autoRun: false` it persists until the user runs the case, which is exactly when suppressing
+a misleading green tick matters.
 
 ```mermaid
 sequenceDiagram
@@ -529,12 +669,12 @@ sequenceDiagram
     Runner ->> Engine: execute('*', {name: 'Steve', age: 30, credit: {...}})
     Engine -->> Runner: {name, age, credit, maxLimit, creditDecision: {...}}
     Runner ->> Runner: flatten to subject-relative paths
-    Runner ->> TCS: setResults('tc1', resultsByPath)
+    Runner ->> TCS: saveResultSet({testCaseId: 'tc1', ranAt, modelRevision, status: 'ok', results})
     TCS -->> Grid: notify subscribers
     Grid ->> Grid: Validations cells render values - Assertions cells compare and highlight
     alt execute rejects with PortableError
         Engine -->> Runner: PortableError
-        Runner ->> TCS: setResults('tc1', every row status 'error')
+        Runner ->> TCS: saveResultSet({testCaseId: 'tc1', status: 'error', error: message})
     end
 ```
 
@@ -573,8 +713,8 @@ entry point, so a user never faces an empty grid.
 
 ```mermaid
 flowchart TD
-    A["Model loaded / revision changed"] --> B["get('*', 'ALL')"]
-    B --> C["listTestSubjects — '*' plus root func/ruleset with all parameters typed"]
+    A["Model loaded / revision changed"] --> B["get ALL + get EXTERNAL_DEFINITIONS + toPortable loop scan"]
+    B --> C["listTestSubjects — '*' plus every fully typed callable, by dotted path"]
     C --> D["deriveRows for the selected subject"]
     D --> E{"Path already persisted?"}
     E -- " No, writable " --> F["Append to Inputs"]
@@ -593,7 +733,8 @@ flowchart TD
     N --> O
 ```
 
-Derivation rules for `deriveRows`, all read off one `get('*', 'ALL')` call:
+Derivation rules for `deriveRows`, read off `get('*', 'ALL')`, `get('*', 'EXTERNAL_DEFINITIONS')`, and a
+`toPortable()` scan for `loop` declarations:
 
 - A `@kind: 'type'` node with `writeOnly: true` is an **input** leaf; with `readOnly: true` it is a **computed** leaf.
   A `@kind: 'expression'` node is a computed leaf.
@@ -602,10 +743,24 @@ Derivation rules for `deriveRows`, all read off one `get('*', 'ALL')` call:
   `ALL` view's `type-definition` entries — the engine does not resolve such paths itself (`get('credit.balance')` on a
   `credit: <Credit>` hole returns `EntryNotFound`).
 - `array`-typed leaves are not expanded; the row holds one JSON cell.
-- `function-schema`, `ruleset-schema`, and `type-definition` entries are not rows of the `*` subject; they are
-  subjects (or type sources) in their own right.
+- `function-schema`, `ruleset-schema`, `loop-schema`, and `optimise` entries are not rows of the `*` subject, and
+  neither are `type-definition` entries; they are subjects (or type sources) in their own right. A context that holds
+  only callables therefore contributes no rows.
 - For a callable subject, input rows come from `@parameters` (same expansion rules) and computed rows from the leaves
-  of `@return` — one row with path `''` when `@return` is a scalar type name.
+  of `@return` (`@result` for an `optimise`) — one row with path `''` when that is a scalar type name. A `loop`'s
+  `@state` is iteration bookkeeping, not part of the result, and produces no rows.
+
+### Rows the schema does not reveal
+
+A `@kind: 'invocation'` field is a call site: `get` reports only `@type: 'object'` for it, never the leaves of what it
+returns. The `plan: factoryProduction(...)` field above is the clearest case — `get('*', 'ALL')` shows one opaque
+`plan` node, while running the model yields `plan.status`, `plan.objective`, `plan.chairs`,
+`plan.bottlenecks.workerCapacity`, and `plan.notes`.
+
+Row derivation therefore has a second source: **paths observed in a run result**. After each run, `TestsManager`
+flattens the result, and any path with no row yet is appended to `Validations` through the same `syncRows`
+reconciliation. Schema-derived rows appear before the first run; call-site leaves appear after it. Both are persisted
+identically, so the grid is stable from the second load onward.
 
 A path that disappears from the model is only hidden (`present: false`); nothing is deleted from IndexedDB, so
 restoring the field restores its test data. Purging orphaned rows belongs to the future project-saving story.
@@ -626,7 +781,7 @@ interface TestsManagerProps {
     readOnly?: boolean; // Disables cell editing, reordering, and case CRUD; running stays available.
     pageSize?: number; // Test-case columns per page. Defaults to 10.
     autoRun?: boolean; // Whether committing an input re-runs its case automatically. Defaults to true.
-    onRunComplete?: (testCaseId: string, results: TestResultsByPath) => void; // Fired after each successful run.
+    onRunComplete?: (set: TestResultSet) => void; // Fired after each completed run, successful or failed.
     className?: string;
     sx?: SxProps<Theme>;
 }
@@ -645,14 +800,18 @@ interface TestsManagerProps {
 ## Storybook stories
 
 1. `TestsManager` on the Workbook model — all three sections, several test cases, one deliberately failing assertion.
-2. `TestsManager` on a model with decision-service entry points — subject drop-down switching between `*`, a `func`,
-   and a `ruleset`, including a callable excluded for having an untyped parameter.
-3. `TestsManager` with more test cases than `pageSize` — column paging with frozen Path/Description columns.
-4. `TestsManager` wired to a `DocumentationService` shared with another component, showing descriptions staying in
+2. `TestsManager` on a model with decision-service entry points — subject drop-down switching between `*`, a root
+   `func`, a `ruleset`, a nested `library.eligibility` shown by its dotted path, and a `loop`, including a callable
+   excluded for having an untyped parameter.
+3. `TestsManager` on an `optimise` subject with a solver registered by the story's own decorator — the result record's
+   `status` / `objective` / variable / `bottlenecks.*` rows — plus the same model with no solver, showing the
+   pre-flight banner.
+4. `TestsManager` with more test cases than `pageSize` — column paging with frozen Path/Description columns.
+5. `TestsManager` wired to a `DocumentationService` shared with another component, showing descriptions staying in
    sync both ways.
-5. `TestsManager` with a model edited live (host bumps `revision`) — new fields appearing in `Validations`, removed
+6. `TestsManager` with a model edited live (host bumps `revision`) — new fields appearing in `Validations`, removed
    fields disappearing, all cases re-running.
-6. `TestsManager` in `readOnly` mode.
+7. `TestsManager` in `readOnly` mode.
 
 ## Tasks
 
@@ -672,18 +831,23 @@ interface TestsManagerProps {
 **Phase 2: Model derivation and execution**
 
 - [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `model/subjects.ts`, `model/rows.ts`, `model/values.ts`, `model/inputs.ts`
-- [ ] Add `runner/createTestRunner.ts` including serialized runs and `PortableError` handling
+- [ ] Add `model/subjects.ts` — the `ALL` view recursed into nested contexts, the `EXTERNAL_DEFINITIONS` view, and the
+  `toPortable()` `loop` scan — plus `model/rows.ts` (including `optimise` `@result` leaves and `flattenResult`),
+  `model/values.ts`, `model/inputs.ts`
+- [ ] Add `runner/createTestRunner.ts` including the solver pre-flight, serialized runs, and `PortableError` handling
 - [ ] Add `subjects.test.ts`, `rows.test.ts`, `values.test.ts`, and runner coverage against `@edgerules/node`
+  (a `registerSolver` stub covers the `optimise` path — `highs` is not a dependency of this repo)
 - [ ] Mark all checkboxes as done in this document once verified
 
 **Phase 3: The grid**
 
 - [ ] Ensure project compiles and existing tests are passing
 - [ ] Add contexts, hooks, `grid/`, `menu/`, `dnd/`, and `TestsManager.tsx` per [Components](#components)
-- [ ] Implement pre-generation and reconciliation per [Tests Pre-Generation](#tests-pre-generation)
+- [ ] Implement pre-generation and reconciliation per [Tests Pre-Generation](#tests-pre-generation), including
+  appending call-site paths discovered in run results
+- [ ] Implement stale-result rendering per [Stale results](#stale-results) and the missing-solver banner
 - [ ] Add `package.json` `./tests-manager` export and the matching `tsup.config.ts` entry
-- [ ] Add `TestsManager.test.tsx`, `pre-generation.test.tsx`, `execution.test.tsx`
+- [ ] Add `TestsManager.test.tsx`, `pre-generation.test.tsx`, `execution.test.tsx`, `optimise.test.tsx`
 - [ ] Add the Storybook stories listed above
 - [ ] Mark all checkboxes as done in this document once verified
 
@@ -704,73 +868,48 @@ interface TestsManagerProps {
 
 | # | Decision                                      | Resolution                                                                                                                                                                                                                                                                                                                                                                            |
 |---|-----------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | Persistence split from execution              | `TestCasesService` stays engine-free and gains write methods; `TestRunner` is the only piece that imports the engine. This preserves `BOXED_EDITOR_SPEC.md`'s promise that `BoxedEditor` displays results without running the engine, while giving Tests Manager the writes it needs.                                                                                                 |
-| 2 | One service instance per `(model, subject)`   | `createTestCasesService(modelName, subjectId)` rather than a subject argument on every method — so `BoxedEditor` consumes the exact read surface its spec already defines (`listTestCases()`, `getResults(id)`), and `TestsManager` swaps instances when the drop-down changes.                                                                                                       |
+| 1 | Persistence split from execution              | `TestCasesService` never imports the engine; `TestRunner` is the only piece that does. Any component can then read and display results with no engine dependency, and the persistence contract stays testable without a WASM instance.                                                                                                                                               |
+| 2 | One service instance per `(model, subject)`   | `createTestCasesService(modelName, subjectId)` rather than a subject argument on every method. Any view over test data — a grid, a results column — shows one subject at a time, so threading a subject through every call would be noise. `TestsManager` swaps instances when the drop-down changes.                                                                                |
 | 3 | Stable `id` for a test case                   | Cells and results key off `TestCase.id`, not the display name, so renaming a column never rewrites its data.                                                                                                                                                                                                                                                                          |
-| 4 | Results are persisted, not recomputed on read | Results live in IndexedDB because `BoxedEditor` reads them without an engine. `ranAt` + `modelRevision` let any consumer detect a result produced against a since-edited model.                                                                                                                                                                                                       |
-| 5 | Subject-relative paths in storage             | Rows and results store paths relative to the subject; `qualifyPath` derives the model-level form for `DocumentationService` and `BoxedEditor` interop. Keeps a callable's `approved` from colliding with a root field of the same name.                                                                                                                                               |
+| 4 | Results are persisted, not recomputed on read | Results live in IndexedDB so a component can display them without an engine dependency. `ranAt` and `modelRevision` sit on the `TestResultSet` — properties of the run, not of each value — and let any consumer detect a set produced against a since-edited model.                                                                                                                 |
+| 5 | Subject-relative paths in storage             | Rows and results store paths relative to the subject; `qualifyPath` derives the model-level form for `DocumentationService` lookups and for any consumer that addresses paths model-wide. Keeps a callable's `approved` from colliding with a root field of the same name.                                                                                                                                               |
 | 6 | Type-directed cell parsing                    | Cells store raw text and are parsed using the row's declared type, rather than requiring the user to type JSON. The engine coerces some mistyped input silently (a `"5"` string still arithmetics as `5`) but echoes the original string back in the result, which would make assertions confusing.                                                                                   |
 | 7 | Only writable paths are bound                 | Inputs are restricted to typed holes and callable parameters. Overriding a computed field is not supported by the engine and is silently ignored — see [Open Questions](#open-questions) #1 and the entry in [`BUG_REPORTS.md`](BUG_REPORTS.md).                                                                                                                                      |
-| 8 | Rulesets are subjects too                     | A root-level `ruleset` is callable with typed parameters exactly like a `func` (`get` returns `@kind: 'ruleset-schema'` with `@parameters`), and `execute('risk', {age: 20})` works. Excluding rulesets would leave decision tables untestable.                                                                                                                                       |
-| 9 | `TestResult.value` is `unknown`, not `string` | `execute` returns real JS values — numbers, booleans, arrays, nested objects — and only dates, durations, and special values arrive as strings. Typing `value` as `string` would force every producer to stringify and every consumer to parse back, and would defeat `BoxedEditor`'s own "arrays render as `N items`" rule. `BOXED_EDITOR_SPEC.md` is corrected to match in Phase 4. |
+| 8 | Rulesets and optimisations are subjects too   | All three callable metaphors are executed identically (`execute(name, args)` — verified for `func`, `ruleset`, and `optimise`), so all three are subjects. Excluding `ruleset` would leave decision tables untestable and excluding `optimise` would leave it with no test surface at all, since it has no standalone editor either.                                                  |
+| 9 | `TestResult.value` is `unknown`, not `string` | `execute` returns real JS values — numbers, booleans, arrays, nested objects — and only dates, durations, and special values arrive as strings. Typing `value` as `string` would force every producer to stringify and every consumer to parse back, and would deny a reading component the array it needs to render something like "N items". `BOXED_EDITOR_SPEC.md` is corrected to match in Phase 4. |
+| 10 | Run results are a second row source          | A `@kind: 'invocation'` field is opaque in every `get` view (`@type: 'object'`, no leaves), so a schema-only derivation would leave every call site — including every `optimise` call site — as one unusable row. Reconciling the flattened run result through the same `syncRows` path covers that generically, instead of special-casing invocations.                              |
+| 11 | Solver wiring stays the host's job           | `TestRunner` never registers a solver: EdgeRules ships none, and choosing one is a host deployment decision. The runner only pre-flights the condition, because a missing solver produces `Missing('<name>')` rather than an error and would otherwise look like a modelling mistake.                                                                                                  |
+| 12 | Every callable is a subject, at any depth    | The drop-down lists callables by dotted path rather than root-level names only, so a model that organizes its logic under a `library:` context is testable. Callables declared inside another callable's **body** stay out: they are implementation details, and subject discovery walks contexts, not function bodies.                                                              |
+| 13 | `tests-manager` is the GUI, `TestRunner` the executor | The component directory and subpath are `tests-manager`; `TestRunner` names the execution service only. `README.md`'s Project Structure is updated to match in Phase 4, so one name never refers to two things.                                                                                                                                                            |
+| 14 | Stale results are greyed and unasserted      | When `TestResultSet.modelRevision` no longer matches the current `revision`, values render muted and assertion highlighting is suppressed until the case re-runs — a green tick against a value the current model would not produce is worse than no tick. See [Stale results](#stale-results).                                                                                        |
+| 15 | Descriptions key off the qualified path alone | No section discriminator in the `DocumentationService` key. A collision needs a model that names a context exactly like a callable, which the engine already rejects as a duplicate name.                                                                                                                                                                                            |
+| 16 | Values live on the test case, results in their own set | A `TestCase` owns the two maps the user authored (`inputs`, `assertions`); a `TestResultSet` owns one run's output plus its metadata. Splitting them keeps authored data and derived data from sharing a lifetime, makes "run the case again" a single whole-set replace, and stops run metadata from being duplicated onto every path. |
 
 ## Open Questions
 
-1. **"User can set any value to the model" is not what the engine does.** The premise that referential transparency
-   lets a test case pin any path is not supported: `execute` only binds typed holes and parameters. Supplying a
-   computed path is accepted, ignored during evaluation, and then echoed into the result as though it had applied
-   (reproduced and filed in [`BUG_REPORTS.md`](BUG_REPORTS.md)). This story therefore restricts `Inputs` to writable
-   paths.
-   Question to address: is pinning arbitrary computed paths a requirement for Tests Manager, or is binding typed holes
-   and parameters sufficient?
-   Option 1: keep this story's scope — inputs are writable paths only — and treat overrides as an engine feature
-   request tracked separately.
-   Option 2: emulate overrides in the React layer by `set()`-ing the path before the run and restoring it after. This
-   mutates the authored model for the duration of a run, races with any other editor open on the same service, and
-   changes `TestsManager` from a read-only consumer of the model into a mutator. Not recommended.
+1. **Renaming a context orphans every subject beneath it.** A subject id is a dotted path, and it is part of the
+   IndexedDB key for that subject's cases, rows, and results. `TestCasesService.renamePath(from, to)` migrates paths
+   *within* one subject, but nothing migrates the subject id itself: renaming `library` to `lib` silently strands all
+   test data for `library.eligibility`, which reappears as a brand-new empty subject. The same happens when a callable
+   is renamed or moved between contexts. `BoxedEditor` and `ProjectExplorer` can both perform such renames.
+   Question to address: how does a subject's stored test data follow its callable?
+   Option 1: add `renameSubject(from, to)` to `TestCasesService` (a key rewrite across both stores), and have the
+   editor command layer call it after a successful rename/move, exactly as it already calls `renamePath` on the
+   overlays.
+   Option 2: key stored test data by a stable synthetic subject id held in the model as an annotation, so paths can
+   change freely — heavier, and it puts authoring metadata into the model that the engine currently drops
+   (see [`BUG_REPORTS.md`](BUG_REPORTS.md)'s `@description` entry).
 
-> Architect notes: we have a current engine limitation that prevents user setting any path he wants: for now only typed
-> holes and parameters can be set. Mark this for the future as "Full referential transparency support". Add Followup
-> section in the story to track this.
+## Follow-up Stories
 
-2. **Component naming across the docs.** `README.md` and `BOXED_EDITOR_SPEC.md` both name this component **Test
-   Runner**; this story names it **Tests Manager** and reserves `TestRunner` for the execution service. Leaving both
-   names in circulation guarantees confusion about which is the GUI.
-   Question to address: which name is canonical?
-   Option 1: adopt `tests-manager` for the GUI and `TestRunner` for the execution service as this story does, and
-   rename the `test-runner` entry in `README.md`'s Project Structure (a Phase 4 task already).
-   Option 2: keep `test-runner` as the component directory and rename the execution service to something else
-   (`TestExecutor`).
+Work items this story deliberately defers rather than blocks on. Each needs its own story before being built.
 
-> Architect notes: Option 1: adopt `tests-manager` for the GUI and `TestRunner` for the execution service as this story
-> does.
-
-3. **Only root-level callables are subjects.** The engine executes nested callables fine — `execute('nested.inner',
-   {x: 5})` returns a value — so restricting the drop-down to the first level is a product decision, not a technical
-   limit. A model that organizes its functions under a `library:` context (as the reference loan-origination model
-   does) would expose no callable subjects at all.
-   Question to address: should the drop-down list nested callables with fully typed parameters as well?
-   Option 1: root level only, as specified — the drop-down stays short and matches "decision service entry point".
-   Option 2: list every callable with fully typed parameters at any depth, shown by its dotted path.
-
-> Architect notes: Option 2: list every callable with fully typed parameters at any depth, shown by its dotted path. We
-> will allow testing absolutely all callables.
-
-4. **Staleness display.** `TestResult.modelRevision` records which revision produced a result, but the GUI behavior
-   when it no longer matches is unspecified. With `autoRun` on, a revision change re-runs everything and the window is
-   momentary; with `autoRun` off it can persist indefinitely.
-   Question to address: how should a stale result render?
-   Option 1: grey out stale result cells and suppress assertion highlighting until the case is re-run.
-   Option 2: keep showing the last known value unchanged, with a stale badge on the column header only.
-
-> Architect notes: Option 1: grey out stale result cells and suppress assertion highlighting until the case is re-run.
-
-5. **Description scope for callable subjects.** Descriptions are keyed by qualified path, so a `func` parameter named
-   `age` and a root field named `age` get separate descriptions — correct. But the return-value rows of a callable
-   (`creditDecision.approved`) share a key with a root context field of that path if the model happens to have one.
-   Question to address: should description keys carry a section discriminator, or is the qualified path enough?
-   Option 1: qualified path only — collisions require a model that names a root context exactly like a callable,
-   which the engine already forbids as a duplicate name.
-   Option 2: prefix callable-subject rows in the description key (e.g. `creditDecision()::approved`).
-
-> Architect notes: the qualified path is enough
+- **Full referential transparency support.** Today only typed holes and callable parameters can be bound, so an
+  `Inputs` row can only exist for a writable path. Once the engine can honour a value supplied for any path, the
+  `Inputs` section can widen to arbitrary computed paths and a test case becomes able to pin an intermediate
+  derivation directly. Blocked on the engine — the current behavior (silently ignoring and echoing such input) is
+  filed in [`BUG_REPORTS.md`](BUG_REPORTS.md).
+- **`loop` discovery without a `toPortable()` scan.** Once listing a context projects `loop` declarations, subject
+  discovery drops the extra scan and reads them from the same view as `func`/`ruleset`.
+- **Purging orphaned test data.** Rows for paths the model no longer declares are hidden, never deleted. A purge
+  belongs with the future project-saving story.
