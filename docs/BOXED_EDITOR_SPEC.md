@@ -286,20 +286,20 @@ The package entry point is `edgerules-react/boxed-editor`. Its public API is int
 
 ```ts
 interface BoxedEditorProps {
-    service: BoxedEditorService; // The mutable EdgeRules model authority. The editor never maintains a second persisted model.
-    path: string; // The authored CRUD path to show. Use `"*"` for the complete model.
-    languageService?: CodeEditorService; // Supplies diagnostics and completions to the one active expression cell.
-    revision?: string | number; // Host-controlled invalidation token. Change it after model edits made outside this editor.
-    readOnly?: boolean; // Disables name/value editing and ordering while retaining navigation and visible ordering handles.
-    onChange?: (snapshot: PortableRootContext) => void; // Called once with the refreshed Portable snapshot after a successful committed mutation.
-    onOpenNode?: (target: BoxedEditorOpenTarget) => void; // Routes specialized nodes to another host editor; `BoxedEditor` does not implement those editors.
-    showHeader?: boolean; // Whether to show the model header row. Defaults to `true`.
-    showTestResults?: boolean; // Whether to show the test results column. Defaults to `true`.
-    showDescription?: boolean; // Whether to show the description column. Defaults to `true`.
-    showType?: boolean; // Whether the type tooltip (hover + Alt-reveal, see GUI Language) is available. Defaults to `true`.
-    expanded?: boolean; // Whether to expand all rows (types, contexts, functions, rulesets, optimisations). Defaults to `true`.
-    className?: string; // Optional class name for the root element.
-    sx?: SxProps<Theme>; // Optional MUI `sx` prop for styling the root element.
+  service: BoxedEditorService; // The mutable EdgeRules model authority. The editor never maintains a second persisted model.
+  path: string; // The authored CRUD path to show. Use `"*"` for the complete model.
+  languageService?: CodeEditorService; // Supplies diagnostics and completions to the one active expression cell.
+  revision?: string | number; // Host-controlled invalidation token. Change it after model edits made outside this editor.
+  readOnly?: boolean; // Disables name/value editing and ordering while retaining navigation and visible ordering handles.
+  onChange?: (snapshot: PortableRootContext) => void; // Called once with the refreshed Portable snapshot after a successful committed mutation.
+  onOpenNode?: (target: BoxedEditorOpenTarget) => void; // Routes specialized nodes to another host editor; `BoxedEditor` does not implement those editors.
+  showHeader?: boolean; // Whether to show the model header row. Defaults to `true`.
+  showTestResults?: boolean; // Whether to show the test results column. Defaults to `true`.
+  showDescription?: boolean; // Whether to show the description column. Defaults to `true`.
+  showType?: boolean; // Whether the type tooltip (hover + Alt-reveal, see GUI Language) is available. Defaults to `true`.
+  expanded?: boolean; // Whether to expand all rows (types, contexts, functions, rulesets, optimisations). Defaults to `true`.
+  className?: string; // Optional class name for the root element.
+  sx?: SxProps<Theme>; // Optional MUI `sx` prop for styling the root element.
 }
 ```
 
@@ -714,9 +714,11 @@ are addressed through their authored field path (`monthly.result`, `risk.rules[2
 `factoryProduction.variables.chairs`) even though Portable stores function bodies under `@body`. Authoritative
 syntax and filters live in `../edgerules-v2/doc/architecture/CRUD_SPEC.md`.
 
-Current engine limitation: the npm `alpha` can parse and project optimisation definitions but its mutable API rejects
-the optimisation paths above and a whole-definition `set`. The facade still normalizes/denormalizes the Portable
-shape and passes the engine error through; the upstream gap is recorded in `docs/BUG_REPORTS.md`.
+`0.0.0-alpha.202607251019` supports optimisation end to end: DSL parsing/linking, Portable whole-model conversion,
+solver registration, and execution. The paths above describe the editor's authored row identities. The engine's
+path-scoped mutable CRUD API does not yet resolve those `optimise` paths (or a whole-definition `set`), so an attempted
+inline optimisation mutation is passed through as a `PortableError`; the focused API gap is recorded in
+`docs/BUG_REPORTS.md`.
 
 ### Edit → persist → refresh flow
 
@@ -950,7 +952,7 @@ These were open in earlier iterations and are now settled; kept for traceability
 Work items this spec deliberately defers rather than blocks on. Each needs its own story before being built.
 
 - [ ] Paging / virtualization for large `list` / `relation` / `ruleset` bodies (`getBoxedRowsData(path, {offset,
-    limit})` plus virtualized `RelationItemRow` and `RuleRow` renderers) — see Resolved Decision #11.
+limit})` plus virtualized `RelationItemRow` and `RuleRow` renderers) — see Resolved Decision #11.
 
 ## Open Questions
 

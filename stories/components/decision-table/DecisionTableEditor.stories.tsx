@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -27,13 +27,23 @@ function EditorHarness({
   readOnly?: boolean;
 }): ReactElement {
   const [version, setVersion] = useState(0);
-  const result = useMemo(() => {
-    try {
-      return JSON.stringify(service.execute(resultPath));
-    } catch (error) {
-      return String((error as { message?: string }).message ?? error);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const [result, setResult] = useState('Loading…');
+
+  useEffect(() => {
+    let active = true;
+    service.execute(resultPath).then(
+      (value) => {
+        if (active) setResult(JSON.stringify(value));
+      },
+      (error: unknown) => {
+        if (active) {
+          setResult(String((error as { message?: string }).message ?? error));
+        }
+      },
+    );
+    return () => {
+      active = false;
+    };
   }, [service, resultPath, version]);
 
   return (

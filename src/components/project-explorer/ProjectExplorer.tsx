@@ -10,7 +10,6 @@ import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
-import type { MutableDecisionService } from '@edgerules/web/mutable';
 import type {
   PortableContext,
   PortableError,
@@ -26,9 +25,20 @@ import {
 } from './tree-model';
 import { KindIcon, type IconKind } from './icons';
 
+type GetFilter =
+  | 'FIELDS'
+  | 'TYPE_DEFINITIONS'
+  | 'FUNCTION_DEFINITIONS'
+  | 'EXTERNAL_DEFINITIONS'
+  | 'ALL';
+
+interface ProjectExplorerService {
+  get(path: string, filter?: GetFilter): PortableNode | PortableError;
+}
+
 export interface ProjectExplorerProps {
   /** The engine service to read the model from. Only `get` is used today; `set`/`remove`/`rename` support is coming. */
-  service: MutableDecisionService;
+  service: ProjectExplorerService;
   /** Heading rendered above the tree; not a tree node itself. */
   rootLabel?: string;
   onOpenVariables?: (contextPath: string) => void;

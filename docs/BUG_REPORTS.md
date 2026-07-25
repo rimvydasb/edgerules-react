@@ -1,44 +1,14 @@
 # EdgeRules Engine Bug Reports
 
-## Referenced value-field rename leaves the model invalid — open (@edgerules/node + @edgerules/web, 2026-07-16)
+Every entry below was reproduced against `@edgerules/node`, `@edgerules/web`, and, where relevant,
+`@edgerules/portable` version **0.0.0-alpha.202607251019** on 2026-07-25.
 
-> KNOWN AND REJECTED! This is known behavior that will not be fixed. If we rename referred value, model will
-> not link - we cannot simply reject rename, because there will be no way renaming the destination field. Leaving model
-> in unlinked/invalid state we put it in "refactoring" state so we can continue refactoring the model. Global
-> rename/refactor might fix the problem, but it is way too complicated for small sized WASM.
+## `@description` is discarded by Portable CRUD writes — postponed (@edgerules/node + @edgerules/web)
 
-Verified against the currently installed and npm `alpha` dist-tag version
-**0.0.0-alpha.202607152015**. Renaming a referenced value field returns success, but does not rewrite the reference or
-roll the rename back. The next linked `get` returns an error and the Portable snapshot contains the new declaration
-name with the old reference.
-
-```ts
-const service = MutableDecisionService.fromCode('{ a: 1; b: a + 1 }');
-
-service.rename('a', 'renamed'); // returns undefined (success)
-
-service.toPortable();
-// { renamed: 1, b: { '@kind': 'expression', expression: 'a + 1' } }
-
-service.get('*');
-// PortableError: E102 unresolved reference 'a'
-```
-
-The same behavior occurs for qualified nested references, for example renaming `application.amount` while another
-field references `application.amount`.
-
-Expected behavior: `rename` must either rewrite affected references and return success, or return `PortableError` and
-leave the original model unchanged. Until fixed, editors must force a linked read after `rename` and apply the inverse
-rename when validation fails.
-
-## `@description` is discarded by Portable CRUD writes — open (@edgerules/node + @edgerules/web, 2026-07-16)
-
-> KNOWN AND POSTPONED! For now, it is unclear if we should use description annotation or in DSL or DSL must capture
-> comments under `//` - will be implemented in the future.
-
-Verified against the installed **0.0.0-alpha.202607152015** engine. The Portable contract permits
-`@description` on every node, but `set()` accepts a node carrying it and silently drops the property from both
-`get()` and `toPortable()`. Annotations on the same write persist correctly.
+The Portable contract permits `@description` on every node, but `set()` accepts a node carrying it and silently drops
+the property from both `get()` and `toPortable()`. Annotations on the same write persist correctly. The engine team
+has postponed this while deciding whether descriptions should use a dedicated annotation or be derived from DSL
+comments.
 
 ```ts
 const service = MutableDecisionService.fromCode(
@@ -60,12 +30,11 @@ service.toPortable().application;
 
 Expected behavior: the engine must retain and re-emit `@description`, as it does `@node` and `@node-name`.
 
-## Optimise declarations are not mutable through the Portable CRUD API — open (@edgerules/node + @edgerules/web + @edgerules/portable, 2026-07-25)
+## Optimise declarations are not addressable through path-scoped Portable CRUD — open (@edgerules/node + @edgerules/web + @edgerules/portable)
 
-Verified against the repository's installed **0.0.0-alpha.202607152015** packages and the npm `alpha` dist-tag
-**0.0.0-alpha.202607251019**. The installed version rejects `optimise` at DSL parse time. The newer alpha parses and
-serializes an `optimise` declaration and exposes its schema through `EXTERNAL_DEFINITIONS`, but its mutable service
-still cannot address or replace that declaration:
+Both the Node build and the Web WASM build fully support `optimise` parsing, linking, whole-model Portable conversion,
+solver registration, and execution. The remaining issue is specifically the path-scoped mutable service: it cannot
+address or replace an authored `optimise` declaration.
 
 ```ts
 const service = MutableDecisionService.fromCode(`{
@@ -94,21 +63,21 @@ service.set('plan.variables.value', {
 // { '@kind': 'error', type: 'WrongFieldPath', ... }
 ```
 
-The latest `@edgerules/portable` declaration also omits an optimise-definition interface from `PortableNode`, even
+The installed `@edgerules/portable` declaration also omits an optimise-definition interface from `PortableNode`, even
 though `toPortable()` returns that runtime shape. This forces consumers to cast the valid wire object before passing
 it to the typed CRUD API.
 
 Expected behavior: `optimise` should be part of the exported `PortableNode` contract; `get(path, 'ALL')` should return
 the authored definition consistently with function/ruleset definitions; and either whole-definition
 `set('plan', node)` or the documented authored child paths (`plan.variables.value`, `plan.constraints.cap`, etc.)
-must support edits. Until then `BoxedEditorService` can normalize optimise rows from `toPortable()` (and enrich them
-from `EXTERNAL_DEFINITIONS` on engines that provide it), but real-engine optimisation mutation and move round trips
-necessarily return the upstream `PortableError`.
+must support edits. Until then `BoxedEditorService` can normalize and denormalize optimise rows through the real
+engine's whole-model Portable path (and execute the rebuilt model), but path-scoped optimisation mutation and move
+operations necessarily return the upstream `PortableError`.
 
-## Expression-wrapped typed values are rejected inside type definitions — open (@edgerules/node + @edgerules/web, 2026-07-25)
+## Expression-wrapped typed values are rejected inside type definitions — open (@edgerules/node + @edgerules/web)
 
-Verified against **0.0.0-alpha.202607152015**. A typed-value cell can normally be written as an expression wrapper
-and the mutable service re-parses it to the concrete Portable kind:
+A typed-value cell can normally be written as an expression wrapper and the mutable service re-parses it to the
+concrete Portable kind:
 
 ```ts
 service.set('application.amount', {
@@ -136,10 +105,10 @@ accepted string form only while denormalizing `complexType` children; ordinary f
 expression wrapper. Expected behavior: expression-wrapped cell text should be parsed consistently in both positions,
 or the Portable contract should explicitly document the type-definition-only string exception.
 
-## Whole-root `set('*', context)` does not apply authored key order — open (@edgerules/node + @edgerules/web, 2026-07-25)
+## Whole-root `set('*', context)` does not apply authored key order — open (@edgerules/node + @edgerules/web)
 
-Verified against **0.0.0-alpha.202607152015**. Replacing a nested context with a reordered Portable context changes
-its authored key order, but performing the corresponding whole-root write preserves the root's previous entity order:
+Replacing a nested context with a reordered Portable context changes its authored key order, but performing the
+corresponding whole-root write preserves the root's previous entity order:
 
 ```ts
 const service = MutableDecisionService.fromCode('{ a: 1; b: 2 }');

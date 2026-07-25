@@ -210,10 +210,9 @@ Mirrors the spec's [Error handling](BOXED_EDITOR_SPEC.md#error-handling) split, 
   cache untouched for that path (no invalidation on failure, so the last-good cached row stays visible).
 - Per [Resolved Decision #12](BOXED_EDITOR_SPEC.md#resolved-decisions), a structurally-successful write that breaks a
   reference elsewhere is **not** rolled back — this facade does not re-validate the whole model after every write.
-  `rename` in particular is documented to return success while leaving a dangling reference in place
-  (`docs/BUG_REPORTS.md`'s "Referenced value-field rename leaves the model invalid" — rejected/won't-fix upstream);
-  `rename` here does not special-case it, so the broken reference surfaces the same way, as an ordinary path-scoped
-  error on whichever path is next read.
+  Per the engine's accepted refactoring semantics, `rename` may return success while leaving a dangling reference in
+  place; `rename` here does not special-case it, so the broken reference surfaces as an ordinary path-scoped error on
+  whichever path is next read.
 
 ### Structural Diagram
 
@@ -313,14 +312,17 @@ sequenceDiagram
       doesn't and adjust `denormalize.ts` accordingly
 - [x] Implement `setBoxedRowData`, `remove`, `rename` on the facade: denormalize → delegate to `mutable` →
       cache-invalidate the affected path(s) on success only → notify `subscribe` listeners once per successful commit
-- [x] Add `__tests__/mutation.test.ts`: real-engine round trips for `field`/`context`/`complexType`/`list`/
-      `relation`/`function`/`ruleset`/`optimisation` rows; `PortableError` passthrough with cache left untouched;
-      exactly one `subscribe` notification per successful commit; referential stability of unaffected cached paths
+- [x] Add `__tests__/mutation.test.ts`: real-engine mutation round trips for `field`/`context`/`complexType`/`list`/
+      `relation`/`function`/`ruleset` rows; `PortableError` passthrough with cache left untouched; exactly one
+      `subscribe` notification per successful commit; referential stability of unaffected cached paths. Add a
+      real-engine DSL → Portable → boxed rows → Portable → execution round trip for `optimisation` to
+      `__tests__/normalization.test.ts`.
 - [x] Mark all checkboxes as done in this document once verified
 
-> Optimisation normalization and denormalization are covered at the Portable boundary. A real-engine mutation
-> round trip is impossible in both the pinned engine and the current npm `alpha`; the verified upstream CRUD gap is
-> recorded in `docs/BUG_REPORTS.md`, and the facade returns that engine `PortableError` without a workaround.
+> `0.0.0-alpha.202607251019` fully supports optimisation parsing, linking, Portable whole-model round trips, solver
+> registration, and execution. The normalisation test now exercises that complete real-engine path. The narrower
+> path-scoped mutable CRUD surface still does not address an `optimise` declaration; that separately verified API gap
+> is recorded in `docs/BUG_REPORTS.md`, and the facade passes its `PortableError` through.
 
 **Phase 3: `move`**
 
@@ -334,8 +336,8 @@ sequenceDiagram
 - [x] Mark all checkboxes as done in this document once verified
 
 > List, relation, and rule reorders plus field/context/function reparenting and both failure orders are covered
-> against the real engine. Optimisation-group move persistence reaches the engine's unsupported mutable path and is
-> subject to the same recorded upstream gap.
+> against the real engine. Optimisation-group move persistence is the one operation that requires path-scoped
+> mutation of an `optimise` declaration and is therefore subject to the recorded CRUD-path gap.
 
 **Phase 4: Quality gate**
 

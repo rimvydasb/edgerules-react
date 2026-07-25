@@ -138,19 +138,25 @@ describe('BoxedEditorService normalization', () => {
     ]);
   });
 
-  it('normalizes every optimisation-family row from its Portable wire shape', () => {
-    const row = normalizeNode('factory', 'factory', {
-      '@kind': 'optimise',
-      '@parameters': { workers: 'number' },
-      '@using': 'highs',
-      '@bottlenecks': true,
-      '@timeLimit': 1000,
-      '@variables': {
-        chairs: '<number, min: 0, integer: true>',
-      },
-      '@maximise': '15 * chairs',
-      '@constraints': { capacity: 'chairs <= workers' },
-    } as never);
+  it('round-trips every optimisation-family row through the real engine', async () => {
+    const mutable = MutableDecisionService.fromCode(`{
+      optimise factory(workers: number): {
+        using: "highs"
+        bottlenecks: true
+        timeLimit: 1000
+        variables: {
+          chairs: <number, min: 0, integer: true>
+        }
+        maximise: 15 * chairs
+        constraints: { capacity: chairs <= workers }
+      }
+      plan: factory(workers: 1)
+    }`);
+    const service = createBoxedEditorService(mutable);
+    const row = {
+      ...service.getBoxedRowData('factory')!,
+      children: service.getBoxedRowsData('factory'),
+    };
 
     expect(row.kind).toBe('optimisation');
     expect(row.children?.map((child) => child.kind)).toEqual([
@@ -169,15 +175,39 @@ describe('BoxedEditorService normalization', () => {
       kind: 'optimisation-constraint',
       name: 'capacity',
     });
-    expect(denormalize(row)).toMatchObject({
+    const portable = denormalize(row);
+    expect(portable).toMatchObject({
       '@kind': 'optimise',
       '@parameters': { workers: 'number' },
       '@using': 'highs',
       '@bottlenecks': true,
       '@timeLimit': 1000,
-      '@variables': { chairs: '<number, min: 0, integer: true>' },
+      '@variables': {
+        chairs: '<number, min: 0, integer: true>',
+      },
       '@maximise': '15 * chairs',
       '@constraints': { capacity: 'chairs <= workers' },
+    });
+
+    const rebuilt = MutableDecisionService.fromPortable({
+      '@kind': 'context',
+      factory: portable,
+      plan: {
+        '@kind': 'invocation',
+        '@method': 'factory',
+        '@arguments': { workers: 1 },
+      },
+    });
+    rebuilt.registerSolver(() => ({
+      status: 'optimal',
+      objective: 15,
+      values: { chairs: 1 },
+      duals: { capacity: 15 },
+    }));
+    await expect(rebuilt.execute('plan')).resolves.toMatchObject({
+      status: 'optimal',
+      objective: 15,
+      chairs: 1,
     });
   });
 

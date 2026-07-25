@@ -153,8 +153,8 @@ describe('DecisionTableEditor editing', () => {
     await user.click(editable);
     await user.keyboard('{Control>}a{/Control}1500{Enter}');
 
-    await waitFor(() => {
-      expect(service.execute('decision')).toEqual({
+    await waitFor(async () => {
+      await expect(service.execute('decision')).resolves.toEqual({
         level: 'high',
         limit: 1500,
       });
@@ -179,7 +179,10 @@ describe('DecisionTableEditor editing', () => {
     await waitFor(() => {
       expect(container.textContent).toContain('21..30');
     });
-    expect(service.execute('decision')).toEqual({ level: 'high', limit: 1000 });
+    await expect(service.execute('decision')).resolves.toEqual({
+      level: 'high',
+      limit: 1000,
+    });
   });
 
   it('clearing a when cell means matches-any', async () => {
@@ -215,7 +218,10 @@ describe('DecisionTableEditor editing', () => {
       expect(screen.getByRole('alert')).toBeDefined();
     });
     // The failed edit must not poison the model (docs/BUG_REPORTS.md #2).
-    expect(service.execute('decision')).toEqual({ level: 'high', limit: 1000 });
+    await expect(service.execute('decision')).resolves.toEqual({
+      level: 'high',
+      limit: 1000,
+    });
     expect(container.textContent).toContain('18..25');
   });
 
@@ -331,7 +337,10 @@ describe('DecisionTableEditor editing', () => {
     });
     // The `decision` call site still only passes age/income/segment — the new
     // defaulted parameter must not break it.
-    expect(service.execute('decision')).toEqual({ level: 'high', limit: 1000 });
+    await expect(service.execute('decision')).resolves.toEqual({
+      level: 'high',
+      limit: 1000,
+    });
   });
 
   it('adds an output column via the table menu', async () => {
@@ -370,8 +379,8 @@ describe('DecisionTableEditor editing', () => {
     await user.click(editable);
     await user.keyboard('{Control>}a{/Control}12{Enter}');
 
-    await waitFor(() => {
-      expect(service.execute('total')).toBe(32);
+    await waitFor(async () => {
+      await expect(service.execute('total')).resolves.toBe(32);
     });
   });
 });
