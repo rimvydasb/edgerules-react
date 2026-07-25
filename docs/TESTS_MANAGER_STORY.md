@@ -18,24 +18,33 @@ results will be persisted and accessed via `TestCasesService`.
   cells will be highlighted in red. Tooltip shows real factual value.
 - **Validations**: the GUI will show results in cells. Those cells are read-only and dedicated just to view the result.
   `Validations` is very useful when user does not really know what value is returned, but want to visually inspect it.
+- **::**: indicates drag drop handle for the row. User can drag and drop rows to reorder them.
+- **:**: this is three dots icon for context menu that is available for each test case.
+
+### General Language
+
+- Tests Manager GUI follows the same language as Boxed Editor GUI:
+    - Everything else is single-height (40px) and grows only in 40px steps if it needs to wrap.
+    - Same icons for drag and drop, add, remove, context menu, etc.
+    - Same spacing, padding, and margins, context menu style, and row hover effects.
 
 ### Workbook Testing
 
 The particular GUI shows how `Workbook` is being tested. Workbook kind of model is a `context` with multiple fields.
 
-| Model Name                | Description           | Test Case 1           | Test Case 2           | ... | Test Case N           |
-|---------------------------|-----------------------|-----------------------|-----------------------|-----|-----------------------|
-| `name`                    | `User Name`           | `Steve`               | `John`                | ... | `Mary`                |
-| `age`                     | `User Age`            | `30`                  | `25`                  | ... | `40`                  |
-| `credit.balance`          | `User Credit Balance` | `1000`                | `0`                   | ... | `-100`                |
-| `credit.limit`            | `User Credit Limit`   | `2000`                | `0`                   | ... | `10000`               |
-| ___                       | ___                   | ___                   | ___                   | ___ | ___                   |
-| Assertions                |                       | `Test Case 1 Results` | `Test Case 2 Results` | ... | `Test Case N Results` |
-| `creditDecision.approved` | `Credit Approved`     | `true`                | `false`               | ... | `false`               |
-| `creditDecision.limit`    | `Credit Limit`        | `10000`               | `0`                   | ... | `10000`               |
-| ___                       | ___                   | ___                   | ___                   | ___ | ___                   |
-| Validations               |                       |                       |                       | ... |                       |
-| `maxLimit`                | `Maximum Limit`       | `10000`               | `10000`               | ... | `10000`               |
+|    | Model Name              ▼ | Description           | Test Case 1         : | Test Case 2         : | ... | Test Case N         : |
+|----|---------------------------|-----------------------|-----------------------|-----------------------|-----|-----------------------|
+| :: | `name`                    | `User Name`           | `Steve`               | `John`                | ... | `Mary`                |
+| :: | `age`                     | `User Age`            | `30`                  | `25`                  | ... | `40`                  |
+| :: | `credit.balance`          | `User Credit Balance` | `1000`                | `0`                   | ... | `-100`                |
+| :: | `credit.limit`            | `User Credit Limit`   | `2000`                | `0`                   | ... | `10000`               |
+|    | ___                       | ___                   | ___                   | ___                   | ___ | ___                   |
+|    | Assertions                |                       | `Test Case 1 Results` | `Test Case 2 Results` | ... | `Test Case N Results` |
+| :: | `creditDecision.approved` | `Credit Approved`     | `true`                | `false`               | ... | `false`               |
+| :: | `creditDecision.limit`    | `Credit Limit`        | `10000`               | `0`                   | ... | `10000`               |
+|    | ___                       | ___                   | ___                   | ___                   | ___ | ___                   |
+|    | Validations               |                       |                       |                       | ... |                       |
+| :: | `maxLimit`                | `Maximum Limit`       | `10000`               | `10000`               | ... | `10000`               |
 
 **Example model for the above test manager GUI:**
 
@@ -82,4 +91,8 @@ The particular GUI shows how `Workbook` is being tested. Workbook kind of model 
 | `approved`       | `Credit Approved`     | ... |
 | `limit`          | `Credit Limit`        | ... |
 
+## Object Model
 
+```typescript
+
+```
