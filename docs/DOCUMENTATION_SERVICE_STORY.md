@@ -2,11 +2,13 @@
 
 ## Summary
 
-Implement `DocumentationService` as a **standalone, framework-agnostic package** — `src/components/documentation-service/`,
+Implement `DocumentationService` as a **standalone, framework-agnostic package** —
+`src/components/documentation-service/`,
 published under its own subpath export `edgerules-react/documentation-service` — rather than as an internal detail of
 `BoxedEditor`. [`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md) currently defines `DocumentationService` inline (see its
 ["Service composition"](BOXED_EDITOR_SPEC.md#service-composition) and
-["`DocumentationService` API"](BOXED_EDITOR_SPEC.md#documentationservice-api) sections) as a path-keyed, IndexedDB-backed
+["`DocumentationService` API"](BOXED_EDITOR_SPEC.md#documentationservice-api) sections) as a path-keyed,
+IndexedDB-backed
 free-text description overlay consumed by `BoxedEditor`'s `DescriptionColumn`. That contract is generic already — it
 only ever deals in `(modelName, path) -> description` — so this story extracts it into its own package so
 **Decision Table, Types Editor, Test Runner, Project Explorer, and the future Flow Editor** can all attach free-text
@@ -25,16 +27,13 @@ separately — that is a repo-wide concern, not something one service's story sh
 
 ## Technical Breakdown
 
-### Why standalone, and what changes vs. the current spec
-
-| Aspect                    | `BOXED_EDITOR_SPEC.md` today                                                          | This story                                                                                                                                              |
-|---------------------------|-----------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Location                  | Defined inline in the Boxed Editor spec; implied to live under `boxed-editor`           | `src/components/documentation-service/`, its own npm subpath (`edgerules-react/documentation-service`), matching every other component's packaging convention (see [README's Project Structure](../README.md#project-structure)) |
-| Consumers                 | `BoxedEditor`'s `DescriptionColumn` only                                                | Any component with a path/node-keyed description need — Boxed Editor, Decision Table, Types Editor, Test Runner, Project Explorer, Flow Editor         |
-| Reactivity                | Not specified (no `subscribe` in the original interface)                                | Adds `subscribe(listener)` — required once more than one mounted consumer (e.g. Boxed Editor and Decision Table open on the same model) can read/write the same underlying store |
-| Cleanup                   | Not specified                                                                            | Adds `dispose()` — closes the IndexedDB connection and drops listeners; needed for tests and for hosts that unmount a model's editors                  |
-| Persistence failure       | Not specified                                                                            | `setDescription`/`renamePath` stay synchronous per the original spec, but a background IndexedDB write can fail; surfaced via an optional `onPersistError` factory callback rather than thrown (see [Error handling](#error-handling)) |
-| Environment without IndexedDB | Not specified                                                                        | Falls back to in-memory-only (no persistence, no throw) — keeps SSR/Node hosts working (see [Error handling](#error-handling))                          |
+`DocumentationService` lives at `src/components/documentation-service/`, its own npm subpath
+(`edgerules-react/documentation-service`), matching every other component's packaging convention (see
+[README's Project Structure](../README.md#project-structure)) — this is what makes it reusable by any component with
+a path/node-keyed description need: Boxed Editor, Decision Table, Types Editor, Test Runner, Project Explorer, the
+future Flow Editor. Its interface (below) is a superset of `BOXED_EDITOR_SPEC.md`'s original, Boxed-Editor-only
+`DocumentationService` — the additions (`subscribe`, `dispose`, `DocumentationServiceOptions`) and why each is needed
+are recorded in [Resolved Decisions](#resolved-decisions) #1–#6.
 
 `BOXED_EDITOR_SPEC.md` itself is **not** edited by this story (out of scope — see below); the exact edits it needs once
 this package exists are called out as an explicit Phase 3 task, to be made when this service is actually wired into
@@ -65,38 +64,41 @@ src/components/documentation-service/
 type Unsubscribe = () => void;
 
 interface DocumentationServiceOptions {
-  // IndexedDB database name. Defaults to 'edgerules-documentation'. Override so two independently embedded
-  // instances of this library in the same browser origin (e.g. two unrelated host apps) don't share one database.
-  dbName?: string;
+    // IndexedDB database name. Defaults to 'edgerules-documentation'. Override so two independently embedded
+    // instances of this library in the same browser origin (e.g. two unrelated host apps) don't share one database.
+    dbName?: string;
 
-  // Called when a background IndexedDB write fails (quota exceeded, IndexedDB disabled in private browsing, etc).
-  // The in-memory value is unaffected either way — see Error handling. Omit to ignore persistence failures silently.
-  onPersistError?: (
-    error: unknown,
-    context: { op: 'setDescription' | 'renamePath'; path: string },
-  ) => void;
+    // Called when a background IndexedDB operation fails: a write (quota exceeded, IndexedDB disabled in private
+    // browsing, etc) or the initial hydration read. The in-memory state is unaffected either way — see Error
+    // handling. `path` is omitted for a `'hydrate'` failure, since it affects the whole model, not one path. Omit
+    // this callback to ignore persistence failures silently.
+    onPersistError?: (
+        error: unknown,
+        context: { op: 'hydrate' | 'setDescription' | 'renamePath'; path?: string },
+    ) => void;
 }
 
 interface DocumentationService {
-  // Description for a path, or undefined when none is set (including: not yet hydrated from IndexedDB).
-  getDescription(path: string): string | undefined;
+    // Description for a path, or undefined when none is set (including: not yet hydrated from IndexedDB).
+    getDescription(path: string): string | undefined;
 
-  // Persist an edited description; empty string clears it. Updates the in-memory value and notifies subscribers
-  // synchronously; the IndexedDB write happens in the background (see Error handling).
-  setDescription(path: string, description: string): void;
+    // Persist an edited description; empty string clears it. Updates the in-memory value and notifies subscribers
+    // synchronously; the IndexedDB write happens in the background (see Error handling).
+    setDescription(path: string, description: string): void;
 
-  // Migrate a description entry when a node's path changes (called by a host's command layer after a successful
-  // rename/move on whichever CRUD-addressable service owns that path). No-op if `from` has no description.
-  renamePath(from: string, to: string): void;
+    // Migrate a description entry when a node's path changes (called by a host's command layer after a successful
+    // rename/move on whichever CRUD-addressable service owns that path). No-op if `from` has no description.
+    renamePath(from: string, to: string): void;
 
-  // Notifies after any of the above changes the in-memory state, and once after initial IndexedDB hydration
-  // completes. Lets useSyncExternalStore-based consumers (see useDescription below) stay in sync across every
-  // mounted component reading this same service instance.
-  subscribe(listener: () => void): Unsubscribe;
+    // Notifies after any of the above changes the in-memory state, and once after initial IndexedDB hydration
+    // completes. Lets useSyncExternalStore-based consumers (see useDescription below) stay in sync across every
+    // mounted component reading this same service instance.
+    subscribe(listener: () => void): Unsubscribe;
 
-  // Closes the underlying IndexedDB connection and drops all listeners. Call on teardown (tests, or a host
-  // unmounting every editor for a model).
-  dispose(): void;
+    // Closes the underlying IndexedDB connection and drops all listeners. Call on teardown (tests, or a host
+    // unmounting every editor for a model). If hydration is still in flight when this is called, its result is
+    // discarded on arrival — it does not touch the cache or notify listeners after disposal.
+    dispose(): void;
 }
 
 // One instance owns one model's descriptions, keyed by `modelName` (any stable string identifier for the model —
@@ -105,8 +107,8 @@ interface DocumentationService {
 // in-memory caches, both backed by the same IndexedDB rows (see Resolved Decisions #6). A host that wants several
 // components to share one cache/subscribe bus must construct the service once and pass that instance to all of them.
 function createDocumentationService(
-  modelName: string,
-  options?: DocumentationServiceOptions,
+    modelName: string,
+    options?: DocumentationServiceOptions,
 ): DocumentationService;
 ```
 
@@ -122,17 +124,17 @@ function useDescription(service: DocumentationService, path: string): string | u
 
 ### IndexedDB schema
 
-| Item             | Value                                                                                         |
-|-------------------|-----------------------------------------------------------------------------------------------|
-| Database name      | `options.dbName ?? 'edgerules-documentation'`                                                 |
-| Version             | `1`                                                                                            |
-| Object store        | `descriptions`                                                                                 |
-| Key path            | `['modelName', 'path']` — a compound array key, not a manually delimited string, so there is no need to pick (and escape) a separator character that can't appear in a path |
-| Record shape        | `{ modelName: string; path: string; description: string }`                                     |
-| Hydration query      | On construction: one `IDBKeyRange.bound([modelName, ''], [modelName, '￿'])` cursor read over `descriptions`, populating the in-memory `Map<path, description>`; `subscribe` listeners are notified once when this completes |
-| Write                | `setDescription` → in-memory update + notify (sync) → `store.put({ modelName, path, description })` (async, best-effort) |
-| Delete on empty      | `setDescription(path, '')` removes the IndexedDB row entirely (not a stored empty string) — keeps the store free of clutter and matches "empty string clears it" from the original spec wording |
-| Rename                | `renamePath(from, to)` → in-memory delete `from` / set `to` + notify (sync) → async `store.delete([modelName, from])` then `store.put({ modelName, path: to, description })`, only if `from` had a description |
+| Item            | Value                                                                                                                                                                                                                                                                                         |
+|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Database name   | `options.dbName ?? 'edgerules-documentation'`                                                                                                                                                                                                                                                 |
+| Version         | `1`                                                                                                                                                                                                                                                                                           |
+| Object store    | `descriptions`                                                                                                                                                                                                                                                                                |
+| Key path        | `['modelName', 'path']` — a compound array key, not a manually delimited string, so there is no need to pick (and escape) a separator character that can't appear in a path                                                                                                                   |
+| Record shape    | `{ modelName: string; path: string; description: string }`                                                                                                                                                                                                                                    |
+| Hydration query | On construction: one `IDBKeyRange.bound([modelName, ''], [modelName, '￿'])` cursor read over `descriptions`, populating the in-memory `Map<path, description>`; `subscribe` listeners are notified once when this completes                                                                   |
+| Write           | `setDescription` → in-memory update + notify (sync) → `store.put({ modelName, path, description })` (async, best-effort)                                                                                                                                                                      |
+| Delete on empty | `setDescription(path, '')` removes the IndexedDB row entirely (not a stored empty string) — keeps the store free of clutter and matches "empty string clears it" from the original spec wording; if `path` already had no stored description, this is a pure no-op (no IndexedDB call at all) |
+| Rename          | `renamePath(from, to)` → in-memory delete `from` / set `to` + notify (sync) → async `store.delete([modelName, from])` then `store.put({ modelName, path: to, description })`, only if `from` had a description                                                                                |
 
 ### Error handling
 
@@ -149,6 +151,16 @@ function useDescription(service: DocumentationService, path: string): string | u
   or a browser with IndexedDB disabled): `createDocumentationService` does not throw. It falls back to in-memory-only
   operation — reads/writes/`subscribe` all work for the lifetime of the instance, nothing persists across reloads.
   This keeps hosts that server-render (Next.js, etc.) from crashing just because this service was constructed.
+- **Hydration failure** (IndexedDB is available but the initial read errors — a corrupted database, a blocked
+  version upgrade, etc.): treated the same as "no IndexedDB available" from that point on — the cache starts empty
+  and the instance continues operating in-memory-only for the rest of its lifetime (no retry). Reported via
+  `onPersistError(error, { op: 'hydrate' })` if the host provided one. `subscribe` listeners are still notified once
+  hydration settles (successfully or not), so a `useSyncExternalStore` consumer doesn't wait forever for a first
+  paint.
+- **`dispose()` during in-flight hydration**: the pending hydration promise's eventual result (success or failure)
+  is discarded when it arrives — no cache update, no `onPersistError` call, no listener notification. `dispose()`
+  itself already dropped every listener, so this is mostly a safety net against acting on a closed IndexedDB
+  connection.
 
 ### Structural Diagram
 
@@ -170,24 +182,24 @@ classDiagram
         +rename(from, to) void
     }
     class IndexedDbStore {
-        <<internal, optional>>
-        +hydrateAll(modelName) Promise~Entry[]~
-        +put(modelName, path, description) Promise~void~
-        +delete(modelName, path) Promise~void~
-    }
-    class useDescription {
-        <<hook>>
-        +useDescription(service, path) string?
-    }
-    DocumentationService <|.. createDocumentationService : implements
-    createDocumentationService --> InMemoryCache : reads/writes (sync)
-    createDocumentationService --> IndexedDbStore : hydrate on construct; put/delete on write (async, best-effort)
-    useDescription --> DocumentationService : useSyncExternalStore(subscribe, getDescription)
+<<internal, optional>>
++hydrateAll(modelName) Promise~Entry[]~
++put(modelName, path, description) Promise~void~
++delete(modelName, path) Promise~void~
+}
+class useDescription {
+<<hook>>
++useDescription(service, path) string?
+}
+DocumentationService <|.. createDocumentationService: implements
+createDocumentationService --> InMemoryCache: reads/writes (sync)
+createDocumentationService --> IndexedDbStore : hydrate on construct; put/delete on write (async, best-effort)
+useDescription --> DocumentationService: useSyncExternalStore(subscribe, getDescription)
 
-    BoxedEditor ..> useDescription : future story
-    DecisionTableEditor ..> useDescription : future story
-    TypesEditor ..> useDescription : future story
-    ProjectExplorer ..> useDescription : future story
+BoxedEditor ..> useDescription: future story
+DecisionTableEditor ..> useDescription: future story
+TypesEditor ..> useDescription: future story
+ProjectExplorer ..> useDescription: future story
 ```
 
 ### Behavioral Diagram
@@ -199,17 +211,15 @@ sequenceDiagram
     participant Service as DocumentationService
     participant Cache as InMemoryCache
     participant IDB as IndexedDB
-
     Host ->> Service: createDocumentationService(modelName, options)
     Service ->> IDB: open db, read range [modelName, ''] .. [modelName, '￿']
     IDB -->> Service: existing entries (async)
     Service ->> Cache: populate
     Service ->> Consumer: notify subscribe() listeners (initial hydration done)
-
     Consumer ->> Service: setDescription(path, text)
     Service ->> Cache: set(path, text)
     Service ->> Consumer: notify subscribe() listeners (sync, immediate)
-    Service ->> IDB: put({modelName, path, description: text})  %% fire-and-forget
+    Service ->> IDB: put({modelName, path, description: text}) %% fire-and-forget
     alt IDB write fails
         IDB -->> Service: error
         Service ->> Host: onPersistError(error, {op:'setDescription', path})
@@ -217,16 +227,33 @@ sequenceDiagram
     end
 ```
 
+## Testing Strategy
+
+- `DocumentationService` is unit tested against **`fake-indexeddb`**, a spec-compliant, in-memory reimplementation
+  of the browser `indexedDB` global (transactions, key ranges, compound keys all behave the same as a real
+  browser's IndexedDB — it just isn't backed by disk). This is a substitute for a missing **browser API** — this
+  project's `vitest` environment (`jsdom`) does not implement IndexedDB at all — not a mock of application logic,
+  so it is not an exception to [`CLAUDE.md`](../CLAUDE.md)'s "test against the real engine, never mock" rule:
+  `DocumentationService` has no EdgeRules engine dependency whatsoever (no `@edgerules/web`/`@edgerules/node`
+  import anywhere in this package), so that rule does not apply here in the first place.
+- `fake-indexeddb/auto` is imported **locally**, inside the test files that need it, not globally in
+  `vitest.setup.ts` — this keeps `no-indexeddb-fallback.test.ts` able to exercise the true no-`indexedDB`-global
+  case without every other test file's `indexedDB` being polyfilled out from under it.
+- No Playwright/e2e coverage is added by this story — there is no UI to click through yet (see
+  [Out of Scope](#out-of-scope)); e2e coverage belongs to whichever later story wires `useDescription` into a
+  visible component.
+
 ## Out of Scope
 
 - `BoxedEditor`'s `DescriptionColumn`, its `hooks/useDescription.ts` wrapper, and `BoxedEditorContext` wiring — a
   later Boxed Editor UI story consumes this package; nothing under `src/components/boxed-editor/` is touched here.
 - Any other component's UI wiring (Decision Table, Types Editor, Test Runner, Project Explorer, Flow Editor).
 - `TestCasesService` — the sibling overlay from `BOXED_EDITOR_SPEC.md`. Not addressed by this story; a future story
-  can decide whether it follows the same standalone-package pattern (see Open Questions).
+  can decide whether it follows the same standalone-package pattern (see Resolved Decision #8).
 - Folding descriptions into the Portable `@description` metadata (export/import) — `BOXED_EDITOR_SPEC.md`'s Resolved
   Decision #10 already settled this as out of scope for the overlay approach generally.
-- Bulk operations (`listDescriptions()`, export/import across a model rename) — see Open Questions #1.
+- Bulk operations (`listDescriptions()`, export/import across a model rename) — see Resolved Decision #7 and
+  [Follow-up Stories](#follow-up-stories).
 - Editing `BOXED_EDITOR_SPEC.md` itself — the exact edits it needs are listed as a Phase 3 task, done when this
   service is actually wired into `BoxedEditor`, not now.
 
@@ -272,8 +299,6 @@ sequenceDiagram
 **Phase 3: Quality gate**
 
 - [ ] Ensure project compiles and existing tests are passing
-- [ ] Resolve [Open Questions](#open-questions) below (or record the architect's decision inline in this document,
-  matching the style already used for `BOXED_EDITOR_SPEC.md`'s own open questions)
 - [ ] Update `docs/BOXED_EDITOR_SPEC.md`: replace the inline `DocumentationService` interface in
   ["`DocumentationService` API"](BOXED_EDITOR_SPEC.md#documentationservice-api) with a reference to this package and
   story; update the ["Service composition"](BOXED_EDITOR_SPEC.md#service-composition) table's `DocumentationService`
@@ -291,38 +316,19 @@ sequenceDiagram
 
 ## Resolved Decisions
 
-| # | Decision                                             | Resolution                                                                                                                                                                                                                                                                                                                     |
-|---|-------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | Package location & export surface                     | `src/components/documentation-service/`, its own `edgerules-react/documentation-service` subpath — matching every other component's packaging convention rather than living inside `boxed-editor`. Generalizes `BOXED_EDITOR_SPEC.md`'s original (Boxed-Editor-only) placement. |
-| 2 | `subscribe` added to the interface                     | Not in the original spec's `DocumentationService`. Required once more than one mounted component can read/write the same instance (the whole point of making this reusable) — without it, a description edited in one consumer would not be reflected in another reading the same path. |
-| 3 | `dispose` added to the interface                       | Needed to close the IndexedDB connection deterministically in tests (avoids leaking open connections across test files) and for hosts that fully unmount a model's editors. |
-| 4 | Synchronous API over an async-persisted store          | Kept `getDescription`/`setDescription`/`renamePath` synchronous (matches the original spec) by treating the in-memory cache as the source of truth and IndexedDB as a best-effort background store, rather than switching to a `Promise`-based API. See [Error handling](#error-handling). |
-| 5 | Compound array IndexedDB key over a delimited string   | `['modelName', 'path']` as the object store's key path, instead of e.g. `` `${modelName}::${path}` ``. Avoids picking (and escaping) a delimiter that's guaranteed never to appear in an EdgeRules path. |
-| 6 | Non-deduplicating factory                              | `createDocumentationService(modelName)` returns a fresh instance (fresh cache, fresh subscribe bus) on every call, even for the same `modelName` — consistent with the same choice already made for `createBoxedEditorService` in [`BOXED_EDITOR_SERVICE_STORY.md`'s Open Question #2](BOXED_EDITOR_SERVICE_STORY.md#open-questions) ("Option 1... revisit when a second concrete consumer exists"). A host that wants several components to share state constructs the service once and passes that instance down; this story does not add identity-keyed memoization pre-emptively. |
+| # | Decision                                                       | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+|---|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1 | Package location & export surface                              | `src/components/documentation-service/`, its own `edgerules-react/documentation-service` subpath — matching every other component's packaging convention rather than living inside `boxed-editor`. Generalizes `BOXED_EDITOR_SPEC.md`'s original (Boxed-Editor-only) placement.                                                                                                                                                                                                                                                                                                       |
+| 2 | `subscribe` added to the interface                             | Not in the original spec's `DocumentationService`. Required once more than one mounted component can read/write the same instance (the whole point of making this reusable) — without it, a description edited in one consumer would not be reflected in another reading the same path.                                                                                                                                                                                                                                                                                               |
+| 3 | `dispose` added to the interface                               | Needed to close the IndexedDB connection deterministically in tests (avoids leaking open connections across test files) and for hosts that fully unmount a model's editors.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 4 | Synchronous API over an async-persisted store                  | Kept `getDescription`/`setDescription`/`renamePath` synchronous (matches the original spec) by treating the in-memory cache as the source of truth and IndexedDB as a best-effort background store, rather than switching to a `Promise`-based API. See [Error handling](#error-handling).                                                                                                                                                                                                                                                                                            |
+| 5 | Compound array IndexedDB key over a delimited string           | `['modelName', 'path']` as the object store's key path, instead of e.g. `` `${modelName}::${path}` ``. Avoids picking (and escaping) a delimiter that's guaranteed never to appear in an EdgeRules path.                                                                                                                                                                                                                                                                                                                                                                              |
+| 6 | Non-deduplicating factory                                      | `createDocumentationService(modelName)` returns a fresh instance (fresh cache, fresh subscribe bus) on every call, even for the same `modelName` — consistent with the same choice already made for `createBoxedEditorService` in [`BOXED_EDITOR_SERVICE_STORY.md`'s Open Question #2](BOXED_EDITOR_SERVICE_STORY.md#open-questions) ("Option 1... revisit when a second concrete consumer exists"). A host that wants several components to share state constructs the service once and passes that instance down; this story does not add identity-keyed memoization pre-emptively. |
+| 7 | Bulk read / export-import deferred                             | No `listDescriptions()` (or similar bulk-read/export API) in this story — the single-path interface is sufficient for every known consumer today, and the in-memory cache already holds everything needed to add bulk access later without an IndexedDB schema change. Tracked as a [follow-up story](#follow-up-stories), not a task here.                                                                                                                                                                                                                                           |
+| 8 | `DocumentationService` stays decoupled from `TestCasesService` | `DocumentationService`'s public API has no knowledge of `TestCasesService`, test cases, or test-case ids — the two overlays are consumed independently by whichever host component needs them (per `BOXED_EDITOR_SPEC.md`'s "Service composition"), never through each other. A future `TestCasesService` story is expected to mirror this package's standalone structure (its own `edgerules-react/test-cases-service` subpath, its own `useTestResult` hook) for consistency, but that is that story's decision to make, not a dependency of this one.                              |
 
-## Open Questions
+## Follow-up Stories
 
-1. **Bulk read / export-import.** The interface is single-path (`getDescription`/`setDescription`/`renamePath`). If
-   a host later needs to export a model (with its descriptions) under a new `modelName`, or bulk-list every
-   description for a model (e.g. a "find all documented fields" search), there is no API for that today.
-   Question to address: is a `listDescriptions(): Record<string, string>` (or similar) needed now, or should it wait
-   until a concrete consumer needs it?
-   Option 1 (recommended): leave it out of this story — no current consumer needs bulk access, and the in-memory
-   cache already holds everything needed to add it later without an IndexedDB schema change.
-   Option 2: add `listDescriptions()` now, since it's a small addition on top of the already-hydrated in-memory cache.
+Work items this story deliberately defers rather than blocks on. Each needs its own story before being built.
 
-> Architect notes: Option 1 (recommended): leave it out of this story. Add followup section, but no tasks with checkboxes to it. It will be done later by architect.
-
-2. **Should `TestCasesService` follow the same pattern?** `BOXED_EDITOR_SPEC.md`'s other overlay,
-   `TestCasesService`, has the same shape problem (currently defined inline, Boxed-Editor-only) but is read-only and
-   keyed by `(testCaseId, path)` rather than just `path`, and is out of scope for this story.
-   Question to address: should a future `TestCasesService` story mirror this package's structure (standalone,
-   `edgerules-react/test-cases-service` subpath, `useTestResult` hook), for consistency across the two overlays?
-   Option 1 (recommended): yes, once that story is written — no action needed here, just a note so that story's
-   author is aware of the precedent.
-   Option 2: leave `TestCasesService` embedded in `boxed-editor` since, unlike descriptions, no other component has
-   voiced a concrete need for test results yet.
-
-> Architect notes: TestCasesService will not interact with DocumentationService via Boxed Editor, so DocumentationService will not even know anything about TestCasesService.
-
-> Architect notes: add to this spec: for unit tests mocked IndexedDB will be used.
+- Bulk read / export-import (`listDescriptions()` or similar) — see Resolved Decision #7.
