@@ -74,7 +74,7 @@ must support edits. Until then `BoxedEditorService` can normalize and denormaliz
 engine's whole-model Portable path (and execute the rebuilt model), but path-scoped optimisation mutation and move
 operations necessarily return the upstream `PortableError`.
 
-## Expression-wrapped typed values are rejected inside type definitions — open (@edgerules/node + @edgerules/web)
+## Expression-wrapped typed values are rejected inside type definitions — closed as expected behavior
 
 A typed-value cell can normally be written as an expression wrapper and the mutable service re-parses it to the
 concrete Portable kind:
@@ -100,10 +100,26 @@ service.set('Applicant', {
 // WrongFieldPath: expected a type-ref string or @kind:type object
 ```
 
-Passing the wrapper as the raw string `'<number, required: true>'` succeeds. `BoxedEditorService` therefore uses that
-accepted string form only while denormalizing `complexType` children; ordinary fields continue to use the uniform
-expression wrapper. Expected behavior: expression-wrapped cell text should be parsed consistently in both positions,
-or the Portable contract should explicitly document the type-definition-only string exception.
+This is not an engine bug. `PortableExpression` represents a computed model field and is not a member of the
+`PortableTypeDefinition` field union. A complex type field is a type declaration, so its accepted Portable forms are
+a `PortableTypedValue` object or a type-ref string:
+
+```ts
+service.set('Applicant', {
+  '@kind': 'type-definition',
+  age: { '@kind': 'type', type: 'number', required: true },
+});
+// succeeds
+
+service.set('Applicant', {
+  '@kind': 'type-definition',
+  age: '<number, required: true>',
+});
+// also succeeds and is projected back as the same @kind:type shape
+```
+
+`BoxedEditorService` is therefore correct to emit raw type-ref strings while denormalizing `complexType` children;
+ordinary data fields remain expression positions and may use `PortableExpression`.
 
 ## Whole-root `set('*', context)` does not apply authored key order — open (@edgerules/node + @edgerules/web)
 
@@ -123,3 +139,40 @@ does at a nested context path. This affects same-parent `BoxedEditorService.move
 facade correctly rebuilds the Portable object's insertion order, but the engine echo retains the old order. The
 Boxed Editor's fixed kind-group sorting still determines the visible placement of types/functions/rulesets/
 optimisations; this gap only affects tie-breaking within the root's “everything else” group.
+
+## Nested `PortableTypeDefinition` fields are declared but rejected — open (@edgerules/portable + @edgerules/node + @edgerules/web)
+
+`PortableTypeDefinition` declares every field as
+`PortableTypedValue | PortableTypeDefinition | string | undefined`, and its documentation says nested type
+definitions represent object fields. The authoritative grammar instead permits only an `InlineTypeRef` per complex
+type field, with nested object shapes expressed by referencing a separately named type.
+
+Both mutable runtimes follow the grammar and reject the declared nested Portable shape:
+
+```ts
+service.set('Applicant', {
+  '@kind': 'type-definition',
+  address: {
+    '@kind': 'type-definition',
+    city: { '@kind': 'type', type: 'string' },
+  },
+});
+// WrongFieldPath: expected a type-ref string or @kind:type object
+```
+
+The accepted representation is:
+
+```ts
+service.set('Address', {
+  '@kind': 'type-definition',
+  city: { '@kind': 'type', type: 'string' },
+});
+service.set('Applicant', {
+  '@kind': 'type-definition',
+  address: { '@kind': 'type', type: 'Address' },
+});
+```
+
+Expected behavior: remove `PortableTypeDefinition` from the type-definition field union and update its documentation
+to describe named type references, unless inline anonymous object types are intentionally added to the grammar and
+runtimes.
