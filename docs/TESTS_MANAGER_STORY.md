@@ -93,6 +93,56 @@ The particular GUI shows how `Workbook` is being tested. Workbook kind of model 
 
 ## Object Model
 
+> Todo: Add object model diagram for Tests Manager GUI.
+
 ```typescript
 
 ```
+
+> Todo: Add mermaid diagram for Tests Manager GUI.
+
+```mermaid
+classDiagram
+    class TestsManager {
+        <<Reactcomponent>>
+        +props TestsManagerProps
+    }
+```
+
+## Components
+
+> Todo: Add component tree structure for `tests-manager` component.
+
+```text
+
+```
+
+## Persistence
+
+> Todo: list `TestCasesService` API that will be used for that. Persistence will be done via `TestCasesService` that
+> will be loaded for the model and destroyed when model is unloaded. TestCasesService persists data to IndexedDB by
+> model name, test subject name (model name again or function name), test case name, and enum (input, result, verify).
+
+```typescript
+interface TestCasesService {
+    ...
+}
+```
+
+## Context Menu And Actions
+
+> Todo: List all context menus and their actions that should be available
+
+## Tests Pre-Generation
+
+> Todo: we need to have at least one test always pre-generated for the model itself and each decision service entry
+> point candidate that simply is first level entry point that has all arguments typed. Obviously all paths should be
+> generated for the user convenience. Also, when user maintains the model, all new fields should be automatically added
+> to the `Validations`. When user removes field, do nothing, just remove from GUI, not from DB. Later on, when we will
+> have project saving, there will be purge method.
+
+## Storybook stories
+
+> Todo: list the most important stories we must have for the `tests-manager` component.
+
+## Open Questions

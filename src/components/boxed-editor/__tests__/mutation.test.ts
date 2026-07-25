@@ -146,6 +146,62 @@ describe('BoxedEditorService mutations and cache', () => {
     });
   });
 
+  it('coalesces optimisation child edits into whole-definition writes', () => {
+    const mutable = MutableDecisionService.fromCode(`{
+      optimise plan(x: number): {
+        variables: { value: <number, min: 0> }
+        maximise: value
+        constraints: {
+          cap: value <= x
+          floor: value >= 0
+        }
+      }
+    }`);
+    const service = createBoxedEditorService(mutable);
+
+    const variable = service.getBoxedRowData('plan.variables.value')!;
+    expect(
+      isPortableError(
+        service.setBoxedRowData('plan.variables.value', {
+          ...variable,
+          value: '<number, min: 0, max: 10>',
+        }),
+      ),
+    ).toBe(false);
+
+    const objective = service.getBoxedRowData('plan.maximise')!;
+    expect(
+      isPortableError(
+        service.setBoxedRowData('plan.maximise', {
+          ...objective,
+          name: 'minimise',
+          value: '2 * value',
+        }),
+      ),
+    ).toBe(false);
+
+    expect(service.rename('plan.constraints.cap', 'ceiling')).toBeUndefined();
+    expect(
+      service.move('plan.constraints.floor', 'plan.constraints', 0),
+    ).toBeUndefined();
+    expect(service.remove('plan.constraints.ceiling')).toBeUndefined();
+
+    expect(mutable.get('plan', 'ALL')).toEqual({
+      '@kind': 'optimise',
+      '@parameters': { x: 'number' },
+      '@variables': {
+        value: {
+          '@kind': 'type',
+          type: 'number',
+          min: 0,
+          max: 10,
+        },
+      },
+      '@minimise': '2 * value',
+      '@constraints': { floor: 'value >= 0' },
+    });
+  });
+
   it('notifies once on success, keeps unaffected snapshots stable, and invalidates before notifying', () => {
     const mutable = MutableDecisionService.fromCode(
       '{ left: { value: 1 }; right: { value: 2 } }',

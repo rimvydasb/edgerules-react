@@ -37,20 +37,8 @@ function readAuthored(
   mutable: MutableDecisionService,
   path: string,
 ): { node?: PortableNode; schema?: PortableNode } {
-  let schema = mutable.get(path, 'ALL');
-  if (isPortableError(schema)) {
-    const root = mutable.toPortable();
-    const authored = portableAtPath(root, path);
-    if (
-      !isRecord(authored) ||
-      (authored as unknown as Record<string, unknown>)['@kind'] !== 'optimise'
-    ) {
-      return {};
-    }
-    schema = mutable.get(path, 'EXTERNAL_DEFINITIONS');
-    if (isPortableError(schema)) return { node: authored };
-    return { node: authored, schema };
-  }
+  const schema = mutable.get(path, 'ALL');
+  if (isPortableError(schema)) return {};
   if (path.endsWith(']')) return { node: schema, schema };
   const root = mutable.toPortable();
   const authored = path === '*' ? root : portableAtPath(root, path);
@@ -247,6 +235,106 @@ function trailingIndex(path: string): number | undefined {
   return match ? Number(match[1]) : undefined;
 }
 
+interface OptimisationOwner {
+  path: string;
+  node: PortableNode;
+}
+
+function optimisationOwner(
+  root: PortableRootContext,
+  path: string,
+): OptimisationOwner | undefined {
+  if (path === '*') return undefined;
+  const name = /^[^.[\]]+/.exec(path)?.[0];
+  if (!name) return undefined;
+  const node = root[name];
+  if (
+    !isRecord(node) ||
+    (node as unknown as Record<string, unknown>)['@kind'] !== 'optimise'
+  ) {
+    return undefined;
+  }
+  return { path: name, node: node as PortableNode };
+}
+
+function optimisationPathKeys(ownerPath: string, path: string): string[] {
+  const relative = path.slice(ownerPath.length + 1).split('.');
+  return relative.map((name, index) => (index === 0 ? `@${name}` : name));
+}
+
+function updateNestedRecord(
+  value: PortableNode,
+  keys: string[],
+  update: (record: Record<string, unknown>, key: string) => void,
+): PortableNode {
+  const visit = (
+    record: Record<string, unknown>,
+    index: number,
+  ): Record<string, unknown> => {
+    const result = { ...record };
+    const key = keys[index];
+    if (index === keys.length - 1) {
+      update(result, key);
+      return result;
+    }
+    const child = result[key];
+    if (!isRecord(child)) return result;
+    result[key] = visit(child, index + 1);
+    return result;
+  };
+  return visit(value as unknown as Record<string, unknown>, 0) as PortableNode;
+}
+
+function setOptimisationChild(
+  owner: OptimisationOwner,
+  path: string,
+  node: PortableNode,
+): PortableNode {
+  const keys = optimisationPathKeys(owner.path, path);
+  let value: unknown = node;
+  if (
+    keys.length === 1 &&
+    (keys[0] === '@variables' || keys[0] === '@constraints') &&
+    isRecord(node)
+  ) {
+    value = Object.fromEntries(authoredEntries(node));
+  }
+  return updateNestedRecord(owner.node, keys, (record, key) => {
+    record[key] = value;
+  });
+}
+
+function removeOptimisationChild(
+  owner: OptimisationOwner,
+  path: string,
+): PortableNode {
+  return updateNestedRecord(
+    owner.node,
+    optimisationPathKeys(owner.path, path),
+    (record, key) => {
+      delete record[key];
+    },
+  );
+}
+
+function renameOptimisationChild(
+  owner: OptimisationOwner,
+  path: string,
+  newName: string,
+): PortableNode {
+  return updateNestedRecord(
+    owner.node,
+    optimisationPathKeys(owner.path, path),
+    (record, key) => {
+      const renamed = Object.entries(record).map(([name, value]) =>
+        name === key ? [newName, value] : [name, value],
+      );
+      for (const name of Object.keys(record)) delete record[name];
+      Object.assign(record, Object.fromEntries(renamed));
+    },
+  );
+}
+
 export function createBoxedEditorService(
   mutable: MutableDecisionService,
 ): BoxedEditorService {
@@ -273,19 +361,126 @@ export function createBoxedEditorService(
       return cache.get(path).row;
     },
     setBoxedRowData(path, row) {
-      return commit(path, () => mutable.set(path, denormalize(row))) as
-        PortableNode | PortableError;
+      return commit(path, () => {
+        const root = mutable.toPortable();
+        const owner = optimisationOwner(root, path);
+        if (!owner || owner.path === path) {
+          return mutable.set(path, denormalize(row));
+        }
+
+        let updated = owner.node;
+        if (row.kind === 'optimisation-objective') {
+          updated = removeOptimisationChild(
+            { ...owner, node: updated },
+            `${owner.path}.maximise`,
+          );
+          updated = removeOptimisationChild(
+            { ...owner, node: updated },
+            `${owner.path}.minimise`,
+          );
+          return mutable.set(
+            owner.path,
+            setOptimisationChild(
+              { ...owner, node: updated },
+              `${owner.path}.${row.name}`,
+              denormalize(row),
+            ),
+          );
+        }
+        return mutable.set(
+          owner.path,
+          setOptimisationChild(owner, path, denormalize(row)),
+        );
+      }) as PortableNode | PortableError;
     },
     remove(path) {
-      return commit(path, () => mutable.remove(path)) as void | PortableError;
+      return commit(path, () => {
+        const root = mutable.toPortable();
+        const owner = optimisationOwner(root, path);
+        if (!owner || owner.path === path) return mutable.remove(path);
+        const result = mutable.set(
+          owner.path,
+          removeOptimisationChild(owner, path),
+        );
+        return isPortableError(result) ? result : undefined;
+      }) as void | PortableError;
     },
     rename(path, newName) {
-      return commit(path, () =>
-        mutable.rename(path, newName),
-      ) as void | PortableError;
+      return commit(path, () => {
+        const root = mutable.toPortable();
+        const owner = optimisationOwner(root, path);
+        if (!owner || owner.path === path) {
+          return mutable.rename(path, newName);
+        }
+        const result = mutable.set(
+          owner.path,
+          renameOptimisationChild(owner, path, newName),
+        );
+        return isPortableError(result) ? result : undefined;
+      }) as void | PortableError;
     },
     move(fromPath, toParentPath, index) {
       const root = mutable.toPortable();
+      const sourceOwner = optimisationOwner(root, fromPath);
+      const destinationOwner = optimisationOwner(root, toParentPath);
+      const movesOptimisationChild =
+        (sourceOwner && sourceOwner.path !== fromPath) ||
+        (destinationOwner && destinationOwner.path !== toParentPath);
+      if (movesOptimisationChild) {
+        if (
+          !sourceOwner ||
+          !destinationOwner ||
+          sourceOwner.path !== destinationOwner.path
+        ) {
+          const attempted = mutable.get(fromPath, 'ALL');
+          return isPortableError(attempted)
+            ? attempted
+            : {
+                '@kind': 'error',
+                type: 'WrongFieldPath',
+                message: 'Optimise declarations are root-only whole nodes',
+                path: fromPath,
+              };
+        }
+        const source = portableAtPath(root, fromPath);
+        const destination = portableAtPath(root, toParentPath);
+        if (
+          source === undefined ||
+          (!Array.isArray(destination) && !isRecord(destination))
+        ) {
+          return {
+            '@kind': 'error',
+            type: 'EntryNotFound',
+            message: 'Path not found',
+            path: source === undefined ? fromPath : toParentPath,
+          };
+        }
+        const sameParent = parentPath(fromPath) === toParentPath;
+        const destinationNode = insertChild(
+          destination,
+          source,
+          lastPathName(fromPath),
+          index,
+          sameParent ? trailingIndex(fromPath) : undefined,
+        );
+        let updated = setOptimisationChild(
+          sourceOwner,
+          toParentPath,
+          destinationNode,
+        );
+        if (!sameParent) {
+          updated = removeOptimisationChild(
+            { ...sourceOwner, node: updated },
+            fromPath,
+          );
+        }
+        const result = mutable.set(sourceOwner.path, updated);
+        if (isPortableError(result)) return result;
+        cache.invalidate(fromPath);
+        cache.invalidate(toParentPath);
+        notifyAll(listeners);
+        return undefined;
+      }
       const source =
         portableAtPath(root, fromPath) ?? readAuthored(mutable, fromPath).node;
       const destination =

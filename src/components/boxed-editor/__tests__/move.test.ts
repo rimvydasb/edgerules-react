@@ -49,6 +49,19 @@ describe('BoxedEditorService move', () => {
     ).toEqual(['second', 'first']);
   });
 
+  it('applies same-parent order changes at the model root', () => {
+    const mutable = MutableDecisionService.fromCode('{ a: 1; b: 2; c: 3 }');
+    const service = createBoxedEditorService(mutable);
+
+    expect(service.move('a', '*', 2)).toBeUndefined();
+    expect(Object.keys(mutable.toPortable())).toEqual(['@kind', 'b', 'c', 'a']);
+    expect(service.getBoxedRowsData('*').map((row) => row.name)).toEqual([
+      'b',
+      'c',
+      'a',
+    ]);
+  });
+
   it('reparents a field between contexts with insert before remove', () => {
     const mutable = MutableDecisionService.fromCode(
       '{ source: { value: 1 }; target: { other: 2 } }',

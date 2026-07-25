@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MutableDecisionService } from '@edgerules/node/mutable';
+import { isPortableError } from '../../../lib/portable';
 import { createBoxedEditorService } from '../service/createBoxedEditorService';
 import { denormalize } from '../service/denormalize';
 import { normalizeNode } from '../service/normalize';
@@ -189,22 +190,22 @@ describe('BoxedEditorService normalization', () => {
       '@constraints': { capacity: 'chairs <= workers' },
     });
 
-    const rebuilt = MutableDecisionService.fromPortable({
-      '@kind': 'context',
-      factory: portable,
-      plan: {
-        '@kind': 'invocation',
-        '@method': 'factory',
-        '@arguments': { workers: 1 },
-      },
+    expect(isPortableError(service.setBoxedRowData('factory', row))).toBe(
+      false,
+    );
+    expect(mutable.get('factory', 'ALL')).toMatchObject({
+      '@kind': 'optimise',
+      '@maximise': '15 * chairs',
+      '@constraints': { capacity: 'chairs <= workers' },
     });
-    rebuilt.registerSolver(() => ({
+
+    mutable.registerSolver(() => ({
       status: 'optimal',
       objective: 15,
       values: { chairs: 1 },
       duals: { capacity: 15 },
     }));
-    await expect(rebuilt.execute('plan')).resolves.toMatchObject({
+    await expect(mutable.execute('plan')).resolves.toMatchObject({
       status: 'optimal',
       objective: 15,
       chairs: 1,

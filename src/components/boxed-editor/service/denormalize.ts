@@ -2,6 +2,7 @@ import type {
   PortableContext,
   PortableExpression,
   PortableNode,
+  PortableOptimiseDefinition,
   PortableRule,
   PortableRulesetDefinition,
   PortableTypedValue,
@@ -148,7 +149,7 @@ function rulesetNode(row: BoxedTableRowData): PortableRulesetDefinition {
   };
 }
 
-function optimisationNode(row: BoxedTableRowData): PortableNode {
+function optimisationNode(row: BoxedTableRowData): PortableOptimiseDefinition {
   const node: Record<string, unknown> = {
     '@kind': 'optimise',
     '@parameters': parameters(row.parameters),
@@ -184,7 +185,7 @@ function optimisationNode(row: BoxedTableRowData): PortableNode {
         break;
     }
   }
-  return node as PortableNode;
+  return node as unknown as PortableOptimiseDefinition;
 }
 
 export function denormalize(row: BoxedRowData): PortableNode {
