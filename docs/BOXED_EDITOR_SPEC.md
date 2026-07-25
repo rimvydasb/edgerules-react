@@ -331,10 +331,13 @@ own `optimisation`-family rows — it carries no entry in `BoxedEditorTargetKind
   `ComplexTypeRow` / `RulesetRow` / `OptimisationRow` keeps its own expand/collapse state, toggled by its own
   `Expand` / `Collapse` context-menu action (see [Context Menu](#context-menu)). Changing `revision` does not reset
   per-row expand state.
-- **Export surface.** The `boxed-editor` entry point exports only `BoxedEditor`, `BoxedEditorProps`,
-  `BoxedEditorService`, `BoxedEditorOpenTarget`, `BoxedEditorTargetKind`, and the service contracts
-  (`DocumentationService`, `TestCasesService`, and their data types). Rows, cells, primitives, hooks, contexts, and
-  normalization internals are **not** re-exported — they are not public API.
+- **Export surface.** The `boxed-editor` entry point exports `BoxedEditor`, `BoxedEditorProps`, `BoxedEditorService`,
+  `BoxedEditorOpenTarget`, `BoxedEditorTargetKind`, `createBoxedEditorService`, the row data types
+  (`BoxedRowData`, `BoxedRowKind`, `BoxedTableRowData`, `SignatureParameter`), and the service contracts
+  (`DocumentationService`, `TestCasesService`, and their data types). The row data types are exported because
+  `BoxedEditorService`'s own methods return them — without the export, a consumer outside this package could not
+  name the return type of `getBoxedRowsData`. Rows, cells, primitives, hooks, contexts, and normalization internals
+  are **not** re-exported — they are not public API.
 
 ## Context Menu
 
@@ -553,9 +556,17 @@ interface BoxedEditorService {
     move(fromPath: string, toParentPath: string, index: number): void | PortableError;
 
     // --- Reactivity ---
-    // Notifies after any internal mutation commits, so the view can re-read via useSyncExternalStore.
-    // External edits are signalled instead by changing the `revision` prop.
+    // Notifies after any internal mutation commits, and after `invalidate()`, so the view can re-read via
+    // useSyncExternalStore.
     subscribe(listener: () => void): Unsubscribe;
+
+    // Drops cached normalized rows for `path` (and its ancestors), or the whole cache when `path` is omitted, and
+    // notifies `subscribe` listeners. Call this after mutating the underlying `MutableDecisionService` through a
+    // surface other than this facade's own methods — e.g. a co-mounted Flow Editor (ReactFlow) editing the same
+    // model — so `BoxedEditorService`'s cache does not go stale. `BoxedEditorProps.revision` (the future React
+    // layer's host-controlled invalidation token) is expected to call this on change; the service itself has no
+    // notion of `revision`.
+    invalidate(path?: string): void;
 
     // --- Escape hatch ---
     toPortable(): PortableRootContext;
@@ -622,6 +633,16 @@ interface BoxedTableRowData extends BoxedRowData {
     actions?: string[]; // Per-action-column cells, aligned to `actionColumns`: rule, ruleset-default.
     priority?: number; // Explicit rank, shown and editable only while the parent ruleset's hit policy is
                        // `"best-match"` (required there, absent/rejected under every other hit policy): rule.
+}
+
+// One argument-header cell of a function / ruleset / optimisation signature. Order matches `@parameters`'
+// key-insertion order (Portable's `@parameters` is a plain object, and JS/JSON preserve string-key order).
+interface SignatureParameter {
+    name: string; // Parameter name; the header cell label.
+    type?: string; // Tooltip text (hover / Alt-held), same TypeName treatment as a field's `type`; omitted when the
+                  // `@parameters` entry is `null` (an untyped/unannotated parameter).
+    required?: boolean; // From a `PortableTypedValue` parameter's `required`; absent for a bare type-reference or
+                        // untyped (`null`) parameter.
 }
 ```
 

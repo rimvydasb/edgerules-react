@@ -7,7 +7,7 @@ Implement `BoxedEditorService` — the normalizing facade over `MutableDecisionS
 [`BoxedEditorService` API](BOXED_EDITOR_SPEC.md#boxededitorservice-api) sections: the
 `createBoxedEditorService(mutable)`
 factory, Portable ⇄ `BoxedRowData` normalization/denormalization, a per-path row cache, and CRUD delegation
-(`get`/`set`/`remove`/`rename`/`move`/`subscribe`/`toPortable`).
+(`get`/`set`/`remove`/`rename`/`move`/`subscribe`/`invalidate`/`toPortable`).
 
 This is the data/service layer only — **no React**. It is the load-bearing dependency every later `BoxedEditor` UI
 story (rows, cells, hooks, drag-and-drop, menus) is built against, and completing it is also what makes the package
@@ -54,16 +54,39 @@ component tree are **not** created in this story.
 Reads via `mutable.get(path, 'ALL')` and maps the returned `PortableNode` tree to `BoxedRowData[]`, applying
 [Normalization Rules](BOXED_EDITOR_SPEC.md#normalization-rules) exactly:
 
-| Rule                   | Behavior                                                                                                                                                                                                                  |
-|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Sort order             | `complexType` → `function` → `ruleset` → `optimisation` → everything else (`context`/`list`/`relation`/`field`), each group in source order; a function body's synthesized `result` field sorts last within that function |
-| Relation vs. list      | scalar array items → `list`/`list-item`; complex-object array items → `relation`/`relation-item` with `columns` as the ordered union of every field seen across records                                                   |
-| Metadata               | `@kind`, `@description`, `@node`, `@node-name`, `@model-name`, `@model-version` never become child rows; `@node`/`@node-name` are not yet surfaced on `BoxedRowData` at all — see [Open Questions](#open-questions) #1    |
-| Row-kind consolidation | class field / typed input / plain expression / invocation Portable nodes all collapse to the single `field` `BoxedRowKind`                                                                                                |
-| Inline functions       | a function whose `@body` is a bare `PortableExpression` (not a `PortableContext`) is normalized with a synthesized `function-result` child row so the shape matches a multi-statement function body                       |
+| Rule                   | Behavior                                                                                                                                                                                                                                              |
+|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Sort order             | `complexType` → `function` → `ruleset` → `optimisation` → everything else (`context`/`list`/`relation`/`field`), each group in source order; a function body's synthesized `result` field sorts last within that function                             |
+| Relation vs. list      | scalar array items → `list`/`list-item`; complex-object array items → `relation`/`relation-item` with `columns` as the ordered union of every field seen across records                                                                               |
+| Metadata               | `@kind`, `@description`, `@node`, `@node-name`, `@model-name`, `@model-version` never become a child row; whether `@node`/`@node-name` should instead be surfaced as fields on `BoxedRowData` is undecided — see [Open Questions](#open-questions) #1 |
+| Row-kind consolidation | class field / typed input / plain expression / invocation Portable nodes all collapse to the single `field` `BoxedRowKind`                                                                                                                            |
+| Inline functions       | a function whose `@body` is a bare `PortableExpression` (not a `PortableContext`) is normalized with a synthesized `function-result` child row so the shape matches a multi-statement function body                                                   |
 
 `getBoxedRowsData(path)` and `getBoxedRowData(path)` are pure reads of the cache (below); they never call `mutable.get`
 directly — the cache does, on miss.
+
+#### Table-shaped row fields
+
+`BOXED_EDITOR_SPEC.md` declares `BoxedTableRowData`'s fields (`parameters`, `columns`, `cells`, `conditionColumns`,
+`actionColumns`, `conditions`, `conditionsExpression`, `actions`, `priority`) but not how `normalize()` derives each
+from Portable. Resolved by reading `PortableFunctionDefinition`/`PortableRulesetDefinition`/`PortableRule` directly
+(`@edgerules/portable`) and `../edgerules-v2/doc/reference/RULESETS_REFERENCE.md`:
+
+| `BoxedTableRowData` field                               | Row kind(s)                           | Derived from                                                                                                                                                                                                                                                                                                                                                                                  |
+|---------------------------------------------------------|---------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `parameters: SignatureParameter[]`                      | `function`, `optimisation`, `ruleset` | `@parameters`' own key-insertion order; a `null` value → `{ name }` (untyped), a bare type-reference string → `{ name, type }`, a `PortableTypedValue` → `{ name, type: value.type, required: value.required }`                                                                                                                                                                               |
+| `columns: string[]`                                     | `relation`                            | ordered union of every field name seen across all `relation-item` records, in first-authored-appearance order (the relation-vs-list rule above)                                                                                                                                                                                                                                               |
+| `cells: string[]`                                       | `relation-item`                       | one entry per `columns[i]`, read from that record's field; empty string when the record doesn't have that field                                                                                                                                                                                                                                                                               |
+| `conditionColumns: string[]`                            | `ruleset`                             | the ruleset's own `@parameters` keys, in order (conditions are tests over the ruleset's inputs, not its outputs)                                                                                                                                                                                                                                                                              |
+| `actionColumns: string[]`                               | `ruleset`                             | ordered union of field names across every `@rules[].then` and `@default` (if present) — same first-appearance algorithm as `columns`                                                                                                                                                                                                                                                          |
+| `conditions: string[]` / `conditionsExpression: string` | `rule`                                | `when` decodes to exactly one of these two, distinguished by shape (`RULESETS_REFERENCE.md` §"when as a boolean expression"): a plain `{ [param]: unaryTest }` object → `conditions[i]` aligned to `conditionColumns[i]`, empty string for an omitted key ("any"); a `{ '@kind': 'expression', expression }` node → `conditionsExpression` set to `expression`, `conditions` omitted entirely |
+| `actions: string[]`                                     | `rule`, `ruleset-default`             | one entry per `actionColumns[i]`, read from `then`/`@default`'s field; empty string when that record doesn't carry the field                                                                                                                                                                                                                                                                  |
+| `priority: number`                                      | `rule`                                | `PortableRule.priority` verbatim; present only under `hitPolicy: "best-match"`                                                                                                                                                                                                                                                                                                                |
+
+`denormalize.ts` reverses each of these. The one non-obvious direction: writing `conditions` back into `when` must
+**omit** any column whose cell is `''`, not write `{ [param]: '' }` — an empty cell means "any" (omitted key), per
+[Cell value mapping](BOXED_EDITOR_SPEC.md#cell-value-mapping); the same empty-means-omitted rule applies when
+writing `actions` back into a heterogeneous `then`/`@default` record for a column that record doesn't carry.
 
 ### Row cache (`rowCache.ts`)
 
@@ -74,9 +97,14 @@ directly — the cache does, on miss.
 - Every mutation (`setBoxedRowData`/`remove`/`rename`/`move`) invalidates exactly the entries whose subtree changed
   (the mutated path, every ancestor path up to root since a child changed, and — for `rename`/`move` — every path
   ever cached at or under the old location).
-- Exposes an internal `invalidate(path?: string)` (no-arg = wholesale clear) that `createBoxedEditorService` calls
-  after every commit. **This method is not on the public `BoxedEditorService` interface in the spec** — see
-  [Open Questions](#open-questions) #2 for whether a future host-triggered revalidation hook needs one.
+- The cache's `invalidate(path?)` applies that same ancestor-clearing rule and backs the **public**
+  `BoxedEditorService.invalidate(path?)` method (per `BOXED_EDITOR_SPEC.md`'s `BoxedEditorService` API — see
+  [Resolved Decisions](#resolved-decisions) #2). `createBoxedEditorService` calls it internally after every
+  successful commit, and a host can call it directly after mutating the shared `MutableDecisionService` through
+  another surface.
+- **Ordering matters**: both the internal after-commit path and the public `invalidate()` call must clear the cache
+  *before* notifying `subscribe` listeners, so a listener that re-reads via `getBoxedRowsData` inside its own
+  callback (as `useSyncExternalStore` does) never observes stale data.
 
 ### Denormalization (`denormalize.ts`) and the whole-node `set` strategy
 
@@ -147,6 +175,18 @@ Reordering within the *same* parent (`fromPath` and `toParentPath` share a paren
 `toParentPath == ` the shared parent — splice-out-then-splice-in inside one already-read `destNode`, still one
 `set`.
 
+**`index` is only fully meaningful for array-shaped destinations.** For `list`/`relation`/`ruleset`'s `@rules`/
+`optimisation-variable-group`/`optimisation-constraint-group` parents, physical array position *is* render order, so
+splicing `sourceNode` into `destNode`'s array at `index` directly determines where the row appears. For
+context-shaped destinations (`context`/`complexType`/the model root), `destNode` is a plain object — "insert at
+index" means rebuilding its key order (delete and re-insert every key from `index` onward, since JS/JSON object key
+order is insertion order, not indexable), but [Normalization Rules](BOXED_EDITOR_SPEC.md#normalization-rules)' fixed
+group sort (`complexType` → `function` → `ruleset` → `optimisation` → everything else) already determines a
+`complexType`/`function`/`ruleset`/`optimisation` child's rendered position regardless of key order. Honoring `index`
+there therefore only ever affects tie-breaking among siblings in the "everything else" group — implement the
+key-rebuild for correctness and future-proofing, but don't expect it to visibly reorder a moved `function`/`ruleset`/
+`optimisation`/`complexType` row.
+
 **Scope boundary:** `move` performs the mechanical splice only. It does not enforce the DMN-shape validity rules
 listed in the spec's [Drag and Drop](BOXED_EDITOR_SPEC.md#drag-and-drop) section (e.g. "`rule` → only its own
 `ruleset`, and only as a reorder"). That semantic gate is `dropRules.ts`, owned by the future drag-and-drop story, so
@@ -164,6 +204,10 @@ Mirrors the spec's [Error handling](BOXED_EDITOR_SPEC.md#error-handling) split, 
   cache untouched for that path (no invalidation on failure, so the last-good cached row stays visible).
 - Per [Resolved Decision #12](BOXED_EDITOR_SPEC.md#resolved-decisions), a structurally-successful write that breaks a
   reference elsewhere is **not** rolled back — this facade does not re-validate the whole model after every write.
+  `rename` in particular is documented to return success while leaving a dangling reference in place
+  (`docs/BUG_REPORTS.md`'s "Referenced value-field rename leaves the model invalid" — rejected/won't-fix upstream);
+  `rename` here does not special-case it, so the broken reference surfaces the same way, as an ordinary path-scoped
+  error on whichever path is next read.
 
 ### Structural Diagram
 
@@ -178,6 +222,7 @@ classDiagram
         +rename(path, newName) void|PortableError
         +move(fromPath, toParentPath, index) void|PortableError
         +subscribe(listener) Unsubscribe
+        +invalidate(path?) void
         +toPortable() PortableRootContext
     }
     class RowCache {
@@ -219,6 +264,12 @@ sequenceDiagram
     end
 ```
 
+## Testing Strategy
+
+- `BoxedEditorService` must be tested with fully working `MutableDecisionService` - no mocking of the EdgeRules engine
+  is allowed.
+- `BoxedEditorService` must be unit tested.
+
 ## Out of Scope
 
 - `BoxedEditor.tsx` and everything under `rows/`, `cells/`, `primitives/`, `menu/`, `dnd/`, `hooks/`, `context/`.
@@ -236,8 +287,10 @@ sequenceDiagram
   classification, metadata stripping, row-kind consolidation, and function-result synthesis
 - [ ] Add `service/rowCache.ts`: per-path memoized cache with `get`/`invalidate`
 - [ ] Add `service/createBoxedEditorService.ts` implementing `getBoxedRowsData`, `getBoxedRowData`, `toPortable`,
-  `subscribe` against the cache; `setBoxedRowData`/`remove`/`rename`/`move` may stub a
-  `NotImplemented`-style `PortableError` in this phase, replaced in Phases 2–3
+  `subscribe`, and the public `invalidate(path?)` (wired straight to the cache — no engine round trip needed) against
+  the cache; `setBoxedRowData`/`remove`/`rename`/`move` throw a plain `Error('not implemented')` in this phase (not a
+  fabricated `PortableError` — `PortableErrorType` is a closed union with no "not implemented" member, so a stub
+  return value would violate the real type), replaced in Phases 2–3
 - [ ] Add `index.ts` exporting the Phase 1 public surface (fixes the `./boxed-editor` package export / tsup entry)
 - [ ] Add `__tests__/normalization.test.ts` against a real `@edgerules/node` `MutableDecisionService.fromCode(...)` —
   cover every `BoxedRowKind` including `ruleset`/`optimisation` families, sort order, relation vs. list, and
@@ -283,32 +336,44 @@ sequenceDiagram
 - [ ] Review the implementation to ensure it meets the requirements and follows best practices
 - [ ] Mark all checkboxes as done in this document once verified
 
+## Resolved Decisions
+
+| # | Decision                          | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+|---|-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1 | Export surface for row types      | `BoxedRowData`, `BoxedRowKind`, `BoxedTableRowData`, `SignatureParameter`, and `createBoxedEditorService` are exported from `index.ts` alongside `BoxedEditorService` — required for the interface to be usable outside this package at all. `BOXED_EDITOR_SPEC.md`'s "Export surface" note is updated to match.                                                                                                                                                                                       |
+| 2 | Host-triggered cache revalidation | `invalidate(path?: string): void` is added to the **public** `BoxedEditorService` interface (`BOXED_EDITOR_SPEC.md` updated), not kept internal-only. Motivated by the planned ReactFlow-based Flow Editor: a second GUI editing the same `MutableDecisionService` outside this facade's own mutation methods needs a way to tell this facade its cache is stale. The future `BoxedEditorContext` calls it when the host's `revision` prop changes; `invalidate()` itself has no notion of `revision`. |
+
 ## Open Questions
 
-1. **Are `BoxedRowData`, `BoxedRowKind`, `BoxedTableRowData`, `SignatureParameter`, and `createBoxedEditorService`
-   part of the public export surface?** `BOXED_EDITOR_SPEC.md`'s "Export surface" note lists only `BoxedEditor`,
-   `BoxedEditorProps`, `BoxedEditorService`, `BoxedEditorOpenTarget`, `BoxedEditorTargetKind`, and the overlay service
-   contracts — it does not name these types. But `BoxedEditorService`'s own methods return `BoxedRowData`/
-   `BoxedRowData[]`, so a host consuming `BoxedEditorService` from outside this package cannot use it at all unless
-   `BoxedRowData` (and transitively `BoxedRowKind`/`BoxedTableRowData`/`SignatureParameter`) is also exported. This
-   reads like an omission in the enumeration rather than a deliberate exclusion.
-   Option 1 (recommended): export all four types from `index.ts` alongside `BoxedEditorService`, since they're
-   required for the interface to be usable at all; also export `createBoxedEditorService` as the spec's own React
-   integration section already calls it "a convenience" for hosts.
-   Option 2: keep the export surface exactly as literally enumerated, and have hosts treat `BoxedEditorService`'s
-   return values as structurally-typed but not nominally importable (awkward, not recommended).
-   This story proceeds with **Option 1** absent a correction.
+1. **`@node`/`@node-name` GUI annotations aren't on `BoxedRowData`.** Per `@edgerules/portable`, `@node`/`@node-name`
+   are the same annotation the Flow Editor's node kinds (`InputNode`, `FunctionNode`, `RulesetNode`, `ChartNode`, ...)
+   read — now directly relevant given the confirmed ReactFlow integration. Two sub-problems: (a) should
+   `BoxedRowData` expose them (e.g. `nodeAnnotation?: PortableNodeAnnotation`, `nodeName?: string`) so `BoxedEditor`
+   can read/show them, and (b) `denormalize.ts`'s whole-node `set` must explicitly re-attach a row's existing
+   `@node`/`@node-name` on every write, or risk silently dropping them the same way `docs/BUG_REPORTS.md` already
+   documents for `@description` (a confirmed, won't-fix-upstream engine behavior: `set` only preserves annotation
+   keys present in the same write).
+   Question to address: does `BoxedEditorService` need to read/write `@node`/`@node-name`, or is that entirely the
+   future Flow Editor's own facade's concern (a separate normalized view over the same `MutableDecisionService`)?
+   Option 1: add `nodeAnnotation`/`nodeName` to `BoxedRowData` now, and have `denormalize.ts` always round-trip them,
+   so `BoxedEditor` and the future Flow Editor stay consistent no matter which one last wrote a node.
+   Option 2: leave `BoxedRowData` as-is; the Flow Editor gets its own facade/normalization and reads `@node`/
+   `@node-name` directly from `MutableDecisionService`, never through `BoxedEditorService`.
 
-> Architect notes: export all four types from `index.ts` alongside `BoxedEditorService`
+> All annotations are ignored by `BoxedEditorService` for now.
 
-2. **Does the public `BoxedEditorService` interface need a host-triggered revalidation method?** The spec's
-   `rowCache.ts` line says the cache is "invalidated wholesale when `revision` changes," but `revision` is a
-   `BoxedEditorProps` (React-layer) concept, and the `BoxedEditorService` interface in the spec has no
-   `invalidate`/`refresh` method. This story adds an **internal-only** `invalidate(path?)` on the cache so a future
-   `BoxedEditorContext`/provider has something to call when the host's `revision` prop changes, but does not put it
-   on the public `BoxedEditorService` interface. Confirm this is the right layering before the follow-up React story
-   builds on it — the alternative is exposing `invalidate` (or recreating the whole facade) as part of this story's
-   public contract instead.
-
-> Architect notes: there will be integration to ReactFlow, that means that the React layer will have to be able to
-> trigger a revalidation of the cache.
+2. **Cache coherence across two facade instances sharing one `MutableDecisionService`.** `invalidate()` (Resolved
+   Decision #2) solves cache staleness *if* the Flow Editor calls it on the same `BoxedEditorService` instance the
+   `BoxedEditor` component uses. If instead the Flow Editor story creates its own, independent
+   `createBoxedEditorService(sameMutable)` (or its own differently-shaped facade) over the same underlying engine
+   instance, there is no automatic notification between the two — each has its own cache and its own `subscribe`
+   listener set, and nothing here keeps them in sync.
+   Question to address: should `createBoxedEditorService` deduplicate by `MutableDecisionService` identity (returning
+   the same facade instance, and thus the same cache/subscribe bus, for a given engine instance), or is manual
+   cross-instance `invalidate()` calls from whichever host code owns both editors an acceptable contract?
+   Option 1: leave this story's `createBoxedEditorService` as a plain, non-deduplicating factory (current design) and
+   revisit when the Flow Editor story exists and the real integration shape is known.
+   Option 2: add identity-keyed memoization to `createBoxedEditorService` now, so any two calls with the same
+   `MutableDecisionService` share one facade/cache/subscribe bus, closing the gap pre-emptively.
+   This story proceeds with **Option 1** — the Flow Editor doesn't exist yet, and designing the sharing contract
+   without a second concrete consumer risks guessing wrong.
