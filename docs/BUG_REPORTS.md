@@ -33,3 +33,34 @@ service.toPortable().application;
 ```
 
 Expected behavior: the engine must retain and re-emit `@description`, as it does `@node` and `@node-name`.
+
+## `execute()` input for a computed or unknown path is silently echoed as if it had been applied (@edgerules/node + @edgerules/web)
+
+`execute(method, input)` accepts input keys that bind nothing — a computed (`readOnly`) field, or a path that does not
+exist in the model at all — without any error. Evaluation correctly ignores them, but the returned result still
+contains the supplied value, so a host cannot tell an applied input from an ignored one. For a computed field the
+result is actively misleading: the field reads back as the caller's value while every expression depending on it used
+the authored value.
+
+```ts
+const service = MutableDecisionService.fromCode(
+  '{ maxLimit: 10000; age: <number>; ctx: { inner: maxLimit + 1 } }',
+);
+
+await service.execute('*', { age: 5, maxLimit: 50 });
+// { age: 5, maxLimit: 50, ctx: { inner: 10001 }, derived: … }
+//          ^^^^^^^^^^^^ reads back as 50, but `ctx.inner` proves 10000 was used
+
+await service.execute('*', { age: 5, 'credit.balance': 1 });
+// { age: 5, 'credit.balance': 1, … }  — a non-existent path echoed verbatim
+```
+
+The echo comes from `repointInputView` in `packages/_core/src/decision-service.ts`, which merges
+`{...input, ...result}`. That is correct for genuinely bound inputs (the engine omits those from `result` by design —
+`EXTERNAL_EXECUTIONS_SPEC.md` §10), but the engine also omits a computed field from `result` when the caller supplied a
+key for it, so the ignored value survives the merge and wins.
+
+Expected behavior: either honour the override, or reject the call with a `PortableError`. Failing both, the engine must
+keep computed fields in `result` (so the merge cannot overwrite them) and report unbound input keys to the host.
+`API_SPEC.md` already states that computed fields are ones the host "reads but does not supply at execution time" — so
+supplying one is a caller error the API should surface rather than absorb.
