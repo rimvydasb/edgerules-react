@@ -29,7 +29,7 @@ function inferRuntimeType(value: unknown): string | undefined {
 
 export function createTestRunner(
   service: MutableDecisionService,
-  testCases: TestCasesService,
+  testCasesService: TestCasesService,
   subject: TestSubject,
   options?: { modelRevision?: string },
 ): TestRunner {
@@ -54,7 +54,7 @@ export function createTestRunner(
   }
 
   function saveError(testCaseId: string, message: string): void {
-    testCases.saveResultSet({
+    testCasesService.saveResultSet({
       testCaseId,
       ranAt: Date.now(),
       modelRevision,
@@ -68,7 +68,7 @@ export function createTestRunner(
   // `validations`, by passing every currently known row back unchanged alongside the newly
   // discovered ones — `TestCasesService.syncRows` only ever drops what is missing from this set.
   function reconcileDiscoveredRows(flattened: Record<string, unknown>): TestRow[] {
-    const knownRows = testCases.listRows();
+    const knownRows = testCasesService.listRows();
     const knownPaths = new Set(knownRows.map((row) => row.path));
     const discovered: TestRow[] = [];
     for (const [path, value] of Object.entries(flattened)) {
@@ -76,8 +76,8 @@ export function createTestRunner(
       discovered.push({ path, section: 'validations', order: 0, type: inferRuntimeType(value), present: true });
     }
     if (discovered.length === 0) return knownRows;
-    testCases.syncRows([...knownRows, ...discovered]);
-    return testCases.listRows();
+    testCasesService.syncRows([...knownRows, ...discovered]);
+    return testCasesService.listRows();
   }
 
   async function performRun(testCaseId: string, generation: number): Promise<void> {
@@ -87,10 +87,10 @@ export function createTestRunner(
       return;
     }
 
-    const inputRows = testCases.listRows().filter((row) => row.present && row.section === 'inputs');
+    const inputRows = testCasesService.listRows().filter((row) => row.present && row.section === 'inputs');
     const valuesByPath: Record<string, unknown> = {};
     for (const row of inputRows) {
-      const text = testCases.getCell(testCaseId, row.path, 'input');
+      const text = testCasesService.getCell(testCaseId, row.path, 'input');
       if (text === undefined || text === '') continue;
       try {
         valuesByPath[row.path] = parseCell(text, row.type);
@@ -124,7 +124,7 @@ export function createTestRunner(
       }
     }
 
-    testCases.saveResultSet({ testCaseId, ranAt: Date.now(), modelRevision, status: 'ok', results });
+    testCasesService.saveResultSet({ testCaseId, ranAt: Date.now(), modelRevision, status: 'ok', results });
   }
 
   async function run(testCaseId: string): Promise<void> {
@@ -143,7 +143,7 @@ export function createTestRunner(
   }
 
   async function runAll(): Promise<void> {
-    for (const testCase of testCases.listTestCases()) {
+    for (const testCase of testCasesService.listTestCases()) {
       await run(testCase.id);
     }
   }

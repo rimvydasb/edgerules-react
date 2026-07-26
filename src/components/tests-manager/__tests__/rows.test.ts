@@ -1,7 +1,8 @@
 import { MutableDecisionService } from '@edgerules/node/mutable';
 import { describe, expect, it } from 'vitest';
-import { deriveRows, flattenResult } from '../model/rows';
+import { detectRenames, deriveRows, flattenResult } from '../model/rows';
 import type { TestSubject } from '../tests-manager-types';
+import type { TestRow } from '../../test-cases-service';
 
 const MODEL_SUBJECT: TestSubject = { id: '*', kind: 'model', name: 'Workbook' };
 
@@ -140,6 +141,54 @@ describe('deriveRows — loop subject', () => {
     const rows = deriveRows(service, { id: 'amortize', kind: 'loop', name: 'amortize' });
     expect(pathsIn(rows, 'inputs').sort()).toEqual(['principal', 'payment'].sort());
     expect(pathsIn(rows, 'validations')).toEqual(['months']);
+  });
+});
+
+describe('detectRenames', () => {
+  const row = (path: string, overrides: Partial<TestRow> = {}): TestRow => ({
+    path,
+    section: 'inputs',
+    order: 0,
+    type: 'number',
+    present: true,
+    ...overrides,
+  });
+
+  it('pairs a unique same-section, same-type disappearance with a unique appearance', () => {
+    const previous = [row('age'), row('credit.balance')];
+    const derived = [row('yearsOld'), row('credit.balance')];
+    expect(detectRenames(previous, derived)).toEqual([{ from: 'age', to: 'yearsOld' }]);
+  });
+
+  it('leaves ambiguous same-type candidates undetected rather than guessing', () => {
+    const previous = [row('age'), row('score')];
+    const derived = [row('yearsOld'), row('rating')];
+    expect(detectRenames(previous, derived)).toEqual([]);
+  });
+
+  it('never pairs across sections or types', () => {
+    const previous = [row('age', { section: 'inputs', type: 'number' })];
+    const derived = [row('age2', { section: 'validations', type: 'number' })];
+    expect(detectRenames(previous, derived)).toEqual([]);
+  });
+
+  it('never treats an already-deleted (present: false) row as a rename source', () => {
+    const previous = [row('age', { present: false })];
+    const derived = [row('yearsOld')];
+    expect(detectRenames(previous, derived)).toEqual([]);
+  });
+
+  it('reports nothing when nothing changed', () => {
+    const previous = [row('age')];
+    expect(detectRenames(previous, previous)).toEqual([]);
+  });
+
+  it('detects a real rename end-to-end via deriveRows on two compiled models', () => {
+    const before = MutableDecisionService.fromCode(WORKBOOK_MODEL);
+    const after = MutableDecisionService.fromCode(WORKBOOK_MODEL.replace(/\bage\b/g, 'yearsOld'));
+    const previousRows = deriveRows(before, MODEL_SUBJECT);
+    const derivedRows = deriveRows(after, MODEL_SUBJECT);
+    expect(detectRenames(previousRows, derivedRows)).toEqual([{ from: 'age', to: 'yearsOld' }]);
   });
 });
 

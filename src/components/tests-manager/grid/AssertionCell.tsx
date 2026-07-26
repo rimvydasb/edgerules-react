@@ -16,8 +16,8 @@ export function AssertionCell({
   testCaseId: string;
   row: TestRow;
 }): ReactElement {
-  const { testCases, readOnly, revision } = useTestsManagerContext();
-  const cell = useCell(testCases, testCaseId, row, 'assertion', revision);
+  const { testCasesService, readOnly, revision } = useTestsManagerContext();
+  const cell = useCell(testCasesService, testCaseId, row, 'assertion', revision);
   const [draft, setDraft] = useState<string | undefined>(undefined);
   const value = draft ?? cell.text;
   const mismatch = value !== '' && cell.isMatch === false;

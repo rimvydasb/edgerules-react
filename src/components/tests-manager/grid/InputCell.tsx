@@ -15,9 +15,9 @@ export function InputCell({
   testCaseId: string;
   row: TestRow;
 }): ReactElement {
-  const { testCases, runner, readOnly, autoRun, revision } =
+  const { testCasesService, runner, readOnly, autoRun, revision } =
     useTestsManagerContext();
-  const cell = useCell(testCases, testCaseId, row, 'input', revision);
+  const cell = useCell(testCasesService, testCaseId, row, 'input', revision);
   const [draft, setDraft] = useState<string | undefined>(undefined);
   const value = draft ?? cell.text;
 

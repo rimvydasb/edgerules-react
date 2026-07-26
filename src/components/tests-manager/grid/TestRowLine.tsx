@@ -1,6 +1,8 @@
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
+import Tooltip from '@mui/material/Tooltip';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
 import {type CSSProperties, type ReactElement, useState, useSyncExternalStore,} from 'react';
@@ -10,11 +12,14 @@ import {qualifyPath} from '../model/inputs';
 import {rowActionsFor} from '../menu/actions';
 import {TestsMenu} from '../menu/TestsMenu';
 import {AssertionCell} from './AssertionCell';
-import {CELL_BORDER_SX} from './gridStyle';
+import {CELL_BORDER_SX, DELETED_ROW_BG} from './gridStyle';
 import {InputCell} from './InputCell';
 import {PathCell} from './PathCell';
 import {ValidationCell} from './ValidationCell';
 import {DESCRIPTION_COLUMN_WIDTH, ICON_CELL_WIDTH, rowHeightForText, TEST_CASE_COLUMN_WIDTH,} from './wrapping';
+
+const DELETED_ROW_TOOLTIP =
+    'Removed from the model — kept for reference, will not be used in future runs.';
 
 export const ROW_HEIGHT = 40;
 
@@ -35,10 +40,11 @@ export function TestRowLine({
     visibleCases: TestCase[];
     pathColumnWidth: number;
 }): ReactElement {
-    const {testCases, documentationService, subject, readOnly} =
+    const {testCasesService, documentationService, subject, readOnly} =
         useTestsManagerContext();
     const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
     const sortable = useSortable({id: row.path, disabled: readOnly});
+    const deleted = !row.present;
 
     const qualifiedPath = qualifyPath(subject.id, row.path);
     // Subscribed (not a plain read) so the row's height — and a shared `DocumentationService`'s
@@ -68,7 +74,7 @@ export function TestRowLine({
                     position: 'sticky',
                     left: 0,
                     zIndex: 1,
-                    backgroundColor: 'background.paper',
+                    backgroundColor: deleted ? DELETED_ROW_BG : 'background.paper',
                     width: ICON_CELL_WIDTH,
                     maxWidth: ICON_CELL_WIDTH,
                     padding: 0,
@@ -98,12 +104,22 @@ export function TestRowLine({
                     position: 'sticky',
                     left: ICON_CELL_WIDTH,
                     zIndex: 1,
-                    backgroundColor: 'background.paper',
+                    backgroundColor: deleted ? DELETED_ROW_BG : 'background.paper',
                     whiteSpace: 'nowrap',
                     width: pathColumnWidth,
                 }}
             >
                 <PathCell path={row.path} columnWidth={pathColumnWidth} type={row.type}/>
+                {deleted && (
+                    <Tooltip title={DELETED_ROW_TOOLTIP}>
+                        <WarningAmberIcon
+                            aria-label={`deleted ${row.path}`}
+                            color="error"
+                            fontSize="small"
+                            sx={{verticalAlign: 'middle', marginLeft: 0.5}}
+                        />
+                    </Tooltip>
+                )}
                 {!readOnly && (
                     <button
                         type="button"
@@ -122,7 +138,7 @@ export function TestRowLine({
                 <TestsMenu
                     anchorEl={menuAnchor}
                     onClose={() => setMenuAnchor(null)}
-                    actions={rowActionsFor(row, testCases)}
+                    actions={rowActionsFor(row, testCasesService)}
                 />
             </TableCell>
             <TableCell
@@ -131,7 +147,7 @@ export function TestRowLine({
                     position: 'sticky',
                     left: ICON_CELL_WIDTH + pathColumnWidth,
                     zIndex: 1,
-                    backgroundColor: 'background.paper',
+                    backgroundColor: deleted ? DELETED_ROW_BG : 'background.paper',
                     width: DESCRIPTION_COLUMN_WIDTH,
                     maxWidth: DESCRIPTION_COLUMN_WIDTH,
                     padding: 0,
@@ -171,6 +187,7 @@ export function TestRowLine({
                         width: TEST_CASE_COLUMN_WIDTH,
                         maxWidth: TEST_CASE_COLUMN_WIDTH,
                         padding: 0,
+                        backgroundColor: deleted ? DELETED_ROW_BG : undefined,
                     }}
                 >
                     {row.section === 'inputs' && (
@@ -190,6 +207,7 @@ export function TestRowLine({
                     width: ICON_CELL_WIDTH,
                     maxWidth: ICON_CELL_WIDTH,
                     padding: 0,
+                    backgroundColor: deleted ? DELETED_ROW_BG : undefined,
                 }}
             />
         </TableRow>

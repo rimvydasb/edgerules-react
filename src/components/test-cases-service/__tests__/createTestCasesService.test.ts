@@ -113,6 +113,21 @@ describe('createTestCasesService — rows', () => {
     service.dispose();
   });
 
+  it('a row promoted to assertions survives a re-sync against freshly derived rows', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([VALIDATION_ROW]);
+    service.setRowSection('score', 'assertions');
+    expect(service.listRows().find((r) => r.path === 'score')?.section).toBe('assertions');
+
+    // Re-deriving from the model schema always classifies 'score' as computed (validations); the
+    // user's promotion to assertions must still win.
+    service.syncRows([VALIDATION_ROW]);
+    expect(service.listRows().find((r) => r.path === 'score')?.section).toBe('assertions');
+
+    service.dispose();
+  });
+
   it('moveRow reorders within its own section only', async () => {
     const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
     await waitForHydration(service);
@@ -144,6 +159,26 @@ describe('createTestCasesService — rows', () => {
 
     expect(service.getCell(t1.id, 'eligible', 'assertion')).toBeUndefined();
     expect(service.getCell(t2.id, 'eligible', 'assertion')).toBeUndefined();
+    service.dispose();
+  });
+});
+
+describe('createTestCasesService — shared rows across test cases', () => {
+  it('a new test case shares an already-promoted assertion row instead of getting its own copy, blank until filled in', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([ASSERTION_ROW]);
+    const a = service.addTestCase();
+    service.setCell(a.id, 'eligible', 'assertion', 'true');
+
+    const b = service.addTestCase();
+
+    // Rows are subject-wide: exactly one 'eligible' row exists, shared by every test case — never
+    // one row per case, regardless of which cases have set a value at it.
+    expect(service.listRows().filter((r) => r.path === 'eligible')).toHaveLength(1);
+    // The new case sees that shared row with a blank cell, not A's value and not a missing row.
+    expect(service.getCell(b.id, 'eligible', 'assertion')).toBeUndefined();
+
     service.dispose();
   });
 });

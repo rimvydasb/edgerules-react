@@ -13,8 +13,8 @@ export function ValidationCell({
   testCaseId: string;
   row: TestRow;
 }): ReactElement {
-  const { testCases, revision } = useTestsManagerContext();
-  const { result, isStale } = useResult(testCases, testCaseId, row, revision);
+  const { testCasesService, revision } = useTestsManagerContext();
+  const { result, isStale } = useResult(testCasesService, testCaseId, row, revision);
 
   return (
     <Box

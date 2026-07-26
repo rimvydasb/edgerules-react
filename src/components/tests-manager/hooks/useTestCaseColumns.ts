@@ -14,8 +14,8 @@ export interface UseTestCaseColumnsResult {
 
 // The visible page of test-case columns plus the paging controls that drive it. The Path and
 // Description columns are frozen and never page — only test-case columns do.
-export function useTestCaseColumns(testCases: TestCasesService, pageSize: number): UseTestCaseColumnsResult {
-  const allCases = useSyncExternalStore(testCases.subscribe, () => testCases.listTestCases());
+export function useTestCaseColumns(testCasesService: TestCasesService, pageSize: number): UseTestCaseColumnsResult {
+  const allCases = useSyncExternalStore(testCasesService.subscribe, () => testCasesService.listTestCases());
   const { pageIndex: rawPageIndex, setPageIndex } = useTestsManagerUiContext();
   const pageCount = Math.max(1, Math.ceil(allCases.length / pageSize));
   const pageIndex = Math.min(rawPageIndex, pageCount - 1);

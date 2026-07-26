@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { MutableDecisionService } from '@edgerules/node/mutable';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { TestsManager } from '../TestsManager';
 
@@ -61,7 +61,7 @@ describe('TestsManager pre-generation', () => {
     expect(screen.getByTestId('row-age')).toBeInTheDocument();
   });
 
-  it('hides a field the model no longer declares, without discarding its test data', async () => {
+  it('flags a field the model no longer declares as deleted instead of hiding it', async () => {
     const service = MutableDecisionService.fromCode(WORKBOOK_MODEL);
     const modelName = uniqueModelName();
     service.set('bonus', { '@kind': 'expression', expression: '5' });
@@ -77,8 +77,44 @@ describe('TestsManager pre-generation', () => {
       <TestsManager service={service} modelName={modelName} revision={2} />,
     );
 
-    await waitFor(() => expect(screen.queryByTestId('row-bonus')).toBeNull());
-    // Restoring the field would restore its row from the same persisted (present: false) entry —
-    // covered at the TestCasesService level by createTestCasesService.test.ts's syncRows tests.
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText('deleted bonus'),
+      ).toBeInTheDocument(),
+    );
+    // The row itself, and its data, stay in the DOM/storage — only flagged, not removed.
+    expect(screen.getByTestId('row-bonus')).toBeInTheDocument();
+  });
+
+  it('migrates a renamed field to its new path, preserving previously entered input data', async () => {
+    const modelName = uniqueModelName();
+    const before = MutableDecisionService.fromCode(WORKBOOK_MODEL);
+    const { rerender } = render(
+      <TestsManager service={before} modelName={modelName} revision={1} />,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('row-age')).toBeInTheDocument(),
+    );
+
+    const input = screen.getByLabelText('input age');
+    fireEvent.change(input, { target: { value: '42' } });
+    fireEvent.blur(input);
+    await waitFor(() => expect((input as HTMLInputElement).value).toBe('42'));
+
+    // Same model, 'age' renamed to 'yearsOld' everywhere it's declared and used.
+    const renamedSource = WORKBOOK_MODEL.replace(/\bage\b/g, 'yearsOld');
+    const after = MutableDecisionService.fromCode(renamedSource);
+    rerender(
+      <TestsManager service={after} modelName={modelName} revision={2} />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('row-yearsOld')).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId('row-age')).toBeNull();
+    const migratedInput = screen.getByLabelText(
+      'input yearsOld',
+    ) as HTMLInputElement;
+    expect(migratedInput.value).toBe('42');
   });
 });

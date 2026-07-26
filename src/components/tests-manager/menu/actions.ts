@@ -8,11 +8,11 @@ export interface TestsMenuAction {
   disabled?: boolean;
 }
 
-function copyActualToExpected(row: TestRow, testCases: TestCasesService): void {
-  for (const testCase of testCases.listTestCases()) {
-    const value = testCases.getResultSet(testCase.id)?.results[row.path]?.value;
+function copyActualToExpected(row: TestRow, testCasesService: TestCasesService): void {
+  for (const testCase of testCasesService.listTestCases()) {
+    const value = testCasesService.getResultSet(testCase.id)?.results[row.path]?.value;
     if (value !== undefined) {
-      testCases.setCell(testCase.id, row.path, 'assertion', formatValue(value));
+      testCasesService.setCell(testCase.id, row.path, 'assertion', formatValue(value));
     }
   }
 }
@@ -22,11 +22,11 @@ function copyActualToExpected(row: TestRow, testCases: TestCasesService): void {
 // path (`TestCasesService.renameTestCase`), consistent with "Rename: inline-edits the case name."
 export function testCaseActionsFor(
   testCase: TestCase,
-  testCases: TestCasesService,
+  testCasesService: TestCasesService,
   runner: TestRunner,
   onRename: () => void,
 ): TestsMenuAction[] {
-  const all = testCases.listTestCases();
+  const all = testCasesService.listTestCases();
   const index = all.findIndex((c) => c.id === testCase.id);
 
   return [
@@ -36,55 +36,55 @@ export function testCaseActionsFor(
     {
       label: 'Duplicate',
       onSelect: () => {
-        const copy = testCases.addTestCase(`${testCase.name} copy`);
+        const copy = testCasesService.addTestCase(`${testCase.name} copy`);
         for (const [path, text] of Object.entries(testCase.inputs)) {
-          testCases.setCell(copy.id, path, 'input', text);
+          testCasesService.setCell(copy.id, path, 'input', text);
         }
         for (const [path, text] of Object.entries(testCase.assertions)) {
-          testCases.setCell(copy.id, path, 'assertion', text);
+          testCasesService.setCell(copy.id, path, 'assertion', text);
         }
-        testCases.moveTestCase(copy.id, index + 1);
+        testCasesService.moveTestCase(copy.id, index + 1);
       },
     },
     {
       label: 'Insert left',
-      onSelect: () => testCases.moveTestCase(testCases.addTestCase().id, index),
+      onSelect: () => testCasesService.moveTestCase(testCasesService.addTestCase().id, index),
     },
     {
       label: 'Insert right',
-      onSelect: () => testCases.moveTestCase(testCases.addTestCase().id, index + 1),
+      onSelect: () => testCasesService.moveTestCase(testCasesService.addTestCase().id, index + 1),
     },
-    { label: 'Move left', onSelect: () => testCases.moveTestCase(testCase.id, index - 1), disabled: index <= 0 },
+    { label: 'Move left', onSelect: () => testCasesService.moveTestCase(testCase.id, index - 1), disabled: index <= 0 },
     {
       label: 'Move right',
-      onSelect: () => testCases.moveTestCase(testCase.id, index + 1),
+      onSelect: () => testCasesService.moveTestCase(testCase.id, index + 1),
       disabled: index >= all.length - 1,
     },
-    { label: 'Clear results', onSelect: () => testCases.clearResultSet(testCase.id) },
-    { label: 'Delete', onSelect: () => testCases.removeTestCase(testCase.id), disabled: all.length <= 1 },
+    { label: 'Clear results', onSelect: () => testCasesService.clearResultSet(testCase.id) },
+    { label: 'Delete', onSelect: () => testCasesService.removeTestCase(testCase.id), disabled: all.length <= 1 },
   ];
 }
 
 // The row menu (three-dots revealed on hover in the Path cell).
-export function rowActionsFor(row: TestRow, testCases: TestCasesService): TestsMenuAction[] {
+export function rowActionsFor(row: TestRow, testCasesService: TestCasesService): TestsMenuAction[] {
   const actions: TestsMenuAction[] = [];
 
   if (row.section === 'validations') {
     actions.push({
       label: 'Move to Assertions',
       onSelect: () => {
-        testCases.setRowSection(row.path, 'assertions');
-        copyActualToExpected(row, testCases);
+        testCasesService.setRowSection(row.path, 'assertions');
+        copyActualToExpected(row, testCasesService);
       },
     });
   }
 
   if (row.section === 'assertions') {
-    actions.push({ label: 'Move to Validations', onSelect: () => testCases.setRowSection(row.path, 'validations') });
+    actions.push({ label: 'Move to Validations', onSelect: () => testCasesService.setRowSection(row.path, 'validations') });
   }
 
   if (row.section === 'assertions') {
-    actions.push({ label: 'Copy actual to expected', onSelect: () => copyActualToExpected(row, testCases) });
+    actions.push({ label: 'Copy actual to expected', onSelect: () => copyActualToExpected(row, testCasesService) });
   }
 
   return actions;

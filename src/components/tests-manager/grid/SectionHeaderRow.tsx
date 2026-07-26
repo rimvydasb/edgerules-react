@@ -18,12 +18,12 @@ const SECTION_LABELS: Record<TestSectionId, string> = {
 };
 
 function assertionSummary(
-  testCases: TestCasesService,
+  testCasesService: TestCasesService,
   rows: TestRow[],
   testCaseId: string,
   revision: string | number | undefined,
 ): { label: string; allPass: boolean } | undefined {
-  const resultSet = testCases.getResultSet(testCaseId);
+  const resultSet = testCasesService.getResultSet(testCaseId);
   const currentRevision = revision === undefined ? undefined : String(revision);
   // A stale column shows no counter — scoring an expectation against a value the current model
   // would not produce is worse than no tick.
@@ -33,7 +33,10 @@ function assertionSummary(
   let total = 0;
   let passed = 0;
   for (const row of rows) {
-    const expected = testCases.getCell(testCaseId, row.path, 'assertion');
+    // A row the model no longer declares can never be satisfied again — don't let leftover
+    // assertion data on it count toward or against the pass rate.
+    if (!row.present) continue;
+    const expected = testCasesService.getCell(testCaseId, row.path, 'assertion');
     if (!expected) continue;
     total += 1;
     if (matches(expected, resultSet?.results[row.path]?.value, row.type))
@@ -48,17 +51,17 @@ function assertionSummary(
 export function SectionHeaderRow({
   sectionId,
   rows,
-  testCases,
+  testCasesService,
   visibleCases,
   revision,
 }: {
   sectionId: TestSectionId;
   rows: TestRow[];
-  testCases: TestCasesService;
+  testCasesService: TestCasesService;
   visibleCases: TestCase[];
   revision: string | number | undefined;
 }): ReactElement {
-  useForceUpdateOn(testCases.subscribe);
+  useForceUpdateOn(testCasesService.subscribe);
 
   return (
     <TableRow
@@ -81,7 +84,7 @@ export function SectionHeaderRow({
       {visibleCases.map((testCase) => {
         const summary =
           sectionId === 'assertions'
-            ? assertionSummary(testCases, rows, testCase.id, revision)
+            ? assertionSummary(testCasesService, rows, testCase.id, revision)
             : undefined;
         return (
           <TableCell

@@ -11,7 +11,7 @@ import { createTestCasesService } from '../test-cases-service';
 import { TestsManagerProvider } from './context/TestsManagerContext';
 import { TestsManagerUiProvider } from './context/TestsManagerUiContext';
 import { TestsGrid } from './grid/TestsGrid';
-import { deriveRows } from './model/rows';
+import { deriveRows, detectRenames } from './model/rows';
 import { listTestSubjects } from './model/subjects';
 import { createTestRunner } from './runner/createTestRunner';
 import type { TestsManagerProps } from './TestsManagerProps';
@@ -45,18 +45,18 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
   const subject =
     subjects.find((candidate) => candidate.id === subjectId) ?? subjects[0];
 
-  const testCases = useMemo(
+  const testCasesService = useMemo(
     () => createTestCasesService(modelName, subject.id),
     [modelName, subject.id],
   );
-  useEffect(() => () => testCases.dispose(), [testCases]);
+  useEffect(() => () => testCasesService.dispose(), [testCasesService]);
 
   const runner = useMemo(
     () =>
-      createTestRunner(service, testCases, subject, {
+      createTestRunner(service, testCasesService, subject, {
         modelRevision: revision !== undefined ? String(revision) : undefined,
       }),
-    [service, testCases, subject, revision],
+    [service, testCasesService, subject, revision],
   );
 
   // `TestCasesService` is synchronous-over-cache with async IndexedDB hydration in the background
@@ -69,16 +69,20 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
   const [ready, setReady] = useState(false);
   useLayoutEffect(() => {
     setReady(false);
-    return testCases.subscribe(() => setReady(true));
-  }, [testCases]);
+    return testCasesService.subscribe(() => setReady(true));
+  }, [testCasesService]);
 
   useEffect(() => {
     if (!ready) return;
-    testCases.syncRows(deriveRows(service, subject));
-    if (testCases.listTestCases().length === 0) {
-      testCases.addTestCase();
+    const derived = deriveRows(service, subject);
+    for (const rename of detectRenames(testCasesService.listRows(), derived)) {
+      testCasesService.renamePath(rename.from, rename.to);
     }
-  }, [ready, service, subject, testCases, revision]);
+    testCasesService.syncRows(derived);
+    if (testCasesService.listTestCases().length === 0) {
+      testCasesService.addTestCase();
+    }
+  }, [ready, service, subject, testCasesService, revision]);
 
   // Re-runs every case on a genuine `revision` change (not on the initial mount) when `autoRun` is
   // on — see Stale results / Execution triggers.
@@ -93,20 +97,20 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
   useEffect(() => {
     if (!onRunComplete) return undefined;
     const lastRanAt = new Map<string, number>();
-    for (const testCase of testCases.listTestCases()) {
-      const set = testCases.getResultSet(testCase.id);
+    for (const testCase of testCasesService.listTestCases()) {
+      const set = testCasesService.getResultSet(testCase.id);
       if (set) lastRanAt.set(testCase.id, set.ranAt);
     }
-    return testCases.subscribe(() => {
-      for (const testCase of testCases.listTestCases()) {
-        const set = testCases.getResultSet(testCase.id);
+    return testCasesService.subscribe(() => {
+      for (const testCase of testCasesService.listTestCases()) {
+        const set = testCasesService.getResultSet(testCase.id);
         if (set && lastRanAt.get(testCase.id) !== set.ranAt) {
           lastRanAt.set(testCase.id, set.ranAt);
           onRunComplete(set);
         }
       }
     });
-  }, [testCases, onRunComplete]);
+  }, [testCasesService, onRunComplete]);
 
   const handleSubjectChange = (id: TestSubjectId): void => {
     if (controlledSubjectId === undefined) setUncontrolledSubjectId(id);
@@ -118,7 +122,7 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
       <TestsManagerProvider
         value={{
           service,
-          testCases,
+          testCasesService,
           runner,
           documentationService,
           subject,

@@ -165,6 +165,51 @@ export function deriveRows(service: MutableDecisionService, subject: TestSubject
   return buildRows(inputs, computed);
 }
 
+export interface RowRename {
+  from: string;
+  to: string;
+}
+
+// Best-effort rename detection between two consecutive `deriveRows` snapshots. Pairs a row that
+// disappeared with a row that newly appeared only when it is the *unique* candidate in the same
+// section with the same type — an ambiguous match (e.g. two same-typed fields renamed in the same
+// batch) is left undetected and falls through to `TestCasesService.syncRows`'s existing
+// delete+add behavior, since guessing wrong would silently misattribute one field's data to
+// another. A `present: false` row (already flagged as deleted from a prior sync) is never treated
+// as a rename source.
+export function detectRenames(previousRows: TestRow[], derivedRows: TestRow[]): RowRename[] {
+  const previousPaths = new Set(previousRows.map((row) => row.path));
+  const derivedPaths = new Set(derivedRows.map((row) => row.path));
+
+  const removed = previousRows.filter((row) => row.present && !derivedPaths.has(row.path));
+  const added = derivedRows.filter((row) => !previousPaths.has(row.path));
+
+  const removedByKey = new Map<string, TestRow[]>();
+  for (const row of removed) {
+    const key = `${row.section}:${row.type ?? ''}`;
+    const bucket = removedByKey.get(key);
+    if (bucket) bucket.push(row);
+    else removedByKey.set(key, [row]);
+  }
+
+  const addedByKey = new Map<string, TestRow[]>();
+  for (const row of added) {
+    const key = `${row.section}:${row.type ?? ''}`;
+    const bucket = addedByKey.get(key);
+    if (bucket) bucket.push(row);
+    else addedByKey.set(key, [row]);
+  }
+
+  const renames: RowRename[] = [];
+  for (const [key, removedRows] of removedByKey) {
+    if (removedRows.length !== 1) continue;
+    const addedRows = addedByKey.get(key);
+    if (!addedRows || addedRows.length !== 1) continue;
+    renames.push({ from: removedRows[0].path, to: addedRows[0].path });
+  }
+  return renames;
+}
+
 // Flattens an `execute()` result into subject-relative leaf paths, the same way `deriveRows` flattens
 // the schema: a plain nested object recurses field by field (dot-joined), an array is a leaf, and a
 // scalar top-level result (a callable whose return type is a scalar) flattens to the single path `''`.

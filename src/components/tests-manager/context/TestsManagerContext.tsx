@@ -22,7 +22,7 @@ export interface DocumentationService {
 
 export interface TestsManagerContextValue {
   service: MutableDecisionService;
-  testCases: TestCasesService;
+  testCasesService: TestCasesService;
   runner: TestRunner;
   documentationService?: DocumentationService;
   subject: TestSubject;

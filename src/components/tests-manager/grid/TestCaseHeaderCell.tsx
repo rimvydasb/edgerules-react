@@ -12,7 +12,7 @@ export function TestCaseHeaderCell({
 }: {
   testCase: TestCase;
 }): ReactElement {
-  const { testCases, runner, readOnly } = useTestsManagerContext();
+  const { testCasesService, runner, readOnly } = useTestsManagerContext();
   const running = useSyncExternalStore(runner.subscribe, runner.getRunning);
   const isRunning = running.includes(testCase.id);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
@@ -21,7 +21,7 @@ export function TestCaseHeaderCell({
 
   const commitName = (): void => {
     if (draftName.trim() !== '' && draftName !== testCase.name) {
-      testCases.renameTestCase(testCase.id, draftName);
+      testCasesService.renameTestCase(testCase.id, draftName);
     }
     setEditing(false);
   };
@@ -104,7 +104,7 @@ export function TestCaseHeaderCell({
       <TestsMenu
         anchorEl={menuAnchor}
         onClose={() => setMenuAnchor(null)}
-        actions={testCaseActionsFor(testCase, testCases, runner, startRename)}
+        actions={testCaseActionsFor(testCase, testCasesService, runner, startRename)}
       />
     </span>
   );

@@ -89,4 +89,50 @@ describe('TestsManager execution', () => {
       ),
     );
   });
+
+  it("excludes a since-deleted row's leftover assertion from the section pass-count", async () => {
+    const user = userEvent.setup();
+    const service = MutableDecisionService.fromCode(WORKBOOK_MODEL);
+    service.set('bonus', { '@kind': 'expression', expression: '5' });
+    const modelName = uniqueModelName();
+    const { rerender } = render(
+      <TestsManager service={service} modelName={modelName} revision={1} />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('row-bonus')).toBeInTheDocument(),
+    );
+    await user.click(screen.getByLabelText('row menu bonus'));
+    await user.click(
+      screen.getByRole('menuitem', { name: 'Move to Assertions' }),
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText('assertion bonus')).toBeInTheDocument(),
+    );
+    await user.type(screen.getByLabelText('assertion bonus'), '5');
+    await user.click(document.body);
+    await user.click(screen.getByRole('button', { name: 'Run all' }));
+
+    await waitFor(() =>
+      expect(screen.getAllByTestId(/^assertion-summary-/)[0]).toHaveTextContent(
+        '1/1',
+      ),
+    );
+
+    service.remove('bonus');
+    rerender(
+      <TestsManager service={service} modelName={modelName} revision={2} />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('deleted bonus')).toBeInTheDocument(),
+    );
+    // 'bonus' can never be satisfied again — its leftover assertion drops out of the count
+    // entirely (no ratio shown) rather than scoring as a pass or a fail.
+    await waitFor(() =>
+      expect(screen.getAllByTestId(/^assertion-summary-/)[0]).toHaveTextContent(
+        '',
+      ),
+    );
+  });
 });
