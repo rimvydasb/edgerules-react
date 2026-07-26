@@ -8,6 +8,7 @@ import type {
   TestSectionId,
 } from '../../test-cases-service';
 import { useForceUpdateOn } from '../hooks/useForceUpdate';
+import { CELL_BORDER_SX } from './gridStyle';
 import { matches } from '../model/values';
 
 const SECTION_LABELS: Record<TestSectionId, string> = {
@@ -67,6 +68,7 @@ export function SectionHeaderRow({
       <TableCell
         colSpan={2}
         sx={{
+          ...CELL_BORDER_SX,
           fontWeight: 600,
           position: 'sticky',
           left: 0,
@@ -85,6 +87,7 @@ export function SectionHeaderRow({
           <TableCell
             key={testCase.id}
             align="center"
+            sx={CELL_BORDER_SX}
             data-testid={
               sectionId === 'assertions'
                 ? `assertion-summary-${testCase.id}`

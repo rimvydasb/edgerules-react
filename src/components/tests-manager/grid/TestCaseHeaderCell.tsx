@@ -32,7 +32,16 @@ export function TestCaseHeaderCell({
   return (
     <span
       data-testid={`case-header-${testCase.id}`}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 4,
+        padding: '8px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+      }}
     >
       {editing ? (
         <input
@@ -44,9 +53,17 @@ export function TestCaseHeaderCell({
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.currentTarget.blur();
           }}
+          style={{ width: '100%', boxSizing: 'border-box' }}
         />
       ) : (
-        <span onDoubleClick={() => !readOnly && startRename()}>
+        <span
+          onDoubleClick={() => !readOnly && startRename()}
+          style={{
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
+            whiteSpace: 'normal',
+          }}
+        >
           {testCase.name}
         </span>
       )}

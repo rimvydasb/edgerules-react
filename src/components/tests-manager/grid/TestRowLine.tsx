@@ -1,40 +1,67 @@
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
-import Tooltip from '@mui/material/Tooltip';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useState, type CSSProperties, type ReactElement } from 'react';
+import {
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ReactElement,
+} from 'react';
 import type { TestCase, TestRow } from '../../test-cases-service';
 import { useTestsManagerContext } from '../context/TestsManagerContext';
 import { qualifyPath } from '../model/inputs';
 import { rowActionsFor } from '../menu/actions';
 import { TestsMenu } from '../menu/TestsMenu';
 import { AssertionCell } from './AssertionCell';
+import { CELL_BORDER_SX } from './gridStyle';
 import { InputCell } from './InputCell';
+import { PathCell } from './PathCell';
 import { ValidationCell } from './ValidationCell';
+import {
+  DESCRIPTION_COLUMN_WIDTH,
+  rowHeightForText,
+  TEST_CASE_COLUMN_WIDTH,
+} from './wrapping';
 
 export const ROW_HEIGHT = 40;
 
-// One row: drag handle, path cell, description cell, its case cells.
+function noSubscription(): () => void {
+  return () => {};
+}
+
+// One row: drag handle, path cell, description cell, its case cells. Row height grows in
+// `ROW_HEIGHT_STEP` increments to fit a wrapped Description (see `wrapping.ts`) — every other cell
+// in the row just gets the extra space.
 export function TestRowLine({
   row,
   visibleCases,
+  pathColumnWidth,
 }: {
   row: TestRow;
   visibleCases: TestCase[];
+  pathColumnWidth: number;
 }): ReactElement {
   const { testCases, documentationService, subject, readOnly } =
     useTestsManagerContext();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const sortable = useSortable({ id: row.path, disabled: readOnly });
+
+  const qualifiedPath = qualifyPath(subject.id, row.path);
+  // Subscribed (not a plain read) so the row's height — and a shared `DocumentationService`'s
+  // cross-instance updates — reflect a description edited from anywhere, not just this row's own
+  // textarea.
+  const description = useSyncExternalStore(
+    documentationService?.subscribe ?? noSubscription,
+    () => documentationService?.getDescription(qualifiedPath) ?? '',
+  );
+  const rowHeight = rowHeightForText(description, DESCRIPTION_COLUMN_WIDTH);
+
   const style: CSSProperties = {
     transform: CSS.Transform.toString(sortable.transform),
     transition: sortable.transition,
-    height: ROW_HEIGHT,
+    height: rowHeight,
   };
-
-  const qualifiedPath = qualifyPath(subject.id, row.path);
-  const description = documentationService?.getDescription(qualifiedPath) ?? '';
 
   return (
     <TableRow
@@ -44,11 +71,13 @@ export function TestRowLine({
     >
       <TableCell
         sx={{
+          ...CELL_BORDER_SX,
           position: 'sticky',
           left: 0,
           zIndex: 1,
           backgroundColor: 'background.paper',
           whiteSpace: 'nowrap',
+          width: pathColumnWidth,
         }}
       >
         {!readOnly && (
@@ -61,9 +90,7 @@ export function TestRowLine({
             ::
           </span>
         )}
-        <Tooltip title={row.type ?? ''}>
-          <span>{row.path === '' ? '(result)' : row.path}</span>
-        </Tooltip>
+        <PathCell path={row.path} columnWidth={pathColumnWidth} type={row.type} />
         {!readOnly && (
           <button
             type="button"
@@ -87,14 +114,18 @@ export function TestRowLine({
       </TableCell>
       <TableCell
         sx={{
+          ...CELL_BORDER_SX,
           position: 'sticky',
-          left: 160,
+          left: pathColumnWidth,
           zIndex: 1,
           backgroundColor: 'background.paper',
+          width: DESCRIPTION_COLUMN_WIDTH,
+          maxWidth: DESCRIPTION_COLUMN_WIDTH,
+          padding: 0,
         }}
       >
         {documentationService ? (
-          <input
+          <textarea
             aria-label={`description ${row.path}`}
             value={description}
             disabled={readOnly}
@@ -104,12 +135,31 @@ export function TestRowLine({
                 event.target.value,
               )
             }
-            style={{ border: 'none', width: '100%', background: 'transparent' }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              border: 'none',
+              outline: 'none',
+              resize: 'none',
+              boxSizing: 'border-box',
+              padding: '8px',
+              background: 'transparent',
+              font: 'inherit',
+            }}
           />
         ) : null}
       </TableCell>
       {visibleCases.map((testCase) => (
-        <TableCell key={testCase.id}>
+        <TableCell
+          key={testCase.id}
+          sx={{
+            ...CELL_BORDER_SX,
+            position: 'relative',
+            width: TEST_CASE_COLUMN_WIDTH,
+            maxWidth: TEST_CASE_COLUMN_WIDTH,
+            padding: 0,
+          }}
+        >
           {row.section === 'inputs' && (
             <InputCell testCaseId={testCase.id} row={row} />
           )}

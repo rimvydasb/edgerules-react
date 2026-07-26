@@ -22,6 +22,13 @@ export function ValidationCell({
       sx={{
         color: isStale ? 'text.disabled' : 'text.primary',
         fontStyle: isStale ? 'italic' : 'normal',
+        position: 'absolute',
+        inset: 0,
+        padding: '0 8px',
+        display: 'flex',
+        alignItems: 'center',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       {result ? formatValue(result.value) : ''}

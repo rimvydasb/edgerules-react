@@ -20,20 +20,27 @@ import { useTestCaseColumns } from '../hooks/useTestCaseColumns';
 import { useTestRows } from '../hooks/useTestRows';
 import { useTestSubjects } from '../hooks/useTestSubjects';
 import type { TestSubjectId } from '../tests-manager-types';
+import { CELL_BORDER_SX } from './gridStyle';
+import { computePathColumnWidth } from './PathCell';
 import { SectionHeaderRow } from './SectionHeaderRow';
 import { SubjectHeaderCell } from './SubjectHeaderCell';
 import { TestCaseHeaderCell } from './TestCaseHeaderCell';
 import { TestRowLine } from './TestRowLine';
-
-const PATH_COLUMN_WIDTH = 160;
+import {
+  DESCRIPTION_COLUMN_WIDTH,
+  rowHeightForText,
+  TEST_CASE_COLUMN_WIDTH,
+} from './wrapping';
 
 function RowDragSection({
   rows,
   visibleCases,
+  pathColumnWidth,
   onMove,
 }: {
   rows: TestRow[];
   visibleCases: TestCase[];
+  pathColumnWidth: number;
   onMove: (path: string, toIndex: number) => void;
 }): ReactElement {
   const { sensors, handleDragEnd, itemIds } = useRowDrag(rows, onMove);
@@ -45,7 +52,12 @@ function RowDragSection({
     >
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         {rows.map((row) => (
-          <TestRowLine key={row.path} row={row} visibleCases={visibleCases} />
+          <TestRowLine
+            key={row.path}
+            row={row}
+            visibleCases={visibleCases}
+            pathColumnWidth={pathColumnWidth}
+          />
         ))}
       </SortableContext>
     </DndContext>
@@ -68,6 +80,14 @@ export function TestsGrid({
   const validationRows = rows.filter((row) => row.section === 'validations');
   const { visibleCases, pageIndex, pageCount, nextPage, prevPage } =
     useTestCaseColumns(testCases, pageSize);
+
+  const pathColumnWidth = computePathColumnWidth(rows.map((row) => row.path));
+  const headerRowHeight = Math.max(
+    40,
+    ...visibleCases.map((testCase) =>
+      rowHeightForText(testCase.name, TEST_CASE_COLUMN_WIDTH),
+    ),
+  );
 
   const needsSolver =
     service.requiresSolver() && service.solverHandler === undefined;
@@ -121,16 +141,21 @@ export function TestsGrid({
         )}
       </Box>
       <TableContainer sx={{ maxHeight: 640 }}>
-        <Table size="small" stickyHeader>
+        <Table
+          size="small"
+          stickyHeader
+          sx={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: 'auto' }}
+        >
           <TableHead>
-            <TableRow>
+            <TableRow style={{ height: headerRowHeight }}>
               <TableCell
                 sx={{
+                  ...CELL_BORDER_SX,
                   position: 'sticky',
                   left: 0,
                   zIndex: 3,
                   backgroundColor: 'background.paper',
-                  width: PATH_COLUMN_WIDTH,
+                  width: pathColumnWidth,
                 }}
               >
                 <SubjectHeaderCell
@@ -142,16 +167,28 @@ export function TestsGrid({
               </TableCell>
               <TableCell
                 sx={{
+                  ...CELL_BORDER_SX,
                   position: 'sticky',
-                  left: PATH_COLUMN_WIDTH,
+                  left: pathColumnWidth,
                   zIndex: 3,
                   backgroundColor: 'background.paper',
+                  width: DESCRIPTION_COLUMN_WIDTH,
+                  maxWidth: DESCRIPTION_COLUMN_WIDTH,
                 }}
               >
                 Description
               </TableCell>
               {visibleCases.map((testCase) => (
-                <TableCell key={testCase.id}>
+                <TableCell
+                  key={testCase.id}
+                  sx={{
+                    ...CELL_BORDER_SX,
+                    position: 'relative',
+                    width: TEST_CASE_COLUMN_WIDTH,
+                    maxWidth: TEST_CASE_COLUMN_WIDTH,
+                    padding: 0,
+                  }}
+                >
                   <TestCaseHeaderCell testCase={testCase} />
                 </TableCell>
               ))}
@@ -168,6 +205,7 @@ export function TestsGrid({
             <RowDragSection
               rows={inputRows}
               visibleCases={visibleCases}
+              pathColumnWidth={pathColumnWidth}
               onMove={moveRow}
             />
             <SectionHeaderRow
@@ -180,6 +218,7 @@ export function TestsGrid({
             <RowDragSection
               rows={assertionRows}
               visibleCases={visibleCases}
+              pathColumnWidth={pathColumnWidth}
               onMove={moveRow}
             />
             <SectionHeaderRow
@@ -192,6 +231,7 @@ export function TestsGrid({
             <RowDragSection
               rows={validationRows}
               visibleCases={visibleCases}
+              pathColumnWidth={pathColumnWidth}
               onMove={moveRow}
             />
           </TableBody>

@@ -4,6 +4,7 @@ import { useState, type KeyboardEvent, type ReactElement } from 'react';
 import type { TestRow } from '../../test-cases-service';
 import { useTestsManagerContext } from '../context/TestsManagerContext';
 import { useCell } from '../hooks/useCell';
+import { FILL_CELL_SX } from './gridStyle';
 import { formatValue } from '../model/values';
 
 // Editable expected value. A cell whose expected value does not equal the computed value is
@@ -48,16 +49,12 @@ export function AssertionCell({
         onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
           if (event.key === 'Enter') event.currentTarget.blur();
         }}
-        sx={
+        sx={[
+          FILL_CELL_SX,
           mismatch
-            ? {
-                '& .MuiInputBase-input': {
-                  color: 'error.main',
-                  fontWeight: 600,
-                },
-              }
-            : undefined
-        }
+            ? { '& .MuiInputBase-input': { color: 'error.main', fontWeight: 600 } }
+            : false,
+        ]}
       />
     </Tooltip>
   );

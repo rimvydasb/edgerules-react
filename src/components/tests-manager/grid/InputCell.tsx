@@ -3,6 +3,7 @@ import { useState, type KeyboardEvent, type ReactElement } from 'react';
 import type { TestRow } from '../../test-cases-service';
 import { useTestsManagerContext } from '../context/TestsManagerContext';
 import { useCell } from '../hooks/useCell';
+import { FILL_CELL_SX } from './gridStyle';
 import { CellParseError, parseCell } from '../model/values';
 
 // Editable, type-directed parsing. Committing an edit (blur or Enter) persists it and — when
@@ -51,6 +52,7 @@ export function InputCell({
       onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter') event.currentTarget.blur();
       }}
+      sx={FILL_CELL_SX}
     />
   );
 }
