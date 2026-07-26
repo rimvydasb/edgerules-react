@@ -31,7 +31,7 @@ describe('testCaseActionsFor', () => {
     await waitForHydration(service);
     const testCase = service.addTestCase('A');
 
-    const labels = testCaseActionsFor(testCase, service, runner, () => {}).map((a) => a.label);
+    const labels = testCaseActionsFor(testCase, service, runner).map((a) => a.label);
     expect(labels).not.toContain('Insert left');
     expect(labels).not.toContain('Insert right');
     expect(labels).toContain('Clone');
@@ -53,7 +53,7 @@ describe('testCaseActionsFor', () => {
     const other = service.addTestCase('Other');
 
     const latestSource = service.getTestCase(source.id)!;
-    const clone = testCaseActionsFor(latestSource, service, runner, () => {}).find((a) => a.label === 'Clone');
+    const clone = testCaseActionsFor(latestSource, service, runner).find((a) => a.label === 'Clone');
     clone?.onSelect();
 
     const ordered = service.listTestCases();

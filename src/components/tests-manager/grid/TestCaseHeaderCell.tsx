@@ -1,12 +1,16 @@
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useState, useSyncExternalStore, type CSSProperties, type ReactElement } from 'react';
 import type { TestCase } from '../../test-cases-service';
 import { useTestsManagerContext } from '../context/TestsManagerContext';
 import { testCaseActionsFor } from '../menu/actions';
 import { TestsMenu } from '../menu/TestsMenu';
 import { ICON_CELL_WIDTH } from './wrapping';
 
-// Case name, three-dots menu, run indicator.
+// Three fixed parts: a 40x40 drag handle (reorders the column via `useColumnDrag`'s
+// `DndContext`/`SortableContext`), the click-to-edit case name, and a 40x40 three-dots menu.
 export function TestCaseHeaderCell({
   testCase,
 }: {
@@ -18,6 +22,7 @@ export function TestCaseHeaderCell({
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(testCase.name);
+  const sortable = useSortable({ id: testCase.id, disabled: readOnly });
 
   const commitName = (): void => {
     if (draftName.trim() !== '' && draftName !== testCase.name) {
@@ -31,57 +36,82 @@ export function TestCaseHeaderCell({
     setEditing(true);
   };
 
+  const style: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    display: 'flex',
+    alignItems: 'stretch',
+    boxSizing: 'border-box',
+    transform: CSS.Transform.toString(sortable.transform),
+    transition: sortable.transition,
+  };
+
   return (
-    <span
-      data-testid={`case-header-${testCase.id}`}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 4,
-        padding: '8px',
-        boxSizing: 'border-box',
-        overflow: 'hidden',
-      }}
-    >
-      {editing ? (
-        <input
-          aria-label={`rename ${testCase.name}`}
-          value={draftName}
-          autoFocus
-          onChange={(event) => setDraftName(event.target.value)}
-          onBlur={commitName}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') event.currentTarget.blur();
-          }}
-          style={{ width: '100%', boxSizing: 'border-box' }}
-        />
-      ) : (
+    <span ref={sortable.setNodeRef} data-testid={`case-header-${testCase.id}`} style={style}>
+      {!readOnly && (
         <span
-          onDoubleClick={() => !readOnly && startRename()}
+          aria-label={`drag ${testCase.name}`}
+          {...sortable.attributes}
+          {...sortable.listeners}
           style={{
-            overflowWrap: 'anywhere',
-            wordBreak: 'break-word',
-            whiteSpace: 'normal',
+            width: ICON_CELL_WIDTH,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'grab',
           }}
         >
-          {testCase.name}
+          <DragIndicatorIcon fontSize="small" />
         </span>
       )}
-      {isRunning ? (
-        <span data-testid={`running-${testCase.id}`}>⏳</span>
-      ) : null}
+      <span
+        onClick={() => !readOnly && !editing && startRename()}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '0 4px',
+          overflow: 'hidden',
+          cursor: readOnly ? 'default' : 'text',
+        }}
+      >
+        {editing ? (
+          <input
+            aria-label={`rename ${testCase.name}`}
+            value={draftName}
+            autoFocus
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => setDraftName(event.target.value)}
+            onBlur={commitName}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+            style={{ width: '100%', boxSizing: 'border-box' }}
+          />
+        ) : (
+          <span
+            style={{
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+            }}
+          >
+            {testCase.name}
+          </span>
+        )}
+        {isRunning ? <span data-testid={`running-${testCase.id}`}>⏳</span> : null}
+      </span>
       {!readOnly && (
         <span
           style={{
             width: ICON_CELL_WIDTH,
-            height: ICON_CELL_WIDTH,
+            flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0,
-            marginLeft: 'auto',
           }}
         >
           <button
@@ -104,7 +134,7 @@ export function TestCaseHeaderCell({
       <TestsMenu
         anchorEl={menuAnchor}
         onClose={() => setMenuAnchor(null)}
-        actions={testCaseActionsFor(testCase, testCasesService, runner, startRename)}
+        actions={testCaseActionsFor(testCase, testCasesService, runner)}
       />
     </span>
   );

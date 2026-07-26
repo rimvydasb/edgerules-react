@@ -20,14 +20,12 @@ function copyActualToExpected(row: TestRow, testCasesService: TestCasesService):
   }
 }
 
-// The test-case column menu (the `:` in a column header). `onRename` starts the column header's
-// own inline name editor — the menu action and the double-click shortcut both land on one commit
-// path (`TestCasesService.renameTestCase`), consistent with "Rename: inline-edits the case name."
+// The test-case column menu (the `:` in a column header). Renaming and reordering aren't here —
+// the header's name is click-to-edit and columns reorder via the header's own drag handle.
 export function testCaseActionsFor(
   testCase: TestCase,
   testCasesService: TestCasesService,
   runner: TestRunner,
-  onRename: () => void,
 ): TestsMenuAction[] {
   const all = testCasesService.listTestCases();
   const index = all.findIndex((c) => c.id === testCase.id);
@@ -35,7 +33,6 @@ export function testCaseActionsFor(
   return [
     { label: 'Run', onSelect: () => void runner.run(testCase.id) },
     { label: 'Run all', onSelect: () => void runner.runAll() },
-    { label: 'Rename', onSelect: onRename },
     {
       label: 'Clone',
       onSelect: () => {
@@ -48,12 +45,6 @@ export function testCaseActionsFor(
         }
         testCasesService.moveTestCase(copy.id, index + 1);
       },
-    },
-    { label: 'Move left', onSelect: () => testCasesService.moveTestCase(testCase.id, index - 1), disabled: index <= 0 },
-    {
-      label: 'Move right',
-      onSelect: () => testCasesService.moveTestCase(testCase.id, index + 1),
-      disabled: index >= all.length - 1,
     },
     { label: 'Clear results', onSelect: () => testCasesService.clearResultSet(testCase.id) },
     { label: 'Delete', onSelect: () => testCasesService.removeTestCase(testCase.id), disabled: all.length <= 1 },

@@ -11,10 +11,11 @@ import TableRow from '@mui/material/TableRow';
 import AddIcon from '@mui/icons-material/Add';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import {closestCenter, DndContext} from '@dnd-kit/core';
-import {SortableContext, verticalListSortingStrategy,} from '@dnd-kit/sortable';
+import {horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy,} from '@dnd-kit/sortable';
 import type {ReactElement} from 'react';
 import type {TestCase, TestRow} from '../../test-cases-service';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
+import {useColumnDrag} from '../dnd/useColumnDrag';
 import {useRowDrag} from '../dnd/useRowDrag';
 import {useTestCaseColumns} from '../hooks/useTestCaseColumns';
 import {useTestRows} from '../hooks/useTestRows';
@@ -41,10 +42,14 @@ function RowDragSection({
 }): ReactElement {
     const {sensors, handleDragEnd, itemIds} = useRowDrag(rows, onMove);
     return (
+        // `accessibility.container` portals DndContext's hidden instructions/live-region <div>s out
+        // of the table — left to render in place, they'd land inside <tbody>, which is invalid HTML
+        // (and a React hydration-mismatch warning) once a drag actually activates them.
         <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
+            accessibility={{container: document.body}}
         >
             <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
                 {rows.map((row) => (
@@ -76,14 +81,16 @@ export function TestsGrid({
     const inputRows = rows.filter((row) => row.section === 'inputs');
     const assertionRows = rows.filter((row) => row.section === 'assertions');
     const validationRows = rows.filter((row) => row.section === 'validations');
-    const {visibleCases, pageIndex, pageCount, nextPage, prevPage} =
+    const {allCases, visibleCases, pageIndex, pageCount, nextPage, prevPage} =
         useTestCaseColumns(testCasesService, pageSize);
 
     const pathColumnWidth = computePathColumnWidth(rows.map((row) => row.path));
+    // The name area sits between the two 40px drag-handle/menu icons (see `TestCaseHeaderCell`), so
+    // it wraps against that narrower width, not the full column.
     const headerRowHeight = Math.max(
         40,
         ...visibleCases.map((testCase) =>
-            rowHeightForText(testCase.name, TEST_CASE_COLUMN_WIDTH),
+            rowHeightForText(testCase.name, TEST_CASE_COLUMN_WIDTH - 2 * ICON_CELL_WIDTH),
         ),
     );
 
@@ -91,6 +98,10 @@ export function TestsGrid({
         service.requiresSolver() && service.solverHandler === undefined;
     const moveRow = (path: string, toIndex: number): void =>
         testCasesService.moveRow(path, toIndex);
+    const moveTestCase = (testCaseId: string, toIndex: number): void =>
+        testCasesService.moveTestCase(testCaseId, toIndex);
+    const {sensors: columnSensors, handleDragEnd: handleColumnDragEnd, itemIds: columnItemIds} =
+        useColumnDrag(allCases, visibleCases, moveTestCase);
 
     return (
         <Box data-testid="tests-grid">
@@ -203,20 +214,30 @@ export function TestsGrid({
                             >
                                 Description
                             </TableCell>
-                            {visibleCases.map((testCase) => (
-                                <TableCell
-                                    key={testCase.id}
-                                    sx={{
-                                        ...CELL_BORDER_SX,
-                                        position: 'relative',
-                                        width: TEST_CASE_COLUMN_WIDTH,
-                                        maxWidth: TEST_CASE_COLUMN_WIDTH,
-                                        padding: 0,
-                                    }}
-                                >
-                                    <TestCaseHeaderCell testCase={testCase}/>
-                                </TableCell>
-                            ))}
+                            {/* See the row-level `DndContext` above for why `accessibility.container` is set. */}
+                            <DndContext
+                                sensors={columnSensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleColumnDragEnd}
+                                accessibility={{container: document.body}}
+                            >
+                                <SortableContext items={columnItemIds} strategy={horizontalListSortingStrategy}>
+                                    {visibleCases.map((testCase) => (
+                                        <TableCell
+                                            key={testCase.id}
+                                            sx={{
+                                                ...CELL_BORDER_SX,
+                                                position: 'relative',
+                                                width: TEST_CASE_COLUMN_WIDTH,
+                                                maxWidth: TEST_CASE_COLUMN_WIDTH,
+                                                padding: 0,
+                                            }}
+                                        >
+                                            <TestCaseHeaderCell testCase={testCase}/>
+                                        </TableCell>
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
                             <TableCell
                                 sx={{
                                     ...CELL_BORDER_SX,
