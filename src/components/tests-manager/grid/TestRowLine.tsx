@@ -2,6 +2,7 @@ import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import Tooltip from '@mui/material/Tooltip';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
@@ -62,6 +63,9 @@ export function TestRowLine({
         height: rowHeight,
     };
 
+    const menuActions = rowActionsFor(row, testCasesService);
+    const hasMenuActions = menuActions.length > 0;
+
     return (
         <TableRow
             ref={sortable.setNodeRef}
@@ -120,32 +124,59 @@ export function TestRowLine({
                         />
                     </Tooltip>
                 )}
-                {!readOnly && (
-                    <button
-                        type="button"
-                        aria-label={`row menu ${row.path}`}
-                        onClick={(event) => setMenuAnchor(event.currentTarget)}
-                        style={{
-                            border: 'none',
-                            background: 'transparent',
-                            cursor: 'pointer',
-                            marginLeft: 4,
-                        }}
-                    >
-                        ⋮
-                    </button>
-                )}
-                <TestsMenu
-                    anchorEl={menuAnchor}
-                    onClose={() => setMenuAnchor(null)}
-                    actions={rowActionsFor(row, testCasesService)}
-                />
             </TableCell>
             <TableCell
                 sx={{
                     ...CELL_BORDER_SX,
                     position: 'sticky',
                     left: ICON_CELL_WIDTH + pathColumnWidth,
+                    zIndex: 1,
+                    backgroundColor: deleted ? DELETED_ROW_BG : 'background.paper',
+                    width: ICON_CELL_WIDTH,
+                    maxWidth: ICON_CELL_WIDTH,
+                    padding: 0,
+                }}
+            >
+                {!readOnly && (
+                    <span
+                        style={{
+                            width: ICON_CELL_WIDTH,
+                            height: ICON_CELL_WIDTH,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <button
+                            type="button"
+                            aria-label={`row menu ${row.path}`}
+                            disabled={!hasMenuActions}
+                            onClick={(event) => setMenuAnchor(event.currentTarget)}
+                            style={{
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: hasMenuActions ? 'pointer' : 'default',
+                                opacity: hasMenuActions ? 1 : 0.3,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <MoreVertIcon fontSize="small"/>
+                        </button>
+                    </span>
+                )}
+                <TestsMenu
+                    anchorEl={menuAnchor}
+                    onClose={() => setMenuAnchor(null)}
+                    actions={menuActions}
+                />
+            </TableCell>
+            <TableCell
+                sx={{
+                    ...CELL_BORDER_SX,
+                    position: 'sticky',
+                    left: ICON_CELL_WIDTH + pathColumnWidth + ICON_CELL_WIDTH,
                     zIndex: 1,
                     backgroundColor: deleted ? DELETED_ROW_BG : 'background.paper',
                     width: DESCRIPTION_COLUMN_WIDTH,

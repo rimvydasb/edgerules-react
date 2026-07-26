@@ -185,6 +185,18 @@ export function TestsGrid({
                                     left: ICON_CELL_WIDTH + pathColumnWidth,
                                     zIndex: 3,
                                     backgroundColor: 'background.paper',
+                                    width: ICON_CELL_WIDTH,
+                                    maxWidth: ICON_CELL_WIDTH,
+                                    padding: 0,
+                                }}
+                            />
+                            <TableCell
+                                sx={{
+                                    ...CELL_BORDER_SX,
+                                    position: 'sticky',
+                                    left: ICON_CELL_WIDTH + pathColumnWidth + ICON_CELL_WIDTH,
+                                    zIndex: 3,
+                                    backgroundColor: 'background.paper',
                                     width: DESCRIPTION_COLUMN_WIDTH,
                                     maxWidth: DESCRIPTION_COLUMN_WIDTH,
                                 }}

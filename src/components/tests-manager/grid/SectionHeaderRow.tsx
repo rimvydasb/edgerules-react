@@ -69,7 +69,7 @@ export function SectionHeaderRow({
       data-testid={`section-${sectionId}`}
     >
       <TableCell
-        colSpan={3}
+        colSpan={4}
         sx={{
           ...CELL_BORDER_SX,
           fontWeight: 600,

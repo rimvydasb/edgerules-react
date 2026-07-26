@@ -136,3 +136,63 @@ describe('TestsManager execution', () => {
     );
   });
 });
+
+describe('TestsManager row menu content', () => {
+  it('disables the row menu for an input row — no row action applies to inputs', async () => {
+    const service = MutableDecisionService.fromCode(WORKBOOK_MODEL);
+    render(<TestsManager service={service} modelName={uniqueModelName()} />);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('row menu age')).toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText('row menu age')).toBeDisabled();
+  });
+
+  it('a validations-section row menu offers Move to Assertions', async () => {
+    const user = userEvent.setup();
+    const service = MutableDecisionService.fromCode(WORKBOOK_MODEL);
+    render(<TestsManager service={service} modelName={uniqueModelName()} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText('row menu creditDecision.approved'),
+      ).toBeInTheDocument(),
+    );
+    await user.click(screen.getByLabelText('row menu creditDecision.approved'));
+
+    expect(
+      screen.getByRole('menuitem', { name: 'Move to Assertions' }),
+    ).toBeInTheDocument();
+  });
+
+  it('a promoted assertions-section row menu offers Delete and Copy actual to expected', async () => {
+    const user = userEvent.setup();
+    const service = MutableDecisionService.fromCode(WORKBOOK_MODEL);
+    render(<TestsManager service={service} modelName={uniqueModelName()} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText('row menu creditDecision.approved'),
+      ).toBeInTheDocument(),
+    );
+    await user.click(screen.getByLabelText('row menu creditDecision.approved'));
+    await user.click(
+      screen.getByRole('menuitem', { name: 'Move to Assertions' }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText('row menu creditDecision.approved'),
+      ).not.toBeDisabled(),
+    );
+    await user.click(screen.getByLabelText('row menu creditDecision.approved'));
+
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('menuitem', { name: 'Copy actual to expected' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitem', { name: 'Move to Validations' }),
+    ).not.toBeInTheDocument();
+  });
+});

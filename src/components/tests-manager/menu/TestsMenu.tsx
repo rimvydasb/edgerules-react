@@ -1,3 +1,4 @@
+import ListItemIcon from '@mui/material/ListItemIcon';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import type { ReactElement } from 'react';
@@ -24,6 +25,7 @@ export function TestsMenu({
             onClose();
           }}
         >
+          {action.icon && <ListItemIcon>{action.icon}</ListItemIcon>}
           {action.label}
         </MenuItem>
       ))}

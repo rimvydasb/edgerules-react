@@ -181,6 +181,29 @@ describe('createTestCasesService — shared rows across test cases', () => {
 
     service.dispose();
   });
+
+  it('the first test case starts blank; each next one inherits the previous case\'s input values but never its assertions', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([INPUT_ROW, ASSERTION_ROW]);
+
+    const a = service.addTestCase();
+    expect(a.inputs).toEqual({});
+
+    service.setCell(a.id, 'age', 'input', '30');
+    service.setCell(a.id, 'eligible', 'assertion', 'true');
+
+    const b = service.addTestCase();
+    expect(service.getCell(b.id, 'age', 'input')).toBe('30');
+    expect(service.getCell(b.id, 'eligible', 'assertion')).toBeUndefined();
+
+    // A later case inherits from the immediately preceding one, not the original first case.
+    service.setCell(b.id, 'age', 'input', '45');
+    const c = service.addTestCase();
+    expect(service.getCell(c.id, 'age', 'input')).toBe('45');
+
+    service.dispose();
+  });
 });
 
 describe('createTestCasesService — cells', () => {

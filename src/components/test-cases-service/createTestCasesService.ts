@@ -206,11 +206,18 @@ export function createTestCasesService(
 
     addTestCase(name?: string): TestCase {
       const order = cases.length === 0 ? 0 : Math.max(...cases.map((c) => c.order)) + 1;
+      // Inherits the previous (highest-order) case's input values, so filling in a second or third
+      // case is a tweak rather than a retype; assertions always start blank — a promoted row is
+      // shared, but what each case expects of it is not.
+      const previous = cases.reduce<TestCase | undefined>(
+        (latest, c) => (!latest || c.order > latest.order ? c : latest),
+        undefined,
+      );
       const testCase: TestCase = {
         id: generateId(),
         name: name ?? `Test Case ${cases.length + 1}`,
         order,
-        inputs: {},
+        inputs: previous ? cloneValues(previous.inputs) : {},
         assertions: {},
       };
       cases.push(testCase);
