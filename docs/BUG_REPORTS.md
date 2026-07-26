@@ -99,3 +99,29 @@ for its schema.
 Expected behavior: a `loop` declaration is projected when listing its containing context, consistently with `func` and
 `ruleset` in the `FIELDS`/`ALL` views — or, if it is meant to be catalog-only like `optimise`, as a row in
 `EXTERNAL_DEFINITIONS`.
+
+## `set()` rejects a non-string `expression` even though the Portable contract allows one (@edgerules/node + @edgerules/web)
+
+`PortableExpression.expression` is typed as `PortableValue` (`string | number | boolean | array | context |
+expression-string`), and `set()` accepts a plain object/array literal for it elsewhere in the contract. But a bare
+`number`/`boolean` literal is rejected outright — the field must be wrapped as a DSL expression string — even though
+the type explicitly permits it and the error message suggests the field is simply missing.
+
+```ts
+const service = MutableDecisionService.fromCode('{ x: 1 }');
+
+service.set('bonus', { '@kind': 'expression', expression: 5 });
+// { '@kind': 'error', type: 'WrongFieldPath',
+//   message: "invalid portable structure: @kind:expression missing 'expression' field" }
+// — the field is present; a *number* value specifically is rejected.
+
+service.set('bonus2', { '@kind': 'expression', expression: '5' }); // string form — succeeds
+// { '@kind': 'type', type: 'number', readOnly: true }
+```
+
+Workaround: always send `expression` as a string (a literal like `'5'` or a DSL expression like `'x + 1'`), never a
+bare `number`/`boolean`.
+
+Expected behavior: either `set()` accepts a bare `PortableScalar` for `expression` as the type declares, or
+`PortableExpression.expression`'s type is narrowed to `PortableExpressionString` to match what the engine actually
+accepts.

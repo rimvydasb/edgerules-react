@@ -333,12 +333,14 @@ own `optimisation`-family rows — it carries no entry in `BoxedEditorTargetKind
   `Expand` / `Collapse` context-menu action (see [Context Menu](#context-menu)). Changing `revision` does not reset
   per-row expand state.
 - **Export surface.** The `boxed-editor` entry point exports `BoxedEditor`, `BoxedEditorProps`, `BoxedEditorService`,
-  `BoxedEditorOpenTarget`, `BoxedEditorTargetKind`, `createBoxedEditorService`, the row data types
-  (`BoxedRowData`, `BoxedRowKind`, `BoxedTableRowData`, `SignatureParameter`), and the service contracts
-  (`DocumentationService`, `TestCasesService`, and their data types). The row data types are exported because
+  `BoxedEditorOpenTarget`, `BoxedEditorTargetKind`, `createBoxedEditorService`, and the row data types (`BoxedRowData`,
+  `BoxedRowKind`, `BoxedTableRowData`, `SignatureParameter`). The row data types are exported because
   `BoxedEditorService`'s own methods return them — without the export, a consumer outside this package could not
-  name the return type of `getBoxedRowsData`. Rows, cells, primitives, hooks, contexts, and normalization internals
-  are **not** re-exported — they are not public API.
+  name the return type of `getBoxedRowsData`. `DocumentationService` and `TestCasesService` are **not** re-exported
+  here: a host imports them directly from `edgerules-react/documentation-service` and `edgerules-react/test-cases-service`
+  and passes an instance in as a prop, the same way `TestsManager` does (`TESTS_MANAGER_STORY.md`'s Component API) —
+  one contract, one place it's defined. Rows, cells, primitives, hooks, contexts, and normalization internals are
+  **not** re-exported either — they are not public API.
 
 ## Context Menu
 
@@ -477,7 +479,7 @@ but test cases navigation or description update will not trigger re-calculations
 | ---------------------- | ------------------------------------------- | -------- | -------------------------------- | --------------------------- |
 | `BoxedEditorService`   | Portable-derived structure (`BoxedRowData`) | `path`   | the authored model (via engine)  | Name/Value/description cols |
 | `DocumentationService` | free-text descriptions                      | `path`   | IndexedDB (by model name + path) | DescriptionColumn           |
-| `TestCasesService`     | executed test cases and their results       | `path`   | IndexedDB (by model + case)      | TestResultsColumn           |
+| `TestCasesService` (`edgerules-react/test-cases-service`) | executed test cases and their results | `path` (subject-relative; `qualifyPath` derives the fully qualified form used to look up a `BoxedRowData`'s path) | IndexedDB (`testCases`/`testResults` stores, by model + subject) | TestResultsColumn |
 
 `BoxedEditorService` is the single facade for the model. It is a **normalizing adapter** over the authoritative
 `MutableDecisionService` (from `@edgerules/web` / `@edgerules/node`); it holds no second persisted model. It does
@@ -515,10 +517,11 @@ classDiagram
         +renamePath(from, to) void
     }
     class TestCasesService {
-        <<IndexedDBoverlay>>
+        <<IndexedDBoverlay,from edgerules-react/test-cases-service>>
         +listTestCases() TestCase[]
-        +getResults(testCaseId) TestResultsByPath
+        +getResultSet(testCaseId) TestResultSet?
         +renamePath(from, to) void
+        +subscribe(listener) Unsubscribe
     }
 
     BoxedEditor --> BoxedEditorService: rows + commits (structure)
@@ -830,50 +833,32 @@ Two error scopes, mirroring the reference behavior:
 
 ## `TestCasesService` API
 
-Supplies the `TestResultsColumn`. The service is a **read-only reader over IndexedDB**: a separate test-execution
-service (out of scope for this spec) runs cases and writes their results there; `TestCasesService` only discovers how
-many result sets exist and exposes them. `BoxedEditor` never runs the engine. The column header shows the current
-test case name and a `1/N` counter with previous/next buttons; each row shows that case's computed value on its own
-line, read per-path via `useTestResult(path)`.
+Supplies the `TestResultsColumn`. `TestCasesService`, `TestCase`, `TestResultSet`, `TestResult`, and their sibling
+types are defined and owned by [`TESTS_MANAGER_STORY.md`](TESTS_MANAGER_STORY.md#object-model)'s
+`edgerules-react/test-cases-service` package — `BoxedEditor` imports them from there rather than declaring its own
+copy, so the two components share one persistence contract instead of two independently-evolving ones. This spec
+covers only how `BoxedEditor` **consumes** that package, never how it is implemented.
 
-Results are keyed by the same fully qualified `path` used by `BoxedRowData`, so each `TestResultsColumn` cell can look
-up its own value. **`TestResult.value` carries the raw engine serialization** (`320000`, `'Ada'`, `Missing('x')`,
-ISO dates, ...); `BoxedEditor` owns all display formatting on top of it — arrays render as `N items`, long values are
-truncated, numbers/dates are locale-formatted. See [Resolved Decisions](#resolved-decisions) #5.
+`TestCasesService` is a **read-only reader over IndexedDB** from `BoxedEditor`'s point of view: `TestsManager` (or any
+other host-side execution surface) runs cases and writes their results there; `BoxedEditor` never runs the engine and
+never imports `TestRunner`. The column header shows the current test case name and a `1/N` counter with
+previous/next buttons — driven by the package's own `useTestCases` hook — and each row shows that case's computed
+value on its own line, read per-path via the package's `useTestResult(service, testCaseId, path)`.
 
-```typescript
-type TestResultsByPath = Record<string, TestResult>; // keyed by fully qualified path
+A `TestResultSet`'s `results` are keyed by **subject-relative** path; `BoxedEditor` renders fully qualified paths, so
+a cell derives the lookup key with `qualifyPath(subjectId, path)` (also from `test-cases-service`) before reading its
+`TestResult`. **`TestResult.value` is `unknown`, not a pre-formatted string** — the engine's real JS value (a
+`number`, an `array`, a nested object, or the engine's string form for dates/durations/special values); see
+[Resolved Decisions](#resolved-decisions) #5 and `TESTS_MANAGER_STORY.md`'s Resolved Decision #9 for why. `BoxedEditor`
+owns all display formatting on top of it — arrays render as `N items`, long values are truncated, numbers/dates are
+locale-formatted.
 
-interface TestCase {
-  id: string; // Stable identifier used to fetch results.
-  name: string; // Display name shown in the TestResultsColumn header, e.g. "Standard application".
-}
-
-type TestResultStatus = 'ok' | 'error' | 'missing' | 'pending';
-
-interface TestResult {
-  testCaseId: string; // The owning test case.
-  path: string; // Fully qualified path this result belongs to.
-  value?: string; // Raw engine serialization; BoxedEditor formats it. Omitted when status is 'error'.
-  error?: string; // Message when the path failed to evaluate for this case.
-  status: TestResultStatus;
-}
-
-interface TestCasesService {
-  // Ordered list of test cases discovered in IndexedDB; index drives previous/next and the `1/N` counter.
-  listTestCases(): TestCase[];
-
-  // All results for one test case, keyed by path. Read directly by TestResultsColumn cells.
-  getResults(testCaseId: string): TestResultsByPath;
-
-  // Migrate result entries when a node's path changes (called after a successful rename/move).
-  renamePath(from: string, to: string): void;
-}
-```
-
-> Recomputation is the host's responsibility. When the model changes, the host's execution service re-runs its cases
-> and rewrites IndexedDB, then bumps the `revision` prop; the editor re-reads. `BoxedEditor` never triggers execution,
-> keeping it free of any engine dependency.
+> Recomputation is the host's responsibility. When the model changes, the host's execution service (`TestRunner`, from
+> `edgerules-react/tests-manager`, or an equivalent) re-runs its cases and writes `TestCasesService`, which notifies
+> subscribers; `BoxedEditor`'s hooks re-render from that notification. `BoxedEditor` never triggers execution, keeping
+> it free of any engine dependency. After a successful `rename`/`move`, the editor's command layer calls
+> `TestCasesService.renamePath(from, to)` exactly as it does for `DocumentationService` — see [Resolved Decisions](#resolved-decisions)
+> #7.
 
 ## `DocumentationService` API
 

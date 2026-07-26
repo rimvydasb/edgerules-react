@@ -21,7 +21,9 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
   - [ ] TermsNode
   - [ ] ChartNode
   - [ ] OutputNode
-- [ ] EdgeRules Test Runner
+- [x] [EdgeRules Tests Manager](docs/TESTS_MANAGER_STORY.md) (Inputs/Assertions/Validations grid over a model or any
+  fully typed `func`/`ruleset`/`optimise`/`loop`, backed by the engine-free `test-cases-service` package and the
+  `TestRunner` execution service)
 - [ ] EdgeRules Types Editor
 - [EdgeRules Project Explorer](docs/PROJECT_EXPLORER_STORY.md)
 
@@ -67,7 +69,10 @@ components they actually import — a project that only uses the Code Editor nev
 │   │   ├── decision-table/        # Decision Table Editor
 │   │   ├── flow-editor/           # Flow Editor (ReactFlow-based)
 │   │   ├── project-explorer/      # Project Explorer
-│   │   ├── test-runner/           # Test Runner
+│   │   ├── test-cases-service/    # Persistence for test cases/rows/results (no engine, no GUI) — see
+│   │   │                          #   TESTS_MANAGER_STORY.md; consumed by both tests-manager and boxed-editor
+│   │   ├── tests-manager/         # Tests Manager grid + TestRunner (the execution service; see Resolved
+│   │   │                          #   Decision #13 in TESTS_MANAGER_STORY.md for why the names differ)
 │   │   └── types-editor/          # Types Editor
 │   ├── hooks/                     # Custom React hooks for EdgeRules
 │   ├── lib/                       # Core logic and utilities shared across components

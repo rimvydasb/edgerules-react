@@ -70,6 +70,26 @@
         "types": "./dist/components/boxed-editor/index.d.cts",
         "default": "./dist/components/boxed-editor/index.cjs"
       }
+    },
+    "./test-cases-service": {
+      "import": {
+        "types": "./dist/components/test-cases-service/index.d.ts",
+        "default": "./dist/components/test-cases-service/index.js"
+      },
+      "require": {
+        "types": "./dist/components/test-cases-service/index.d.cts",
+        "default": "./dist/components/test-cases-service/index.cjs"
+      }
+    },
+    "./tests-manager": {
+      "import": {
+        "types": "./dist/components/tests-manager/index.d.ts",
+        "default": "./dist/components/tests-manager/index.js"
+      },
+      "require": {
+        "types": "./dist/components/tests-manager/index.d.cts",
+        "default": "./dist/components/tests-manager/index.cjs"
+      }
     }
   },
   "scripts": {
@@ -157,6 +177,7 @@
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "fake-indexeddb": "^6.2.5",
     "http-server": "^14.1.1",
     "jsdom": "^29.1.1",
     "prettier": "^3.9.5",

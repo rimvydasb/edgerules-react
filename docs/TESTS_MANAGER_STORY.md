@@ -872,68 +872,68 @@ does not ship). The engine is never mocked, per [`CLAUDE.md`](../CLAUDE.md).
 
 **Phase 1: `TestCasesService`**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `test-cases-service-types.ts` with the types from [Object Model](#object-model)
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `test-cases-service-types.ts` with the types from [Object Model](#object-model)
   and [Persistence](#persistence)
-- [ ] Add `indexedDbStore.ts`: the `testCases` and `testCells` stores, hydrate/put/delete
-- [ ] Add `createTestCasesService.ts`: in-memory cache, synchronous API, async hydration, best-effort persistence,
+- [x] Add `indexedDbStore.ts`: the `testCases` and `testCells` stores, hydrate/put/delete
+- [x] Add `createTestCasesService.ts`: in-memory cache, synchronous API, async hydration, best-effort persistence,
   `onPersistError`, no-`indexedDB` in-memory-only fallback
-- [ ] Add `renameTestSubject.ts`: prefix-aware key rewrite across the `testCases` and `testResults` stores
-- [ ] Add `useTestCases.ts` and `useTestResult.ts`
-- [ ] Add `package.json` `./test-cases-service` export and the matching `tsup.config.ts` entry
-- [ ] Add the four `__tests__/` files listed in [Components](#components)
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Add `renameTestSubject.ts`: prefix-aware key rewrite across the `testCases` and `testResults` stores
+- [x] Add `useTestCases.ts` and `useTestResult.ts`
+- [x] Add `package.json` `./test-cases-service` export and the matching `tsup.config.ts` entry
+- [x] Add the four `__tests__/` files listed in [Components](#components)
+- [x] Mark all checkboxes as done in this document once verified
 
 **Phase 2: Model derivation**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `model/subjects.ts` — the `ALL` view recursed into nested contexts, the `EXTERNAL_DEFINITIONS` view, and the
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `model/subjects.ts` — the `ALL` view recursed into nested contexts, the `EXTERNAL_DEFINITIONS` view, and the
   `toPortable()` `loop` scan
-- [ ] Add `model/rows.ts` — input vs computed classification, user-type expansion, `optimise` `@result` leaves, and
+- [x] Add `model/rows.ts` — input vs computed classification, user-type expansion, `optimise` `@result` leaves, and
   `flattenResult` for call-site paths the schema hides
-- [ ] Add `model/values.ts` (type-directed `parseCell` / `formatValue` / `matches`) and `model/inputs.ts`
+- [x] Add `model/values.ts` (type-directed `parseCell` / `formatValue` / `matches`) and `model/inputs.ts`
   (subject-relative dotted paths to a nested `execute` input object)
-- [ ] Add `subjects.test.ts`, `rows.test.ts`, `values.test.ts` against a real `MutableDecisionService`
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Add `subjects.test.ts`, `rows.test.ts`, `values.test.ts` against a real `MutableDecisionService`
+- [x] Mark all checkboxes as done in this document once verified
 
 **Phase 3: `TestRunner`**
 
 Depends on Phases 1–2; nothing in this story assumes a runner already exists. No React in this phase — the runner is
 a plain factory, verifiable end to end without rendering anything.
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `tests-manager-types.ts` with the `TestRunner` and `TestSubject` types
-- [ ] Add `runner/createTestRunner.ts`: input binding, `execute` dispatch per subject kind, result flattening,
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `tests-manager-types.ts` with the `TestRunner` and `TestSubject` types
+- [x] Add `runner/createTestRunner.ts`: input binding, `execute` dispatch per subject kind, result flattening,
   `TestResultSet` assembly, run-level `PortableError` handling, missing-solver pre-flight, serialized runs
-- [ ] Add `runner/__tests__/createTestRunner.test.ts` against a real `MutableDecisionService` and a real
+- [x] Add `runner/__tests__/createTestRunner.test.ts` against a real `MutableDecisionService` and a real
   `TestCasesService`, covering every bullet above — including the `optimise` path via a `registerSolver` stub
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Mark all checkboxes as done in this document once verified
 
 **Phase 4: The grid**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add contexts, hooks, `grid/`, `menu/`, `dnd/`, and `TestsManager.tsx` per [Components](#components), wiring
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add contexts, hooks, `grid/`, `menu/`, `dnd/`, and `TestsManager.tsx` per [Components](#components), wiring
   the `TestCasesService` and `TestRunner` delivered in Phases 1 and 3
-- [ ] Implement pre-generation and reconciliation per [Tests Pre-Generation](#tests-pre-generation), including
+- [x] Implement pre-generation and reconciliation per [Tests Pre-Generation](#tests-pre-generation), including
   appending call-site paths discovered in run results
-- [ ] Implement stale-result rendering per [Stale results](#stale-results) and the missing-solver banner
-- [ ] Add `package.json` `./tests-manager` export and the matching `tsup.config.ts` entry
-- [ ] Add `TestsManager.test.tsx`, `pre-generation.test.tsx`, `execution.test.tsx`, `optimise.test.tsx`
-- [ ] Add the Storybook stories listed above
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Implement stale-result rendering per [Stale results](#stale-results) and the missing-solver banner
+- [x] Add `package.json` `./tests-manager` export and the matching `tsup.config.ts` entry
+- [x] Add `TestsManager.test.tsx`, `pre-generation.test.tsx`, `execution.test.tsx`, `optimise.test.tsx`
+- [x] Add the Storybook stories listed above
+- [x] Mark all checkboxes as done in this document once verified
 
 **Phase 5: Quality gate**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Update `docs/BOXED_EDITOR_SPEC.md`'s [`TestCasesService` API](BOXED_EDITOR_SPEC.md#testcasesservice-api) section
+- [x] Ensure project compiles and existing tests are passing
+- [x] Update `docs/BOXED_EDITOR_SPEC.md`'s [`TestCasesService` API](BOXED_EDITOR_SPEC.md#testcasesservice-api) section
   to reference this package instead of defining the interface inline (including `TestResult.value`'s type, per
   Resolved Decision #9), and its ["Service composition"](BOXED_EDITOR_SPEC.md#service-composition) table row
   accordingly
-- [ ] Update `README.md`'s Project Structure to list `tests-manager` and `test-cases-service`
-- [ ] Update `docs/BUG_REPORTS.md` with any engine gaps found during Phases 1–4
-- [ ] Perform linting and formatting (`npm run format`, `npm run typecheck`)
-- [ ] Review the implementation against this document
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Update `README.md`'s Project Structure to list `tests-manager` and `test-cases-service`
+- [x] Update `docs/BUG_REPORTS.md` with any engine gaps found during Phases 1–4
+- [x] Perform linting and formatting (`npm run format`, `npm run typecheck`)
+- [x] Review the implementation against this document
+- [x] Mark all checkboxes as done in this document once verified
 
 ## Resolved Decisions
 
