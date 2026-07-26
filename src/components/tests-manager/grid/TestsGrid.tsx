@@ -1,12 +1,15 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import AddIcon from '@mui/icons-material/Add';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
 import { closestCenter, DndContext } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -28,6 +31,7 @@ import { TestCaseHeaderCell } from './TestCaseHeaderCell';
 import { TestRowLine } from './TestRowLine';
 import {
   DESCRIPTION_COLUMN_WIDTH,
+  ICON_CELL_WIDTH,
   rowHeightForText,
   TEST_CASE_COLUMN_WIDTH,
 } from './wrapping';
@@ -154,6 +158,21 @@ export function TestsGrid({
                   position: 'sticky',
                   left: 0,
                   zIndex: 3,
+                  backgroundColor: '#000',
+                  width: ICON_CELL_WIDTH,
+                  maxWidth: ICON_CELL_WIDTH,
+                  padding: 0,
+                  textAlign: 'center',
+                }}
+              >
+                <FactCheckIcon sx={{ color: '#fff' }} fontSize="small" />
+              </TableCell>
+              <TableCell
+                sx={{
+                  ...CELL_BORDER_SX,
+                  position: 'sticky',
+                  left: ICON_CELL_WIDTH,
+                  zIndex: 3,
                   backgroundColor: 'background.paper',
                   width: pathColumnWidth,
                 }}
@@ -169,7 +188,7 @@ export function TestsGrid({
                 sx={{
                   ...CELL_BORDER_SX,
                   position: 'sticky',
-                  left: pathColumnWidth,
+                  left: ICON_CELL_WIDTH + pathColumnWidth,
                   zIndex: 3,
                   backgroundColor: 'background.paper',
                   width: DESCRIPTION_COLUMN_WIDTH,
@@ -192,6 +211,25 @@ export function TestsGrid({
                   <TestCaseHeaderCell testCase={testCase} />
                 </TableCell>
               ))}
+              <TableCell
+                sx={{
+                  ...CELL_BORDER_SX,
+                  width: ICON_CELL_WIDTH,
+                  maxWidth: ICON_CELL_WIDTH,
+                  padding: 0,
+                  textAlign: 'center',
+                }}
+              >
+                {!readOnly && (
+                  <IconButton
+                    size="small"
+                    aria-label="Add test case at end"
+                    onClick={() => testCases.addTestCase()}
+                  >
+                    <AddIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

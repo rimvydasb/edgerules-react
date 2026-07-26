@@ -83,18 +83,6 @@ export function rowActionsFor(row: TestRow, testCases: TestCasesService): TestsM
     actions.push({ label: 'Move to Validations', onSelect: () => testCases.setRowSection(row.path, 'validations') });
   }
 
-  if (row.section === 'inputs' || row.section === 'assertions') {
-    const kind = row.section === 'inputs' ? 'input' : 'assertion';
-    actions.push({
-      label: 'Clear values',
-      onSelect: () => {
-        for (const testCase of testCases.listTestCases()) {
-          testCases.setCell(testCase.id, row.path, kind, '');
-        }
-      },
-    });
-  }
-
   if (row.section === 'assertions') {
     actions.push({ label: 'Copy actual to expected', onSelect: () => copyActualToExpected(row, testCases) });
   }

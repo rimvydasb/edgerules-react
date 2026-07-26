@@ -7,9 +7,10 @@ import { useMemo, type ReactElement } from 'react';
 // (the field itself) is what a reader needs, not the root it hangs off of.
 export const PATH_COLUMN_MAX_WIDTH = 240;
 
-// Reserves room, inside the column, for the drag handle + row-menu button + cell padding that sit
-// alongside the path text (see `TestRowLine`) — the budget for the text itself is the rest.
-const PATH_CELL_CHROME_WIDTH = 64;
+// Reserves room, inside the column, for the row-menu button + cell padding that sit alongside the
+// path text (see `TestRowLine` — the drag handle lives in its own fixed-width column, so it isn't
+// budgeted for here) — the budget for the text itself is the rest.
+const PATH_CELL_CHROME_WIDTH = 40;
 
 // Heuristic px-per-character for the 13px monospace font `PathCell` renders in. jsdom has no real
 // canvas 2D context (see vitest.setup.ts), so this avoids `measureText` entirely rather than adding

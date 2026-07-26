@@ -6,6 +6,10 @@ export const ROW_HEIGHT_STEP = 40;
 export const DESCRIPTION_COLUMN_WIDTH = 160;
 export const TEST_CASE_COLUMN_WIDTH = 160;
 
+// Width of every fixed icon-only column: the top-left logo cell, the per-row drag handle, and the
+// trailing "add test case" column — all square, all the same size as `ROW_HEIGHT_STEP`.
+export const ICON_CELL_WIDTH = 40;
+
 const CELL_TEXT_HORIZONTAL_PADDING = 16;
 // Top + bottom cell padding (see the `8px` vertical padding in `TestRowLine`'s description
 // textarea) — the line-count -> height conversion must budget for this too, or a row sized to fit

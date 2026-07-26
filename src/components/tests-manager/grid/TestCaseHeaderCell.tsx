@@ -1,8 +1,10 @@
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useState, useSyncExternalStore, type ReactElement } from 'react';
 import type { TestCase } from '../../test-cases-service';
 import { useTestsManagerContext } from '../context/TestsManagerContext';
 import { testCaseActionsFor } from '../menu/actions';
 import { TestsMenu } from '../menu/TestsMenu';
+import { ICON_CELL_WIDTH } from './wrapping';
 
 // Case name, three-dots menu, run indicator.
 export function TestCaseHeaderCell({
@@ -71,18 +73,33 @@ export function TestCaseHeaderCell({
         <span data-testid={`running-${testCase.id}`}>⏳</span>
       ) : null}
       {!readOnly && (
-        <button
-          type="button"
-          aria-label={`case menu ${testCase.name}`}
-          onClick={(event) => setMenuAnchor(event.currentTarget)}
+        <span
           style={{
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
+            width: ICON_CELL_WIDTH,
+            height: ICON_CELL_WIDTH,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            marginLeft: 'auto',
           }}
         >
-          ⋮
-        </button>
+          <button
+            type="button"
+            aria-label={`case menu ${testCase.name}`}
+            onClick={(event) => setMenuAnchor(event.currentTarget)}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <MoreVertIcon fontSize="small" />
+          </button>
+        </span>
       )}
       <TestsMenu
         anchorEl={menuAnchor}
