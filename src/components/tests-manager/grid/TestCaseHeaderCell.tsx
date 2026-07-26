@@ -1,5 +1,6 @@
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { useTheme } from '@mui/material/styles';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useSyncExternalStore, type CSSProperties, type ReactElement } from 'react';
@@ -23,6 +24,9 @@ export function TestCaseHeaderCell({
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(testCase.name);
   const sortable = useSortable({ id: testCase.id, disabled: readOnly });
+  // Matches `CELL_BORDER_SX` (gridStyle.ts) — these three parts aren't MUI `TableCell`s, so the
+  // theme's divider color has to be read explicitly rather than picked up via `sx`.
+  const cellBorder = `1px solid ${useTheme().palette.divider}`;
 
   const commitName = (): void => {
     if (draftName.trim() !== '' && draftName !== testCase.name) {
@@ -60,6 +64,8 @@ export function TestCaseHeaderCell({
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'grab',
+            border: cellBorder,
+            boxSizing: 'border-box',
           }}
         >
           <DragIndicatorIcon fontSize="small" />
@@ -72,10 +78,14 @@ export function TestCaseHeaderCell({
           minWidth: 0,
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
           gap: 4,
           padding: '0 4px',
           overflow: 'hidden',
           cursor: readOnly ? 'default' : 'text',
+          border: cellBorder,
+          boxSizing: 'border-box',
         }}
       >
         {editing ? (
@@ -89,7 +99,7 @@ export function TestCaseHeaderCell({
             onKeyDown={(event) => {
               if (event.key === 'Enter') event.currentTarget.blur();
             }}
-            style={{ width: '100%', boxSizing: 'border-box' }}
+            style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center' }}
           />
         ) : (
           <span
@@ -112,6 +122,8 @@ export function TestCaseHeaderCell({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            border: cellBorder,
+            boxSizing: 'border-box',
           }}
         >
           <button

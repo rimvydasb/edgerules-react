@@ -85,10 +85,11 @@ export function TestsGrid({
         useTestCaseColumns(testCasesService, pageSize);
 
     const pathColumnWidth = computePathColumnWidth(rows.map((row) => row.path));
-    // The name area sits between the two 40px drag-handle/menu icons (see `TestCaseHeaderCell`), so
-    // it wraps against that narrower width, not the full column.
+    // Two `ROW_HEIGHT_STEP`s (80px) fixed — the name area sits between the two 40px
+    // drag-handle/menu icons (see `TestCaseHeaderCell`), so a long name that needs more than that
+    // still wraps against that narrower width and grows the row further.
     const headerRowHeight = Math.max(
-        40,
+        80,
         ...visibleCases.map((testCase) =>
             rowHeightForText(testCase.name, TEST_CASE_COLUMN_WIDTH - 2 * ICON_CELL_WIDTH),
         ),
