@@ -1,11 +1,12 @@
 # EdgeRules Engine Bug Reports
 
 Every entry below was reproduced against `@edgerules/node`, `@edgerules/web`, and, where relevant,
-`@edgerules/portable` version **0.0.1-alpha.202607252017** on 2026-07-25.
+`@edgerules/portable` version **0.0.2-alpha.202607261827** on 2026-07-26.
 
-The upgrade fixed the previously recorded optimisation CRUD, whole-root key-order, and
-`PortableTypeDefinition` contract bugs. The expression-wrapped type-definition report was also removed because the
-engine behavior is intentional and the Portable contract now documents the accepted forms.
+The upgrade fixed the previously recorded `loop` filter-view visibility bug and the `set()` non-string
+`expression` rejection bug — both removed below. `listTestSubjects` in `src/components/tests-manager/model/subjects.ts`
+no longer needs the `toPortable()` scan workaround for loop discovery; `loop-schema` is now projected in `FIELDS`/`ALL`
+like `func`/`ruleset`.
 
 ## `@description` is discarded by Portable CRUD writes — postponed (@edgerules/node + @edgerules/web)
 
@@ -64,64 +65,3 @@ Expected behavior: either honour the override, or reject the call with a `Portab
 keep computed fields in `result` (so the merge cannot overwrite them) and report unbound input keys to the host.
 `API_SPEC.md` already states that computed fields are ones the host "reads but does not supply at execution time" — so
 supplying one is a caller error the API should surface rather than absorb.
-
-## A `loop` declaration is invisible to every `get` filter view (@edgerules/node + @edgerules/web)
-
-`loop` is a callable metaphor on equal footing with `func` / `ruleset` / `optimise` — `execute('tally', {...})` runs it
-and `get('tally')` returns a proper `@kind: "loop-schema"`. But listing the containing context never projects it, under
-any filter, so a host cannot discover that `tally` exists in the first place. Each sibling metaphor is discoverable:
-`func`/`ruleset` appear in `FIELDS`/`ALL`, and `optimise` has its `EXTERNAL_DEFINITIONS` catalog row.
-
-```ts
-const service = MutableDecisionService.fromCode(`{
-  loop tally(values: number[]): {
-    over: values
-    state: { total: 0 }
-    do: { total: state.total + item }
-    return: state.total
-  }
-  result: tally([1, 2, 3])
-}`);
-
-for (const filter of ['FIELDS', 'ALL', 'FUNCTION_DEFINITIONS', 'TYPE_DEFINITIONS', 'EXTERNAL_DEFINITIONS']) {
-  'tally' in service.get('*', filter); // false — every one
-}
-
-Object.keys(service.toPortable()); // ['@kind', 'tally', 'result'] — present here
-service.get('tally'); // {'@kind': 'loop-schema', '@parameters': {...}, '@state': {...}, '@return': 'number'}
-await service.execute('tally', { values: [1, 2, 3] }); // 6
-```
-
-This is the same class of gap that was fixed for `ruleset` (a `ruleset` field used to be omitted when listing its
-containing context). The workaround is to scan `toPortable()` for `@kind: "loop"` entries and then `get(name)` each one
-for its schema.
-
-Expected behavior: a `loop` declaration is projected when listing its containing context, consistently with `func` and
-`ruleset` in the `FIELDS`/`ALL` views — or, if it is meant to be catalog-only like `optimise`, as a row in
-`EXTERNAL_DEFINITIONS`.
-
-## `set()` rejects a non-string `expression` even though the Portable contract allows one (@edgerules/node + @edgerules/web)
-
-`PortableExpression.expression` is typed as `PortableValue` (`string | number | boolean | array | context |
-expression-string`), and `set()` accepts a plain object/array literal for it elsewhere in the contract. But a bare
-`number`/`boolean` literal is rejected outright — the field must be wrapped as a DSL expression string — even though
-the type explicitly permits it and the error message suggests the field is simply missing.
-
-```ts
-const service = MutableDecisionService.fromCode('{ x: 1 }');
-
-service.set('bonus', { '@kind': 'expression', expression: 5 });
-// { '@kind': 'error', type: 'WrongFieldPath',
-//   message: "invalid portable structure: @kind:expression missing 'expression' field" }
-// — the field is present; a *number* value specifically is rejected.
-
-service.set('bonus2', { '@kind': 'expression', expression: '5' }); // string form — succeeds
-// { '@kind': 'type', type: 'number', readOnly: true }
-```
-
-Workaround: always send `expression` as a string (a literal like `'5'` or a DSL expression like `'x + 1'`), never a
-bare `number`/`boolean`.
-
-Expected behavior: either `set()` accepts a bare `PortableScalar` for `expression` as the type declares, or
-`PortableExpression.expression`'s type is narrowed to `PortableExpressionString` to match what the engine actually
-accepts.

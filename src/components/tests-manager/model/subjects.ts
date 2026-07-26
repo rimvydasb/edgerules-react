@@ -28,6 +28,8 @@ function walkCallables(node: unknown, path: readonly string[], into: TestSubject
       into.push({ id: dottedPath, kind: 'function', name: dottedPath });
     } else if (kind === 'ruleset-schema' && hasOnlyTypedParameters(value['@parameters'])) {
       into.push({ id: dottedPath, kind: 'ruleset', name: dottedPath });
+    } else if (kind === 'loop-schema' && hasOnlyTypedParameters(value['@parameters'])) {
+      into.push({ id: dottedPath, kind: 'loop', name: dottedPath });
     }
   }
 }
@@ -46,22 +48,9 @@ function collectOptimiseSubjects(node: unknown): TestSubject[] {
   return subjects;
 }
 
-// `loop` declarations are absent from every `get` filter view. The only way to enumerate them is
-// to scan the authored `toPortable()` tree for `@kind: 'loop'` entries at the root (loops are
-// root-only by language rule, same as `optimise`) — see BUG_REPORTS.md.
-function collectLoopNames(portableRoot: unknown): string[] {
-  const names: string[] = [];
-  if (!isRecord(portableRoot)) return names;
-  for (const [key, value] of Object.entries(portableRoot)) {
-    if (key.startsWith('@') || !isRecord(value)) continue;
-    if (value['@kind'] === 'loop') names.push(key);
-  }
-  return names;
-}
-
-// `'*'` plus every fully typed callable — `func`/`ruleset` at any context depth (the `ALL` view),
-// `optimise` (the `EXTERNAL_DEFINITIONS` view), and `loop` (a `toPortable()` scan) — each excluded
-// when it declares any untyped parameter.
+// `'*'` plus every fully typed callable — `func`/`ruleset`/`loop` at any context depth (the `ALL`
+// view) and `optimise` (the `EXTERNAL_DEFINITIONS` view) — each excluded when it declares any
+// untyped parameter.
 export function listTestSubjects(service: MutableDecisionService): TestSubject[] {
   const portableRoot = service.toPortable();
   const modelName =
@@ -77,14 +66,6 @@ export function listTestSubjects(service: MutableDecisionService): TestSubject[]
   const externalView = service.get('*', 'EXTERNAL_DEFINITIONS');
   if (!isPortableError(externalView)) {
     subjects.push(...collectOptimiseSubjects(externalView));
-  }
-
-  for (const name of collectLoopNames(portableRoot)) {
-    const schema: unknown = service.get(name);
-    if (isPortableError(schema) || !isRecord(schema)) continue;
-    if (schema['@kind'] === 'loop-schema' && hasOnlyTypedParameters(schema['@parameters'])) {
-      subjects.push({ id: name, kind: 'loop', name });
-    }
   }
 
   return subjects;

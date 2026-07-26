@@ -112,14 +112,15 @@ All four callable metaphors execute identically (`execute(dottedPath, args)`), b
 |--------------|------------------------------------------------------|-------------------|---------------|---------------------|
 | `function`   | `get('*', 'ALL')`, recursing into nested contexts    | `function-schema` | `@parameters` | leaves of `@return` |
 | `ruleset`    | `get('*', 'ALL')`, recursing into nested contexts    | `ruleset-schema`  | `@parameters` | leaves of `@return` |
+| `loop`       | `get('*', 'ALL')`, recursing into nested contexts    | `loop-schema`     | `@parameters` | leaves of `@return` |
 | `optimise`   | `get('*', 'EXTERNAL_DEFINITIONS')`                   | `optimise`        | `@parameters` | leaves of `@result` |
-| `loop`       | `toPortable()` scan, then `get(path)` for the schema | `loop-schema`     | `@parameters` | leaves of `@return` |
 
-The last two rows are engine quirks, not design choices. An `optimise` declaration is absent from `FIELDS` and `ALL`
-entirely — its catalog row lives only in `EXTERNAL_DEFINITIONS`. A `loop` declaration is absent from *every* `get`
-filter view, so the only way to enumerate loops is to scan `toPortable()` for `@kind: "loop"` entries and then
-`get(path)` each one; this is filed in [`BUG_REPORTS.md`](BUG_REPORTS.md) and the scan can be dropped once listing
-projects loops. `optimise` and `loop` are root-only by language rule, so only functions and rulesets nest.
+The last row is an engine quirk, not a design choice: an `optimise` declaration is absent from `FIELDS` and `ALL`
+entirely, so its catalog row lives only in `EXTERNAL_DEFINITIONS`. (`loop` used to have the same problem — it was
+invisible in every `get` filter view, forcing a `toPortable()` scan plus a `get(path)` per name — but that was fixed in
+`@edgerules/node`/`@edgerules/web` 0.0.2-alpha.202607261827; `loop-schema` is now projected in `FIELDS`/`ALL` exactly
+like `function-schema`/`ruleset-schema`, so `walkCallables` in `subjects.ts` discovers it the same way.) `optimise` is
+root-only by language rule; functions, rulesets, and loops nest.
 
 A callable declared inside **another callable's body** (`func outer(): { func inner(): … }`) is an implementation
 detail of its parent, not an entry point, and is not offered as a subject — even though the engine will happily
@@ -441,9 +442,8 @@ src/components/tests-manager/
 ├─ TestsManagerProps.ts              — TestsManagerProps (public)
 ├─ tests-manager-types.ts            — TestSubject, TestSubjectKind, TestRunner (public)
 ├─ model/
-│  ├─ subjects.ts                    — listTestSubjects: '*' plus every fully typed callable — func/ruleset at
-│  │                                    any context depth (ALL view), optimise (EXTERNAL_DEFINITIONS view),
-│  │                                    loop (toPortable scan + get)
+│  ├─ subjects.ts                    — listTestSubjects: '*' plus every fully typed callable — func/ruleset/loop
+│  │                                    at any context depth (ALL view), optimise (EXTERNAL_DEFINITIONS view)
 │  ├─ rows.ts                        — deriveRows: input vs computed leaves, user-type expansion, optimise
 │  │                                    @result leaves; flattenResult for call-site paths the schema hides
 │  ├─ values.ts                      — parseCell / formatValue / matches (type-directed)
@@ -744,7 +744,7 @@ entry point, so a user never faces an empty grid.
 
 ```mermaid
 flowchart TD
-    A["Model loaded / revision changed"] --> B["get ALL + get EXTERNAL_DEFINITIONS + toPortable loop scan"]
+    A["Model loaded / revision changed"] --> B["get ALL + get EXTERNAL_DEFINITIONS"]
     B --> C["listTestSubjects — '*' plus every fully typed callable, by dotted path"]
     C --> D["deriveRows for the selected subject"]
     D --> E{"Path already persisted?"}
@@ -764,8 +764,7 @@ flowchart TD
     N --> O
 ```
 
-Derivation rules for `deriveRows`, read off `get('*', 'ALL')`, `get('*', 'EXTERNAL_DEFINITIONS')`, and a
-`toPortable()` scan for `loop` declarations:
+Derivation rules for `deriveRows`, read off `get('*', 'ALL')` and `get('*', 'EXTERNAL_DEFINITIONS')`:
 
 - A `@kind: 'type'` node with `writeOnly: true` is an **input** leaf; with `readOnly: true` it is a **computed** leaf.
   A `@kind: 'expression'` node is a computed leaf.
@@ -972,7 +971,5 @@ Work items this story deliberately defers rather than blocks on. Each needs its 
   `Inputs` section can widen to arbitrary computed paths and a test case becomes able to pin an intermediate
   derivation directly. Blocked on the engine — the current behavior (silently ignoring and echoing such input) is
   filed in [`BUG_REPORTS.md`](BUG_REPORTS.md).
-- **`loop` discovery without a `toPortable()` scan.** Once listing a context projects `loop` declarations, subject
-  discovery drops the extra scan and reads them from the same view as `func`/`ruleset`.
 - **Purging orphaned test data.** Rows for paths the model no longer declares are hidden, never deleted. A purge
   belongs with the future project-saving story.
