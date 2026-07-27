@@ -22,9 +22,9 @@ const LOAN_ORIGINATION_MODEL = `{
   payment: 2666.67
 }`;
 
-// Phase 1 implements `model`/`field`/`context`/`complexType`; the rest of the vocabulary
-// (list/relation/function/ruleset/optimisation) renders as a labelled placeholder until
-// Phases 3–4 land — this model exercises both paths side by side.
+// Phases 1–3 implement `model`/`field`/`context`/`complexType`/`list`/`list-item`/`relation`/
+// `relation-item`; `function`/`ruleset`/`optimisation` still render as a labelled placeholder
+// until Phase 4 lands — this model exercises both paths side by side.
 const PREVIEW_OF_LATER_PHASES_MODEL = `{
   application: { amount: <number, required: true> }
   stages: ["review", "approve"]
@@ -33,6 +33,21 @@ const PREVIEW_OF_LATER_PHASES_MODEL = `{
     hitPolicy: "first-match"
     rules: [{ when: { age: >= 18 }, then: { eligible: true } }]
   }
+}`;
+
+// A scalar `list`, a homogeneous `relation`, a *heterogeneous* relation (a record missing a
+// field renders an empty cell, never a nested field row), and a relation whose cell holds a
+// complex object (a drill-down, rendered as nested rows rather than JSON text).
+const COLLECTIONS_MODEL = `{
+  reviewStages: ["Application", "Underwriting", "Credit review", "Closing"]
+  applicants: [
+    { reference: "LOAN-001", applicant: "Ada L.", amount: 320000 }
+    { reference: "LOAN-002", applicant: "Grace H." }
+  ]
+  offices: [
+    { id: 1, address: { city: "Vilnius", zip: "01001" } }
+    { id: 2, address: { city: "Kaunas", zip: "44001" } }
+  ]
 }`;
 
 const LARGE_MODEL = `{ ${Array.from({ length: 200 }, (_, index) => `value${index}: ${index}`).join(' ')} }`;
@@ -86,8 +101,10 @@ const meta: Meta<typeof BoxedEditor> = {
           'Phase 2 adds the expression cell: click a `field` row’s value to swap in a ' +
           'model-scoped CodeMirror editor (Enter/blur commits, Escape reverts); a rejected ' +
           'edit keeps the cell active and shows the engine’s message inline. `onChange` ' +
-          'fires once per successful commit. The remaining row kinds still render a labelled ' +
-          'placeholder until Phases 3–4 land.',
+          'fires once per successful commit. Phase 3 adds `list`/`relation` rows and the ' +
+          'trailing "(new …)" placeholder every appendable container renders — click it to ' +
+          'append without opening a menu. The remaining row kinds still render a labelled ' +
+          'placeholder until Phase 4 lands.',
       },
     },
   },
@@ -160,6 +177,18 @@ export const PreviewOfLaterPhases: Story = {
   loaders: [
     async () => ({ service: await buildService(PREVIEW_OF_LATER_PHASES_MODEL) }),
   ],
+  render: (args, { loaded }) => (
+    <BoxedEditor
+      {...args}
+      service={loaded.service}
+      path="*"
+      languageService={MutableDecisionService}
+    />
+  ),
+};
+
+export const CollectionsListAndRelation: Story = {
+  loaders: [async () => ({ service: await buildService(COLLECTIONS_MODEL) })],
   render: (args, { loaded }) => (
     <BoxedEditor
       {...args}

@@ -65,3 +65,41 @@ Expected behavior: either honour the override, or reject the call with a `Portab
 keep computed fields in `result` (so the merge cannot overwrite them) and report unbound input keys to the host.
 `API_SPEC.md` already states that computed fields are ones the host "reads but does not supply at execution time" — so
 supplying one is a caller error the API should surface rather than absorb.
+
+## Array-typed fields reject elements with differing optional-field shapes — linker treats a heterogeneous array as a type mismatch (@edgerules/node + @edgerules/web)
+
+A single (non-array) value happily omits an optional field of its declared type — `set('a', {name: "Ada"})` against
+`type Person: { name: <string, required: true>; age: <number> }; a: <Person, required: true>` succeeds and `age`
+simply doesn't appear. The same optionality is rejected the moment the value sits inside an **array**: every element
+of an array-typed field is required to share one identical inferred structural type, so a record that omits an
+optional field errors on the very next `get`/`set` touching that array — even though nothing about the declared item
+type demands it.
+
+```ts
+const service = MutableDecisionService.fromCode(`{
+  people: [
+    { name: "Ada", age: 32 },
+    { name: "Lin" }
+  ]
+}`);
+
+service.get('people[1]', 'ALL');
+// { '@kind': 'error', type: 'Execution',
+//   message: 'linker error: type mismatch in node NodeId(…): expected {age: number; name: string}, found {name: string}' }
+```
+
+The same error fires for a plain literal array with no declared type at all (inferred structurally from the first
+element), for `MutableDecisionService.fromPortable(...)` given the identical heterogeneous array directly (bypassing
+the DSL parser), for a `set()` that only ever *adds* a field to some elements of an already-homogeneous array (e.g.
+adding a new column to one record of a `people` relation without immediately backfilling every other record), and for
+appending a wholly-blank new record (`{}`) to an already-homogeneous array — all four reproduce the identical
+`type mismatch` linker error on the very next `get`/`set`.
+
+Expected behavior: an array's element type check should apply per-element against the declared/inferred item type
+(honouring `required: false` per field, exactly as the non-array case already does), not demand byte-for-byte
+identical shapes across every element. This blocks `BoxedEditor`'s `relation` row kind from ever representing a
+genuinely heterogeneous collection (a record missing a field, or a column added but not yet backfilled everywhere)
+through the real engine — `docs/boxed-editor/phase-03-collections-list-and-relation.md` §3 requires exactly this
+("a record missing a field renders an empty cell, never a nested field row"), and Phase 3's tests fall back to
+constructing the `BoxedRowData`/`PortableNode` directly (as `normalization.test.ts` already did in Phase 1) to verify
+the rendering side of this contract without going through the engine's `get()`.

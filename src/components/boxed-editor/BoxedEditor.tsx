@@ -7,6 +7,7 @@ import { BoxedEditorUiProvider } from './context/BoxedEditorUiContext';
 import { useBoxedEditorService } from './hooks/useBoxedEditorService';
 import { useBoxedRows } from './hooks/useBoxedRows';
 import { ModelHeaderRow } from './rows/ModelHeaderRow';
+import { NewRow } from './rows/NewRow';
 import { RowSwitch } from './rows/RowSwitch';
 
 interface BoxedEditorGridProps {
@@ -42,6 +43,7 @@ function BoxedEditorGrid({ path, showHeader }: BoxedEditorGridProps): ReactEleme
       {rows.map((row) => (
         <RowSwitch key={row.path} row={row} />
       ))}
+      <NewRow row={{ ...rootRow, children: rows }} />
     </Box>
   );
 }

@@ -2,6 +2,7 @@ import { Fragment, type ReactElement } from 'react';
 import type { BoxedRowData } from '../boxed-editor-types';
 import { useBoxedEditorUi } from '../context/BoxedEditorUiContext';
 import { GenericRow } from './GenericRow';
+import { NewRow } from './NewRow';
 import { RowSwitch } from './RowSwitch';
 
 export interface ContextRowProps {
@@ -16,8 +17,14 @@ export function ContextRow({ row }: ContextRowProps): ReactElement {
   return (
     <Fragment>
       <GenericRow name={row.name} depth={row.depth} occupiesNameAndValue strong />
-      {expanded &&
-        row.children?.map((child) => <RowSwitch key={child.path} row={child} />)}
+      {expanded && (
+        <Fragment>
+          {row.children?.map((child) => (
+            <RowSwitch key={child.path} row={child} />
+          ))}
+          <NewRow row={row} />
+        </Fragment>
+      )}
     </Fragment>
   );
 }

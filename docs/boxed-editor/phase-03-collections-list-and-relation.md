@@ -143,13 +143,13 @@ src/components/boxed-editor/
 
 ## 8. Tasks
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `rows/ListRow`, `ListItemRow`, `RelationRow` (own column-header sub-grid), `RelationItemRow` (nested
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `rows/ListRow`, `ListItemRow`, `RelationRow` (own column-header sub-grid), `RelationItemRow` (nested
       drill-down when a cell value is a complex object)
-- [ ] Add `rows/NewRow.tsx` and wire the [Append placeholders](#5-append-placeholders) table
-- [ ] Add Add/Delete Column handling for `relation` (whole-parent rewrite via `setBoxedRowData`)
-- [ ] Extend `__tests__/row-kinds.test.tsx` with list/relation cases, including a heterogeneous relation
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Add `rows/NewRow.tsx` and wire the [Append placeholders](#5-append-placeholders) table
+- [x] Add Add/Delete Column handling for `relation` (whole-parent rewrite via `setBoxedRowData`)
+- [x] Extend `__tests__/row-kinds.test.tsx` with list/relation cases, including a heterogeneous relation
+- [x] Mark all checkboxes as done in this document once verified
 
 ## 9. Verification
 
