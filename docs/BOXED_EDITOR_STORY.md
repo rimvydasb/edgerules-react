@@ -28,7 +28,7 @@ columns.
 | `BoxedRowData` / `BoxedTableRowData` / `SignatureParameter`     | `boxed-editor/boxed-editor-types.ts`       | ✅ **Done**                                                            |
 | `TestCasesService`, `useTestCases`, `useTestResult`             | `src/components/test-cases-service/`       | ✅ **Done**                                                            |
 | `TestRunner` (`createTestRunner`), `TestsManager`               | `src/components/tests-manager/`            | ✅ **Done** — `createTestRunner` / `qualifyPath` need exporting (Task 0) |
-| `DocumentationService`                                          | `src/components/documentation-service/`     | ⬜ Not built — consumed here through its interface only                 |
+| `DocumentationService`, `useDescription`                       | `src/components/documentation-service/`     | ✅ **Done** — see [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md); consumed here through its interface only |
 | **`BoxedEditor` React UI** (rows, cells, menus, DnD, columns)   | `src/components/boxed-editor/`             | ⬜ **This story**                                                      |
 
 **Do not re-implement anything marked ✅.** The service is the model's only surface; the UI is a pure renderer plus a
@@ -594,8 +594,10 @@ Both overlays are **owned elsewhere**; `BoxedEditor` only consumes them and decl
 
 ### `DocumentationService` API
 
-Defined by [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md) (package
-`edgerules-react/documentation-service`, not yet built). The methods `BoxedEditor` uses:
+Defined and implemented by [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md) (package
+`edgerules-react/documentation-service`), together with `DocumentationServiceOptions`, `Unsubscribe`, and
+`useDescription`. From `BoxedEditor`'s point of view it is a path-keyed free-text overlay: `DescriptionColumn` reads
+and writes it, and the command layer calls `renamePath` after a successful rename/move. The methods used:
 
 ```typescript
 getDescription(path: string): string | undefined;      // DescriptionColumn value, or undefined when unset
@@ -751,7 +753,7 @@ Hooks (internal contract; only `BoxedEditor` is exported):
 | --------------------------- | -------------------------------------------------------------------------------- |
 | `useBoxedEditorService()`   | the facade from `BoxedEditorContext`                                              |
 | `useBoxedRows(path)`        | `useSyncExternalStore(service.subscribe, () => service.getBoxedRowsData(path))`   |
-| `useDescription(path)`      | `DocumentationService` for one path                                              |
+| `useDescription(path)`      | thin wrapper delegating to `edgerules-react/documentation-service`'s `useDescription(documentationService, path)` |
 | `useRowTestResult(path)`    | the package's `useTestResult(testCasesService, currentCaseId, qualifyPath(...))`  |
 | `useAltHeld()`              | whether Alt is held, from `BoxedEditorUiContext`                                  |
 | `useRowActions(row)`        | the row kind's menu items as dispatchable commands                               |

@@ -68,6 +68,8 @@ components they actually import — a project that only uses the Code Editor nev
 │   │   ├── code-editor/           # Code Editor (CodeMirror) + shared EdgeRules language modules (language/)
 │   │   ├── code-editor-cell/      # Compact cell editor sharing the code-editor language modules
 │   │   ├── decision-table/        # Decision Table Editor
+│   │   ├── documentation-service/ # Persistence for path-keyed free-text descriptions (no engine, no GUI) — see
+│   │   │                          #   DOCUMENTATION_SERVICE_STORY.md; shared by boxed-editor, decision-table, etc.
 │   │   ├── flow-editor/           # Flow Editor (ReactFlow-based)
 │   │   ├── project-explorer/      # Project Explorer
 │   │   ├── test-cases-service/    # Persistence for test cases/rows/results (no engine, no GUI) — see

@@ -81,6 +81,16 @@
         "default": "./dist/components/test-cases-service/index.cjs"
       }
     },
+    "./documentation-service": {
+      "import": {
+        "types": "./dist/components/documentation-service/index.d.ts",
+        "default": "./dist/components/documentation-service/index.js"
+      },
+      "require": {
+        "types": "./dist/components/documentation-service/index.d.cts",
+        "default": "./dist/components/documentation-service/index.cjs"
+      }
+    },
     "./tests-manager": {
       "import": {
         "types": "./dist/components/tests-manager/index.d.ts",

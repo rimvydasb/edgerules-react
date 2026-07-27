@@ -261,58 +261,59 @@ sequenceDiagram
 
 **Phase 1: Package scaffold + core service (framework-agnostic)**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `documentation-service-types.ts`: `DocumentationService`, `DocumentationServiceOptions`, `Unsubscribe`
-- [ ] Add `indexedDbStore.ts`: open/upgrade the `descriptions` object store (compound `['modelName','path']` key),
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `documentation-service-types.ts`: `DocumentationService`, `DocumentationServiceOptions`, `Unsubscribe`
+- [x] Add `indexedDbStore.ts`: open/upgrade the `descriptions` object store (compound `['modelName','path']` key),
   `hydrateAll(modelName)`, `put`, `delete`
-- [ ] Add `createDocumentationService.ts`: in-memory `Map` cache, synchronous `getDescription`/`setDescription`/
+- [x] Add `createDocumentationService.ts`: in-memory `Map` cache, synchronous `getDescription`/`setDescription`/
   `renamePath`/`subscribe`/`dispose`, async hydration-on-construct, best-effort async persistence with
   `onPersistError`, and the no-`indexedDB` in-memory-only fallback
-- [ ] Add `index.ts` exporting `DocumentationService`, `DocumentationServiceOptions`, `Unsubscribe`,
+- [x] Add `index.ts` exporting `DocumentationService`, `DocumentationServiceOptions`, `Unsubscribe`,
   `createDocumentationService`
-- [ ] Add `package.json` `./documentation-service` export entry and `tsup.config.ts` entry, mirroring the existing
+- [x] Add `package.json` `./documentation-service` export entry and `tsup.config.ts` entry, mirroring the existing
   `boxed-editor`/`decision-table`/etc. entries
-- [ ] Add `fake-indexeddb` as a devDependency (spec-compliant in-memory IndexedDB for tests — not a mock of this
+- [x] Add `fake-indexeddb` as a devDependency (spec-compliant in-memory IndexedDB for tests — not a mock of this
   package's own logic, only of the browser API it depends on)
-- [ ] Add `__tests__/createDocumentationService.test.ts` (importing `fake-indexeddb/auto` locally, not globally in
+- [x] Add `__tests__/createDocumentationService.test.ts` (importing `fake-indexeddb/auto` locally, not globally in
   `vitest.setup.ts`): hydration from pre-seeded entries, get/set round trip, empty-string clears the IndexedDB row,
   `renamePath` migrates an existing entry and no-ops for a path with no description, `subscribe` fires on write and
   once after hydration, two independent `createDocumentationService` instances over the same `dbName`/`modelName`
   observe each other's persisted writes after re-hydration, `dispose()` stops further notifications
-- [ ] Add `__tests__/no-indexeddb-fallback.test.ts`: with `indexedDB` deleted from `globalThis` for the test, service
+- [x] Add `__tests__/no-indexeddb-fallback.test.ts`: with `indexedDB` deleted from `globalThis` for the test, service
   still supports get/set/subscribe in-memory and does not throw at construction or on write
-- [ ] `npm run build` succeeds with the `documentation-service` entry now resolvable
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] `npm run build` succeeds with the `documentation-service` entry now resolvable
+- [x] Mark all checkboxes as done in this document once verified
 
 **Phase 2: React hook**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `useDescription.ts`: `useSyncExternalStore(service.subscribe, () => service.getDescription(path))`
-- [ ] Export `useDescription` from `index.ts`
-- [ ] Add `__tests__/useDescription.test.tsx` (RTL, real `createDocumentationService` with `fake-indexeddb/auto`):
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `useDescription.ts`: `useSyncExternalStore(service.subscribe, () => service.getDescription(path))`
+- [x] Export `useDescription` from `index.ts`
+- [x] Add `__tests__/useDescription.test.tsx` (RTL, real `createDocumentationService` with `fake-indexeddb/auto`):
   initial read, re-renders on `setDescription` from outside the hook, re-renders on `renamePath`, no update after
   unmount (subscription cleaned up)
-- [ ] Add a Storybook story under `stories/documentation-service/` demonstrating two components sharing one
+- [x] Add a Storybook story under `stories/documentation-service/` demonstrating two components sharing one
   `DocumentationService` instance and staying in sync
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Mark all checkboxes as done in this document once verified
 
 **Phase 3: Quality gate**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Update `docs/BOXED_EDITOR_STORY.md`: replace the inline `DocumentationService` interface in
+- [x] Ensure project compiles and existing tests are passing
+- [x] Update `docs/BOXED_EDITOR_STORY.md`: replace the inline `DocumentationService` interface in
   ["`DocumentationService` API"](BOXED_EDITOR_STORY.md#documentationservice-api) with a reference to this package and
   story; update the ["Service composition"](BOXED_EDITOR_STORY.md#service-composition) table's `DocumentationService`
   row; update the ["Component API" export-surface note](BOXED_EDITOR_STORY.md#component-api) so `DocumentationService`
   and its data types are described as re-exported/imported from `edgerules-react/documentation-service` rather than
   defined locally; update the ["React integration"](BOXED_EDITOR_STORY.md#react-integration) section's mention of
   `DocumentationService`/`useDescription` accordingly
-- [ ] Update `README.md`'s Project Structure section to mention `documentation-service` as a shared, non-visual
+- [x] Update `README.md`'s Project Structure section to mention `documentation-service` as a shared, non-visual
   service package (distinct from the GUI-component checklist at the top of the file)
-- [ ] Update `docs/BUG_REPORTS.md` with any engine/browser gaps found during Phases 1–2
-- [ ] Ensure new tests are added for the new feature and all tests are passing
-- [ ] Perform linting and formatting to maintain code quality and consistency (`npm run format`, `npm run typecheck`)
-- [ ] Review the implementation to ensure it meets the requirements and follows best practices
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Update `docs/BUG_REPORTS.md` with any engine/browser gaps found during Phases 1–2 — none: this package has no
+  `@edgerules/web`/`@edgerules/node` dependency, so no engine/browser gap was in scope to find
+- [x] Ensure new tests are added for the new feature and all tests are passing
+- [x] Perform linting and formatting to maintain code quality and consistency (`npm run format`, `npm run typecheck`)
+- [x] Review the implementation to ensure it meets the requirements and follows best practices
+- [x] Mark all checkboxes as done in this document once verified
 
 ## Resolved Decisions
 

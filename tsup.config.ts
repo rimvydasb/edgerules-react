@@ -11,6 +11,7 @@ export default defineConfig({
     'components/decision-table/index': 'src/components/decision-table/index.ts',
     'components/boxed-editor/index': 'src/components/boxed-editor/index.ts',
     'components/test-cases-service/index': 'src/components/test-cases-service/index.ts',
+    'components/documentation-service/index': 'src/components/documentation-service/index.ts',
     'components/tests-manager/index': 'src/components/tests-manager/index.ts',
   },
   format: ['esm', 'cjs'],
