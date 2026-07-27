@@ -4,6 +4,7 @@ import RuleIcon from '@mui/icons-material/Rule';
 import { Fragment, type ReactElement } from 'react';
 import type { BoxedRowData, BoxedTableRowData } from '../boxed-editor-types';
 import { useBoxedEditorUi } from '../context/BoxedEditorUiContext';
+import { useRowActions } from '../hooks/useRowActions';
 import { CELL, ColumnDragHandle, TALL_ROW_HEIGHT, TypeName } from '../primitives';
 import { GenericRow } from './GenericRow';
 import { NewRow } from './NewRow';
@@ -171,6 +172,7 @@ function RulesetColumnHeaders({
 export function RulesetRow({ row }: RulesetRowProps): ReactElement {
   const { isExpanded } = useBoxedEditorUi();
   const expanded = isExpanded(row.path);
+  const menuActions = useRowActions(row);
   const hitPolicy = (row.children ?? []).find(
     (child) => child.kind === 'ruleset-hit-policy',
   )?.value;
@@ -200,6 +202,7 @@ export function RulesetRow({ row }: RulesetRowProps): ReactElement {
           />
         }
         valueIsInteractive
+        actions={menuActions}
       />
       {expanded &&
         row.children?.map((child) => renderChild(child, showPriority))}

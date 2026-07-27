@@ -13,9 +13,14 @@ export interface BoxedEditorUiValue {
   /** Per-row expand/collapse, keyed by CRUD path. Falls back to the provider's default. */
   isExpanded: (path: string) => boolean;
   toggleExpand: (path: string) => void;
-  /** The one active editing cell path — set by `ExpressionCell` starting Phase 2. */
+  /** The one active editing cell path — set by `ExpressionCell`/`NameCell`. A name cell keys its
+   * slot as `${path}#name` so it never collides with that same row's value cell. */
   activeCellPath: string | null;
   setActiveCellPath: (path: string | null) => void;
+  /** The model-level `Model Settings` dialog — opened from the `model` row's menu. */
+  modelSettingsOpen: boolean;
+  openModelSettings: () => void;
+  closeModelSettings: () => void;
 }
 
 const BoxedEditorUiContext = createContext<BoxedEditorUiValue | null>(null);
@@ -34,6 +39,7 @@ export function BoxedEditorUiProvider({
   const altHeld = useAltHeldState();
   const [overrides, setOverrides] = useState<Map<string, boolean>>(() => new Map());
   const [activeCellPath, setActiveCellPath] = useState<string | null>(null);
+  const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
 
   const isExpanded = useCallback(
     (path: string) => overrides.get(path) ?? defaultExpanded,
@@ -47,9 +53,20 @@ export function BoxedEditorUiProvider({
     });
   }, [defaultExpanded]);
 
+  const openModelSettings = useCallback(() => setModelSettingsOpen(true), []);
+  const closeModelSettings = useCallback(() => setModelSettingsOpen(false), []);
+
   const value = useMemo<BoxedEditorUiValue>(
-    () => ({ isExpanded, toggleExpand, activeCellPath, setActiveCellPath }),
-    [isExpanded, toggleExpand, activeCellPath],
+    () => ({
+      isExpanded,
+      toggleExpand,
+      activeCellPath,
+      setActiveCellPath,
+      modelSettingsOpen,
+      openModelSettings,
+      closeModelSettings,
+    }),
+    [isExpanded, toggleExpand, activeCellPath, modelSettingsOpen, openModelSettings, closeModelSettings],
   );
 
   return (

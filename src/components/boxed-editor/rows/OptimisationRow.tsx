@@ -2,6 +2,7 @@ import MultilineChartIcon from '@mui/icons-material/MultilineChart';
 import { Fragment, type ReactElement } from 'react';
 import type { BoxedRowData, BoxedTableRowData } from '../boxed-editor-types';
 import { useBoxedEditorUi } from '../context/BoxedEditorUiContext';
+import { useRowActions } from '../hooks/useRowActions';
 import { ArgumentHeaders } from '../primitives';
 import { GenericRow } from './GenericRow';
 import { OptimisationConstraintGroupRow } from './OptimisationConstraintGroupRow';
@@ -22,6 +23,7 @@ export interface OptimisationRowProps {
 export function OptimisationRow({ row }: OptimisationRowProps): ReactElement {
   const { isExpanded } = useBoxedEditorUi();
   const expanded = isExpanded(row.path);
+  const actions = useRowActions(row);
 
   return (
     <Fragment>
@@ -35,6 +37,7 @@ export function OptimisationRow({ row }: OptimisationRowProps): ReactElement {
         iconBgColor="#1e88e5"
         value={<ArgumentHeaders arguments={row.parameters ?? []} />}
         valueIsInteractive
+        actions={actions}
       />
       {expanded && row.children?.map((child) => renderChild(child))}
     </Fragment>

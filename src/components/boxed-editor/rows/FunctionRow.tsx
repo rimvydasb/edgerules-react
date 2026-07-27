@@ -2,6 +2,7 @@ import FunctionsIcon from '@mui/icons-material/Functions';
 import { Fragment, type ReactElement } from 'react';
 import type { BoxedRowData, BoxedTableRowData } from '../boxed-editor-types';
 import { useBoxedEditorUi } from '../context/BoxedEditorUiContext';
+import { useRowActions } from '../hooks/useRowActions';
 import { ArgumentHeaders } from '../primitives';
 import { FunctionResultRow } from './FunctionResultRow';
 import { GenericRow } from './GenericRow';
@@ -16,6 +17,7 @@ export interface FunctionRowProps {
 export function FunctionRow({ row }: FunctionRowProps): ReactElement {
   const { isExpanded } = useBoxedEditorUi();
   const expanded = isExpanded(row.path);
+  const actions = useRowActions(row);
 
   return (
     <Fragment>
@@ -30,6 +32,7 @@ export function FunctionRow({ row }: FunctionRowProps): ReactElement {
         iconBgColor="#1976d2"
         value={<ArgumentHeaders arguments={row.parameters ?? []} />}
         valueIsInteractive
+        actions={actions}
       />
       {expanded && (
         <Fragment>

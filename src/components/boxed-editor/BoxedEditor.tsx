@@ -61,6 +61,7 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
     revision,
     readOnly = false,
     onChange,
+    onOpenNode,
     languageService,
     documentationService,
     testCasesService,
@@ -82,6 +83,7 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
         service={service}
         readOnly={readOnly}
         onChange={onChange}
+        onOpenNode={onOpenNode}
         showDescription={showDescription}
         showTestResults={showTestResults}
         showType={showType}

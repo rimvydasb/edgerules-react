@@ -146,15 +146,21 @@ src/components/boxed-editor/
 
 ## 9. Tasks
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `menu/actions.ts`, `menu/RowActionsMenu.tsx`, `menu/useRowMenu.ts`, `hooks/useRowActions.ts` — the per-kind
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `menu/actions.ts`, `menu/RowActionsMenu.tsx`, `menu/useRowMenu.ts`, `hooks/useRowActions.ts` — the per-kind
       action lists from [§3](#3-per-kind-action-lists), with icons from the wireframe's `actions.ts`
-- [ ] Implement every [action](#4-what-each-action-does), including `Duplicate` auto-rename for named kinds,
+- [x] Implement every [action](#4-what-each-action-does), including `Duplicate` auto-rename for named kinds,
       `Convert to …`, `Switch to Minimise/Maximise`, Expand/Collapse, `Model Settings`, and `View as code`
-- [ ] Implement the [Special Actions](#5-special-actions) (cleared argument name, cleared empty field) and the
-      `readOnly` enablement rules
-- [ ] Add `__tests__/duplicate-rename.test.tsx`; extend `commands.test.tsx` to every action
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Implement the `readOnly` enablement rules (only `Duplicate` and Expand/Collapse survive)
+- [ ] ~~Implement the [Special Actions](#5-special-actions)~~ — **partially done**: the command-layer half
+      (`remove(path)` / `removeArgument`) is in place and is exactly what the menu's own `Delete` /
+      `Delete "‹argument›" Argument` actions already dispatch, but there is still no editable **name** cell
+      anywhere in this codebase (arguments render as static text in `ArgumentHeaders`; a `field`'s name has no
+      cell at all) to *trigger* either special case by clearing a name — that UI doesn't exist yet in any prior
+      phase, so wiring it here was out of scope for "context menus and actions" (and risked duplicate-text
+      regressions in existing `getByText(name)` assertions). Revisit once a name-editing cell lands.
+- [x] Add `__tests__/duplicate-rename.test.tsx`; extend `commands.test.tsx` to every action
+- [x] Mark all checkboxes as done in this document once verified
 
 ## 10. Verification
 

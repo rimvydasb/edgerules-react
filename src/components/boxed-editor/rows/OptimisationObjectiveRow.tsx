@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import type { BoxedRowData } from '../boxed-editor-types';
 import { ExpressionCell } from '../cells/ExpressionCell';
+import { useRowActions } from '../hooks/useRowActions';
 import { SettingRow } from '../primitives';
 
 export interface OptimisationObjectiveRowProps {
@@ -15,8 +16,9 @@ export interface OptimisationObjectiveRowProps {
  * child edits" case for the exact shape.
  */
 export function OptimisationObjectiveRow({ row }: OptimisationObjectiveRowProps): ReactElement {
+  const actions = useRowActions(row);
   return (
-    <SettingRow name={row.name} depth={row.depth} showActions>
+    <SettingRow name={row.name} depth={row.depth} showActions actions={actions}>
       <ExpressionCell row={row} />
     </SettingRow>
   );

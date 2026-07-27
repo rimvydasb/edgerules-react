@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import { Fragment, type ReactElement } from 'react';
 import type { BoxedTableRowData } from '../boxed-editor-types';
 import { ExpressionCell } from '../cells/ExpressionCell';
+import { useRowActions } from '../hooks/useRowActions';
 import { childPath, pathDepth } from '../service/portable-utils';
 import { GenericRow } from './GenericRow';
 import { RowSwitch } from './RowSwitch';
@@ -60,6 +61,7 @@ function RelationCells({ row }: { row: BoxedTableRowData }): ReactElement {
  * (rendered below, already normalized by the service) instead of showing its value inline.
  */
 export function RelationItemRow({ row }: RelationItemRowProps): ReactElement {
+  const actions = useRowActions(row);
   return (
     <Fragment>
       <GenericRow
@@ -67,6 +69,7 @@ export function RelationItemRow({ row }: RelationItemRowProps): ReactElement {
         depth={row.depth}
         value={<RelationCells row={row} />}
         valueIsInteractive
+        actions={actions}
       />
       {row.children?.map((child) => (
         <RowSwitch key={child.path} row={child} />

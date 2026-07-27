@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { ExpressionCell } from '../cells/ExpressionCell';
 import type { BoxedRowData } from '../boxed-editor-types';
+import { useRowActions } from '../hooks/useRowActions';
 import { GenericRow } from './GenericRow';
 
 export interface FieldRowProps {
@@ -9,6 +10,7 @@ export interface FieldRowProps {
 
 /** The one generic leaf row — class field, typed input, or plain computed expression. */
 export function FieldRow({ row }: FieldRowProps): ReactElement {
+  const actions = useRowActions(row);
   return (
     <GenericRow
       name={row.name}
@@ -16,6 +18,7 @@ export function FieldRow({ row }: FieldRowProps): ReactElement {
       valueIsInteractive
       type={row.type}
       depth={row.depth}
+      actions={actions}
     />
   );
 }

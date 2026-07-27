@@ -3,6 +3,7 @@ import type { PortableError } from '@edgerules/portable';
 import type { BoxedRowData, BoxedTableRowData } from '../boxed-editor-types';
 import { ExpressionCell } from '../cells/ExpressionCell';
 import { useRowCommands } from '../commands/useRowCommands';
+import { useRowActions } from '../hooks/useRowActions';
 import { GenericRow } from './GenericRow';
 
 export interface FunctionResultRowProps {
@@ -22,6 +23,7 @@ export interface FunctionResultRowProps {
 /** The synthesized `result` line of a function body — always present, not draggable. */
 export function FunctionResultRow({ row, functionRow }: FunctionResultRowProps): ReactElement {
   const commands = useRowCommands();
+  const actions = useRowActions(row);
 
   const onCommit = functionRow
     ? (value: string): PortableError | undefined => {
@@ -38,6 +40,7 @@ export function FunctionResultRow({ row, functionRow }: FunctionResultRowProps):
       type={row.type}
       depth={row.depth}
       showDragHandle={false}
+      actions={actions}
     />
   );
 }

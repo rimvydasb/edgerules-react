@@ -2,6 +2,8 @@ import Box from '@mui/material/Box';
 import SettingsIcon from '@mui/icons-material/Settings';
 import type { ReactElement, ReactNode } from 'react';
 import { useBoxedEditorContext } from '../context/BoxedEditorContext';
+import { RowActionsMenu, type RowMenuItem } from '../menu/RowActionsMenu';
+import { useRowMenu } from '../menu/useRowMenu';
 import { Cell } from './Cell';
 import { ACTIONS_COLUMN_WIDTH, CELL, gridTemplateColumns } from './layout';
 import { RowActionsButton } from './RowActionsButton';
@@ -17,6 +19,8 @@ export interface SettingRowProps {
   /** Whether this fixed setting has any menu actions (e.g. `optimisation-variable-group`'s
    * "Add variable"). Plain settings like `hitPolicy` render no button — see Phase 5's registry. */
   showActions?: boolean;
+  /** This row's own menu items (`useRowActions`). No button renders when empty. */
+  actions?: RowMenuItem[];
 }
 
 /**
@@ -32,8 +36,10 @@ export function SettingRow({
   result,
   occupiesNameAndValue = false,
   showActions = false,
+  actions = [],
 }: SettingRowProps): ReactElement {
   const { showDescription, showTestResults } = useBoxedEditorContext();
+  const menu = useRowMenu();
 
   return (
     <Box
@@ -95,8 +101,11 @@ export function SettingRow({
         </Box>
       </Box>
       {!occupiesNameAndValue && <Cell>{children}</Cell>}
-      {showActions ? (
-        <RowActionsButton />
+      {showActions && actions.length > 0 ? (
+        <>
+          <RowActionsButton onClick={menu.open} />
+          <RowActionsMenu items={actions} anchorEl={menu.anchorEl} onClose={menu.close} />
+        </>
       ) : (
         <Box
           sx={{

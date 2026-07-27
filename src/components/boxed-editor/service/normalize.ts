@@ -373,6 +373,9 @@ export function normalizeRoot(
     typeof root['@model-name'] === 'string' ? root['@model-name'] : 'Model';
   return {
     ...rowBase('model', '*', name),
+    ...(typeof root['@model-version'] === 'string'
+      ? { modelVersion: root['@model-version'] }
+      : {}),
     children: normalizeContextChildren(root, '*', schema),
   };
 }

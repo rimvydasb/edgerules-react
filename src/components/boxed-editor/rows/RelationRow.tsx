@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import { Fragment, type ReactElement } from 'react';
 import type { BoxedTableRowData } from '../boxed-editor-types';
+import { useRowActions } from '../hooks/useRowActions';
 import { ColumnDragHandle, TypeName } from '../primitives';
 import { GenericRow } from './GenericRow';
 import { NewRow } from './NewRow';
@@ -38,6 +39,7 @@ function RelationColumnHeaders({ columns }: { columns: string[] }): ReactElement
 /** Header of a homogeneous complex-object collection; its records are `relation-item` rows. */
 export function RelationRow({ row }: RelationRowProps): ReactElement {
   const columns = row.columns ?? [];
+  const actions = useRowActions(row);
   return (
     <Fragment>
       <GenericRow
@@ -46,6 +48,7 @@ export function RelationRow({ row }: RelationRowProps): ReactElement {
         strong
         value={<RelationColumnHeaders columns={columns} />}
         valueIsInteractive
+        actions={actions}
       />
       {row.children?.map((child) => (
         <RowSwitch key={child.path} row={child} />

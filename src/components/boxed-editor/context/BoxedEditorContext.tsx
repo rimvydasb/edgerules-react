@@ -10,6 +10,7 @@ import type { CodeEditorService } from '../../code-editor';
 import type { DocumentationService } from '../../documentation-service';
 import type { TestCasesService, TestSubjectId } from '../../test-cases-service';
 import type { TestRunner } from '../../tests-manager';
+import type { BoxedEditorOpenTarget } from '../BoxedEditorProps';
 import type { BoxedEditorService } from '../boxed-editor-types';
 
 export interface BoxedEditorContextValue {
@@ -26,6 +27,8 @@ export interface BoxedEditorContextValue {
   autoRunTests: boolean;
   /** Fired once per successful committed mutation, by `useRowCommands`. */
   onChange?: (snapshot: PortableRootContext) => void;
+  /** Routes `View as code` (and any future host-editor handoff) to the host. */
+  onOpenNode?: (target: BoxedEditorOpenTarget) => void;
 }
 
 const BoxedEditorContext = createContext<BoxedEditorContextValue | null>(null);

@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import type { BoxedTableRowData } from '../boxed-editor-types';
 import { ExpressionCell } from '../cells/ExpressionCell';
 import { useRowCommands } from '../commands/useRowCommands';
+import { useRowActions } from '../hooks/useRowActions';
 import { SettingRow } from '../primitives';
 import { childPath } from '../service/portable-utils';
 
@@ -13,6 +14,7 @@ export interface RulesetDefaultRowProps {
 /** Singleton fallback row shown when no rule matches — fixed, not draggable, not duplicable. */
 export function RulesetDefaultRow({ row }: RulesetDefaultRowProps): ReactElement {
   const commands = useRowCommands();
+  const actions = useRowActions(row);
   const actionColumns = row.actionColumns ?? [];
 
   const commitAction = (index: number, value: string) => {
@@ -22,7 +24,7 @@ export function RulesetDefaultRow({ row }: RulesetDefaultRowProps): ReactElement
   };
 
   return (
-    <SettingRow name={row.name} depth={row.depth} showActions>
+    <SettingRow name={row.name} depth={row.depth} showActions actions={actions}>
       <Box sx={{ display: 'flex', width: '100%', height: '100%' }}>
         <Box
           sx={{

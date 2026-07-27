@@ -13,6 +13,8 @@ export interface RowCommands {
   setBoxedRowData(path: string, row: BoxedRowData): PortableError | undefined;
   /** Name-cell commit on a named kind. */
   rename(path: string, newName: string): PortableError | undefined;
+  /** `Delete`, cleared-name special actions, `Delete "‹column›" Column`. */
+  remove(path: string): PortableError | undefined;
 }
 
 /**
@@ -36,6 +38,12 @@ export function useRowCommands(): RowCommands {
       },
       rename(path, newName) {
         const result = service.rename(path, newName);
+        if (isPortableError(result)) return result;
+        notifyChange();
+        return undefined;
+      },
+      remove(path) {
+        const result = service.remove(path);
         if (isPortableError(result)) return result;
         notifyChange();
         return undefined;

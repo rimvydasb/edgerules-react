@@ -4,6 +4,7 @@ import type { PortableError } from '@edgerules/portable';
 import type { BoxedTableRowData } from '../boxed-editor-types';
 import { ExpressionCell } from '../cells/ExpressionCell';
 import { useRowCommands } from '../commands/useRowCommands';
+import { useRowActions } from '../hooks/useRowActions';
 import { childPath } from '../service/portable-utils';
 import { GenericRow } from './GenericRow';
 
@@ -171,12 +172,14 @@ function RuleCells({ row, showPriority }: { row: BoxedTableRowData; showPriority
 
 /** One row of a decision table's rule matrix — draggable, `Duplicate`/`Delete` menu actions. */
 export function RuleRow({ row, showPriority = false }: RuleRowProps): ReactElement {
+  const actions = useRowActions(row);
   return (
     <GenericRow
       name={row.name}
       depth={row.depth}
       value={<RuleCells row={row} showPriority={showPriority} />}
       valueIsInteractive
+      actions={actions}
     />
   );
 }

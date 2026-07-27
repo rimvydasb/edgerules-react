@@ -191,6 +191,14 @@ function optimisationNode(row: BoxedTableRowData): PortableOptimiseDefinition {
 export function denormalize(row: BoxedRowData): PortableNode {
   switch (row.kind) {
     case 'model':
+      // `@model-version` round-trips through the engine; `@model-name` is accepted on parse but
+      // not yet persisted or re-emitted (`API_SPEC.md` Limitations #3, `docs/BUG_REPORTS.md`) — set
+      // regardless so the write is a no-op for that key rather than a silent drop of user intent.
+      return {
+        ...contextFromChildren(row.children),
+        ...(row.modelVersion ? { '@model-version': row.modelVersion } : {}),
+        '@model-name': row.name,
+      } as PortableNode;
     case 'context':
       return contextFromChildren(row.children);
     case 'complexType':

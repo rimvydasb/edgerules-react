@@ -37,6 +37,8 @@ export interface BoxedRowData {
   readOnly?: boolean;
   deletable?: boolean;
   children?: BoxedRowData[];
+  /** `model` kind only — the root context's `@model-version` metadata (Model Settings). */
+  modelVersion?: string;
 }
 
 export interface BoxedTableRowData extends BoxedRowData {

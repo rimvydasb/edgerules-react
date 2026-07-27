@@ -1,6 +1,8 @@
 import Box from '@mui/material/Box';
 import type { KeyboardEvent, ReactElement, ReactNode } from 'react';
 import { useBoxedEditorContext } from '../context/BoxedEditorContext';
+import { RowActionsMenu, type RowMenuItem } from '../menu/RowActionsMenu';
+import { useRowMenu } from '../menu/useRowMenu';
 import {
   ACTIONS_COLUMN_WIDTH,
   Cell,
@@ -41,6 +43,10 @@ export interface GenericRowProps {
   /** `false` suppresses the three-dot menu button — the trailing `NewRow` placeholder has no
    * actions of its own; an empty `ActionsColumn`-width cell fills the gap instead. */
   showActions?: boolean;
+  /** The row's own menu items (`useRowActions`). No button renders when empty, regardless of
+   * `showActions` (e.g. `ruleset-hit-policy`, or any row whose only actions were filtered out
+   * under `readOnly`). */
+  actions?: RowMenuItem[];
   /** Makes the whole row respond to click/Enter/Space — used by the trailing `NewRow`
    * placeholder to append without opening a menu. */
   onActivate?: () => void;
@@ -61,9 +67,11 @@ export function GenericRow({
   tall = false,
   valueIsInteractive = false,
   showActions = true,
+  actions = [],
   onActivate,
 }: GenericRowProps): ReactElement {
   const { showDescription, showTestResults, showType } = useBoxedEditorContext();
+  const menu = useRowMenu();
   const height = tall ? TALL_ROW_HEIGHT : ROW_HEIGHT;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -153,8 +161,11 @@ export function GenericRow({
           )}
         </Cell>
       )}
-      {showActions ? (
-        <RowActionsButton tall={tall} />
+      {showActions && actions.length > 0 ? (
+        <>
+          <RowActionsButton tall={tall} onClick={menu.open} />
+          <RowActionsMenu items={actions} anchorEl={menu.anchorEl} onClose={menu.close} />
+        </>
       ) : (
         <Box
           aria-hidden="true"
