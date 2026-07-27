@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box';
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import type { PortableNode, PortableRootContext } from '@edgerules/portable';
+import type { PortableError, PortableNode, PortableRootContext } from '@edgerules/portable';
 import {
   CodeEditorCell,
   type CodeEditorEmbedContext,
@@ -114,6 +114,13 @@ function buildExpressionEmbedContext(
 
 export interface ExpressionCellProps {
   row: BoxedRowData;
+  /**
+   * Overrides the default whole-row commit at `row.path`. Needed by cells that don't own an
+   * addressable path of their own — a ruleset rule's condition/action cells rewrite and commit
+   * their *owning* `rule` row instead (Section 7: "Container edits ... rewrite the whole
+   * parent"). `row.path` still seeds this cell's active/embed-context identity.
+   */
+  onCommit?: (value: string) => PortableError | undefined;
 }
 
 /**
@@ -121,7 +128,7 @@ export interface ExpressionCellProps {
  * across the whole tree is active at a time (`BoxedEditorUiContext.activeCellPath`); every other
  * cell renders static text.
  */
-export function ExpressionCell({ row }: ExpressionCellProps): ReactElement {
+export function ExpressionCell({ row, onCommit }: ExpressionCellProps): ReactElement {
   const { service, readOnly, languageService } = useBoxedEditorContext();
   const { activeCellPath, setActiveCellPath } = useBoxedEditorUi();
   const commands = useRowCommands();
@@ -153,7 +160,9 @@ export function ExpressionCell({ row }: ExpressionCellProps): ReactElement {
   };
 
   const commit = (value: string): void => {
-    const result = commands.setBoxedRowData(row.path, { ...row, value });
+    const result = onCommit
+      ? onCommit(value)
+      : commands.setBoxedRowData(row.path, { ...row, value });
     if (result) {
       setDraft(value);
       setError(result.message);

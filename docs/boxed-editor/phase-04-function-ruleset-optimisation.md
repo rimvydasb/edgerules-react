@@ -191,16 +191,17 @@ src/components/boxed-editor/__tests__/row-kinds.test.tsx — extend
 
 ## 11. Tasks
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `FunctionRow` + `FunctionResultRow` with `ArgumentHeaders`; Add/Delete Argument
-- [ ] Add `RulesetRow` (parameters + condition/action header groups), `RuleRow` (cell-map **and**
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `FunctionRow` + `FunctionResultRow` with `ArgumentHeaders`; Add/Delete Argument
+      (structural — the row/`ArgumentHeaders` support it; the menu action itself is Phase 5 wiring)
+- [x] Add `RulesetRow` (parameters + condition/action header groups), `RuleRow` (cell-map **and**
       `conditionsExpression` forms, `priority` under `best-match` only), `RulesetDefaultRow`, `RulesetHitPolicyRow`
       (`DropdownChip`)
-- [ ] Add `OptimisationRow`, `OptimisationSettingRow`, `OptimisationVariableGroupRow`, `OptimisationVariableRow`,
+- [x] Add `OptimisationRow`, `OptimisationSettingRow`, `OptimisationVariableGroupRow`, `OptimisationVariableRow`,
       `OptimisationObjectiveRow`, `OptimisationConstraintGroupRow`, `OptimisationConstraintRow`, honouring the
       [row composition](#5-ruleset-and-optimisation-row-composition) order and non-draggable set
-- [ ] Extend `__tests__/row-kinds.test.tsx` to cover every remaining kind
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Extend `__tests__/row-kinds.test.tsx` to cover every remaining kind
+- [x] Mark all checkboxes as done in this document once verified
 
 ## 12. Verification
 

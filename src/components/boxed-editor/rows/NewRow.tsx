@@ -6,7 +6,10 @@ import type {
 } from '../boxed-editor-types';
 import {
   appendListItem,
+  appendOptimisationConstraint,
+  appendOptimisationVariable,
   appendRelationItem,
+  appendRule,
   nextFieldRow,
 } from '../commands/rowFactories';
 import { useRowCommands } from '../commands/useRowCommands';
@@ -19,12 +22,7 @@ interface NewRowConfig {
   label: string;
 }
 
-/**
- * Every appendable container and the placeholder it renders. `itemKind` values without a
- * matching `rowFactories` entry (`rule`, `optimisation-variable`, `optimisation-constraint`)
- * simply don't render yet — Phase 4 adds their row component, factory, and this placeholder
- * starts working with no further changes here.
- */
+/** Every appendable container and the placeholder it renders. */
 const NEW_ROW_CONFIG: Partial<Record<BoxedRowKind, NewRowConfig>> = {
   model: { itemKind: 'field', label: '(new item)' },
   context: { itemKind: 'field', label: '(new item)' },
@@ -85,8 +83,31 @@ export function NewRow({ row }: NewRowProps): ReactElement | null {
       };
       break;
     }
+    case 'rule': {
+      const ruleset = row as BoxedTableRowData;
+      depth = row.depth + 1;
+      onActivate = () => {
+        commands.setBoxedRowData(ruleset.path, appendRule(ruleset));
+      };
+      break;
+    }
+    case 'optimisation-variable': {
+      depth = row.depth + 1;
+      onActivate = () => {
+        commands.setBoxedRowData(row.path, appendOptimisationVariable(row));
+      };
+      break;
+    }
+    case 'optimisation-constraint': {
+      depth = row.depth + 1;
+      onActivate = () => {
+        commands.setBoxedRowData(row.path, appendOptimisationConstraint(row));
+      };
+      break;
+    }
     default:
-      // `rule` / `optimisation-variable` / `optimisation-constraint` land with Phase 4.
+      // Every `itemKind` actually used by `NEW_ROW_CONFIG` is handled above; `BoxedRowKind` is
+      // wider than that, so TypeScript still needs an exhaustive fallback.
       return null;
   }
 

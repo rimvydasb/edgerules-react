@@ -70,6 +70,30 @@ export const rowFactories: Partial<Record<BoxedRowKind, RowFactory>> = {
     columns: [],
     cells: [],
   }),
+  rule: (path, name, depth): BoxedTableRowData => ({
+    kind: 'rule',
+    depth,
+    path,
+    name,
+    conditionColumns: [],
+    actionColumns: [],
+    conditions: [],
+    actions: [],
+  }),
+  'optimisation-variable': (path, name, depth) => ({
+    kind: 'optimisation-variable',
+    depth,
+    path,
+    name,
+    value: '<number, min: 0>',
+  }),
+  'optimisation-constraint': (path, name, depth) => ({
+    kind: 'optimisation-constraint',
+    depth,
+    path,
+    name,
+    value: '0 <= 0',
+  }),
 };
 
 function uniqueName(base: string, existing: Set<string>): string {
@@ -175,4 +199,70 @@ export function removeRelationColumn(
       };
     }),
   };
+}
+
+/**
+ * Appends a blank `rule` — its condition/action columns aligned to the owning `ruleset`'s own,
+ * inserted just before the `ruleset-default` row when one is present — and returns the whole
+ * `ruleset` row for a parent rewrite (rules are addressed positionally; an append can't be a
+ * single-path `set` the way a name-keyed context field can). Action cells seed from the first
+ * existing rule (or `default`) rather than a blind `BLANK_LITERAL`: `then` shapes must match
+ * exactly across every rule and `default` (`RULESETS_REFERENCE.md`), and action columns are
+ * commonly typed heterogeneously (e.g. a string `level` beside a numeric `limit`) — copying a
+ * known-good row keeps every column's literal valid for its column instead of guessing.
+ */
+export function appendRule(row: BoxedTableRowData): BoxedTableRowData {
+  const children = row.children ?? [];
+  const rules = children.filter((child) => child.kind === 'rule') as BoxedTableRowData[];
+  const fallback = children.find((child) => child.kind === 'ruleset-default') as
+    | BoxedTableRowData
+    | undefined;
+  const referenceActions = rules[0]?.actions ?? fallback?.actions;
+  const path = indexedPath(childPath(row.path, 'rules'), rules.length);
+  const conditionColumns = row.conditionColumns ?? [];
+  const actionColumns = row.actionColumns ?? [];
+  const rule: BoxedTableRowData = {
+    ...(rowFactories.rule!(
+      path,
+      `Rule ${rules.length + 1}`,
+      pathDepth(path),
+    ) as BoxedTableRowData),
+    conditionColumns,
+    actionColumns,
+    conditions: conditionColumns.map(() => ''),
+    actions: referenceActions ?? actionColumns.map(() => BLANK_LITERAL),
+  };
+  const insertAt = children.findIndex((child) => child.kind === 'ruleset-default');
+  const nextChildren =
+    insertAt === -1
+      ? [...children, rule]
+      : [...children.slice(0, insertAt), rule, ...children.slice(insertAt)];
+  return { ...row, children: nextChildren };
+}
+
+/**
+ * Appends a blank, uniquely-named `optimisation-variable` and returns the whole
+ * `optimisation-variable-group` row for a parent rewrite — the service coalesces a write at the
+ * group's path into the owning `optimise` declaration (Section 7).
+ */
+export function appendOptimisationVariable(row: BoxedRowData): BoxedRowData {
+  const children = row.children ?? [];
+  const existing = new Set(children.map((child) => child.name));
+  const name = uniqueName('variable', existing);
+  const path = childPath(row.path, name);
+  const variable = rowFactories['optimisation-variable']!(path, name, pathDepth(path));
+  return { ...row, children: [...children, variable] };
+}
+
+/**
+ * Appends a blank, uniquely-named `optimisation-constraint` and returns the whole
+ * `optimisation-constraint-group` row for a parent rewrite.
+ */
+export function appendOptimisationConstraint(row: BoxedRowData): BoxedRowData {
+  const children = row.children ?? [];
+  const existing = new Set(children.map((child) => child.name));
+  const name = uniqueName('constraint', existing);
+  const path = childPath(row.path, name);
+  const constraint = rowFactories['optimisation-constraint']!(path, name, pathDepth(path));
+  return { ...row, children: [...children, constraint] };
 }
