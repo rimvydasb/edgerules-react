@@ -6,3 +6,8 @@ export type {
   BoxedTableRowData,
   SignatureParameter,
 } from './boxed-editor-types';
+export type {
+  BoxedEditorOpenTarget,
+  BoxedEditorProps,
+  BoxedEditorTargetKind,
+} from './BoxedEditorProps';

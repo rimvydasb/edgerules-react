@@ -153,15 +153,15 @@ docs/specs/TESTS_MANAGER_SPEC.md          — Open Question #1 → resolved
 
 ## 6. Tasks
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Export `createTestRunner` from `src/components/tests-manager/index.ts` so a host can construct the runner
+- [x] Ensure project compiles and existing tests are passing
+- [x] Export `createTestRunner` from `src/components/tests-manager/index.ts` so a host can construct the runner
       `BoxedEditor` needs
-- [ ] Move `qualifyPath` into `src/components/test-cases-service/` (it owns subject-relative paths), re-export it from
+- [x] Move `qualifyPath` into `src/components/test-cases-service/` (it owns subject-relative paths), re-export it from
       `tests-manager` for compatibility, and update `specs/TESTS_MANAGER_SPEC.md` Open Question #1 as resolved
       (Resolved Decision #17)
-- [ ] Add `BoxedEditorProps.ts` with the [Component API](#3-component-api-land-it-in-this-phase) props and the
+- [x] Add `BoxedEditorProps.ts` with the [Component API](#3-component-api-land-it-in-this-phase) props and the
       `BoxedEditorOpenTarget` / `BoxedEditorTargetKind` types; export them from `boxed-editor/index.ts`
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Mark all checkboxes as done in this document once verified
 
 ## 7. Done when
 

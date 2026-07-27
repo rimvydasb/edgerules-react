@@ -1,4 +1,5 @@
 export { createTestCasesService } from './createTestCasesService';
+export { qualifyPath } from './qualifyPath';
 export { renameTestSubject } from './renameTestSubject';
 export { useTestCases } from './useTestCases';
 export type { UseTestCasesResult } from './useTestCases';

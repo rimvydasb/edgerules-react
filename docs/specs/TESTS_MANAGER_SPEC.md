@@ -868,10 +868,10 @@ Stories live in `stories/tests-manager/TestsManager.stories.tsx`, each building 
 
 ## Open Questions
 
-1. `qualifyPath` is defined in `tests-manager/model/inputs.ts` and is exported from neither package's public surface,
-   while [`BOXED_EDITOR_STORY.md`](../BOXED_EDITOR_STORY.md#testcasesservice-api) expects to import it from
-   `edgerules-react/test-cases-service`. Whether it moves into `test-cases-service` (which owns subject-relative
-   paths) or is exported from `tests-manager` needs deciding when `TestResultsColumn` is built.
+1. ~~`qualifyPath` is defined in `tests-manager/model/inputs.ts`...~~ **Resolved (Decision #17, `boxed-editor` Phase
+   0):** `qualifyPath` now lives in `test-cases-service/qualifyPath.ts`, which owns subject-relative paths, and is
+   exported from `edgerules-react/test-cases-service`. `tests-manager` re-exports it for compatibility with existing
+   importers.
 2. `TestResultStatus` declares `missing` and `pending` alongside `ok` and `error`, but `TestRunner` only ever writes
    `ok` per path — every failure is recorded at run level. Whether per-path statuses are needed at all, or the type
    should narrow, stays open until a consumer needs the distinction.
