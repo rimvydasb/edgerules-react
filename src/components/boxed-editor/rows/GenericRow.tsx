@@ -34,6 +34,9 @@ export interface GenericRowProps {
   strong?: boolean;
   placeholder?: boolean;
   tall?: boolean;
+  /** Skips the ellipsis-text wrapper around `value` — pass true when `value` renders its own
+   * layout (e.g. `ExpressionCell`, which swaps between static text and a full-width editor). */
+  valueIsInteractive?: boolean;
 }
 
 export function GenericRow({
@@ -49,6 +52,7 @@ export function GenericRow({
   strong = false,
   placeholder = false,
   tall = false,
+  valueIsInteractive = false,
 }: GenericRowProps): ReactElement {
   const { showDescription, showTestResults, showType } = useBoxedEditorContext();
   const height = tall ? TALL_ROW_HEIGHT : ROW_HEIGHT;
@@ -108,19 +112,23 @@ export function GenericRow({
       </Box>
       {!occupiesNameAndValue && (
         <Cell>
-          <Box
-            component="span"
-            sx={{
-              minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              fontStyle: placeholder ? 'italic' : 'normal',
-              color: placeholder ? 'text.disabled' : 'inherit',
-            }}
-          >
-            {value}
-          </Box>
+          {valueIsInteractive ? (
+            value
+          ) : (
+            <Box
+              component="span"
+              sx={{
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontStyle: placeholder ? 'italic' : 'normal',
+                color: placeholder ? 'text.disabled' : 'inherit',
+              }}
+            >
+              {value}
+            </Box>
+          )}
         </Cell>
       )}
       <RowActionsButton tall={tall} />

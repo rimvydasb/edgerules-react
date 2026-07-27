@@ -1,8 +1,12 @@
+import { useState, type ReactElement } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import { init, MutableDecisionService } from '@edgerules/web/mutable';
 import {
   BoxedEditor,
   createBoxedEditorService,
+  type BoxedEditorService,
 } from '../../../src/components/boxed-editor';
 
 const LOAN_ORIGINATION_MODEL = `{
@@ -38,6 +42,40 @@ async function buildService(code: string) {
   return createBoxedEditorService(MutableDecisionService.fromCode(code));
 }
 
+/** Renders the editor plus a caption reflecting the live committed model, so a story can show
+ * `onChange` actually firing once per successful edit (never on a rejected one). */
+function EditableHarness({
+  service,
+  path,
+  readOnly = false,
+}: {
+  service: BoxedEditorService;
+  path: string;
+  readOnly?: boolean;
+}): ReactElement {
+  const [, setVersion] = useState(0);
+  const payment = service.getBoxedRowData('payment')?.value ?? '(not in this model)';
+
+  return (
+    <Box sx={{ width: 'fit-content' }}>
+      <BoxedEditor
+        service={service}
+        path={path}
+        languageService={MutableDecisionService}
+        readOnly={readOnly}
+        onChange={() => setVersion((current) => current + 1)}
+      />
+      <Typography
+        variant="caption"
+        data-testid="live-payment"
+        sx={{ display: 'block', mt: 1 }}
+      >
+        payment (committed): {payment}
+      </Typography>
+    </Box>
+  );
+}
+
 const meta: Meta<typeof BoxedEditor> = {
   title: 'Boxed Editor/BoxedEditor',
   component: BoxedEditor,
@@ -45,9 +83,11 @@ const meta: Meta<typeof BoxedEditor> = {
     docs: {
       description: {
         component:
-          'Phase 1: grid chrome, contexts, and the simple row kinds (`model`, `field`, ' +
-          '`context`, `complexType`). Mutation, the expression cell, and the remaining row ' +
-          'kinds land in later phases — unimplemented kinds render a labelled placeholder.',
+          'Phase 2 adds the expression cell: click a `field` row’s value to swap in a ' +
+          'model-scoped CodeMirror editor (Enter/blur commits, Escape reverts); a rejected ' +
+          'edit keeps the cell active and shows the engine’s message inline. `onChange` ' +
+          'fires once per successful commit. The remaining row kinds still render a labelled ' +
+          'placeholder until Phases 3–4 land.',
       },
     },
   },
@@ -60,8 +100,15 @@ export const RootModel: Story = {
     async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),
   ],
   render: (args, { loaded }) => (
-    <BoxedEditor {...args} service={loaded.service} path="*" />
+    <BoxedEditor {...args} service={loaded.service} path="*" languageService={MutableDecisionService} />
   ),
+};
+
+export const EditableExpression: Story = {
+  loaders: [
+    async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),
+  ],
+  render: (_args, { loaded }) => <EditableHarness service={loaded.service} path="*" />,
 };
 
 export const FocusedContext: Story = {
@@ -69,7 +116,12 @@ export const FocusedContext: Story = {
     async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),
   ],
   render: (args, { loaded }) => (
-    <BoxedEditor {...args} service={loaded.service} path="application" />
+    <BoxedEditor
+      {...args}
+      service={loaded.service}
+      path="application"
+      languageService={MutableDecisionService}
+    />
   ),
 };
 
@@ -78,7 +130,13 @@ export const ReadOnly: Story = {
     async () => ({ service: await buildService(LOAN_ORIGINATION_MODEL) }),
   ],
   render: (args, { loaded }) => (
-    <BoxedEditor {...args} service={loaded.service} path="*" readOnly />
+    <BoxedEditor
+      {...args}
+      service={loaded.service}
+      path="*"
+      languageService={MutableDecisionService}
+      readOnly
+    />
   ),
 };
 
@@ -91,6 +149,7 @@ export const ColumnsHidden: Story = {
       {...args}
       service={loaded.service}
       path="*"
+      languageService={MutableDecisionService}
       showDescription={false}
       showTestResults={false}
     />
@@ -102,7 +161,12 @@ export const PreviewOfLaterPhases: Story = {
     async () => ({ service: await buildService(PREVIEW_OF_LATER_PHASES_MODEL) }),
   ],
   render: (args, { loaded }) => (
-    <BoxedEditor {...args} service={loaded.service} path="*" />
+    <BoxedEditor
+      {...args}
+      service={loaded.service}
+      path="*"
+      languageService={MutableDecisionService}
+    />
   ),
 };
 

@@ -5,6 +5,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import type { PortableRootContext } from '@edgerules/portable';
 import type { CodeEditorService } from '../../code-editor';
 import type { DocumentationService } from '../../documentation-service';
 import type { TestCasesService, TestSubjectId } from '../../test-cases-service';
@@ -23,6 +24,8 @@ export interface BoxedEditorContextValue {
   testRunner?: TestRunner;
   testSubjectId?: TestSubjectId;
   autoRunTests: boolean;
+  /** Fired once per successful committed mutation, by `useRowCommands`. */
+  onChange?: (snapshot: PortableRootContext) => void;
 }
 
 const BoxedEditorContext = createContext<BoxedEditorContextValue | null>(null);

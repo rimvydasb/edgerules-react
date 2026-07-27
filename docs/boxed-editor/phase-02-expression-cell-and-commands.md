@@ -165,13 +165,13 @@ src/components/boxed-editor/
 
 ## 8. Tasks
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `cells/ExpressionCell.tsx`: static text ⇄ `CodeEditorCell` swap, enforcing the one-active-editor invariant
-- [ ] Reuse `embedService` / `CodeEditorEmbedContext` for model-scoped completions; never persist the synthetic wrapper
-- [ ] Add `commands/useRowCommands.ts` + `commands/rowFactories.ts`: mutation dispatch, `PortableError` → inline
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `cells/ExpressionCell.tsx`: static text ⇄ `CodeEditorCell` swap, enforcing the one-active-editor invariant
+- [x] Reuse `embedService` / `CodeEditorEmbedContext` for model-scoped completions; never persist the synthetic wrapper
+- [x] Add `commands/useRowCommands.ts` + `commands/rowFactories.ts`: mutation dispatch, `PortableError` → inline
       path-scoped error, `onChange` once per successful commit
-- [ ] Add `__tests__/commands.test.tsx` for value/name commits, rejection handling, and `onChange` count
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Add `__tests__/commands.test.tsx` for value/name commits, rejection handling, and `onChange` count
+- [x] Mark all checkboxes as done in this document once verified
 
 ## 9. Verification
 
