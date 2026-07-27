@@ -14,7 +14,7 @@ The three concerns are deliberately separate, mirroring how `DocumentationServic
 - `TestsManager` — the React grid.
 
 Because persistence is engine-free, any component can display results without running anything.
-[`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md#testcasesservice-api)'s `TestResultsColumn` is the designed consumer of
+[`BOXED_EDITOR_STORY.md`](../BOXED_EDITOR_STORY.md#testcasesservice-api)'s `TestResultsColumn` is the designed consumer of
 that split. The dependency runs one way only: consumers import from `edgerules-react/test-cases-service`, never the
 reverse.
 
@@ -869,7 +869,7 @@ Stories live in `stories/tests-manager/TestsManager.stories.tsx`, each building 
 ## Open Questions
 
 1. `qualifyPath` is defined in `tests-manager/model/inputs.ts` and is exported from neither package's public surface,
-   while [`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md#testcasesservice-api) expects to import it from
+   while [`BOXED_EDITOR_STORY.md`](../BOXED_EDITOR_STORY.md#testcasesservice-api) expects to import it from
    `edgerules-react/test-cases-service`. Whether it moves into `test-cases-service` (which owns subject-relative
    paths) or is exported from `tests-manager` needs deciding when `TestResultsColumn` is built.
 2. `TestResultStatus` declares `missing` and `pending` alongside `ok` and `error`, but `TestRunner` only ever writes
@@ -887,4 +887,4 @@ Stories live in `stories/tests-manager/TestsManager.stories.tsx`, each building 
   belongs with the future project-saving story.
 - **`BoxedEditor`'s `TestResultsColumn`.** The engine-free split exists precisely so a Boxed Editor column can display
   a case's results without running anything; that column is specified in
-  [`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md#testcasesservice-api) but not yet built.
+  [`BOXED_EDITOR_STORY.md`](../BOXED_EDITOR_STORY.md#testcasesservice-api) but not yet built.

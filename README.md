@@ -10,7 +10,8 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 - [x] EdgeRules Code Editor Cell (the same language tooling in a compact cell control for the Boxed and Decision
   Table editors; commits on Enter/blur, cancels on Escape, analyzes the cell in the scope of its surrounding
   model via an embed context)
-- [ ] EdgeRules Boxed Editor ([spec](docs/BOXED_EDITOR_SPEC.md), [service story](docs/BOXED_EDITOR_SERVICE_STORY.md))
+- [ ] EdgeRules Boxed Editor ([spec and story](docs/BOXED_EDITOR_STORY.md); the `BoxedEditorService` facade over
+  `MutableDecisionService` is implemented, the React treegrid UI is not)
 - [x] [EdgeRules Decision Table Editor](docs/DECISION_TABLE_STORY.md) (DMN-style grid over a `ruleset`:
   decision tables, boolean-expression rules, and scorecards; statically highlighted display cells
   with a single CodeEditorCell on the active cell)

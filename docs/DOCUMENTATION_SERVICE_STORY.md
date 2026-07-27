@@ -5,9 +5,9 @@
 Implement `DocumentationService` as a **standalone, framework-agnostic package** —
 `src/components/documentation-service/`,
 published under its own subpath export `edgerules-react/documentation-service` — rather than as an internal detail of
-`BoxedEditor`. [`BOXED_EDITOR_SPEC.md`](BOXED_EDITOR_SPEC.md) currently defines `DocumentationService` inline (see its
-["Service composition"](BOXED_EDITOR_SPEC.md#service-composition) and
-["`DocumentationService` API"](BOXED_EDITOR_SPEC.md#documentationservice-api) sections) as a path-keyed,
+`BoxedEditor`. [`BOXED_EDITOR_STORY.md`](BOXED_EDITOR_STORY.md) currently defines `DocumentationService` inline (see its
+["Service composition"](BOXED_EDITOR_STORY.md#service-composition) and
+["`DocumentationService` API"](BOXED_EDITOR_STORY.md#documentationservice-api) sections) as a path-keyed,
 IndexedDB-backed
 free-text description overlay consumed by `BoxedEditor`'s `DescriptionColumn`. That contract is generic already — it
 only ever deals in `(modelName, path) -> description` — so this story extracts it into its own package so
@@ -16,11 +16,11 @@ descriptions to their own paths/nodes through the same service, the same Indexed
 instead of each component reinventing an overlay.
 
 This is a **data/service layer only** — no row/column UI. `BoxedEditor`'s own `DescriptionColumn` /
-`hooks/useDescription.ts` / context wiring (per `BOXED_EDITOR_SPEC.md`'s component tree) are a separate, later story
+`hooks/useDescription.ts` / context wiring (per `BOXED_EDITOR_STORY.md`'s component tree) are a separate, later story
 that *consumes* this package; they are not built here.
 
 **No repository-wide `ARCHITECTURE.md` exists in this checkout** (checked `docs/` and the repo root — confirmed
-consistent with [`BOXED_EDITOR_SERVICE_STORY.md`](BOXED_EDITOR_SERVICE_STORY.md)'s note when it hit the same state).
+consistent with [`BOXED_EDITOR_STORY.md`](BOXED_EDITOR_STORY.md)'s note when it hit the same state).
 Per the `/new-story` process this document would normally update it; since there is nothing to update, this note
 stands in for that step. If a cross-component architecture document is wanted, run the `new-architecture` skill
 separately — that is a repo-wide concern, not something one service's story should originate.
@@ -31,11 +31,11 @@ separately — that is a repo-wide concern, not something one service's story sh
 (`edgerules-react/documentation-service`), matching every other component's packaging convention (see
 [README's Project Structure](../README.md#project-structure)) — this is what makes it reusable by any component with
 a path/node-keyed description need: Boxed Editor, Decision Table, Types Editor, Test Runner, Project Explorer, the
-future Flow Editor. Its interface (below) is a superset of `BOXED_EDITOR_SPEC.md`'s original, Boxed-Editor-only
+future Flow Editor. Its interface (below) is a superset of `BOXED_EDITOR_STORY.md`'s original, Boxed-Editor-only
 `DocumentationService` — the additions (`subscribe`, `dispose`, `DocumentationServiceOptions`) and why each is needed
 are recorded in [Resolved Decisions](#resolved-decisions) #1–#6.
 
-`BOXED_EDITOR_SPEC.md` itself is **not** edited by this story (out of scope — see below); the exact edits it needs once
+`BOXED_EDITOR_STORY.md` itself is **not** edited by this story (out of scope — see below); the exact edits it needs once
 this package exists are called out as an explicit Phase 3 task, to be made when this service is actually wired into
 `BoxedEditor`.
 
@@ -248,13 +248,13 @@ sequenceDiagram
 - `BoxedEditor`'s `DescriptionColumn`, its `hooks/useDescription.ts` wrapper, and `BoxedEditorContext` wiring — a
   later Boxed Editor UI story consumes this package; nothing under `src/components/boxed-editor/` is touched here.
 - Any other component's UI wiring (Decision Table, Types Editor, Test Runner, Project Explorer, Flow Editor).
-- `TestCasesService` — the sibling overlay from `BOXED_EDITOR_SPEC.md`. Not addressed by this story; a future story
+- `TestCasesService` — the sibling overlay from `BOXED_EDITOR_STORY.md`. Not addressed by this story; a future story
   can decide whether it follows the same standalone-package pattern (see Resolved Decision #8).
-- Folding descriptions into the Portable `@description` metadata (export/import) — `BOXED_EDITOR_SPEC.md`'s Resolved
+- Folding descriptions into the Portable `@description` metadata (export/import) — `BOXED_EDITOR_STORY.md`'s Resolved
   Decision #10 already settled this as out of scope for the overlay approach generally.
 - Bulk operations (`listDescriptions()`, export/import across a model rename) — see Resolved Decision #7 and
   [Follow-up Stories](#follow-up-stories).
-- Editing `BOXED_EDITOR_SPEC.md` itself — the exact edits it needs are listed as a Phase 3 task, done when this
+- Editing `BOXED_EDITOR_STORY.md` itself — the exact edits it needs are listed as a Phase 3 task, done when this
   service is actually wired into `BoxedEditor`, not now.
 
 ## Tasks
@@ -299,12 +299,12 @@ sequenceDiagram
 **Phase 3: Quality gate**
 
 - [ ] Ensure project compiles and existing tests are passing
-- [ ] Update `docs/BOXED_EDITOR_SPEC.md`: replace the inline `DocumentationService` interface in
-  ["`DocumentationService` API"](BOXED_EDITOR_SPEC.md#documentationservice-api) with a reference to this package and
-  story; update the ["Service composition"](BOXED_EDITOR_SPEC.md#service-composition) table's `DocumentationService`
-  row; update the ["Component API" export-surface note](BOXED_EDITOR_SPEC.md#component-api) so `DocumentationService`
+- [ ] Update `docs/BOXED_EDITOR_STORY.md`: replace the inline `DocumentationService` interface in
+  ["`DocumentationService` API"](BOXED_EDITOR_STORY.md#documentationservice-api) with a reference to this package and
+  story; update the ["Service composition"](BOXED_EDITOR_STORY.md#service-composition) table's `DocumentationService`
+  row; update the ["Component API" export-surface note](BOXED_EDITOR_STORY.md#component-api) so `DocumentationService`
   and its data types are described as re-exported/imported from `edgerules-react/documentation-service` rather than
-  defined locally; update the ["React integration"](BOXED_EDITOR_SPEC.md#react-integration) section's mention of
+  defined locally; update the ["React integration"](BOXED_EDITOR_STORY.md#react-integration) section's mention of
   `DocumentationService`/`useDescription` accordingly
 - [ ] Update `README.md`'s Project Structure section to mention `documentation-service` as a shared, non-visual
   service package (distinct from the GUI-component checklist at the top of the file)
@@ -318,14 +318,14 @@ sequenceDiagram
 
 | # | Decision                                                       | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 |---|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | Package location & export surface                              | `src/components/documentation-service/`, its own `edgerules-react/documentation-service` subpath — matching every other component's packaging convention rather than living inside `boxed-editor`. Generalizes `BOXED_EDITOR_SPEC.md`'s original (Boxed-Editor-only) placement.                                                                                                                                                                                                                                                                                                       |
+| 1 | Package location & export surface                              | `src/components/documentation-service/`, its own `edgerules-react/documentation-service` subpath — matching every other component's packaging convention rather than living inside `boxed-editor`. Generalizes `BOXED_EDITOR_STORY.md`'s original (Boxed-Editor-only) placement.                                                                                                                                                                                                                                                                                                       |
 | 2 | `subscribe` added to the interface                             | Not in the original spec's `DocumentationService`. Required once more than one mounted component can read/write the same instance (the whole point of making this reusable) — without it, a description edited in one consumer would not be reflected in another reading the same path.                                                                                                                                                                                                                                                                                               |
 | 3 | `dispose` added to the interface                               | Needed to close the IndexedDB connection deterministically in tests (avoids leaking open connections across test files) and for hosts that fully unmount a model's editors.                                                                                                                                                                                                                                                                                                                                                                                                           |
 | 4 | Synchronous API over an async-persisted store                  | Kept `getDescription`/`setDescription`/`renamePath` synchronous (matches the original spec) by treating the in-memory cache as the source of truth and IndexedDB as a best-effort background store, rather than switching to a `Promise`-based API. See [Error handling](#error-handling).                                                                                                                                                                                                                                                                                            |
 | 5 | Compound array IndexedDB key over a delimited string           | `['modelName', 'path']` as the object store's key path, instead of e.g. `` `${modelName}::${path}` ``. Avoids picking (and escaping) a delimiter that's guaranteed never to appear in an EdgeRules path.                                                                                                                                                                                                                                                                                                                                                                              |
-| 6 | Non-deduplicating factory                                      | `createDocumentationService(modelName)` returns a fresh instance (fresh cache, fresh subscribe bus) on every call, even for the same `modelName` — consistent with the same choice already made for `createBoxedEditorService` in [`BOXED_EDITOR_SERVICE_STORY.md`'s Open Question #2](BOXED_EDITOR_SERVICE_STORY.md#open-questions) ("Option 1... revisit when a second concrete consumer exists"). A host that wants several components to share state constructs the service once and passes that instance down; this story does not add identity-keyed memoization pre-emptively. |
+| 6 | Non-deduplicating factory                                      | `createDocumentationService(modelName)` returns a fresh instance (fresh cache, fresh subscribe bus) on every call, even for the same `modelName` — consistent with the same choice already made for `createBoxedEditorService` in [`BOXED_EDITOR_STORY.md`'s Open Question #2](BOXED_EDITOR_STORY.md#open-questions) ("Option 1... revisit when a second concrete consumer exists"). A host that wants several components to share state constructs the service once and passes that instance down; this story does not add identity-keyed memoization pre-emptively. |
 | 7 | Bulk read / export-import deferred                             | No `listDescriptions()` (or similar bulk-read/export API) in this story — the single-path interface is sufficient for every known consumer today, and the in-memory cache already holds everything needed to add bulk access later without an IndexedDB schema change. Tracked as a [follow-up story](#follow-up-stories), not a task here.                                                                                                                                                                                                                                           |
-| 8 | `DocumentationService` stays decoupled from `TestCasesService` | `DocumentationService`'s public API has no knowledge of `TestCasesService`, test cases, or test-case ids — the two overlays are consumed independently by whichever host component needs them (per `BOXED_EDITOR_SPEC.md`'s "Service composition"), never through each other. A future `TestCasesService` story is expected to mirror this package's standalone structure (its own `edgerules-react/test-cases-service` subpath, its own `useTestResult` hook) for consistency, but that is that story's decision to make, not a dependency of this one.                              |
+| 8 | `DocumentationService` stays decoupled from `TestCasesService` | `DocumentationService`'s public API has no knowledge of `TestCasesService`, test cases, or test-case ids — the two overlays are consumed independently by whichever host component needs them (per `BOXED_EDITOR_STORY.md`'s "Service composition"), never through each other. A future `TestCasesService` story is expected to mirror this package's standalone structure (its own `edgerules-react/test-cases-service` subpath, its own `useTestResult` hook) for consistency, but that is that story's decision to make, not a dependency of this one.                              |
 
 ## Follow-up Stories
 
