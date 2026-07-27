@@ -338,7 +338,7 @@ own `optimisation`-family rows — it carries no entry in `BoxedEditorTargetKind
   `BoxedEditorService`'s own methods return them — without the export, a consumer outside this package could not
   name the return type of `getBoxedRowsData`. `DocumentationService` and `TestCasesService` are **not** re-exported
   here: a host imports them directly from `edgerules-react/documentation-service` and `edgerules-react/test-cases-service`
-  and passes an instance in as a prop, the same way `TestsManager` does (`TESTS_MANAGER_STORY.md`'s Component API) —
+  and passes an instance in as a prop, the same way `TestsManager` does (`TESTS_MANAGER_SPEC.md`'s Component API) —
   one contract, one place it's defined. Rows, cells, primitives, hooks, contexts, and normalization internals are
   **not** re-exported either — they are not public API.
 
@@ -834,7 +834,7 @@ Two error scopes, mirroring the reference behavior:
 ## `TestCasesService` API
 
 Supplies the `TestResultsColumn`. `TestCasesService`, `TestCase`, `TestResultSet`, `TestResult`, and their sibling
-types are defined and owned by [`TESTS_MANAGER_STORY.md`](TESTS_MANAGER_STORY.md#object-model)'s
+types are defined and owned by [`TESTS_MANAGER_SPEC.md`](TESTS_MANAGER_SPEC.md#object-model)'s
 `edgerules-react/test-cases-service` package — `BoxedEditor` imports them from there rather than declaring its own
 copy, so the two components share one persistence contract instead of two independently-evolving ones. This spec
 covers only how `BoxedEditor` **consumes** that package, never how it is implemented.
@@ -846,10 +846,11 @@ previous/next buttons — driven by the package's own `useTestCases` hook — an
 value on its own line, read per-path via the package's `useTestResult(service, testCaseId, path)`.
 
 A `TestResultSet`'s `results` are keyed by **subject-relative** path; `BoxedEditor` renders fully qualified paths, so
-a cell derives the lookup key with `qualifyPath(subjectId, path)` (also from `test-cases-service`) before reading its
-`TestResult`. **`TestResult.value` is `unknown`, not a pre-formatted string** — the engine's real JS value (a
+a cell derives the lookup key with `qualifyPath(subjectId, path)` before reading its `TestResult` (that helper
+currently lives in `tests-manager/model/inputs.ts` and is not yet exported — see `TESTS_MANAGER_SPEC.md`'s Open
+Questions #1). **`TestResult.value` is `unknown`, not a pre-formatted string** — the engine's real JS value (a
 `number`, an `array`, a nested object, or the engine's string form for dates/durations/special values); see
-[Resolved Decisions](#resolved-decisions) #5 and `TESTS_MANAGER_STORY.md`'s Resolved Decision #9 for why. `BoxedEditor`
+[Resolved Decisions](#resolved-decisions) #5 and `TESTS_MANAGER_SPEC.md`'s Clarification #9 for why. `BoxedEditor`
 owns all display formatting on top of it — arrays render as `N items`, long values are truncated, numbers/dates are
 locale-formatted.
 
