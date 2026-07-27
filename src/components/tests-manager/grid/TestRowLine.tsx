@@ -36,10 +36,12 @@ export function TestRowLine({
                                 row,
                                 visibleCases,
                                 pathColumnWidth,
+                                knownPaths,
                             }: {
     row: TestRow;
     visibleCases: TestCase[];
     pathColumnWidth: number;
+    knownPaths: ReadonlySet<string>;
 }): ReactElement {
     const {testCasesService, documentationService, subject, readOnly} =
         useTestsManagerContext();
@@ -113,7 +115,7 @@ export function TestRowLine({
                     width: pathColumnWidth,
                 }}
             >
-                <PathCell path={row.path} columnWidth={pathColumnWidth} type={row.type}/>
+                <PathCell row={row} columnWidth={pathColumnWidth} knownPaths={knownPaths}/>
                 {deleted && (
                     <Tooltip title={DELETED_ROW_TOOLTIP}>
                         <WarningAmberIcon

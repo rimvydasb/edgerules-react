@@ -44,6 +44,25 @@ const DECISION_SERVICE_MODEL = `{
     func untypedExample(x): x + 1
 }`;
 
+const ARRAY_MODEL = `{
+    type CreditLine: {
+        balance: <number, required: true>
+        limit: <number, required: true>
+    }
+    type Applicant: {
+        name: <string, required: true>
+        creditLine: <CreditLine[]>
+    }
+    application: {
+        applicant: <Applicant[]>
+        reference: <string>
+    }
+    totals: {
+        applicants: count(application.applicant)
+        firstBalance: application.applicant[0].creditLine[0].balance
+    }
+}`;
+
 const OPTIMISE_MODEL = `{
     optimise factoryProduction(workers: number, sticks: number, plates: number): {
         bottlenecks: true
@@ -354,6 +373,33 @@ export const LiveModelEdits: Story = {
       modelName: string;
     };
     return <LiveModelHarness service={service} modelName={modelName} />;
+  },
+};
+
+export const IndexedArrayPaths: Story = {
+  loaders: [
+    async () => {
+      const service = await buildService(ARRAY_MODEL);
+      return { service, modelName: uniqueModelName('arrays') };
+    },
+  ],
+  render: (_args, { loaded }) => {
+    const { service, modelName } = loaded as {
+      service: MutableDecisionService;
+      modelName: string;
+    };
+    return (
+      <Box sx={{ maxWidth: 1100 }}>
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          Every array is pre-generated down to its element <code>[0]</code>, at
+          any depth (<code>application.applicant[0].creditLine[0].balance</code>
+          ). Use a row&apos;s three-dots menu to <strong>Duplicate</strong> it
+          into the next element, and click a Path cell to retype it — an unknown
+          path turns red as you type.
+        </Typography>
+        <TestsManager service={service} modelName={modelName} />
+      </Box>
+    );
   },
 };
 

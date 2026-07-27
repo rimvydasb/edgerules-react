@@ -150,6 +150,56 @@ export function createTestCasesService(
     });
   }
 
+  // Moves every trace of `from` (and anything nested beneath it) to `to`: rows, both value maps of
+  // every case, and every stored result. Shared by `renamePath` (the model renamed a field) and
+  // `setRowPath` (the user retyped a row's path); neither persists or notifies from here.
+  function rewriteEverywhere(from: string, to: string): boolean {
+    let changed = false;
+
+    const nextRows = rows.map((row) => {
+      if (matchesPath(row.path, from)) {
+        changed = true;
+        return { ...row, path: rewritePath(row.path, from, to) };
+      }
+      return row;
+    });
+
+    const nextCases = cases.map((testCase) => {
+      const inputs = rewriteValueKeys(testCase.inputs, from, to);
+      const assertions = rewriteValueKeys(testCase.assertions, from, to);
+      if (inputs.changed || assertions.changed) {
+        changed = true;
+        return { ...testCase, inputs: inputs.values, assertions: assertions.values };
+      }
+      return testCase;
+    });
+
+    for (const [testCaseId, set] of results) {
+      let setChanged = false;
+      const nextResults: Record<string, TestResult> = {};
+      for (const [path, result] of Object.entries(set.results)) {
+        if (matchesPath(path, from)) {
+          setChanged = true;
+          const newPath = rewritePath(path, from, to);
+          nextResults[newPath] = { ...result, path: newPath };
+        } else {
+          nextResults[path] = result;
+        }
+      }
+      if (setChanged) {
+        changed = true;
+        const nextSet = { ...set, results: nextResults };
+        results.set(testCaseId, nextSet);
+        persistResult(testCaseId, nextSet);
+      }
+    }
+
+    if (!changed) return false;
+    rows = nextRows;
+    cases = nextCases;
+    return true;
+  }
+
   async function hydrate(): Promise<void> {
     if (!persistenceEnabled) {
       queueMicrotask(() => notify());
@@ -297,7 +347,10 @@ export function createTestCasesService(
       }
       for (const existing of rows) {
         if (!derivedPaths.has(existing.path)) {
-          nextRows.push({ ...existing, present: false });
+          // A user-authored row is never derived from the schema, so its absence from `derivedRows`
+          // says nothing about whether it still addresses anything — only a derived row's
+          // disappearance means the model dropped it. (The Path cell flags an unknown path instead.)
+          nextRows.push({ ...existing, present: existing.custom === true });
         }
       }
 
@@ -317,6 +370,77 @@ export function createTestCasesService(
       sectionRows.forEach((r, i) => {
         r.order = i;
       });
+      localCasesOrRowsMutated = true;
+      persistCasesAndRows();
+      notify();
+    },
+
+    duplicateRow(fromPath: string, toPath: string): void {
+      const source = rows.find((r) => r.path === fromPath);
+      if (!source || fromPath === toPath) return;
+      if (rows.some((r) => r.path === toPath)) return;
+
+      const copy: TestRow = { ...source, path: toPath, custom: true, present: true };
+      // Ordered right after its source, with the rest of the section pushed down, so a duplicate
+      // never lands at the bottom of the section away from the row it came from.
+      const sectionRows = rows.filter((r) => r.section === source.section).sort((a, b) => a.order - b.order);
+      sectionRows.splice(sectionRows.findIndex((r) => r.path === fromPath) + 1, 0, copy);
+      sectionRows.forEach((r, i) => {
+        r.order = i;
+      });
+      rows.push(copy);
+
+      for (const testCase of cases) {
+        const input = testCase.inputs[fromPath];
+        if (input !== undefined) testCase.inputs[toPath] = input;
+        const assertion = testCase.assertions[fromPath];
+        if (assertion !== undefined) testCase.assertions[toPath] = assertion;
+      }
+
+      localCasesOrRowsMutated = true;
+      persistCasesAndRows();
+      notify();
+    },
+
+    setRowPath(from: string, to: string): boolean {
+      const row = rows.find((r) => r.path === from);
+      if (!row || from === to || to === '') return false;
+      // The rewrite carries anything nested under `from` along with it, so the check is against
+      // every path it would produce, not just `to` itself — two rows must never share a path.
+      const moving = rows.filter((r) => matchesPath(r.path, from));
+      const produced = new Set(moving.map((r) => rewritePath(r.path, from, to)));
+      if (rows.some((r) => !matchesPath(r.path, from) && produced.has(r.path))) return false;
+      rewriteEverywhere(from, to);
+      const moved = rows.find((r) => r.path === to);
+      if (moved) moved.custom = true;
+      localCasesOrRowsMutated = true;
+      persistCasesAndRows();
+      notify();
+      return true;
+    },
+
+    removeRow(path: string): void {
+      const index = rows.findIndex((r) => r.path === path);
+      if (index === -1) return;
+      const [removed] = rows.splice(index, 1);
+      rows
+        .filter((r) => r.section === removed.section)
+        .sort((a, b) => a.order - b.order)
+        .forEach((r, i) => {
+          r.order = i;
+        });
+      for (const testCase of cases) {
+        delete testCase.inputs[path];
+        delete testCase.assertions[path];
+      }
+      for (const [testCaseId, set] of results) {
+        if (!Object.prototype.hasOwnProperty.call(set.results, path)) continue;
+        const nextResults = { ...set.results };
+        delete nextResults[path];
+        const nextSet = { ...set, results: nextResults };
+        results.set(testCaseId, nextSet);
+        persistResult(testCaseId, nextSet);
+      }
       localCasesOrRowsMutated = true;
       persistCasesAndRows();
       notify();
@@ -385,49 +509,7 @@ export function createTestCasesService(
     },
 
     renamePath(from: string, to: string): void {
-      let changed = false;
-
-      const nextRows = rows.map((row) => {
-        if (matchesPath(row.path, from)) {
-          changed = true;
-          return { ...row, path: rewritePath(row.path, from, to) };
-        }
-        return row;
-      });
-
-      const nextCases = cases.map((testCase) => {
-        const inputs = rewriteValueKeys(testCase.inputs, from, to);
-        const assertions = rewriteValueKeys(testCase.assertions, from, to);
-        if (inputs.changed || assertions.changed) {
-          changed = true;
-          return { ...testCase, inputs: inputs.values, assertions: assertions.values };
-        }
-        return testCase;
-      });
-
-      for (const [testCaseId, set] of results) {
-        let setChanged = false;
-        const nextResults: Record<string, TestResult> = {};
-        for (const [path, result] of Object.entries(set.results)) {
-          if (matchesPath(path, from)) {
-            setChanged = true;
-            const newPath = rewritePath(path, from, to);
-            nextResults[newPath] = { ...result, path: newPath };
-          } else {
-            nextResults[path] = result;
-          }
-        }
-        if (setChanged) {
-          changed = true;
-          const nextSet = { ...set, results: nextResults };
-          results.set(testCaseId, nextSet);
-          persistResult(testCaseId, nextSet);
-        }
-      }
-
-      if (!changed) return;
-      rows = nextRows;
-      cases = nextCases;
+      if (!rewriteEverywhere(from, to)) return;
       localCasesOrRowsMutated = true;
       persistCasesAndRows();
       notify();

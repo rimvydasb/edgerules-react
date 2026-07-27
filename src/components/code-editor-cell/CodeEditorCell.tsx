@@ -7,6 +7,7 @@ import {
   EditorView,
   keymap,
   placeholder as cmPlaceholder,
+  tooltips,
 } from '@codemirror/view';
 import { edgeRulesExtensions } from '../code-editor/language/extensions';
 import {
@@ -42,6 +43,22 @@ export interface CodeEditorCellProps {
   readOnly?: boolean;
   className?: string;
   sx?: SxProps<Theme>;
+}
+
+/**
+ * Puts the completion/diagnostic popups in `document.body` instead of inside the cell.
+ *
+ * A cell editor lives in a grid: its own wrapper clips overflow, the scroll container clips again,
+ * and the sticky/positioned cells around it are painted in a stacking order the popup cannot win
+ * from inside — the rows *below* the edited one paint over a downward-opening list. Hosting the
+ * popup at the document root takes it out of all of that; the z-index sits above MUI's app-bar
+ * range and below its modal range, so a dialog containing an editor still covers it.
+ */
+function cellTooltips(): Extension {
+  return [
+    tooltips({ parent: document.body }),
+    EditorView.theme({ '.cm-tooltip': { zIndex: '1250' } }),
+  ];
 }
 
 /** Flattens any multi-line document into a single line (paste included). */
@@ -140,6 +157,7 @@ export function CodeEditorCell({
           // Cell keymap first so Enter/Escape win over the default editing keymap; the
           // autocomplete panel's own bindings still take precedence (registered highest).
           cellKeymap,
+          cellTooltips(),
           ...(multiline ? [EditorView.lineWrapping] : [singleLineFilter()]),
           ...(placeholder ? [cmPlaceholder(placeholder)] : []),
           EditorView.editable.of(!readOnly),

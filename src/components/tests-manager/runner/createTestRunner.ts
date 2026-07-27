@@ -1,6 +1,7 @@
 import { isPortableError } from '../../../lib/portable';
 import type { TestCasesService, TestResult, TestRow } from '../../test-cases-service';
 import { buildExecuteInput } from '../model/inputs';
+import { normalizeIndexes } from '../model/paths';
 import { flattenResult } from '../model/rows';
 import { CellParseError, parseCell } from '../model/values';
 import type { MutableDecisionService, TestRunner, TestSubject } from '../tests-manager-types';
@@ -67,12 +68,17 @@ export function createTestRunner(
   // Reconciles any path the schema never revealed (an opaque `@kind: 'invocation'` call site) into
   // `validations`, by passing every currently known row back unchanged alongside the newly
   // discovered ones — `TestCasesService.syncRows` only ever drops what is missing from this set.
+  //
+  // Only element `[0]` of a returned list is adopted as a row, matching what `deriveRows` generates
+  // from a schema: a hundred-element result would otherwise silently grow a hundred rows. The other
+  // elements are still flattened, so a row the user duplicated to `[1]` finds its value.
   function reconcileDiscoveredRows(flattened: Record<string, unknown>): TestRow[] {
     const knownRows = testCasesService.listRows();
     const knownPaths = new Set(knownRows.map((row) => row.path));
     const discovered: TestRow[] = [];
     for (const [path, value] of Object.entries(flattened)) {
       if (knownPaths.has(path)) continue;
+      if (normalizeIndexes(path) !== path) continue;
       discovered.push({ path, section: 'validations', order: 0, type: inferRuntimeType(value), present: true });
     }
     if (discovered.length === 0) return knownRows;

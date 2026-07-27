@@ -19,6 +19,7 @@ import {useColumnDrag} from '../dnd/useColumnDrag';
 import {useRowDrag} from '../dnd/useRowDrag';
 import {useTestCaseColumns} from '../hooks/useTestCaseColumns';
 import {useTestRows} from '../hooks/useTestRows';
+import {useKnownPaths} from '../hooks/useKnownPaths';
 import {useTestSubjects} from '../hooks/useTestSubjects';
 import type {TestSubjectId} from '../tests-manager-types';
 import {CELL_BORDER_SX} from './gridStyle';
@@ -33,11 +34,13 @@ function RowDragSection({
                             rows,
                             visibleCases,
                             pathColumnWidth,
+                            knownPaths,
                             onMove,
                         }: {
     rows: TestRow[];
     visibleCases: TestCase[];
     pathColumnWidth: number;
+    knownPaths: ReadonlySet<string>;
     onMove: (path: string, toIndex: number) => void;
 }): ReactElement {
     const {sensors, handleDragEnd, itemIds} = useRowDrag(rows, onMove);
@@ -58,6 +61,7 @@ function RowDragSection({
                         row={row}
                         visibleCases={visibleCases}
                         pathColumnWidth={pathColumnWidth}
+                        knownPaths={knownPaths}
                     />
                 ))}
             </SortableContext>
@@ -78,6 +82,8 @@ export function TestsGrid({
     // Rows the model no longer declares stay visible (present: false) — TestRowLine flags them
     // with a warning instead of hiding them, since their data is kept, not discarded.
     const rows = useTestRows(testCasesService);
+    // Recomputed here rather than per row: every Path cell validates against the same universe.
+    const knownPaths = useKnownPaths(service, subject, revision, rows);
     const inputRows = rows.filter((row) => row.section === 'inputs');
     const assertionRows = rows.filter((row) => row.section === 'assertions');
     const validationRows = rows.filter((row) => row.section === 'validations');
@@ -272,6 +278,7 @@ export function TestsGrid({
                             rows={inputRows}
                             visibleCases={visibleCases}
                             pathColumnWidth={pathColumnWidth}
+                            knownPaths={knownPaths}
                             onMove={moveRow}
                         />
                         <SectionHeaderRow
@@ -285,6 +292,7 @@ export function TestsGrid({
                             rows={assertionRows}
                             visibleCases={visibleCases}
                             pathColumnWidth={pathColumnWidth}
+                            knownPaths={knownPaths}
                             onMove={moveRow}
                         />
                         <SectionHeaderRow
@@ -298,6 +306,7 @@ export function TestsGrid({
                             rows={validationRows}
                             visibleCases={visibleCases}
                             pathColumnWidth={pathColumnWidth}
+                            knownPaths={knownPaths}
                             onMove={moveRow}
                         />
                     </TableBody>

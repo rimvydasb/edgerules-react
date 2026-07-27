@@ -289,6 +289,129 @@ describe('createTestCasesService — renamePath', () => {
   });
 });
 
+describe('createTestCasesService — user-authored rows', () => {
+  const ELEMENT_ROW: TestRow = {
+    path: 'applicant[0].name',
+    section: 'inputs',
+    order: 0,
+    type: 'string',
+    present: true,
+  };
+
+  it('duplicates a row right after its source, carrying every case cell, marked custom', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([ELEMENT_ROW, { ...INPUT_ROW, order: 1 }]);
+    const testCase = service.addTestCase();
+    service.setCell(testCase.id, 'applicant[0].name', 'input', 'Ann');
+
+    service.duplicateRow('applicant[0].name', 'applicant[1].name');
+
+    expect(service.listRows().map((r) => r.path)).toEqual(['applicant[0].name', 'applicant[1].name', 'age']);
+    const copy = service.listRows().find((r) => r.path === 'applicant[1].name');
+    expect(copy).toMatchObject({ section: 'inputs', type: 'string', present: true, custom: true });
+    expect(service.getCell(testCase.id, 'applicant[1].name', 'input')).toBe('Ann');
+    service.dispose();
+  });
+
+  it('refuses to duplicate onto a path that already has a row', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([ELEMENT_ROW, { ...INPUT_ROW, order: 1 }]);
+
+    service.duplicateRow('applicant[0].name', 'age');
+
+    expect(service.listRows()).toHaveLength(2);
+    expect(service.listRows().find((r) => r.path === 'age')?.custom).toBeUndefined();
+    service.dispose();
+  });
+
+  it('keeps a custom row through a syncRows that no longer derives it', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([ELEMENT_ROW]);
+    service.duplicateRow('applicant[0].name', 'applicant[1].name');
+
+    // The schema only ever describes element [0], so the duplicate is never in a derived snapshot.
+    service.syncRows([ELEMENT_ROW]);
+
+    const rows = service.listRows();
+    expect(rows.map((r) => r.path)).toEqual(['applicant[0].name', 'applicant[1].name']);
+    expect(rows.find((r) => r.path === 'applicant[1].name')?.present).toBe(true);
+    service.dispose();
+  });
+
+  it('repoints a row with setRowPath, carrying cells and results, and marks it custom', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([ELEMENT_ROW]);
+    const testCase = service.addTestCase();
+    service.setCell(testCase.id, 'applicant[0].name', 'input', 'Ann');
+    service.saveResultSet({
+      testCaseId: testCase.id,
+      ranAt: 1,
+      status: 'ok',
+      results: { 'applicant[0].name': { path: 'applicant[0].name', value: 'Ann', status: 'ok' } },
+    });
+
+    expect(service.setRowPath('applicant[0].name', 'applicant[2].name')).toBe(true);
+
+    expect(service.listRows()[0]).toMatchObject({ path: 'applicant[2].name', custom: true });
+    expect(service.getCell(testCase.id, 'applicant[2].name', 'input')).toBe('Ann');
+    expect(service.getResultSet(testCase.id)?.results['applicant[2].name'].value).toBe('Ann');
+    service.dispose();
+  });
+
+  it('refuses a setRowPath onto an existing row, or onto an empty path, changing nothing', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([ELEMENT_ROW, { ...INPUT_ROW, order: 1 }]);
+
+    expect(service.setRowPath('applicant[0].name', 'age')).toBe(false);
+    expect(service.setRowPath('applicant[0].name', '')).toBe(false);
+    expect(service.listRows().map((r) => r.path)).toEqual(['applicant[0].name', 'age']);
+    service.dispose();
+  });
+
+  it('refuses a setRowPath whose nested rows would land on existing ones', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([
+      { path: 'credit', section: 'inputs', order: 0, present: true },
+      { path: 'credit.balance', section: 'inputs', order: 1, present: true },
+      { path: 'wallet.balance', section: 'inputs', order: 2, present: true },
+    ]);
+
+    // `credit` -> `wallet` would drag `credit.balance` onto the existing `wallet.balance`.
+    expect(service.setRowPath('credit', 'wallet')).toBe(false);
+    expect(service.listRows().map((r) => r.path)).toEqual(['credit', 'credit.balance', 'wallet.balance']);
+    service.dispose();
+  });
+
+  it('removes a row with its cells and results, and reindexes the section', async () => {
+    const service = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(service);
+    service.syncRows([ELEMENT_ROW, { ...INPUT_ROW, order: 1 }]);
+    service.duplicateRow('applicant[0].name', 'applicant[1].name');
+    const testCase = service.addTestCase();
+    service.setCell(testCase.id, 'applicant[1].name', 'input', 'Bob');
+    service.saveResultSet({
+      testCaseId: testCase.id,
+      ranAt: 1,
+      status: 'ok',
+      results: { 'applicant[1].name': { path: 'applicant[1].name', value: 'Bob', status: 'ok' } },
+    });
+
+    service.removeRow('applicant[1].name');
+
+    expect(service.listRows().map((r) => r.path)).toEqual(['applicant[0].name', 'age']);
+    expect(service.listRows().map((r) => r.order)).toEqual([0, 1]);
+    expect(service.getCell(testCase.id, 'applicant[1].name', 'input')).toBeUndefined();
+    expect(service.getResultSet(testCase.id)?.results['applicant[1].name']).toBeUndefined();
+    service.dispose();
+  });
+});
+
 describe('createTestCasesService — persistence errors and dispose', () => {
   it('reports a background persistence failure via onPersistError without throwing', async () => {
     const onPersistError = vi.fn();

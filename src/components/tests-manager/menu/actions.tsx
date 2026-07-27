@@ -1,6 +1,8 @@
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
 import type { ReactElement } from 'react';
 import type { TestCase, TestCasesService, TestRow } from '../../test-cases-service';
+import { hasIndex, nextDuplicatePath } from '../model/paths';
 import { formatValue } from '../model/values';
 import type { TestRunner } from '../tests-manager-types';
 
@@ -55,6 +57,24 @@ export function testCaseActionsFor(
 export function rowActionsFor(row: TestRow, testCasesService: TestCasesService): TestsMenuAction[] {
   const actions: TestsMenuAction[] = [];
 
+  // Only an indexed path can be duplicated: a duplicate is one more element of a list the model
+  // already declares (`applicant[0].name` -> `applicant[1].name`), never a new field. That is also
+  // why there is no "add row" — the grid's population comes from the model, not from the user.
+  if (hasIndex(row.path)) {
+    const target = nextDuplicatePath(
+      row.path,
+      testCasesService.listRows().map((other) => other.path),
+    );
+    actions.push({
+      label: 'Duplicate',
+      icon: <ContentCopyIcon fontSize="small" />,
+      disabled: target === undefined,
+      onSelect: () => {
+        if (target) testCasesService.duplicateRow(row.path, target);
+      },
+    });
+  }
+
   if (row.section === 'validations') {
     actions.push({
       label: 'Move to Assertions',
@@ -65,7 +85,10 @@ export function rowActionsFor(row: TestRow, testCasesService: TestCasesService):
     });
   }
 
-  if (row.section === 'assertions') {
+  // Demoting an `Assertions` row back to `Validations` is what `Delete` means for a derived row —
+  // the path itself belongs to the model and cannot be deleted. A user-authored row has no such
+  // anchor, so for it `Delete row` means exactly that (below).
+  if (row.section === 'assertions' && !row.custom) {
     actions.push({
       label: 'Delete',
       icon: <DeleteIcon fontSize="small" />,
@@ -75,6 +98,14 @@ export function rowActionsFor(row: TestRow, testCasesService: TestCasesService):
 
   if (row.section === 'assertions') {
     actions.push({ label: 'Copy actual to expected', onSelect: () => copyActualToExpected(row, testCasesService) });
+  }
+
+  if (row.custom) {
+    actions.push({
+      label: 'Delete row',
+      icon: <DeleteIcon fontSize="small" />,
+      onSelect: () => testCasesService.removeRow(row.path),
+    });
   }
 
   return actions;

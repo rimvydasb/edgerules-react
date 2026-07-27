@@ -1,5 +1,11 @@
+import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
-import { useMemo, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
+import type { TestRow } from '../../test-cases-service';
+import { CodeEditorCell } from '../../code-editor-cell/CodeEditorCell';
+import { useTestsManagerContext } from '../context/TestsManagerContext';
+import { isKnownPath } from '../model/paths';
+import { createPathLanguageService } from '../model/pathLanguage';
 
 // Self-contained Path-column sizing/truncation: `computePathColumnWidth` sizes the column from the
 // longest row path (capped), `PathCell` then cuts the *front* of any path that still overflows —
@@ -41,25 +47,117 @@ export function truncatePath(path: string, columnWidth: number): string {
   return `${ellipsis}${cut}`;
 }
 
+/**
+ * The Path column's cell: read-only text until clicked, then a `CodeEditorCell` over the raw path.
+ * Editing is how the user retargets a row — typically after **Duplicate** produced
+ * `applicant[1].creditLine[0].balance` and they want `applicant[0].creditLine[2].balance` instead.
+ *
+ * A path that addresses nothing the model declares is shown in the error colour, while editing and
+ * after, as is one that collides with another row or is not a well-formed path at all. Only a
+ * collision (or an empty path) is actually refused on commit — any other path is the user's to
+ * enter, wrong or not; the cell just says so.
+ *
+ * The editor runs against `createPathLanguageService`, not the model's own language service: a row
+ * path is subject-relative and is only ever a path, so completions come from the subject's
+ * addressable paths and diagnostics from the same check the read-only cell shows. See
+ * `model/pathLanguage.ts`.
+ */
 export function PathCell({
-  path,
+  row,
   columnWidth,
-  type,
+  knownPaths,
 }: {
-  path: string;
+  row: TestRow;
   columnWidth: number;
-  type?: string;
+  knownPaths: ReadonlySet<string>;
 }): ReactElement {
-  const label = path === '' ? '(result)' : path;
-  const display = useMemo(
-    () => (path === '' ? label : truncatePath(path, columnWidth)),
-    [path, columnWidth, label],
+  const { testCasesService, readOnly } = useTestsManagerContext();
+  const [draft, setDraft] = useState<string | undefined>(undefined);
+
+  // `listRows()` returns a snapshot that only changes on mutation, so this memo re-runs when the
+  // grid's rows actually change — not on every keystroke in the cell.
+  const rows = testCasesService.listRows();
+  const languageService = useMemo(
+    () =>
+      createPathLanguageService({
+        knownPaths,
+        takenPaths: new Set(rows.map((other) => other.path).filter((path) => path !== row.path)),
+      }),
+    [knownPaths, rows, row.path],
   );
-  const tooltip = type ? `${label} — ${type}` : label;
+
+  const label = row.path === '' ? '(result)' : row.path;
+  const display = useMemo(
+    () => (row.path === '' ? label : truncatePath(row.path, columnWidth)),
+    [row.path, columnWidth, label],
+  );
+
+  // A scalar-returning callable's single row has no path to retarget; a deleted row's path is
+  // history, not an address. Everything else is editable.
+  const editable = !readOnly && row.path !== '' && row.present;
+  const editing = draft !== undefined;
+
+  const collides = (path: string): boolean =>
+    path !== row.path && rows.some((other) => other.path === path);
+
+  const invalidReason = (path: string): string | undefined => {
+    if (collides(path)) return 'Another row already uses this path.';
+    if (!isKnownPath(path, knownPaths)) return 'This path is not declared by the model.';
+    return undefined;
+  };
+
+  const problem = invalidReason(draft ?? row.path);
+
+  const commit = (text: string): void => {
+    const next = text.trim();
+    setDraft(undefined);
+    if (next === '' || next === row.path) return;
+    testCasesService.setRowPath(row.path, next);
+  };
+
+  if (editing) {
+    return (
+      <Box data-testid={`path-editor-${row.path || '(result)'}`}>
+        <CodeEditorCell
+          value={row.path}
+          service={languageService}
+          autoFocus
+          onChange={setDraft}
+          onCommit={commit}
+          onCancel={() => setDraft(undefined)}
+          sx={
+            problem
+              ? {
+                  borderColor: 'error.main',
+                  '&:focus-within': { borderColor: 'error.main' },
+                }
+              : undefined
+          }
+        />
+      </Box>
+    );
+  }
+
+  const typeSuffix = row.type ? ` — ${row.type}` : '';
+  const tooltip = problem ? `${label}${typeSuffix} — ${problem}` : `${label}${typeSuffix}`;
 
   return (
-    <Tooltip title={display === label ? (type ?? '') : tooltip}>
-      <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{display}</span>
+    <Tooltip title={display === label && !row.type && !problem ? '' : tooltip}>
+      <Box
+        component="span"
+        aria-label={`path ${label}`}
+        role={editable ? 'button' : undefined}
+        tabIndex={editable ? 0 : undefined}
+        onClick={editable ? () => setDraft(row.path) : undefined}
+        sx={{
+          fontFamily: 'monospace',
+          fontSize: 13,
+          cursor: editable ? 'text' : 'default',
+          color: problem ? 'error.main' : undefined,
+        }}
+      >
+        {display}
+      </Box>
     </Tooltip>
   );
 }

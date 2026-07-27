@@ -53,7 +53,8 @@ flowchart LR
 
 - **Path column**: shows the path to the model field that is being tested, relative to the selected test subject. The
   column sizes itself to the longest path (capped); a path that still overflows is truncated from the **front**
-  (`..creditLine[0].balance`), since the tail is what identifies the field.
+  (`..creditLine[0].balance`), since the tail is what identifies the field. A cell is read-only text until clicked,
+  at which point it becomes a `CodeEditorCell` over the raw path — see [Indexed paths](#indexed-paths).
 - **Path column header**: a drop-down that selects the **test subject** — the whole model, or any callable whose
   parameters are all typed, at any context depth, listed by its dotted path.
 - **Description column**: filled by `DocumentationService`, keyed by the qualified path. Empty and read-only when the
@@ -91,6 +92,53 @@ Every subject's grid has the same three sections, in this fixed order. A path be
 `Assertions` and `Validations` are the same population of computed paths split by user intent: **Move to Assertions**
 promotes a row into `Assertions` (seeding each cell with the currently computed value); **Delete** on an `Assertions`
 row demotes it back to `Validations` and discards its expected values. This is why a path can never appear in both.
+
+### Indexed paths
+
+A field declared as a list is not one opaque JSON cell. Every array — at any depth, in `Inputs` as in the computed
+sections — pre-generates **element `[0]`** alongside the whole-list row, expanded through its element type just like a
+user-defined type is:
+
+| Model declaration                     | Rows                                                                                                                          |
+|---------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| `history: <number[]>`                 | `history`, `history[0]`                                                                                                       |
+| `application.applicant: <Applicant[]>` | `application.applicant`, `application.applicant[0].name`, `application.applicant[0].creditLine`, `application.applicant[0].creditLine[0].balance`, … |
+| `grid: <number[][]>`                  | `grid`, `grid[0]`, `grid[0][0]`                                                                                               |
+
+`[0]` is the only index a schema can describe, so it is the only one derived — and it is always derived, so every list
+has at least one addressable element in each section without the user doing anything. Further elements come from the
+row menu's **Duplicate**, which bumps the path's deepest index to the first value no row is using yet
+(`applicant[0].creditLine[0].balance` → `applicant[0].creditLine[1].balance`) and inserts the copy directly below its
+source, carrying every case's cell text. It is offered only for a row whose path carries an index: a duplicate is one
+more element of a list the model already declares, never a new field. There is deliberately no "add row" — the grid's
+population comes from the model.
+
+Clicking a Path cell opens a `CodeEditorCell` over the raw path (Enter commits, Escape cancels, blur commits), which is
+how a duplicate gets retargeted at, say, a second applicant rather than a second credit line. A path that addresses
+nothing the model declares — a mistyped field, a syntactically broken path, or one another row already occupies — is
+shown in the error colour, while typing and after; only a collision (or an empty path) is refused on commit, since a
+path the model does not declare *yet* is still the user's to enter.
+
+That editor runs against a **path language service**, not the model's own
+([`model/pathLanguage.ts`](../src/components/tests-manager/model/pathLanguage.ts)). A row path is subject-relative and
+is only ever a path, so the engine's whole-model `diagnostics`/`completions` are the wrong tool for it — they report
+the first segment of every valid path as an unknown reference and offer built-ins that can never appear in a path (see
+[`TEST_MANAGER_BUGS.md`](TEST_MANAGER_BUGS.md)). Instead:
+
+- **Diagnostics** mark the first segment the subject does not declare, from that segment to the end of the path
+  (`'nope' is not a field of 'application.applicant[0]'`), plus malformed syntax and collisions with another row. A
+  subject whose schema could not be read flags nothing rather than painting every path red.
+- **Completions** are drawn from the subject's addressable paths, canonicalized to `[0]` for matching and re-indexed
+  back to whatever the user typed (`applicant[3].creditLine[1].` completes to that element's fields). They are ordered
+  shallowest-first, and replace the whole cell, so picking a deep leaf is one choice.
+
+Syntax highlighting, Enter/Escape/blur semantics, and everything else come from `CodeEditorCell` unchanged.
+
+A row the user duplicated or retyped is marked `custom` and is never derived again, so it is exempt from the
+`present: false` flagging that tracks the model dropping a field (see
+[Renamed and removed paths](#renamed-and-removed-paths)) — whether its path still means anything is what the Path cell
+already says. Its own menu carries **Delete row**, which removes it with its cells and results; a derived row has no
+such entry, since its path belongs to the model.
 
 ### Workbook Testing
 
@@ -250,7 +298,7 @@ ones in [`tests-manager-types.ts`](../src/components/tests-manager/tests-manager
 |-----------------------------------|----------------------------------------------------------------------------------------------|
 | `TestSubjectId`                   | `'*'` for the whole model, otherwise the callable's dotted path (`library.eligibility`).     |
 | `TestSubject` / `TestSubjectKind` | One entry in the Path-header drop-down: its id, its kind, and its display label.             |
-| `TestRow`                         | One grid row — path, section, order, declared type, and whether the model still declares it. |
+| `TestRow`                         | One grid row — path, section, order, declared type, whether the model still declares it, and whether the user authored it. |
 | `TestCase`                        | One grid column — everything the user authored: name, order, `inputs` and `assertions` maps. |
 | `TestValuesByPath`                | Raw cell text exactly as typed, keyed by subject-relative path.                              |
 | `TestResult`                      | One path's computed outcome — value or error, plus a status.                                 |
@@ -291,6 +339,9 @@ classDiagram
         +syncRows(rows) void
         +moveRow(path, toIndex) void
         +setRowSection(path, section) void
+        +duplicateRow(fromPath, toPath) void
+        +setRowPath(from, to) boolean
+        +removeRow(path) void
         +getCell(testCaseId, path, kind) string?
         +setCell(testCaseId, path, kind, text) void
         +getResultSet(testCaseId) TestResultSet?
@@ -350,6 +401,18 @@ classDiagram
         +detectRenames(previous, derived) RowRename[]
         +flattenResult(value) Record~path, unknown~
     }
+    class paths {
+        <<puremodule>>
+        +parsePathSegments(path) PathSegment[]?
+        +normalizeIndexes(path) string
+        +collectKnownPaths(paths) Set~string~
+        +isKnownPath(path, known) boolean
+        +nextDuplicatePath(path, taken) string?
+    }
+    class pathLanguage {
+        <<puremodule>>
+        +createPathLanguageService(options) CodeEditorService
+    }
     class values {
         <<puremodule>>
         +parseCell(text, type) unknown
@@ -363,6 +426,8 @@ classDiagram
     TestsManager --> subjects: subject drop-down
     TestsManager --> rows: pre-generation
     TestsManager --> values: cell parse / compare
+    TestsManager --> paths: Path cell validation / duplication
+    TestsManager --> pathLanguage: Path cell diagnostics / completions
     TestRunner --> MutableDecisionService: execute(subjectId, input)
     TestRunner --> TestCasesService: saveResultSet
     subjects --> MutableDecisionService: get ALL + EXTERNAL_DEFINITIONS + toPortable
@@ -395,6 +460,9 @@ src/components/tests-manager/
 ├─ model/
 │  ├─ subjects.ts                    — listTestSubjects
 │  ├─ rows.ts                        — deriveRows, detectRenames, flattenResult
+│  ├─ paths.ts                       — row-path syntax: segments, index normalization, known-path universe,
+│  │                                    next duplicate path
+│  ├─ pathLanguage.ts                — CodeEditorService for the Path cell: path diagnostics + path completions
 │  ├─ values.ts                      — parseCell / formatValue / matches (type-directed)
 │  └─ inputs.ts                      — qualifyPath; dotted subject-relative paths -> nested execute() input
 ├─ runner/
@@ -408,6 +476,7 @@ src/components/tests-manager/
 │  ├─ useTestRows.ts                 — useSyncExternalStore over TestCasesService.listRows()
 │  ├─ useTestCaseColumns.ts          — visible page of test cases + paging controls
 │  ├─ useCell.ts                     — one cell's persisted text, computed value, staleness, and match state
+│  ├─ useKnownPaths.ts               — the subject's addressable paths, for Path cell validation
 │  └─ useForceUpdate.ts              — re-render on service notifications where no stable snapshot exists
 ├─ grid/
 │  ├─ TestsGrid.tsx                  — grid shell, frozen Path/Description columns, toolbar, paging, solver banner
@@ -415,7 +484,8 @@ src/components/tests-manager/
 │  ├─ TestCaseHeaderCell.tsx         — drag handle, click-to-edit name, three-dots menu, run indicator
 │  ├─ SectionHeaderRow.tsx           — Inputs / Assertions / Validations separators; pass counter
 │  ├─ TestRowLine.tsx                — one row: drag handle, path cell, row menu, description cell, its case cells
-│  ├─ PathCell.tsx                   — path-column sizing + front-truncation, type tooltip
+│  ├─ PathCell.tsx                   — path-column sizing + front-truncation, type tooltip, click-to-edit path
+│  │                                    with unknown-path highlighting
 │  ├─ InputCell.tsx                  — editable, type-directed parsing, invalid-cell marking
 │  ├─ AssertionCell.tsx              — editable expected value; red + actual-value tooltip on mismatch
 │  ├─ ValidationCell.tsx             — read-only computed value, muted when stale
@@ -427,7 +497,9 @@ src/components/tests-manager/
 │  ├─ useRowDrag.ts                  — within-section row reordering
 │  └─ useColumnDrag.ts               — test-case column reordering, resolved against the unpaged case list
 └─ __tests__/                        — grid rendering/paging/readOnly, header layout + column drag, pre-generation,
-                                       execution + row-menu content, subjects, rows, values, optimise
+                                       execution + row-menu content, indexed paths (derivation, Duplicate, path
+                                       editing, path diagnostics/completions), subjects, rows, values, paths,
+                                       pathLanguage, optimise
 ```
 
 ## Persistence
@@ -513,10 +585,13 @@ Binding rules:
   [`BUG_REPORTS.md`](BUG_REPORTS.md). Restricting the payload to writable paths is what keeps `Validations` cells
   showing computed values rather than the user's own input.
 - Dotted subject-relative paths are expanded into a **nested** input object (`credit.balance` → `{credit: {balance:
-  …}}`). A dotted key passed literally binds nothing.
+  …}}`). A dotted key passed literally binds nothing. An indexed segment nests through an array instead
+  (`applicant[0].name` → `{applicant: [{name: …}]}`). Shallower paths bind first, so a list typed wholesale into its
+  own row is written before the indexed cells that address into it, and the more specific cell wins.
 - Subject `*` executes `execute('*', input)`; a callable subject executes `execute(subjectId, args)` with `args` keyed
   by parameter name.
-- The returned value is flattened back into subject-relative paths. A scalar return flattens to the single path `''`.
+- The returned value is flattened back into subject-relative paths; an array yields both its own path and one indexed
+  path per element (capped at 200), so an indexed row finds its computed value. A scalar return flattens to `''`.
   Paths in the result that have no row yet are appended as `Validations` rows before results are recorded (see
   [Rows the schema does not reveal](#rows-the-schema-does-not-reveal)).
 - A successful run records one `TestResult` per known, still-declared path, with status `ok`.
@@ -587,14 +662,16 @@ header name is click-to-edit and columns reorder via the header's own drag handl
 | `Clear results` | Drops this case's results, leaving inputs and assertions.                       |
 | `Delete`        | Removes the case with its cells and results; disabled when it is the only case. |
 
-**Row menu** (three dots in their own column beside the Path cell). `Inputs` rows have no actions, so their button is
-disabled.
+**Row menu** (three dots in their own column beside the Path cell). A row with no applicable action — an `Inputs` row
+on a path with no index — has its button disabled.
 
-| Action                    | Available in  | Effect                                                                       |
-|---------------------------|---------------|-------------------------------------------------------------------------------|
-| `Move to Assertions`      | `Validations` | Promotes the row and seeds each case's cell with that case's computed value.  |
-| `Delete`                  | `Assertions`  | Demotes the row back to `Validations`, discarding its expected values.        |
-| `Copy actual to expected` | `Assertions`  | Overwrites expected with the computed value, per case.                        |
+| Action                    | Available in           | Effect                                                                                    |
+|---------------------------|------------------------|---------------------------------------------------------------------------------------------|
+| `Duplicate`               | any indexed path       | Copies the row to the next free index, right below it, with every case's cell text.        |
+| `Move to Assertions`      | `Validations`          | Promotes the row and seeds each case's cell with that case's computed value.               |
+| `Delete`                  | `Assertions`, derived  | Demotes the row back to `Validations`, discarding its expected values.                     |
+| `Copy actual to expected` | `Assertions`           | Overwrites expected with the computed value, per case.                                     |
+| `Delete row`              | user-authored rows     | Removes the row outright, with its cells and results.                                      |
 
 **Grid-level actions** live in the toolbar above the grid: `Add test case`, `Run all`, and the paging controls (shown
 only when there is more than one page). A trailing icon column also carries an "add test case at end" button.
@@ -644,7 +721,8 @@ Derivation rules for `deriveRows`, read off `get('*', 'ALL')` and `get('*', 'EXT
 - A leaf whose `type` names a user-defined type is expanded into that type's own leaves, read from the same `ALL`
   view's root-level `type-definition` entries — the engine does not resolve such paths itself (`get('credit.balance')`
   on a `credit: <Credit>` hole returns `EntryNotFound`). Expansion recurses and is cycle-guarded.
-- `array`-typed leaves are not expanded; the row holds one JSON cell.
+- An `array`-typed leaf yields its own row (whose cell holds the whole list as JSON) plus the leaves of element `[0]`,
+  expanded recursively through `items` — see [Indexed paths](#indexed-paths).
 - `function-schema`, `ruleset-schema`, `loop-schema`, `optimise`, and `type-definition` entries are not rows of the
   `*` subject; they are subjects (or type sources) in their own right. A context that holds only callables therefore
   contributes no rows.
@@ -659,7 +737,9 @@ Subject discovery excludes a callable with any untyped parameter: the engine rep
 
 ### Renamed and removed paths
 
-A path that disappears from the model is only flagged (`present: false`), never deleted: the row stays visible, tinted
+This applies to derived rows only — a `custom` row (see [Indexed paths](#indexed-paths)) is never derived, so it is
+neither flagged nor rename-matched. A path that disappears from the model is only flagged (`present: false`), never
+deleted: the row stays visible, tinted
 and carrying a warning icon explaining that it is kept for reference and will not be used in future runs. Its data
 survives in IndexedDB, so restoring the field restores its test data, and its leftover assertion never counts toward a
 pass counter. Purging orphaned rows belongs to the future project-saving story.
@@ -709,7 +789,7 @@ does not ship). The engine is never mocked, per [`CLAUDE.md`](../CLAUDE.md).
 |-------------------------------------------|-------------------------------------------------------------------|-----------------------------------------|----------------|
 | `TestCasesService`                        | itself — no engine import exists in the package                   | `fake-indexeddb`                        | unit           |
 | `useTestCases` / `useTestResult`          | a real `TestCasesService`                                         | `fake-indexeddb`                        | RTL            |
-| `subjects` / `rows` / `values` / `inputs` | a real `MutableDecisionService` from `@edgerules/node`            | nothing                                 | unit, pure     |
+| `subjects` / `rows` / `values` / `inputs` / `paths` / `pathLanguage` | a real `MutableDecisionService` from `@edgerules/node` | nothing    | unit, pure     |
 | `TestRunner`                              | a real `MutableDecisionService` **and** a real `TestCasesService` | `fake-indexeddb`, `registerSolver` stub | unit, no React |
 | `TestsManager`                            | all of the above, really wired                                    | `fake-indexeddb`, `registerSolver` stub | RTL            |
 
@@ -732,6 +812,9 @@ does not ship). The engine is never mocked, per [`CLAUDE.md`](../CLAUDE.md).
   repo.
 - If a run exposes a WASM/DSL gap, append a reproducible entry to [`BUG_REPORTS.md`](BUG_REPORTS.md) rather than
   compensating in React.
+- **Anything about painting or stacking is an e2e test**, not an RTL one: jsdom has no layout, so a popup being
+  covered by the rows below it is invisible to it. `e2e/tests-manager.spec.ts` drives the real Storybook build in
+  Chromium and hit-tests the open completion popup — see [`TEST_MANAGER_BUGS.md`](TEST_MANAGER_BUGS.md).
 
 ## Storybook stories
 
@@ -747,7 +830,9 @@ Stories live in `stories/tests-manager/TestsManager.stories.tsx`, each building 
 6. `SharedDocumentationService` — descriptions staying in sync with another component both ways.
 7. `LiveModelEdits` — a model edited live (the harness bumps `revision`): new fields appear, removed fields are
    flagged, and all cases re-run.
-8. `ReadOnly` — `readOnly` mode.
+8. `IndexedArrayPaths` — a model of applicants each holding credit lines: pre-generated `[0]` paths at every depth,
+   **Duplicate**, and click-to-edit paths with the unknown-path highlight.
+9. `ReadOnly` — `readOnly` mode.
 
 ## Clarifications
 
@@ -776,6 +861,10 @@ Stories live in `stories/tests-manager/TestsManager.stories.tsx`, each building 
 | 21 | A new test case inherits the previous case's inputs                | Filling in a second or third case is then a tweak rather than a retype. Assertions always start blank — a promoted row is shared, but what each case expects of it is not.                                                                                                                       |
 | 22 | Pre-generation waits for hydration                                 | `TestCasesService` is synchronous over an in-memory cache that IndexedDB fills asynchronously. Deriving rows before hydration lands would mark the service locally mutated and discard the very data hydration was about to deliver.                                                              |
 | 23 | Run generations rather than a queue                                | Each run for a case takes a generation number, and a superseded run's result is discarded on arrival. Typing quickly across several cells therefore leaves the last edit's result standing, not whichever engine call happened to return last.                                                   |
+| 24 | Arrays derive element `[0]`, and keep their whole-list row too     | A JSON blob is unusable for an array of records, and an element-only expansion would remove the one cell that can bind or assert a whole list. Keeping both costs one row and makes binding precedence explicit (shallower first, indexed cells override), which is also how a user pastes a list and then tweaks one field of it. |
+| 25 | Extra elements are duplicated, never added                         | The schema describes element `[0]` and nothing else, so any further row is a copy of a path the model already declares. Framing it as **Duplicate** (rather than a free-form "add row") keeps every row anchored to something real and makes the type of the new row known — it is the source's. |
+| 26 | The Path cell gets a path language service, not the model's        | The engine's `diagnostics`/`completions` analyze a whole model source, so a bare subject-relative path lints as an unknown reference and completes to built-ins. Path diagnostics and path completions come from the derived schema instead (indexes normalized to `[0]`), which is subject-correct and needs nothing wired by the host. |
+| 27 | A user-authored row is `custom`, and exempt from removal flagging  | `present: false` means "the model dropped this derived path". A duplicated or retyped row is in no derived snapshot by construction, so applying that rule to it would flag every duplicate as deleted. Its correctness is shown by the Path cell instead, and `Delete row` — offered only for such rows — is how it goes away. |
 
 ## Open Questions
 

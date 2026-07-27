@@ -50,10 +50,54 @@ describe('deriveRows — model subject', () => {
     expect(customerRows.every((r) => r.section === 'inputs')).toBe(true);
   });
 
-  it('does not expand an array-typed leaf', () => {
+  it('expands an array leaf into the whole list plus its zero-indexed element', () => {
     const service = MutableDecisionService.fromCode('{ history: <number[]> }');
     const rows = deriveRows(service, MODEL_SUBJECT);
-    expect(rows).toEqual([{ path: 'history', section: 'inputs', order: 0, type: 'array', present: true }]);
+    expect(rows).toEqual([
+      { path: 'history', section: 'inputs', order: 0, type: 'array', present: true },
+      { path: 'history[0]', section: 'inputs', order: 1, type: 'number', present: true },
+    ]);
+  });
+
+  it('expands arrays of a user type recursively, zero-indexing every level', () => {
+    const service = MutableDecisionService.fromCode(`{
+      type CreditLine: { balance: <number>, limit: <number> }
+      type Applicant: { name: <string>, creditLine: <CreditLine[]> }
+      application: { applicant: <Applicant[]> }
+    }`);
+    const rows = deriveRows(service, MODEL_SUBJECT);
+
+    expect(pathsIn(rows, 'inputs')).toEqual([
+      'application.applicant',
+      'application.applicant[0].name',
+      'application.applicant[0].creditLine',
+      'application.applicant[0].creditLine[0].balance',
+      'application.applicant[0].creditLine[0].limit',
+    ]);
+    expect(rows.find((r) => r.path === 'application.applicant[0].creditLine[0].balance')?.type).toBe('number');
+  });
+
+  // The engine rejects a recursive type outright (`E210: recursive type alias`), so array expansion
+  // can never be driven into a cycle by a compiling model; this pins that the unreadable schema
+  // yields no rows rather than throwing.
+  it('yields no rows when the schema cannot be read', () => {
+    const service = MutableDecisionService.fromCode(`{
+      type Node: { name: <string>, children: <Node[]> }
+      root: <Node>
+    }`);
+    expect(deriveRows(service, MODEL_SUBJECT)).toEqual([]);
+  });
+
+  it('expands a multi-dimensional array one index per dimension', () => {
+    const service = MutableDecisionService.fromCode('{ grid: <number[][]> }');
+    const rows = deriveRows(service, MODEL_SUBJECT);
+    expect(pathsIn(rows, 'inputs')).toEqual(['grid', 'grid[0]', 'grid[0][0]']);
+  });
+
+  it('expands a computed array the same way', () => {
+    const service = MutableDecisionService.fromCode('{ values: [1, 2, 3] }');
+    const rows = deriveRows(service, MODEL_SUBJECT);
+    expect(pathsIn(rows, 'validations')).toEqual(['values', 'values[0]']);
   });
 
   it('every freshly derived computed row lands in validations, never assertions', () => {
@@ -208,8 +252,31 @@ describe('flattenResult', () => {
     });
   });
 
-  it('treats an array as one leaf, not exploded by index', () => {
-    expect(flattenResult({ notes: ['a', 'b', 'c'] })).toEqual({ notes: ['a', 'b', 'c'] });
+  it('yields both the whole array and one path per element', () => {
+    expect(flattenResult({ notes: ['a', 'b', 'c'] })).toEqual({
+      notes: ['a', 'b', 'c'],
+      'notes[0]': 'a',
+      'notes[1]': 'b',
+      'notes[2]': 'c',
+    });
+  });
+
+  it('flattens records nested inside array elements, at every level', () => {
+    expect(
+      flattenResult({ applicant: [{ name: 'Ann', creditLine: [{ balance: 10 }] }] }),
+    ).toEqual({
+      applicant: [{ name: 'Ann', creditLine: [{ balance: 10 }] }],
+      'applicant[0].name': 'Ann',
+      'applicant[0].creditLine': [{ balance: 10 }],
+      'applicant[0].creditLine[0].balance': 10,
+    });
+  });
+
+  it('caps indexed expansion of a long list, keeping the whole-array leaf', () => {
+    const flattened = flattenResult(Array.from({ length: 500 }, (_, i) => i));
+    expect((flattened[''] as number[]).length).toBe(500);
+    expect(flattened['[199]']).toBe(199);
+    expect(flattened['[200]']).toBeUndefined();
   });
 
   it('flattens a scalar top-level result to the single empty path', () => {

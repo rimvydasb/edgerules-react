@@ -26,11 +26,26 @@ function collectTypeDefinitions(node: unknown): TypeDefinitionMap {
   return defs;
 }
 
+// Appends `[0]` to the last segment of `pathSoFar` — `['application', 'applicant']` ->
+// `['application', 'applicant[0]']`. An array returned by a callable has no segment to hang the
+// index off of, so its element is the bare `[0]`.
+function withZeroIndex(pathSoFar: readonly string[]): string[] {
+  if (pathSoFar.length === 0) return ['[0]'];
+  return [...pathSoFar.slice(0, -1), `${pathSoFar[pathSoFar.length - 1]}[0]`];
+}
+
 // Expands one type reference — a bare type-name string, a `{'@kind': 'type', type, items?}` typed
 // value, or an inline `{'@kind': 'type-definition', ...fields}` record — into its leaf paths.
 // A user-defined type name is resolved through `typeDefs` and expanded recursively (the engine does
-// not resolve such paths itself); an array is never expanded regardless of its element type; a type
-// name absent from `typeDefs` (a scalar, or simply unknown) becomes a single leaf.
+// not resolve such paths itself); a type name absent from `typeDefs` (a scalar, or simply unknown)
+// becomes a single leaf.
+//
+// An array contributes its own leaf (whose cell holds the whole list as JSON) *and* the leaves of
+// its element `[0]`, recursively — so a model of applicants each holding credit lines pre-generates
+// `applicant[0].creditLine[0].balance` rather than one opaque JSON row. Element `[0]` is the only
+// index the schema can describe; further elements are the user's to duplicate. Recursion terminates
+// on the same `seen` guard as a plain user-type reference: a self-referential `type Node: {children:
+// <Node[]>}` expands `children[0]` as a single `Node` leaf.
 function expandTypeRef(
   pathSoFar: readonly string[],
   ref: unknown,
@@ -63,6 +78,9 @@ function expandTypeRef(
   const typeName = typeof ref['type'] === 'string' ? (ref['type'] as string) : 'any';
   if (typeName === 'array') {
     into.push({ path, type: 'array' });
+    if (ref['items'] !== undefined) {
+      expandTypeRef(withZeroIndex(pathSoFar), ref['items'], typeDefs, into, seen);
+    }
     return;
   }
   const typeDef = typeDefs[typeName];
@@ -176,12 +194,13 @@ export interface RowRename {
 // batch) is left undetected and falls through to `TestCasesService.syncRows`'s existing
 // delete+add behavior, since guessing wrong would silently misattribute one field's data to
 // another. A `present: false` row (already flagged as deleted from a prior sync) is never treated
-// as a rename source.
+// as a rename source, and neither is a user-authored (`custom`) one — it is absent from every
+// derived snapshot by definition, so pairing it with a newly declared field would be pure fiction.
 export function detectRenames(previousRows: TestRow[], derivedRows: TestRow[]): RowRename[] {
   const previousPaths = new Set(previousRows.map((row) => row.path));
   const derivedPaths = new Set(derivedRows.map((row) => row.path));
 
-  const removed = previousRows.filter((row) => row.present && !derivedPaths.has(row.path));
+  const removed = previousRows.filter((row) => row.present && !row.custom && !derivedPaths.has(row.path));
   const added = derivedRows.filter((row) => !previousPaths.has(row.path));
 
   const removedByKey = new Map<string, TestRow[]>();
@@ -210,18 +229,36 @@ export function detectRenames(previousRows: TestRow[], derivedRows: TestRow[]): 
   return renames;
 }
 
+// How many elements of a returned array get their own indexed paths. A row addressing a later
+// element simply finds no value (its cell stays empty) — the cap is there so one long list in a
+// result cannot flatten into tens of thousands of entries on every run.
+const MAX_INDEXED_RESULT_ITEMS = 200;
+
 // Flattens an `execute()` result into subject-relative leaf paths, the same way `deriveRows` flattens
-// the schema: a plain nested object recurses field by field (dot-joined), an array is a leaf, and a
-// scalar top-level result (a callable whose return type is a scalar) flattens to the single path `''`.
-// This is how a `@kind: 'invocation'` call site's leaves — opaque to every `get` view — are discovered.
-export function flattenResult(value: unknown, pathPrefix: readonly string[] = []): Record<string, unknown> {
+// the schema: a plain nested object recurses field by field (dot-joined), an array yields both its own
+// leaf (the whole list) and one indexed path per element, and a scalar top-level result (a callable
+// whose return type is a scalar) flattens to the single path `''`. This is how a `@kind: 'invocation'`
+// call site's leaves — opaque to every `get` view — are discovered, and how an indexed row
+// (`applicant[1].name`) finds its computed value.
+export function flattenResult(value: unknown, pathPrefix = ''): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  if (isRecord(value) && !Array.isArray(value)) {
-    for (const [key, sub] of Object.entries(value)) {
-      Object.assign(out, flattenResult(sub, [...pathPrefix, key]));
+
+  if (Array.isArray(value)) {
+    out[pathPrefix] = value;
+    const limit = Math.min(value.length, MAX_INDEXED_RESULT_ITEMS);
+    for (let index = 0; index < limit; index += 1) {
+      Object.assign(out, flattenResult(value[index], `${pathPrefix}[${index}]`));
     }
     return out;
   }
-  out[pathPrefix.join('.')] = value;
+
+  if (isRecord(value)) {
+    for (const [key, sub] of Object.entries(value)) {
+      Object.assign(out, flattenResult(sub, pathPrefix === '' ? key : `${pathPrefix}.${key}`));
+    }
+    return out;
+  }
+
+  out[pathPrefix] = value;
   return out;
 }

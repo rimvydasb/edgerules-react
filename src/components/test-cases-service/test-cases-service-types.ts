@@ -12,6 +12,10 @@ export interface TestRow {
   order: number; // Position within its section.
   type?: string; // Declared/inferred type name, used to parse cells and as the Path cell tooltip.
   present: boolean; // False once the model no longer declares this path — hidden in the GUI, kept in IndexedDB.
+  // True for a row the user authored — a duplicated indexed path, or one whose path they edited.
+  // Such a row is never derived from the schema, so it is exempt from the `present: false` flagging
+  // that removes derived rows; whether its path still addresses anything is shown in the Path cell.
+  custom?: boolean;
 }
 
 // Raw cell text exactly as typed, keyed by subject-relative path. Parsed per the row's type at run time.
@@ -74,6 +78,19 @@ export interface TestCasesService {
   syncRows(rows: TestRow[]): void; // Reconciles derived rows with persisted ones (see Tests Pre-Generation).
   moveRow(path: string, toIndex: number): void; // Within the row's own section.
   setRowSection(path: string, section: TestSectionId): void; // Promote/demote between assertions and validations.
+
+  // Copies `fromPath`'s row to `toPath` — same section and type, inserted right after it, with every
+  // case's cell text copied — and marks the copy `custom`. No-op when `fromPath` has no row or
+  // `toPath` already has one. Callers compute `toPath`; this method knows nothing about path syntax.
+  duplicateRow(fromPath: string, toPath: string): void;
+
+  // Repoints a row at another path, carrying its cells and results, and marks it `custom`. Returns
+  // false (changing nothing) when `from` has no row, `to` is already taken, or the two are equal.
+  setRowPath(from: string, to: string): boolean;
+
+  // Drops a row outright, with its cells and its results — the counterpart of `duplicateRow`, meant
+  // for user-authored rows. A derived row removed this way comes back on the next `syncRows`.
+  removeRow(path: string): void;
 
   // --- cells: accessors into one test case's inputs/assertions map ---
   getCell(testCaseId: string, path: string, kind: TestCellKind): string | undefined; // Raw text as typed.

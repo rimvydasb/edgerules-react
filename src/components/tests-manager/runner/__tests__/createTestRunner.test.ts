@@ -97,6 +97,90 @@ describe('createTestRunner — binding', () => {
   });
 });
 
+describe('createTestRunner — indexed (array element) rows', () => {
+  const ARRAY_MODEL = `{
+      type CreditLine: { balance: <number>, limit: <number> }
+      type Applicant: { name: <string>, creditLine: <CreditLine[]> }
+      application: { applicant: <Applicant[]> }
+      totals: { first: application.applicant[0].creditLine[0].balance }
+  }`;
+
+  async function setUpArrays(): Promise<{ service: RunnerService; testCasesService: TestCasesService }> {
+    const service = MutableDecisionService.fromCode(ARRAY_MODEL) as unknown as RunnerService;
+    const testCasesService = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(testCasesService);
+    testCasesService.syncRows(deriveRows(service, MODEL_SUBJECT));
+    return { service, testCasesService };
+  }
+
+  it('binds indexed input cells into the arrays the engine expects, and reads element values back', async () => {
+    const { service, testCasesService } = await setUpArrays();
+    const testCase = testCasesService.addTestCase();
+    // The zero-indexed rows are pre-generated; a second credit line comes from a duplicated row.
+    testCasesService.duplicateRow(
+      'application.applicant[0].creditLine[0].balance',
+      'application.applicant[0].creditLine[1].balance',
+    );
+    testCasesService.setCell(testCase.id, 'application.applicant[0].name', 'input', 'Ann');
+    testCasesService.setCell(testCase.id, 'application.applicant[0].creditLine[0].balance', 'input', '10');
+    testCasesService.setCell(testCase.id, 'application.applicant[0].creditLine[1].balance', 'input', '20');
+
+    const runner = createTestRunner(service, testCasesService, MODEL_SUBJECT);
+    await runner.run(testCase.id);
+
+    const resultSet = testCasesService.getResultSet(testCase.id);
+    expect(resultSet?.status).toBe('ok');
+    // The engine really received a two-element list of credit lines under a one-element applicant list.
+    expect(resultSet?.results['totals.first'].value).toBe(10);
+    expect(resultSet?.results['application.applicant[0].name'].value).toBe('Ann');
+    expect(resultSet?.results['application.applicant[0].creditLine[1].balance'].value).toBe(20);
+    testCasesService.dispose();
+  });
+
+  it('binds a whole list typed into the array row itself, with indexed cells overriding elements', async () => {
+    const { service, testCasesService } = await setUpArrays();
+    const testCase = testCasesService.addTestCase();
+    testCasesService.setCell(
+      testCase.id,
+      'application.applicant',
+      'input',
+      '[{"name": "Ann", "creditLine": [{"balance": 1, "limit": 2}]}]',
+    );
+    testCasesService.setCell(testCase.id, 'application.applicant[0].creditLine[0].balance', 'input', '99');
+
+    const runner = createTestRunner(service, testCasesService, MODEL_SUBJECT);
+    await runner.run(testCase.id);
+
+    const resultSet = testCasesService.getResultSet(testCase.id);
+    expect(resultSet?.status).toBe('ok');
+    expect(resultSet?.results['totals.first'].value).toBe(99);
+    expect(resultSet?.results['application.applicant[0].name'].value).toBe('Ann');
+    expect(resultSet?.results['application.applicant[0].creditLine[0].limit'].value).toBe(2);
+    testCasesService.dispose();
+  });
+
+  it('adopts only element [0] of a discovered list as a new row', async () => {
+    const service = MutableDecisionService.fromCode(`{
+        names: <string[]>
+        upper: for n in names return toUpperCase(n)
+    }`) as unknown as RunnerService;
+    const testCasesService = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(testCasesService);
+    testCasesService.syncRows(deriveRows(service, MODEL_SUBJECT));
+    const testCase = testCasesService.addTestCase();
+    testCasesService.setCell(testCase.id, 'names', 'input', '["ann", "bob", "cid"]');
+
+    const runner = createTestRunner(service, testCasesService, MODEL_SUBJECT);
+    await runner.run(testCase.id);
+
+    const paths = testCasesService.listRows().map((row) => row.path);
+    expect(paths).toContain('upper[0]');
+    expect(paths).not.toContain('upper[1]');
+    expect(testCasesService.getResultSet(testCase.id)?.results['upper[0]'].value).toBe('ANN');
+    testCasesService.dispose();
+  });
+});
+
 describe('createTestRunner — result flattening', () => {
   it('flattens a scalar-returning callable to the single empty path', async () => {
     const service = MutableDecisionService.fromCode(
