@@ -304,17 +304,17 @@ Path-scoped, deferred, and run-level errors arrive with Phases 2 and 7.
 
 ## 9. Tasks
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `primitives/`: `RowLine`, `Cell`, `TypeName`, `Drag`, `ColumnDragHandle`, `TallIconHandle`, `SettingRow`,
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `primitives/`: `RowLine`, `Cell`, `TypeName`, `Drag`, `ColumnDragHandle`, `TallIconHandle`, `SettingRow`,
       `DropdownChip`, `ArgumentHeaders` — ported ~1:1 from the wireframe's `primitives.tsx`, honouring the 40 px grid
-- [ ] Add `context/BoxedEditorContext.tsx` (services, `readOnly`, column visibility, `revision` → `invalidate()`) and
+- [x] Add `context/BoxedEditorContext.tsx` (services, `readOnly`, column visibility, `revision` → `invalidate()`) and
       `context/BoxedEditorUiContext.tsx` (expand state, active cell path, Alt-held)
-- [ ] Add `hooks/useBoxedEditorService.ts`, `hooks/useBoxedRows.ts`, `hooks/useAltHeld.ts`
-- [ ] Add `rows/RowSwitch.tsx` plus `ModelHeaderRow`, `FieldRow`, `ContextRow`, `ComplexTypeRow`
-- [ ] Add `BoxedEditor.tsx`: `path` validation (fatal alert on failure), providers, optional header row, root row list
-- [ ] Add `__tests__/BoxedEditor.test.tsx` and `__tests__/alt-reveal.test.tsx` against a real
+- [x] Add `hooks/useBoxedEditorService.ts`, `hooks/useBoxedRows.ts`, `hooks/useAltHeld.ts`
+- [x] Add `rows/RowSwitch.tsx` plus `ModelHeaderRow`, `FieldRow`, `ContextRow`, `ComplexTypeRow`
+- [x] Add `BoxedEditor.tsx`: `path` validation (fatal alert on failure), providers, optional header row, root row list
+- [x] Add `__tests__/BoxedEditor.test.tsx` and `__tests__/alt-reveal.test.tsx` against a real
       `MutableDecisionService` from `@edgerules/node`
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Mark all checkboxes as done in this document once verified
 
 ## 10. Verification
 

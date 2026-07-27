@@ -19,9 +19,12 @@ export type {
   DecisionTableEditorProps,
   DecisionTableService,
 } from './components/decision-table';
-export { createBoxedEditorService } from './components/boxed-editor';
+export { BoxedEditor, createBoxedEditorService } from './components/boxed-editor';
 export type {
+  BoxedEditorOpenTarget,
+  BoxedEditorProps,
   BoxedEditorService,
+  BoxedEditorTargetKind,
   BoxedRowData,
   BoxedRowKind,
   BoxedTableRowData,
