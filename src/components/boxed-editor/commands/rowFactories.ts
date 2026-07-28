@@ -122,12 +122,27 @@ export function nextFieldRow(
   return isTypeMember ? { ...field, value: 'string' } : field;
 }
 
-/** Appends a blank `list-item` and returns the whole `list` row for a parent rewrite. */
+function compatibleListItemDefault(value: string | undefined): string {
+  const trimmed = value?.trim() ?? '';
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return '0';
+  if (trimmed === 'true' || trimmed === 'false') return 'false';
+  if (/^(['"]).*\1$/.test(trimmed)) return BLANK_LITERAL;
+  return trimmed || BLANK_LITERAL;
+}
+
+/**
+ * Appends a type-compatible `list-item` and returns the whole `list` row for a parent rewrite.
+ * EdgeRules lists are homogeneous, so always seeding `BLANK_LITERAL` would make appending to a
+ * numeric or boolean list fail before the new cell can be edited.
+ */
 export function appendListItem(row: BoxedRowData): BoxedRowData {
   const children = row.children ?? [];
   const index = children.length;
   const path = indexedPath(row.path, index);
-  const item = rowFactories['list-item']!(path, `Item ${index + 1}`, pathDepth(path));
+  const item = {
+    ...rowFactories['list-item']!(path, `Item ${index + 1}`, pathDepth(path)),
+    value: compatibleListItemDefault(children.at(-1)?.value),
+  };
   return { ...row, children: [...children, item] };
 }
 

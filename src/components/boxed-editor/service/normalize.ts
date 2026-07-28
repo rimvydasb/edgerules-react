@@ -104,7 +104,11 @@ function normalizeArray(
   schema?: PortableNode,
 ): BoxedTableRowData {
   const relation =
-    values.some((value) => isRecord(value)) ||
+    values.some(
+      (value) =>
+        isRecord(value) &&
+        (value['@kind'] === undefined || value['@kind'] === 'context'),
+    ) ||
     (isRecord(schema) &&
       isRecord(schema.items) &&
       schema.items['@kind'] === 'type-definition');

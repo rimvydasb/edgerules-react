@@ -150,11 +150,24 @@ describe('row name editing', () => {
         await user.click(screen.getByText('name'));
         await user.keyboard('{Control>}a{/Control}age{Enter}');
 
-        expect(await screen.findByRole('alert')).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent('A field named "age" already exists.');
         // Still in the model unchanged, and the cell keeps focus/edit state (same "rejected
         // edit" contract as `ExpressionCell`) rather than reverting to static text.
         expect(service.toPortable().Applicant).toHaveProperty('name');
         expect(screen.getByDisplayValue('age')).toBeInTheDocument();
+    });
+
+    it('identifies the attempted name when an ordinary field rename collides', async () => {
+        const user = userEvent.setup();
+        const service = createBoxedEditorService(MutableDecisionService.fromCode('{ payment: 1; field: 2 }'));
+        render(<BoxedEditor service={service} path="*" languageService={languageService} />);
+
+        await user.click(screen.getByText('field'));
+        await user.keyboard('{Control>}a{/Control}payment{Enter}');
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('A field named "payment" already exists.');
+        expect(screen.getByDisplayValue('payment')).toBeInTheDocument();
+        expect(service.toPortable()).toMatchObject({payment: 1, field: 2});
     });
 
     it('cancels a rename on Escape without committing', async () => {
@@ -167,5 +180,59 @@ describe('row name editing', () => {
 
         expect(screen.getByText('name')).toBeInTheDocument();
         expect(service.toPortable().Applicant).toHaveProperty('name');
+    });
+});
+
+describe('expression editing feedback', () => {
+    const EXPRESSION_MODEL = `{
+      application: { loanAmount: <number, required: true> }
+      payment: application.loanAmount / 12
+    }`;
+
+    function buildExpressionService() {
+        return createBoxedEditorService(MutableDecisionService.fromCode(EXPRESSION_MODEL));
+    }
+
+    it('shows an actionable parse error without exposing parser internals', async () => {
+        const user = userEvent.setup();
+        const service = buildExpressionService();
+        const {container} = render(<BoxedEditor service={service} path="*" languageService={languageService} />);
+
+        await user.click(screen.getByText('application.loanAmount / 12'));
+        replaceDoc(container, 'application.loanAmount /');
+        await user.keyboard('{Enter}');
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('Expected a value after "/".');
+        expect(alert).not.toHaveTextContent('ParseError');
+        expect(alert).not.toHaveTextContent('MissingExpression');
+    });
+
+    it('rejects an empty expression without removing the committed field', async () => {
+        const user = userEvent.setup();
+        const service = buildExpressionService();
+        const {container} = render(<BoxedEditor service={service} path="*" languageService={languageService} />);
+
+        await user.click(screen.getByText('application.loanAmount / 12'));
+        replaceDoc(container, '');
+        await user.keyboard('{Enter}');
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('A value is required.');
+        expect(container.querySelector('.cm-editor')).not.toBeNull();
+        expect(service.getBoxedRowData('payment')).toMatchObject({value: 'application.loanAmount / 12'});
+    });
+
+    it('cancels an expression draft on Escape and restores the committed value', async () => {
+        const user = userEvent.setup();
+        const service = buildExpressionService();
+        const {container} = render(<BoxedEditor service={service} path="*" languageService={languageService} />);
+
+        await user.click(screen.getByText('application.loanAmount / 12'));
+        replaceDoc(container, '999');
+        await user.keyboard('{Escape}');
+
+        expect(container.querySelector('.cm-editor')).toBeNull();
+        expect(screen.getByText('application.loanAmount / 12')).toBeInTheDocument();
+        expect(service.getBoxedRowData('payment')).toMatchObject({value: 'application.loanAmount / 12'});
     });
 });

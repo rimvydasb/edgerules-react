@@ -243,6 +243,21 @@ describe('BoxedEditorService normalization', () => {
     ]);
   });
 
+  it('keeps portable expression records in a scalar list', () => {
+    const list = normalizeNode('scores', 'scores', [
+      { '@kind': 'expression', expression: '0' },
+      { '@kind': 'expression', expression: '-1' },
+    ] as never);
+
+    expect(list).toMatchObject({
+      kind: 'list',
+      children: [
+        { kind: 'list-item', value: '0' },
+        { kind: 'list-item', value: '-1' },
+      ],
+    });
+  });
+
   it('uses the linked item schema to classify an empty relation', () => {
     expect(
       normalizeNode('records', 'records', [], {

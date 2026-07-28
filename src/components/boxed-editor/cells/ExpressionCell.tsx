@@ -10,6 +10,17 @@ import type {BoxedRowData} from '../boxed-editor-types';
 
 const ACTIVE_CELL_MARKER = '__boxed_editor_active_cell__';
 
+function expressionErrorMessage(error: PortableError, value: string): string {
+    if (error.type !== 'Parse') return error.message;
+
+    const trailingOperator = /(\?\?|&&|\|\||===|!==|==|!=|<=|>=|[+\-*/%<>])$/.exec(value.trim())?.[1];
+    if (trailingOperator && error.message.includes('MissingExpression')) {
+        return `Expected a value after "${trailingOperator}".`;
+    }
+
+    return 'Invalid expression. Check the syntax and try again.';
+}
+
 function parametersText(parameters: unknown): string {
     if (!isRecord(parameters)) return '';
     return Object.entries(parameters)
@@ -139,16 +150,23 @@ export function ExpressionCell({row, onCommit}: ExpressionCellProps): ReactEleme
     };
 
     const commit = (value: string): void => {
+        if (value.trim() === '' && onCommit === undefined) {
+            setDraft(value);
+            setError('A value is required.');
+            return;
+        }
         const result = onCommit ? onCommit(value) : commands.setBoxedRowData(row.path, {...row, value});
         if (result) {
             setDraft(value);
-            setError(result.message);
+            setError(expressionErrorMessage(result, value));
             return;
         }
         setActiveCellPath(null);
     };
 
     const cancel = (): void => {
+        setDraft(row.value ?? '');
+        setError(undefined);
         setActiveCellPath(null);
     };
 
@@ -184,7 +202,10 @@ export function ExpressionCell({row, onCommit}: ExpressionCellProps): ReactEleme
         <Box sx={{position: 'relative', width: '100%'}}>
             <CodeEditorCell
                 value={draft}
-                onChange={setDraft}
+                onChange={(value) => {
+                    setDraft(value);
+                    setError(undefined);
+                }}
                 onCommit={commit}
                 onCancel={cancel}
                 service={languageService}

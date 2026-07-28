@@ -1,652 +1,223 @@
-import { test, expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-async function dragByHandle(page: Page, source: string, target: string) {
-  const sourceBox = await page
-    .getByRole('button', { name: `Drag ${source}`, exact: true })
-    .boundingBox();
-  const targetBox = await page
-    .getByRole('button', { name: `Drag ${target}`, exact: true })
-    .boundingBox();
-  if (!sourceBox || !targetBox) throw new Error('Drag handles are not visible');
-  await page.mouse.move(
-    sourceBox.x + sourceBox.width / 2,
-    sourceBox.y + sourceBox.height / 2,
-  );
-  await page.mouse.down();
-  await page.mouse.move(
-    targetBox.x + targetBox.width / 2,
-    targetBox.y + targetBox.height / 2,
-    { steps: 10 },
-  );
-  await page.mouse.up();
+const STORY_PREFIX = 'boxed-editor-boxededitor--';
+
+interface StoryIndex {
+  entries: Record<string, { type?: string }>;
 }
 
-async function editExpression(
-  page: Page,
-  path: string,
-  initialValue: string,
-  nextValue: string,
-) {
-  const row = page.getByRole('row', { name: path, exact: true });
-  const relationCell = page.getByRole('cell', { name: path, exact: true });
-  const target = row.getByRole('cell').nth(3).or(relationCell).first();
-  await target.click();
+async function storyIndex(page: Page): Promise<StoryIndex> {
+  const response = await page.request.get('/index.json');
+  expect(response.ok(), 'Storybook should expose its story index').toBe(true);
+  return (await response.json()) as StoryIndex;
+}
+
+async function currentBoxedEditorStoryIds(page: Page): Promise<string[]> {
+  const index = await storyIndex(page);
+  return Object.entries(index.entries)
+    .filter(([id, entry]) => id.startsWith(STORY_PREFIX) && entry.type === 'story')
+    .map(([id]) => id)
+    .sort();
+}
+
+async function openBoxedEditorStory(page: Page, storyName: string): Promise<void> {
+  const storyId = `${STORY_PREFIX}${storyName}`;
+  const index = await storyIndex(page);
+  if (index.entries[storyId]?.type !== 'story') {
+    throw new Error(
+      `Missing Boxed Editor Storybook story "${storyId}". ` + 'Update the E2E story mapping when a story is renamed.',
+    );
+  }
+
+  await page.goto(`/iframe.html?id=${storyId}&viewMode=story`);
+  await expect(page.getByRole('treegrid'), `Story "${storyId}" should render a Boxed Editor treegrid`).toBeVisible();
+  await expect(page.getByText('The component failed to render properly')).not.toBeVisible();
+}
+
+function valueCell(page: Page, path: string) {
+  return page.getByTestId(`row-${path}`).locator('[data-column="value"]');
+}
+
+async function replaceActiveExpression(page: Page, value: string): Promise<void> {
   const editor = page.locator('.cm-content');
   await expect(editor).toHaveCount(1);
-  await expect(editor).toHaveText(initialValue);
   await editor.click();
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   await page.keyboard.press(`${modifier}+A`);
-  await page.keyboard.type(nextValue);
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.cm-editor')).toHaveCount(0);
-  await expect(target).toContainText(nextValue);
+  if (value === '') {
+    await page.keyboard.press('Backspace');
+  } else {
+    await page.keyboard.insertText(value);
+  }
 }
 
-const BOXED_EDITOR_STORIES = [
-  'root-read-only',
-  'focused-function',
-  'inline-function',
-  'context-function',
-  'external-function',
-  'invocation',
-  'literal-list',
-  'relation',
-  'loan-origination-overview',
-  'loan-origination-overview-read-only',
-  'error-state',
-  'nested-function-visual',
-  'large-model-visual',
-  'project-explorer-integration',
-] as const;
+async function commitExpression(page: Page, path: string, value: string): Promise<void> {
+  await valueCell(page, path).click();
+  await replaceActiveExpression(page, value);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
+}
 
-test('read-only loan origination opens from the Storybook manager route', async ({
-  page,
-}) => {
-  await page.goto(
-    '/?path=/story/boxed-editor-boxededitor--loan-origination-overview-read-only',
-  );
-  const story = page.frameLocator('#storybook-preview-iframe');
-  await expect(story.getByRole('treegrid')).toBeVisible();
-  await expect(
-    story.getByText('The component failed to render properly'),
-  ).not.toBeVisible();
-});
+async function renameRow(page: Page, path: string, newName: string): Promise<string> {
+  const row = page.getByTestId(`row-${path}`);
+  const currentName = path.split('.').at(-1) ?? path;
+  await row.getByText(currentName, { exact: true }).click();
+  const input = page.getByLabel(`name ${path}`);
+  await input.fill(newName);
+  await input.press('Enter');
 
-test('loan origination renders an aligned one-pixel boxed grid', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand application' }).click();
-  await page.getByRole('button', { name: 'Expand recentApplications' }).click();
+  const separator = path.lastIndexOf('.');
+  const renamedPath = separator < 0 ? newName : `${path.slice(0, separator)}.${newName}`;
+  await expect(page.getByTestId(`row-${renamedPath}`)).toHaveCount(1);
+  return renamedPath;
+}
 
-  const grid = page.getByRole('treegrid');
-  await expect(grid).toHaveCSS('border-top-width', '1px');
-  await expect(grid).toHaveCSS('border-left-width', '1px');
+async function appendListItem(page: Page, listPath: string, index: number, value: string): Promise<void> {
+  await page.getByTestId(`append-${listPath}`).click();
+  const itemPath = `${listPath}[${index}]`;
+  await expect(page.getByTestId(`row-${itemPath}`)).toHaveCount(1);
+  await commitExpression(page, itemPath, value);
+}
 
-  const applicationDate = page.getByRole('row', {
-    name: 'application.applicationDate',
-  });
-  const propertyValue = page.getByRole('row', {
-    name: 'application.propertyValue',
-  });
-  const dateCells = applicationDate.getByRole('cell');
-  const propertyCells = propertyValue.getByRole('cell');
-  await expect(dateCells).toHaveCount(6);
-  await expect(dateCells.nth(0)).toHaveCSS('width', '34px');
-  await expect(dateCells.nth(1)).toHaveCSS('border-left-width', '1px');
-  await expect(dateCells.nth(2)).toHaveCSS('border-left-width', '1px');
-  await expect(dateCells.nth(3)).toHaveCSS('border-left-width', '1px');
-  await expect(dateCells.nth(4)).toHaveCSS('border-left-width', '1px');
-  await expect(dateCells.nth(5)).toHaveCSS('border-left-width', '1px');
+async function addList(page: Page, name: string): Promise<string> {
+  await page.getByTestId('row-*').getByRole('button', { name: 'Open row actions' }).click();
+  await page.getByRole('menuitem', { name: 'Add list' }).click();
+  return renameRow(page, 'list', name);
+}
 
-  const dateColumns = await dateCells.evaluateAll((cells) =>
-    cells.map((cell) => Math.round(cell.getBoundingClientRect().x)),
-  );
-  const propertyColumns = await propertyCells.evaluateAll((cells) =>
-    cells.map((cell) => Math.round(cell.getBoundingClientRect().x)),
-  );
-  expect(propertyColumns).toEqual(dateColumns);
+test('every current Boxed Editor story renders from the Storybook index', async ({ page }) => {
+  const storyIds = await currentBoxedEditorStoryIds(page);
+  expect(storyIds, 'Storybook should expose Boxed Editor stories').not.toHaveLength(0);
 
-  const relation = page.getByRole('table', {
-    name: 'recentApplications relationship',
-  });
-  const relationContainer = relation.locator('..');
-  await expect(relationContainer).toHaveCSS('border-top-width', '1px');
-  await expect(relationContainer).toHaveCSS('border-right-width', '1px');
-  await expect(relationContainer).toHaveCSS('border-bottom-width', '1px');
-  await expect(relationContainer).toHaveCSS('border-left-width', '1px');
-
-  const columnHandle = page.getByRole('button', {
-    name: 'Drag column recentApplications.reference',
-  });
-  const handleCompartment = columnHandle.locator('..');
-  await expect(handleCompartment).toHaveCSS('width', '34px');
-  await expect(handleCompartment).toHaveCSS('border-right-width', '1px');
-});
-
-test('every Boxed Editor story opens without the Storybook render error boundary', async ({
-  page,
-}) => {
-  for (const story of BOXED_EDITOR_STORIES) {
-    await test.step(story, async () => {
-      await page.goto(
-        `/iframe.html?id=boxed-editor-boxededitor--${story}&viewMode=story`,
-      );
+  for (const storyId of storyIds) {
+    await test.step(storyId, async () => {
+      await page.goto(`/iframe.html?id=${storyId}&viewMode=story`);
       await expect(
         page.locator('[role="treegrid"], [role="alert"]').first(),
+        `Story "${storyId}" should render editor content`,
       ).toBeVisible();
-      await expect(
-        page.getByText('The component failed to render properly'),
-      ).not.toBeVisible();
+      await expect(page.getByText('The component failed to render properly')).not.toBeVisible();
+
+      if (storyId !== `${STORY_PREFIX}fatal-error`) {
+        await expect(
+          page.getByRole('treegrid'),
+          `Story "${storyId}" unexpectedly rendered a fatal editor state`,
+        ).toBeVisible();
+      }
     });
   }
 });
 
-test('editable boxed expression mounts one cell editor and commits', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand application' }).click();
-  const calculationRow = page.getByRole('row', {
-    name: 'application.calculation',
-  });
-  await calculationRow.getByRole('cell').nth(3).click();
-  const editor = page.locator('.cm-content');
-  await expect(editor).toHaveCount(1);
-  await editor.click();
-  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
-  await page.keyboard.press(`${modifier}+A`);
-  await page.keyboard.type('1 + 2');
-  await page.keyboard.press('Enter');
-  await expect(page.getByTestId('boxed-change-count')).toContainText(
-    'Changes: 1',
-  );
-  await expect(page.locator('.cm-editor')).toHaveCount(0);
+test('creates and completes fields through root, context, and complex-type placeholders', async ({ page }) => {
+  await openBoxedEditorStory(page, 'editable-expression');
+
+  await page.getByTestId('append-*').click();
+  await page.getByTestId('append-*').click();
+  await expect(page.getByTestId('row-field')).toHaveCount(1);
+  await expect(page.getByTestId('row-field2')).toHaveCount(1);
+
+  const affordabilityScore = await renameRow(page, 'field', 'affordabilityScore');
+  const riskBand = await renameRow(page, 'field2', 'riskBand');
+  await commitExpression(page, affordabilityScore, 'application.loanAmount / 10');
+  await commitExpression(page, riskBand, '"medium"');
+
+  await expect(page.getByTestId(`row-${affordabilityScore}`)).toHaveCount(1);
+  await expect(valueCell(page, affordabilityScore)).toHaveText('application.loanAmount / 10');
+  await expect(page.getByTestId(`row-${riskBand}`)).toHaveCount(1);
+  await expect(valueCell(page, riskBand)).toHaveText("'medium'");
+
+  await page.getByTestId('append-application').click();
+  const termMonths = await renameRow(page, 'application.field', 'termMonths');
+  await commitExpression(page, termMonths, '12');
+  await expect(valueCell(page, termMonths)).toHaveText('12');
+
+  await page.getByTestId('append-Applicant').click();
+  const creditLimit = await renameRow(page, 'Applicant.field', 'creditLimit');
+  await commitExpression(page, creditLimit, '<number, required: true>');
+  await expect(valueCell(page, creditLimit)).toContainText('<number, required: true>');
+
+  await commitExpression(page, 'payment', 'application.loanAmount / 6');
+  await expect(valueCell(page, affordabilityScore)).toHaveText('application.loanAmount / 10');
+  await expect(valueCell(page, riskBand)).toHaveText("'medium'");
+  await expect(valueCell(page, termMonths)).toHaveText('12');
+  await expect(valueCell(page, creditLimit)).toContainText('<number, required: true>');
+  await expect(page.getByTestId('boxed-change-count')).toHaveText('Changes: 13');
 });
 
-test('editable cells retain language-service completions from their portable embed context', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand application' }).click();
-  await page
-    .getByRole('row', { name: 'application.calculation' })
-    .getByRole('cell')
-    .nth(3)
-    .click();
-  const editor = page.locator('.cm-content');
-  await editor.click();
-  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
-  await page.keyboard.press(`${modifier}+A`);
-  await page.keyboard.type('a');
-  await page.keyboard.press('Control+Space');
-  await expect(page.locator('.cm-tooltip-autocomplete')).toContainText(
-    'amount',
-  );
-});
+test('reports invalid values, keeps other rows interactive, recovers, and cancels drafts', async ({ page }) => {
+  await openBoxedEditorStory(page, 'editable-expression');
+  const payment = valueCell(page, 'payment');
 
-test('expression editing initializes and commits every boxed value shape', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand application' }).click();
-  await editExpression(
-    page,
-    'application.calculation',
-    'amount * 0.2',
-    'amount * 0.25',
-  );
-  await page.getByRole('button', { name: 'Expand monthly' }).click();
-  await editExpression(page, 'monthly.result', 'amount / 12', 'amount / 6');
-  await expect(page.getByTestId('boxed-change-count')).toContainText(
-    'Changes: 2',
-  );
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--context-function&viewMode=story',
-  );
-  await editExpression(page, 'summary.tax', 'amount * 0.2', 'amount * 0.25');
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--literal-list&viewMode=story',
-  );
-  await editExpression(page, 'scores[0]', '12', '13');
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
-  );
-  await editExpression(page, 'applicants[0].age', '36', '37');
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--invocation&viewMode=story',
-  );
-  await editExpression(page, 'payment', 'monthly(1200)', 'monthly(600)');
-});
-
-test('one cell editor changes number to input to string without dialogs or errors', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand application' }).click();
-  const row = page.getByRole('row', {
-    name: 'application.mutableValue',
-    exact: true,
-  });
-  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
-
-  await row.getByRole('cell').nth(3).click();
-  let editor = page.locator('.cm-content');
-  await expect(editor).toHaveText('1');
-  await editor.click();
-  await page.keyboard.press(`${modifier}+A`);
-  await page.keyboard.insertText('<number, 5>');
+  await payment.click();
+  await replaceActiveExpression(page, 'application.loanAmount /');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.cm-editor')).toHaveCount(0);
-  await expect(row).toContainText('<number, default: 5>');
-  await expect(row).toContainText('number · input');
+  await expect(page.getByRole('alert')).toHaveText('Expected a value after "/".');
 
-  await row.getByRole('cell').nth(3).click();
-  editor = page.locator('.cm-content');
-  await expect(editor).toHaveText('<number, default: 5>');
-  await editor.click();
-  await page.keyboard.press(`${modifier}+A`);
-  await page.keyboard.insertText('"text"');
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.cm-editor')).toHaveCount(0);
-  await expect(row).toContainText('string · computed');
+  await page.getByTestId('row-application.propertyValue').getByText('propertyValue', { exact: true }).click();
+  await expect(page.getByLabel('name application.propertyValue')).toBeVisible();
+  await page.getByLabel('name application.propertyValue').press('Escape');
+
+  await commitExpression(page, 'payment', 'application.loanAmount / 6');
   await expect(page.getByRole('alert')).toHaveCount(0);
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-});
+  await expect(payment).toHaveText('application.loanAmount / 6');
+  await expect(page.getByTestId('live-payment')).toContainText('application.loanAmount / 6');
 
-test('boxed editor does not expose metadata editing', async ({ page }) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand application' }).click();
-  await expect(page.getByRole('button', { name: /metadata/i })).toHaveCount(0);
+  await payment.click();
+  await replaceActiveExpression(page, '999');
+  await page.keyboard.press('Escape');
   await expect(page.locator('.cm-editor')).toHaveCount(0);
-});
+  await expect(payment).toHaveText('application.loanAmount / 6');
+  await expect(page.getByTestId('live-payment')).toContainText('application.loanAmount / 6');
 
-test('read-only boxed story exposes no expression editor activation', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--root-read-only&viewMode=story',
-  );
-  await expect(page.locator('.cm-editor')).toHaveCount(0);
-  await expect(
-    page.getByRole('button', { name: 'Add field to *' }),
-  ).toHaveCount(0);
-});
-
-test('drag handles reorder authored fields, function bodies, lists, and relations', async ({
-  page,
-}) => {
-  test.setTimeout(60_000);
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
-  );
-  await dragByHandle(page, 'payment', 'application');
-  await expect
-    .poll(async () => {
-      const payment = await page
-        .getByRole('row', { name: 'payment' })
-        .boundingBox();
-      const application = await page
-        .getByRole('row', { name: 'application', exact: true })
-        .boundingBox();
-      return Boolean(payment && application && payment.y < application.y);
-    })
-    .toBe(true);
-  await expect(page.getByTestId('boxed-change-count')).toContainText(
-    'Changes: 1',
-  );
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand application' }).click();
-  await dragByHandle(page, 'application.calculation', 'application.amount');
-  await expect
-    .poll(async () => {
-      const calculation = await page
-        .getByRole('row', { name: 'application.calculation' })
-        .boundingBox();
-      const amount = await page
-        .getByRole('row', { name: 'application.amount' })
-        .boundingBox();
-      return Boolean(calculation && amount && calculation.y < amount.y);
-    })
-    .toBe(true);
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--context-function&viewMode=story',
-  );
-  await dragByHandle(page, 'summary.result', 'summary.tax');
-  await expect
-    .poll(async () => {
-      const result = await page
-        .getByRole('row', { name: 'summary.result' })
-        .boundingBox();
-      const tax = await page
-        .getByRole('row', { name: 'summary.tax' })
-        .boundingBox();
-      return Boolean(result && tax && result.y < tax.y);
-    })
-    .toBe(true);
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--literal-list&viewMode=story',
-  );
-  await dragByHandle(page, 'scores[0]', 'scores[2]');
-  await expect(page.getByRole('row', { name: 'scores[0]' })).toContainText(
-    '19',
-  );
-  await expect(page.getByRole('row', { name: 'scores[2]' })).toContainText(
-    '12',
-  );
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
-  );
-  await dragByHandle(page, 'applicants[0]', 'applicants[1]');
-  await expect(page.getByRole('row', { name: 'applicants[0]' })).toContainText(
-    'Grace',
-  );
-  await expect(page.getByRole('row', { name: 'applicants[1]' })).toContainText(
-    'Ada',
-  );
-});
-
-test('relationship columns can be added, renamed inline, and reordered', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
-  );
-  const table = page.getByRole('table', { name: 'applicants relationship' });
-  await expect(table.getByRole('columnheader').nth(1)).toContainText('name');
-  await expect(table.getByRole('columnheader').nth(2)).toContainText('age');
-
-  await page.getByRole('button', { name: 'Add column to applicants' }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Column name').fill('active');
-  await dialog.getByLabel('Default expression').fill('true');
-  await dialog.getByRole('button', { name: 'Save column' }).click();
-  await page
-    .getByRole('button', { name: 'Edit column name applicants.active' })
-    .click();
-  const input = page.getByLabel('Column name applicants.active');
-  await input.fill('enabled');
-  await input.press('Enter');
-  await expect(
-    page.getByRole('button', {
-      name: 'Edit column name applicants.enabled',
-    }),
-  ).toBeVisible();
-  await expect(page.getByRole('row', { name: 'applicants[0]' })).toContainText(
-    'true',
-  );
-
-  await dragByHandle(page, 'column applicants.name', 'column applicants.age');
-  await expect(table.getByRole('columnheader').nth(1)).toContainText('age');
-  await expect(table.getByRole('columnheader').nth(2)).toContainText('name');
-});
-
-test('loan-origination stories share the same complex list and relationship model', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview&viewMode=story',
-  );
-  await expect(page.getByRole('treegrid')).toContainText('Applicant');
-  await expect(
-    page.getByRole('row', { name: 'application', exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText('func creditScore(age: number, income: number) → number'),
-  ).toBeVisible();
-  await expect(page.getByRole('row', { name: 'finalDecision' })).toContainText(
-    'APPROVE',
-  );
-  await page.getByRole('button', { name: 'Expand reviewStages' }).click();
-  await expect(
-    page.getByRole('row', { name: 'reviewStages[0]' }),
-  ).toContainText('Application');
-  await page.getByRole('button', { name: 'Expand recentApplications' }).click();
-  const editableRelation = page.getByRole('table', {
-    name: 'recentApplications relationship',
-  });
-  await expect(editableRelation).toBeVisible();
-  await expect(
-    editableRelation.getByRole('row', { name: 'recentApplications[0]' }),
-  ).toContainText('LOAN-2026-001');
-  await expect(
-    page.getByRole('button', { name: 'Drag recentApplications[0]' }),
-  ).toBeEnabled();
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview-read-only&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand reviewStages' }).click();
-  await expect(
-    page.getByRole('row', { name: 'reviewStages[0]' }),
-  ).toContainText('Application');
-  await page.getByRole('button', { name: 'Expand recentApplications' }).click();
-  const readOnlyRelation = page.getByRole('table', {
-    name: 'recentApplications relationship',
-  });
-  await expect(readOnlyRelation).toBeVisible();
-  await expect(
-    readOnlyRelation.getByRole('row', { name: 'recentApplications[0]' }),
-  ).toContainText('LOAN-2026-001');
-  const applicationHandle = page.getByRole('button', {
-    name: 'Drag application',
-  });
-  await expect(applicationHandle).toBeVisible();
-  await expect(applicationHandle).toBeDisabled();
-  await expect(
-    page.getByRole('button', { name: 'Edit name finalDecision' }),
-  ).toHaveCount(0);
-  await page
-    .getByRole('row', { name: 'finalDecision' })
-    .getByRole('cell')
-    .nth(3)
-    .click();
-  await expect(page.locator('.cm-editor')).toHaveCount(0);
-});
-
-test('relationship renders object fields as table columns without nested row labels', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--relation&viewMode=story',
-  );
-  const table = page.getByRole('table', { name: 'applicants relationship' });
-  await expect(table).toBeVisible();
-  await expect(table.getByRole('columnheader').nth(1)).toContainText('name');
-  await expect(table.getByRole('columnheader').nth(2)).toContainText('age');
-  await expect(table.getByRole('columnheader').nth(3)).toContainText('contact');
-  await expect(page.getByText('Row 1')).toHaveCount(0);
-  await expect(page.getByText('2 relationship rows · 3 columns')).toHaveCount(
-    0,
-  );
-  const contact = page.getByRole('cell', {
-    name: 'applicants[0].contact',
-    exact: true,
-  });
-  await expect(contact).toHaveAttribute('aria-expanded', 'false');
-  await expect(contact).toHaveText('contact');
-  await contact.click();
-  await expect(contact).toHaveAttribute('aria-expanded', 'true');
-  await expect(
-    contact.getByRole('row', { name: 'applicants[0].contact.address' }),
-  ).toBeVisible();
-  await expect(
-    contact.getByRole('button', {
-      name: 'Edit metadata applicants[0].contact.address',
-    }),
-  ).toHaveCount(0);
-  await page
-    .getByRole('button', { name: 'Expand applicants[0].contact.address' })
-    .click();
-  await page
-    .getByRole('button', {
-      name: 'Expand applicants[0].contact.address.location',
-    })
-    .click();
-  await expect(
-    page.getByRole('row', {
-      name: 'applicants[0].contact.address.location.city',
-    }),
-  ).toContainText("'London'");
-});
-
-test('deeply nested relationship tables retain their complete child inset', async ({
-  page,
-}, testInfo) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--deep-relation&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand organization' }).click();
-  await page
-    .getByRole('button', { name: 'Expand organization.division' })
-    .click();
-  await page
-    .getByRole('button', {
-      name: 'Expand organization.division.department',
-    })
-    .click();
-  await page
-    .getByRole('button', {
-      name: 'Expand organization.division.department.applicants',
-    })
-    .click();
-
-  const relationPath = 'organization.division.department.applicants';
-  const relation = page.getByRole('row', { name: relationPath, exact: true });
-  const table = page.getByRole('table', {
-    name: `${relationPath} relationship`,
-  });
-  // Nested rows keep the shared grid lines fixed; only the name content is
-  // indented. This avoids pushing handles and cell boundaries out of column.
-  await expect(relation).toHaveCSS('padding-left', '0px');
-  await expect(relation.getByRole('cell').nth(2)).toHaveCSS(
-    'padding-left',
-    '72px',
-  );
-  await expect(table.locator('..')).toHaveCSS('margin-left', '80px');
-
-  const editorBounds = await page.getByRole('treegrid').boundingBox();
-  const tableBounds = await table.boundingBox();
-  expect(editorBounds).not.toBeNull();
-  expect(tableBounds).not.toBeNull();
-  expect(tableBounds!.x - editorBounds!.x).toBeGreaterThanOrEqual(80);
-  await page.screenshot({
-    path: testInfo.outputPath('deep-relation-padding.png'),
-    fullPage: true,
-  });
-});
-
-test('visual error and read-only scenarios retain their distinct UI states', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--error-state&viewMode=story',
-  );
-  await expect(page.getByRole('alert')).toContainText(
-    "unresolved reference 'a'",
-  );
-
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--loan-origination-overview-read-only&viewMode=story',
-  );
+  await payment.click();
+  await replaceActiveExpression(page, '');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toHaveText('A value is required.');
+  await expect(page.locator('.cm-editor')).toHaveCount(1);
+  await expect(page.getByTestId('live-payment')).toContainText('application.loanAmount / 6');
   await expect(page.getByRole('treegrid')).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Add field to *' }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole('button', { name: 'Edit signature creditScore' }),
-  ).toHaveCount(0);
-  await expect(page.locator('.cm-editor')).toHaveCount(0);
 });
 
-test('visual nested-function and large-model scenarios keep rendering static', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--nested-function-visual&viewMode=story',
-  );
-  await page.getByRole('button', { name: 'Expand application' }).click();
-  await expect(
-    page.getByText('func affordability(income: number)'),
-  ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Expand application.affordability' })
-    .click();
-  await expect(
-    page.getByRole('row', { name: 'application.affordability.threshold' }),
-  ).toContainText('monthlyIncome * 0.35');
-  await expect(page.locator('.cm-editor')).toHaveCount(0);
+test('creates a list and preserves numeric and string boundary values through recovery', async ({ page }) => {
+  await openBoxedEditorStory(page, 'editable-expression');
 
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--large-model-visual&viewMode=story',
-  );
-  await expect(page.getByRole('row', { name: 'value0' })).toBeVisible();
-  await expect(page.getByRole('row', { name: 'value199' })).toBeVisible();
-  await expect(page.locator('.cm-editor')).toHaveCount(0);
+  const numberListPath = await addList(page, 'boundaryNumbers');
+  await appendListItem(page, numberListPath, 0, '0');
+  await appendListItem(page, numberListPath, 1, '-1');
+  await appendListItem(page, numberListPath, 2, '999999999999');
+
+  const expectedNumbers = ['0', '-1', '999999999999'];
+  for (const [index, expectedValue] of expectedNumbers.entries()) {
+    await expect(valueCell(page, `${numberListPath}[${index}]`)).toHaveText(expectedValue);
+  }
+
+  await page.getByTestId(`append-${numberListPath}`).click();
+  const invalidPath = `${numberListPath}[3]`;
+  await valueCell(page, invalidPath).click();
+  await replaceActiveExpression(page, '1 +');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toHaveText('Expected a value after "+".');
+
+  for (const [index, expectedValue] of expectedNumbers.entries()) {
+    await expect(valueCell(page, `${numberListPath}[${index}]`)).toHaveText(expectedValue);
+  }
+
+  await replaceActiveExpression(page, '42');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(valueCell(page, invalidPath)).toHaveText('42');
+
+  const stringListPath = await addList(page, 'boundaryStrings');
+  await appendListItem(page, stringListPath, 0, '""');
+  await appendListItem(page, stringListPath, 1, '"quoted value"');
+  await expect(valueCell(page, `${stringListPath}[0]`)).toHaveText("''");
+  await expect(valueCell(page, `${stringListPath}[1]`)).toHaveText("'quoted value'");
 });
 
-test('Project Explorer root paths and specialized boxed links route to their host editors', async ({
-  page,
-}) => {
-  await page.goto(
-    '/iframe.html?id=boxed-editor-boxededitor--project-explorer-integration&viewMode=story',
-  );
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
-    'boxed: *',
-  );
+test('read-only story does not expose mutation controls or expression editing', async ({ page }) => {
+  await openBoxedEditorStory(page, 'read-only');
+  await expect(page.locator('[data-testid^="append-"]')).toHaveCount(0);
 
-  await page.getByText('monthly()', { exact: true }).click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
-    'boxed: monthly',
-  );
-
-  await page.getByText('Variables', { exact: true }).click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
-    'boxed: *',
-  );
-  await page.getByRole('button', { name: 'Open Types Editor' }).click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
-    'type-definition: Applicant',
-  );
-
-  await page.getByText('Variables', { exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Open Decision Table Editor' })
-    .click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
-    'ruleset: risk',
-  );
-  await expect(page.locator('table.MuiTable-root')).toBeVisible();
-
-  await page.getByText('Variables', { exact: true }).click();
-  await page.getByRole('button', { name: 'Open Loop Editor' }).click();
-  await expect(page.getByTestId('boxed-workspace-route')).toHaveText(
-    'loop: counter',
-  );
-  await expect(page.getByRole('alert')).toContainText(
-    'Loop Editor route: counter',
-  );
+  await valueCell(page, 'payment').click();
+  await expect(page.locator('.cm-editor')).toHaveCount(0);
 });

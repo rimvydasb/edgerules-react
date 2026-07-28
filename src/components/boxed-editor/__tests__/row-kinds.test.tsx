@@ -112,6 +112,21 @@ describe('row kinds: list', () => {
         expect(onChange).toHaveBeenCalledTimes(1);
     });
 
+    it('appends a type-compatible item to a numeric list', async () => {
+        const user = userEvent.setup();
+        const mutable = MutableDecisionService.fromCode('{ scores: [1, 2] }');
+        const service = createBoxedEditorService(mutable);
+
+        render(<BoxedEditor service={service} path="*" languageService={languageService} />);
+        await user.click(screen.getAllByText('(new item)')[0]);
+
+        expect(service.getBoxedRowsData('scores')).toHaveLength(3);
+        expect(service.getBoxedRowData('scores[2]')).toMatchObject({
+            kind: 'list-item',
+            value: '0',
+        });
+    });
+
     it('hides the placeholder under readOnly', () => {
         const mutable = MutableDecisionService.fromCode('{ stages: ["review"] }');
         const service = createBoxedEditorService(mutable);

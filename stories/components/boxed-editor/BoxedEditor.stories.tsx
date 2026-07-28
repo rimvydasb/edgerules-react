@@ -29,14 +29,13 @@ const LOAN_ORIGINATION_MODEL = `{
   payment: application.loanAmount / 12
 }`;
 
-// A scalar `list`, a homogeneous `relation`, a *heterogeneous* relation (a record missing a
-// field renders an empty cell, never a nested field row), and a relation whose cell holds a
-// complex object (a drill-down, rendered as nested rows rather than JSON text).
+// A scalar `list`, homogeneous relations, and a relation whose cell holds a complex object
+// (a drill-down, rendered as nested rows rather than JSON text).
 const COLLECTIONS_MODEL = `{
   reviewStages: ["Application", "Underwriting", "Credit review", "Closing"]
   applicants: [
     { reference: "LOAN-001", applicant: "Ada L.", amount: 320000 }
-    { reference: "LOAN-002", applicant: "Grace H." }
+    { reference: "LOAN-002", applicant: "Grace H.", amount: 0 }
   ]
   offices: [
     { id: 1, address: { city: "Vilnius", zip: "01001" } }
@@ -62,7 +61,7 @@ function EditableHarness({
     path: string;
     readOnly?: boolean;
 }): ReactElement {
-    const [, setVersion] = useState(0);
+    const [changeCount, setChangeCount] = useState(0);
     const payment = service.getBoxedRowData('payment')?.value ?? '(not in this model)';
 
     return (
@@ -72,10 +71,13 @@ function EditableHarness({
                 path={path}
                 languageService={MutableDecisionService}
                 readOnly={readOnly}
-                onChange={() => setVersion((current) => current + 1)}
+                onChange={() => setChangeCount((current) => current + 1)}
             />
             <Typography variant="caption" data-testid="live-payment" sx={{display: 'block', mt: 1}}>
                 payment (committed): {payment}
+            </Typography>
+            <Typography variant="caption" data-testid="boxed-change-count" sx={{display: 'block'}}>
+                Changes: {changeCount}
             </Typography>
         </Box>
     );

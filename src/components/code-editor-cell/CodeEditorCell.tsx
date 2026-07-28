@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useRef, type ReactElement} from 'react';
 import Box from '@mui/material/Box';
 import type {SxProps, Theme} from '@mui/material/styles';
-import {EditorState, type Extension} from '@codemirror/state';
+import {EditorState, Prec, type Extension} from '@codemirror/state';
 import {forceLinting} from '@codemirror/lint';
 import {EditorView, keymap, placeholder as cmPlaceholder, tooltips} from '@codemirror/view';
 import {edgeRulesExtensions} from '../code-editor/language/extensions';
@@ -120,16 +120,20 @@ export function CodeEditorCell({
             return true;
         };
 
+        const cancelKeymap = Prec.highest(
+            keymap.of([
+                {
+                    key: 'Escape',
+                    run: () => {
+                        suppressBlurCommitRef.current = true;
+                        callbacksRef.current.onCancel?.();
+                        return true;
+                    },
+                },
+            ]),
+        );
         const cellKeymap = keymap.of([
             ...(multiline ? [{key: 'Mod-Enter', run: commit}] : [{key: 'Enter', run: commit}]),
-            {
-                key: 'Escape',
-                run: () => {
-                    suppressBlurCommitRef.current = true;
-                    callbacksRef.current.onCancel?.();
-                    return true;
-                },
-            },
         ]);
 
         const view = new EditorView({
@@ -137,8 +141,11 @@ export function CodeEditorCell({
             state: EditorState.create({
                 doc: value,
                 extensions: [
-                    // Cell keymap first so Enter/Escape win over the default editing keymap; the
-                    // autocomplete panel's own bindings still take precedence (registered highest).
+                    // Escape always means "cancel this cell", even when another CodeMirror
+                    // extension (completion, lint, or selection handling) also binds it.
+                    cancelKeymap,
+                    // Keep the commit keymap at normal precedence so Enter can still accept an
+                    // open completion before a later Enter commits the completed expression.
                     cellKeymap,
                     cellTooltips(),
                     ...(multiline ? [EditorView.lineWrapping] : [singleLineFilter()]),

@@ -431,6 +431,15 @@ function complexTypeSiblingRecord(
   return isRecord(current) ? (current as unknown as Record<string, unknown>) : undefined;
 }
 
+function duplicateNameError(path: string, name: string): PortableError {
+  return {
+    '@kind': 'error',
+    type: 'DuplicateName',
+    message: `A field named "${name}" already exists.`,
+    path,
+  } as PortableError;
+}
+
 export function createBoxedEditorService(
   mutable: MutableDecisionService,
 ): BoxedEditorService {
@@ -521,6 +530,22 @@ export function createBoxedEditorService(
     rename(path, newName) {
       return commit(path, () => {
         const root = mutable.toPortable();
+        const currentName = lastPathName(path);
+        const ownerPath = parentPath(path);
+        const siblings =
+          ownerPath === '*'
+            ? root
+            : ownerPath
+              ? portableAtPath(root, ownerPath)
+              : undefined;
+        if (
+          newName !== currentName &&
+          isRecord(siblings) &&
+          Object.prototype.hasOwnProperty.call(siblings, newName)
+        ) {
+          return duplicateNameError(path, newName);
+        }
+
         const owner = optimisationOwner(root, path);
         if (owner && owner.path !== path) {
           const result = mutable.set(
@@ -531,19 +556,13 @@ export function createBoxedEditorService(
         }
         const typeOwner = complexTypeOwner(root, path);
         if (typeOwner && typeOwner.path !== path) {
-          const currentName = lastPathName(path);
           const siblings = complexTypeSiblingRecord(typeOwner, path);
           if (
             newName !== currentName &&
             siblings &&
             Object.prototype.hasOwnProperty.call(siblings, newName)
           ) {
-            return {
-              '@kind': 'error',
-              type: 'DuplicateName',
-              message: `duplicate name: ${newName}`,
-              path,
-            } as PortableError;
+            return duplicateNameError(path, newName);
           }
           const result = mutable.set(
             typeOwner.path,
