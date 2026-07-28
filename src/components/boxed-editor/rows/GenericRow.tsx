@@ -1,9 +1,10 @@
 import Box from '@mui/material/Box';
 import type {KeyboardEvent, ReactElement, ReactNode} from 'react';
 import {DescriptionCell} from '../cells/DescriptionCell';
+import {NameCell} from '../cells/NameCell';
 import {TestResultCell} from '../cells/TestResultCell';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
-import type {BoxedRowData} from '../boxed-editor-types';
+import type {BoxedRowData, BoxedRowKind} from '../boxed-editor-types';
 import {useRowDrag} from '../dnd/useRowDrag';
 import {useRowDrop} from '../dnd/useRowDrop';
 import {RowActionsMenu, type RowMenuItem} from '../menu/RowActionsMenu';
@@ -26,6 +27,23 @@ import {
 // reduces to once laid out — only `kind`-driven display flags change between them (which the
 // row-kind components in this folder supply). Higher-level constructs (function/ruleset/
 // optimisation header rows, Phase 4) may still compose it for their name/icon column.
+
+/** Kinds whose `name` is a real, user-owned identifier `rename()` can commit — everything else
+ * (`model`'s fixed root name; positional `list-item`/`relation-item`/`rule`, whose "name" is a
+ * synthesized `Item N`/`Rule N` display, not stored identity; and the fixed construct-setting rows
+ * like `function-result`/`ruleset-hit-policy`/`optimisation-objective`) keeps plain static text. */
+const RENAMABLE_KINDS = new Set<BoxedRowKind>([
+    'field',
+    'context',
+    'complexType',
+    'function',
+    'ruleset',
+    'optimisation',
+    'list',
+    'relation',
+    'optimisation-variable',
+    'optimisation-constraint',
+]);
 
 export interface GenericRowProps {
     /** The full row data — enables this row's drag/drop wiring (Phase 6) when its `kind` is
@@ -172,7 +190,7 @@ export function GenericRow({
                         color: placeholder ? 'text.disabled' : 'text.primary',
                     }}
                 >
-                    {name}
+                    {row && RENAMABLE_KINDS.has(row.kind) ? <NameCell row={row} /> : name}
                 </TypeName>
             </Box>
             {!occupiesNameAndValue && (

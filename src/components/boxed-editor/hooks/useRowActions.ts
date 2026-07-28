@@ -182,7 +182,7 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
       case 'complexType': {
         const children = row.children ?? [];
         push('add-field', 'Add field', () => {
-          const field = nextFieldRow({ path: row.path, children });
+          const field = nextFieldRow({ path: row.path, children }, true);
           commands.setBoxedRowData(field.path, field);
         });
         pushDuplicate();

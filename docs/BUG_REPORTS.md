@@ -159,3 +159,47 @@ through the real engine — `docs/boxed-editor/phase-03-collections-list-and-rel
 ("a record missing a field renders an empty cell, never a nested field row"), and Phase 3's tests fall back to
 constructing the `BoxedRowData`/`PortableNode` directly (as `normalization.test.ts` already did in Phase 1) to verify
 the rendering side of this contract without going through the engine's `get()`.
+
+## A nested-object `execute()` input silently drops every sibling field of that context not present in the given object — not just the unbound one (@edgerules/node + @edgerules/web)
+
+`API_SPEC.md` documents nested typed holes as bound "through the same model-shaped object structure" (`{applicant:
+{age: 31}}` for `{applicant: {age: <number>}}`). That much works. But the moment the object given for a nested context
+omits **any** of that context's other declared fields — a second required input still unfilled, or an ordinary
+computed/constant field with nothing to do with input at all — the engine doesn't evaluate those siblings and report
+them normally (a required-but-unbound field elsewhere always surfaces as `"Invalid('required input missing: …')"`,
+never a silent omission). Instead the whole context's output becomes *exactly* the given object, byte for byte, and
+every other declared field of that context — however unrelated to the supplied one — simply disappears from the
+result.
+
+```ts
+const service = MutableDecisionService.fromCode(`{
+  application: {
+    loanAmount: <number, required: true>
+    propertyValue: <number, required: true>
+    applicationDate: <date, required: true>
+    newField: 'zzz'
+  }
+}`);
+
+await service.execute('*', {
+  application: { loanAmount: 80000, propertyValue: 100000, applicationDate: '2024-01-01' },
+});
+// { application: { loanAmount: 80000, propertyValue: 100000, applicationDate: '2024-01-01' } }
+//   — every declared *input* field was supplied, yet `newField` (a plain constant, not an input
+//     at all) is gone rather than `'zzz'`
+```
+
+A single required field left out reproduces the same way — `{ application: { loanAmount: 80000 } }` against the same
+model yields `application: { loanAmount: 80000 }` alone; `propertyValue`/`applicationDate` don't even show their usual
+`"Invalid(...)"` missing-input text, and `newField` is dropped regardless of whether the missing field is an input or
+a constant.
+
+Expected behavior: a nested-object input should bind only the leaves it actually supplies and evaluate every other
+field of that context exactly as it would if the caller had used a flat top-level input a level up — a sibling that
+happens to be absent from the given object is not the same as a sibling the caller explicitly asked to override.
+For `BoxedEditor`, this means the live Test Runner (`tests-manager/runner/createTestRunner.ts`'s `performRun`, via
+`buildExecuteInput`'s "nested typed holes" construction — the form `API_SPEC.md` itself prescribes, so there is no
+alternative input shape to fall back to) cannot show *any* row's result for a nested (non-root) context once even one
+of that context's declared fields is bound as an input — including a field added moments earlier through the editor,
+which is exactly what makes it look like "the test runner ignores nested fields": the field itself commits and
+displays fine, only its live-evaluated result column stays blank.

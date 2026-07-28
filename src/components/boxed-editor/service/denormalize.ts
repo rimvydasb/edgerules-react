@@ -47,18 +47,27 @@ function contextFromChildren(
   return context;
 }
 
+/**
+ * A `type-definition` member's own node — a bare type reference (`"string"`) or a `<...>`
+ * type-literal string, never an `expression` wrapper (unlike an ordinary context `field`,
+ * `denormalize`'s generic `'field'` case). Shared by `typeDefinitionFromChildren` (a whole-type
+ * rewrite) and `createBoxedEditorService`'s `complexTypeOwner` coalescing (a single member edit —
+ * `type-definition` entries aren't individually addressable by the engine's `set`/`remove`/
+ * `rename`, so every member edit rewrites the owning top-level `type` as a whole).
+ */
+export function denormalizeTypeField(row: BoxedRowData): PortableNode {
+  return row.kind === 'complexType'
+    ? typeDefinitionFromChildren(row.children)
+    : ((row.value ?? row.type ?? '') as unknown as PortableNode);
+}
+
 function typeDefinitionFromChildren(
   children: BoxedRowData[] | undefined,
 ): PortableNode {
   return {
     '@kind': 'type-definition',
     ...Object.fromEntries(
-      (children ?? []).map((child) => [
-        child.name,
-        child.kind === 'complexType'
-          ? typeDefinitionFromChildren(child.children)
-          : (child.value ?? child.type ?? ''),
-      ]),
+      (children ?? []).map((child) => [child.name, denormalizeTypeField(child)]),
     ),
   } as PortableNode;
 }

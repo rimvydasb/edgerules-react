@@ -95,6 +95,45 @@ describe('createTestRunner — binding', () => {
     expect(testCasesService.getResultSet(testCase.id)?.modelRevision).toBe('rev-1');
     testCasesService.dispose();
   });
+
+  // Known engine gap (`docs/BUG_REPORTS.md`, "A nested-object `execute()` input silently drops
+  // every sibling field of that context not present in the given object"): `buildExecuteInput`
+  // binds a nested field the only way `API_SPEC.md` documents — a model-shaped nested object
+  // (`{credit: {balance: 1000, limit: 2000}}`) — but the engine then treats that object as
+  // `credit`'s *entire* output, dropping any other declared field of `credit` the object didn't
+  // happen to include. This is why a field added under a nested context (e.g. via `BoxedEditor`)
+  // never shows a live test result once any sibling of that same context is bound as an input —
+  // it isn't ignored by this package's own code, the engine's `execute()` drops it.
+  it('drops an unrelated nested sibling once any other field of that context is bound (known engine gap)', async () => {
+    const service = MutableDecisionService.fromCode(`{
+      credit: {
+        balance: <number, required: true>,
+        limit: <number, required: true>,
+        note: 'ok'
+      }
+    }`) as unknown as RunnerService;
+    const testCasesService = createTestCasesService('model', '*', { dbName: uniqueDbName() });
+    await waitForHydration(testCasesService);
+    testCasesService.syncRows([
+      { path: 'credit.balance', section: 'inputs', order: 0, type: 'number', present: true },
+      { path: 'credit.limit', section: 'inputs', order: 1, type: 'number', present: true },
+    ]);
+    const testCase = testCasesService.addTestCase();
+    testCasesService.setCell(testCase.id, 'credit.balance', 'input', '1000');
+    testCasesService.setCell(testCase.id, 'credit.limit', 'input', '2000');
+
+    const runner = createTestRunner(service, testCasesService, MODEL_SUBJECT);
+    await runner.run(testCase.id);
+
+    const resultSet = testCasesService.getResultSet(testCase.id);
+    expect(resultSet?.status).toBe('ok');
+    expect(resultSet?.results['credit.balance'].value).toBe(1000);
+    expect(resultSet?.results['credit.limit'].value).toBe(2000);
+    // The gap: `credit.note` is a plain constant with nothing to do with either input row, yet
+    // it never reaches the result set at all — not even as an `Invalid(...)` value.
+    expect(resultSet?.results['credit.note']).toBeUndefined();
+    testCasesService.dispose();
+  });
 });
 
 describe('createTestRunner — indexed (array element) rows', () => {

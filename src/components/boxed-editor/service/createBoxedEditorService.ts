@@ -6,7 +6,7 @@ import type {
 } from '@edgerules/portable';
 import { isPortableError } from '../../../lib/portable';
 import type { BoxedEditorService, BoxedRowData } from '../boxed-editor-types';
-import { denormalize } from './denormalize';
+import { denormalize, denormalizeTypeField } from './denormalize';
 import { normalizeNode, normalizeRoot } from './normalize';
 import {
   authoredEntries,
@@ -335,6 +335,102 @@ function renameOptimisationChild(
   );
 }
 
+interface ComplexTypeOwner {
+  path: string;
+  node: PortableNode;
+}
+
+/**
+ * The top-level named `type X: {...}` a nested member path belongs to, if any. The engine only
+ * exposes a `type-definition` as one atomic whole (`set_user_type` replaces its whole `TypeBody`);
+ * no member path inside it — however deeply nested through inline anonymous object types — is
+ * itself addressable by `set`/`remove`/`rename` (each rejects with `WrongFieldPath`). So every
+ * member edit is coalesced into a whole-parent rewrite of this owner, the same shape
+ * `optimisationOwner` already gives `@optimise` settings.
+ */
+function complexTypeOwner(
+  root: PortableRootContext,
+  path: string,
+): ComplexTypeOwner | undefined {
+  if (path === '*') return undefined;
+  const name = /^[^.[\]]+/.exec(path)?.[0];
+  if (!name) return undefined;
+  const node = root[name];
+  if (
+    !isRecord(node) ||
+    (node as unknown as Record<string, unknown>)['@kind'] !== 'type-definition'
+  ) {
+    return undefined;
+  }
+  return { path: name, node: node as PortableNode };
+}
+
+function complexTypePathKeys(ownerPath: string, path: string): string[] {
+  return path.slice(ownerPath.length + 1).split('.');
+}
+
+function setComplexTypeChild(
+  owner: ComplexTypeOwner,
+  path: string,
+  node: PortableNode,
+): PortableNode {
+  return updateNestedRecord(
+    owner.node,
+    complexTypePathKeys(owner.path, path),
+    (record, key) => {
+      record[key] = node;
+    },
+  );
+}
+
+function removeComplexTypeChild(
+  owner: ComplexTypeOwner,
+  path: string,
+): PortableNode {
+  return updateNestedRecord(
+    owner.node,
+    complexTypePathKeys(owner.path, path),
+    (record, key) => {
+      delete record[key];
+    },
+  );
+}
+
+function renameComplexTypeChild(
+  owner: ComplexTypeOwner,
+  path: string,
+  newName: string,
+): PortableNode {
+  return updateNestedRecord(
+    owner.node,
+    complexTypePathKeys(owner.path, path),
+    (record, key) => {
+      const renamed = Object.entries(record).map(([name, value]) =>
+        name === key ? [newName, value] : [name, value],
+      );
+      for (const name of Object.keys(record)) delete record[name];
+      Object.assign(record, Object.fromEntries(renamed));
+    },
+  );
+}
+
+/** The record that directly contains the member being renamed/removed — its own key set is what
+ * a rename must not collide with. Unlike `mutable.rename` on an ordinary path, nothing here asks
+ * the engine to validate the new name (the whole rewrite is a single opaque `set`), so
+ * `rename()` below checks for a collision itself before ever calling `renameComplexTypeChild`. */
+function complexTypeSiblingRecord(
+  owner: ComplexTypeOwner,
+  path: string,
+): Record<string, unknown> | undefined {
+  const keys = complexTypePathKeys(owner.path, path);
+  let current: unknown = owner.node;
+  for (let index = 0; index < keys.length - 1; index += 1) {
+    if (!isRecord(current)) return undefined;
+    current = (current as unknown as Record<string, unknown>)[keys[index]];
+  }
+  return isRecord(current) ? (current as unknown as Record<string, unknown>) : undefined;
+}
+
 export function createBoxedEditorService(
   mutable: MutableDecisionService,
 ): BoxedEditorService {
@@ -364,59 +460,98 @@ export function createBoxedEditorService(
       return commit(path, () => {
         const root = mutable.toPortable();
         const owner = optimisationOwner(root, path);
-        if (!owner || owner.path === path) {
-          return mutable.set(path, denormalize(row));
-        }
-
-        let updated = owner.node;
-        if (row.kind === 'optimisation-objective') {
-          updated = removeOptimisationChild(
-            { ...owner, node: updated },
-            `${owner.path}.maximise`,
-          );
-          updated = removeOptimisationChild(
-            { ...owner, node: updated },
-            `${owner.path}.minimise`,
-          );
+        if (owner && owner.path !== path) {
+          let updated = owner.node;
+          if (row.kind === 'optimisation-objective') {
+            updated = removeOptimisationChild(
+              { ...owner, node: updated },
+              `${owner.path}.maximise`,
+            );
+            updated = removeOptimisationChild(
+              { ...owner, node: updated },
+              `${owner.path}.minimise`,
+            );
+            return mutable.set(
+              owner.path,
+              setOptimisationChild(
+                { ...owner, node: updated },
+                `${owner.path}.${row.name}`,
+                denormalize(row),
+              ),
+            );
+          }
           return mutable.set(
             owner.path,
-            setOptimisationChild(
-              { ...owner, node: updated },
-              `${owner.path}.${row.name}`,
-              denormalize(row),
-            ),
+            setOptimisationChild(owner, path, denormalize(row)),
           );
         }
-        return mutable.set(
-          owner.path,
-          setOptimisationChild(owner, path, denormalize(row)),
-        );
+
+        const typeOwner = complexTypeOwner(root, path);
+        if (typeOwner && typeOwner.path !== path) {
+          return mutable.set(
+            typeOwner.path,
+            setComplexTypeChild(typeOwner, path, denormalizeTypeField(row)),
+          );
+        }
+        return mutable.set(path, denormalize(row));
       }) as PortableNode | PortableError;
     },
     remove(path) {
       return commit(path, () => {
         const root = mutable.toPortable();
         const owner = optimisationOwner(root, path);
-        if (!owner || owner.path === path) return mutable.remove(path);
-        const result = mutable.set(
-          owner.path,
-          removeOptimisationChild(owner, path),
-        );
-        return isPortableError(result) ? result : undefined;
+        if (owner && owner.path !== path) {
+          const result = mutable.set(
+            owner.path,
+            removeOptimisationChild(owner, path),
+          );
+          return isPortableError(result) ? result : undefined;
+        }
+        const typeOwner = complexTypeOwner(root, path);
+        if (typeOwner && typeOwner.path !== path) {
+          const result = mutable.set(
+            typeOwner.path,
+            removeComplexTypeChild(typeOwner, path),
+          );
+          return isPortableError(result) ? result : undefined;
+        }
+        return mutable.remove(path);
       }) as void | PortableError;
     },
     rename(path, newName) {
       return commit(path, () => {
         const root = mutable.toPortable();
         const owner = optimisationOwner(root, path);
-        if (!owner || owner.path === path) {
-          return mutable.rename(path, newName);
+        if (owner && owner.path !== path) {
+          const result = mutable.set(
+            owner.path,
+            renameOptimisationChild(owner, path, newName),
+          );
+          return isPortableError(result) ? result : undefined;
         }
-        const result = mutable.set(
-          owner.path,
-          renameOptimisationChild(owner, path, newName),
-        );
-        return isPortableError(result) ? result : undefined;
+        const typeOwner = complexTypeOwner(root, path);
+        if (typeOwner && typeOwner.path !== path) {
+          const currentName = lastPathName(path);
+          const siblings = complexTypeSiblingRecord(typeOwner, path);
+          if (
+            newName !== currentName &&
+            siblings &&
+            Object.prototype.hasOwnProperty.call(siblings, newName)
+          ) {
+            return {
+              '@kind': 'error',
+              type: 'DuplicateName',
+              message: `duplicate name: ${newName}`,
+              path,
+            } as PortableError;
+          }
+          const result = mutable.set(
+            typeOwner.path,
+            renameComplexTypeChild(typeOwner, path, newName),
+          );
+          return isPortableError(result) ? result : undefined;
+        }
+        return mutable.rename(path, newName);
       }) as void | PortableError;
     },
     move(fromPath, toParentPath, index) {

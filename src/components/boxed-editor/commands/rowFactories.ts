@@ -105,16 +105,21 @@ export function uniqueName(base: string, existing: Set<string>): string {
 
 /**
  * The blank, uniquely-named `field` a container's trailing `NewRow` placeholder appends —
- * `model`/`context`/`complexType` bodies are name-keyed, so a fresh field is always a plain
- * `set` at a new path, never a whole-parent rewrite (Resolved: `NewEntity` inserts).
+ * `model`/`context`/`function` bodies are name-keyed, so a fresh field there is a plain `set` at a
+ * new path. A `complexType` body is name-keyed too, but its members aren't individually
+ * addressable at all (`createBoxedEditorService`'s `complexTypeOwner` always coalesces them into a
+ * whole-type rewrite), and a member's node is a bare type reference, never `BLANK_LITERAL`'s
+ * string-expression default — so `isTypeMember` seeds a real (if generic) type name instead.
  */
 export function nextFieldRow(
   container: Pick<BoxedRowData, 'path' | 'children'>,
+  isTypeMember = false,
 ): BoxedRowData {
   const existing = new Set((container.children ?? []).map((child) => child.name));
   const name = uniqueName('field', existing);
   const path = childPath(container.path, name);
-  return rowFactories.field!(path, name, pathDepth(path));
+  const field = rowFactories.field!(path, name, pathDepth(path));
+  return isTypeMember ? { ...field, value: 'string' } : field;
 }
 
 /** Appends a blank `list-item` and returns the whole `list` row for a parent rewrite. */

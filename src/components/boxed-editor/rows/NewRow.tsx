@@ -78,7 +78,7 @@ export function NewRow({row}: NewRowProps): ReactElement | null {
 
     switch (config.itemKind) {
         case 'field': {
-            const field = nextFieldRow(row);
+            const field = nextFieldRow(row, row.kind === 'complexType');
             depth = field.depth;
             onActivate = () => {
                 commands.setBoxedRowData(field.path, field);
