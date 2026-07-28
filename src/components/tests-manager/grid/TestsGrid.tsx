@@ -11,7 +11,7 @@ import TableRow from '@mui/material/TableRow';
 import AddIcon from '@mui/icons-material/Add';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import {closestCenter, DndContext} from '@dnd-kit/core';
-import {horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy,} from '@dnd-kit/sortable';
+import {horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy} from '@dnd-kit/sortable';
 import type {ReactElement} from 'react';
 import type {TestCase, TestRow} from '../../test-cases-service';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
@@ -28,15 +28,15 @@ import {SectionHeaderRow} from './SectionHeaderRow';
 import {SubjectHeaderCell} from './SubjectHeaderCell';
 import {TestCaseHeaderCell} from './TestCaseHeaderCell';
 import {TestRowLine} from './TestRowLine';
-import {DESCRIPTION_COLUMN_WIDTH, ICON_CELL_WIDTH, rowHeightForText, TEST_CASE_COLUMN_WIDTH,} from './wrapping';
+import {DESCRIPTION_COLUMN_WIDTH, ICON_CELL_WIDTH, rowHeightForText, TEST_CASE_COLUMN_WIDTH} from './wrapping';
 
 function RowDragSection({
-                            rows,
-                            visibleCases,
-                            pathColumnWidth,
-                            knownPaths,
-                            onMove,
-                        }: {
+    rows,
+    visibleCases,
+    pathColumnWidth,
+    knownPaths,
+    onMove,
+}: {
     rows: TestRow[];
     visibleCases: TestCase[];
     pathColumnWidth: number;
@@ -70,13 +70,8 @@ function RowDragSection({
 }
 
 // Grid shell: frozen Path/Description columns, column paging, and the three fixed sections.
-export function TestsGrid({
-                              onSubjectChange,
-                          }: {
-    onSubjectChange: (id: TestSubjectId) => void;
-}): ReactElement {
-    const {service, testCasesService, runner, subject, readOnly, revision, pageSize} =
-        useTestsManagerContext();
+export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectId) => void}): ReactElement {
+    const {service, testCasesService, runner, subject, readOnly, revision, pageSize} = useTestsManagerContext();
     const subjects = useTestSubjects(service, revision);
 
     // Rows the model no longer declares stay visible (present: false) — TestRowLine flags them
@@ -87,8 +82,10 @@ export function TestsGrid({
     const inputRows = rows.filter((row) => row.section === 'inputs');
     const assertionRows = rows.filter((row) => row.section === 'assertions');
     const validationRows = rows.filter((row) => row.section === 'validations');
-    const {allCases, visibleCases, pageIndex, pageCount, nextPage, prevPage} =
-        useTestCaseColumns(testCasesService, pageSize);
+    const {allCases, visibleCases, pageIndex, pageCount, nextPage, prevPage} = useTestCaseColumns(
+        testCasesService,
+        pageSize,
+    );
 
     const pathColumnWidth = computePathColumnWidth(rows.map((row) => row.path));
     // Two `ROW_HEIGHT_STEP`s (80px) fixed — the name area sits between the two 40px
@@ -101,23 +98,20 @@ export function TestsGrid({
         ),
     );
 
-    const needsSolver =
-        service.requiresSolver() && service.solverHandler === undefined;
-    const moveRow = (path: string, toIndex: number): void =>
-        testCasesService.moveRow(path, toIndex);
+    const needsSolver = service.requiresSolver() && service.solverHandler === undefined;
+    const moveRow = (path: string, toIndex: number): void => testCasesService.moveRow(path, toIndex);
     const moveTestCase = (testCaseId: string, toIndex: number): void =>
         testCasesService.moveTestCase(testCaseId, toIndex);
-    const {sensors: columnSensors, handleDragEnd: handleColumnDragEnd, itemIds: columnItemIds} =
-        useColumnDrag(allCases, visibleCases, moveTestCase);
+    const {
+        sensors: columnSensors,
+        handleDragEnd: handleColumnDragEnd,
+        itemIds: columnItemIds,
+    } = useColumnDrag(allCases, visibleCases, moveTestCase);
 
     return (
         <Box data-testid="tests-grid">
             {needsSolver && (
-                <Alert
-                    severity="warning"
-                    data-testid="missing-solver-banner"
-                    sx={{mb: 1}}
-                >
+                <Alert severity="warning" data-testid="missing-solver-banner" sx={{mb: 1}}>
                     No optimisation solver registered for this model.
                 </Alert>
             )}
@@ -131,20 +125,13 @@ export function TestsGrid({
                     Run all
                 </Button>
                 {pageCount > 1 && (
-                    <Box
-                        sx={{display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto'}}
-                    >
-                        <Button
-                            size="small"
-                            onClick={prevPage}
-                            disabled={pageIndex === 0}
-                            aria-label="previous page"
-                        >
+                    <Box sx={{display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto'}}>
+                        <Button size="small" onClick={prevPage} disabled={pageIndex === 0} aria-label="previous page">
                             ‹
                         </Button>
                         <span data-testid="page-indicator">
-              Page {pageIndex + 1}/{pageCount}
-            </span>
+                            Page {pageIndex + 1}/{pageCount}
+                        </span>
                         <Button
                             size="small"
                             onClick={nextPage}
@@ -157,11 +144,7 @@ export function TestsGrid({
                 )}
             </Box>
             <TableContainer sx={{maxHeight: 640}}>
-                <Table
-                    size="small"
-                    stickyHeader
-                    sx={{borderCollapse: 'collapse', tableLayout: 'fixed', width: 'auto'}}
-                >
+                <Table size="small" stickyHeader sx={{borderCollapse: 'collapse', tableLayout: 'fixed', width: 'auto'}}>
                     <TableHead>
                         <TableRow style={{height: headerRowHeight}}>
                             <TableCell
@@ -177,7 +160,7 @@ export function TestsGrid({
                                     textAlign: 'center',
                                 }}
                             >
-                                <FactCheckIcon sx={{color: '#fff'}} fontSize="small"/>
+                                <FactCheckIcon sx={{color: '#fff'}} fontSize="small" />
                             </TableCell>
                             <TableCell
                                 sx={{
@@ -240,7 +223,7 @@ export function TestsGrid({
                                                 padding: 0,
                                             }}
                                         >
-                                            <TestCaseHeaderCell testCase={testCase}/>
+                                            <TestCaseHeaderCell testCase={testCase} />
                                         </TableCell>
                                     ))}
                                 </SortableContext>
@@ -260,7 +243,7 @@ export function TestsGrid({
                                         aria-label="Add test case at end"
                                         onClick={() => testCasesService.addTestCase()}
                                     >
-                                        <AddIcon fontSize="small"/>
+                                        <AddIcon fontSize="small" />
                                     </IconButton>
                                 )}
                             </TableCell>

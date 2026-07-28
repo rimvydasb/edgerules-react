@@ -114,18 +114,14 @@ than compensating in React.
 | 18  | Non-deduplicating facade factory                 | `createBoxedEditorService(mutable)` returns a fresh facade per call; a host sharing one cache constructs it once, a second GUI calls `invalidate()`.                                                              |
 | 19  | Who triggers test execution                      | `BoxedEditor` triggers runs but never executes: the **host** constructs `TestRunner` and passes it in; `BoxedEditor` calls `run(testCaseId)` per the triggers table.                                              |
 | 20  | `ruleset` Duplicate; `optimisation` arguments    | `Duplicate` is offered on `ruleset` with the same auto-rename rule; `optimisation` gets `Add Argument` / `Delete "‹argument›" Argument` matching `function`.                                                      |
+| 21  | Debounce window for auto-run                     | Kept at a fixed, internal 300 ms — not exposed as a prop. No host has asked for a different window, and `readOnly`/`showType`/etc. are the only tuning knobs the public API carries; adding `autoRunDelayMs` ahead of a real need would grow the surface for a hypothetical. Revisit if a host profiles a large model and asks. |
+| 22  | Non-selected cases after a model change           | Kept as-is: only the selected case re-runs on commit, others go stale until navigated to (already implemented, exercised by the `TestCasesAndTestRunner` story). A commit-time `runAll()` below a case-count threshold would add a second execution path and a magic threshold for a cost (N executions per edit) no host has reported; not worth it pre-emptively. |
+| 23  | `View as code` under `readOnly`                   | Kept hidden (not marked `nonMutating` in `useRowActions.ts`), found during the Phase 8 invariant audit. §5's "only Duplicate and view toggles remain" reads as Expand/Collapse (literal toggles); `View as code` is a one-shot navigation action, not a toggle, so excluding it from the readOnly allow-list matches the spec's literal wording even though it is itself non-mutating. Revisit if a read-only host specifically wants code-view access. |
 
-## 8. Open questions to resolve or record
+## 8. Open questions — resolved (see Resolved decisions #21–22)
 
-1. **Debounce window for auto-run.** A trailing 300 ms debounce on commit-driven runs is specified, chosen so a burst
-   of cell edits or a drag produces one execution rather than several. Whether 300 ms is right for large models — or
-   whether it should be a prop (`autoRunDelayMs`) — is unverified until a real model is measured.
-   *Option 1:* keep 300 ms fixed and internal. *Option 2:* expose it as a prop with a 300 ms default.
-2. **Non-selected cases after a model change.** Only the selected case is re-run on commit; the rest go stale until
-   navigated to. For a small case count, running them all (`runner.runAll()`) would keep every column fresh at the
-   cost of N executions per edit.
-   *Option 1:* current design — selected case only, others refreshed lazily on navigation.
-   *Option 2:* `runAll()` on commit when the case count is below a threshold.
+1. ~~**Debounce window for auto-run.**~~ Resolved: kept fixed at 300 ms, internal — see #21.
+2. ~~**Non-selected cases after a model change.**~~ Resolved: kept the current selected-only re-run — see #22.
 
 ## 9. Follow-up stories to record (not implemented here)
 
@@ -136,11 +132,11 @@ than compensating in React.
 
 ## 10. Tasks
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add the five [Storybook stories](#3-storybook-stories-to-add)
-- [ ] Resolve or record architect decisions for the remaining [Open Questions](#8-open-questions-to-resolve-or-record)
-- [ ] Update `docs/BUG_REPORTS.md` with any engine gaps found during Phases 1–7
-- [ ] Update `README.md`'s component list and this document's checkboxes
-- [ ] Perform linting and formatting (`npm run format`, `npm run typecheck`)
-- [ ] Review the implementation against this document and the wireframe
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add the five [Storybook stories](#3-storybook-stories-to-add)
+- [x] Resolve or record architect decisions for the remaining [Open Questions](#8-open-questions-to-resolve-or-record)
+- [x] Update `docs/BUG_REPORTS.md` with any engine gaps found during Phases 1–7
+- [x] Update `README.md`'s component list and this document's checkboxes
+- [x] Perform linting and formatting (`npm run format`, `npm run typecheck`)
+- [x] Review the implementation against this document and the wireframe
+- [x] Mark all checkboxes as done in this document once verified

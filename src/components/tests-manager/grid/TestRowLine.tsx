@@ -6,7 +6,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
-import {type CSSProperties, type ReactElement, useState, useSyncExternalStore,} from 'react';
+import {type CSSProperties, type ReactElement, useState, useSyncExternalStore} from 'react';
 import {qualifyPath, type TestCase, type TestRow} from '../../test-cases-service';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {rowActionsFor} from '../menu/actions';
@@ -16,34 +16,31 @@ import {CELL_BORDER_SX, DELETED_ROW_BG} from './gridStyle';
 import {InputCell} from './InputCell';
 import {PathCell} from './PathCell';
 import {ValidationCell} from './ValidationCell';
-import {DESCRIPTION_COLUMN_WIDTH, ICON_CELL_WIDTH, rowHeightForText, TEST_CASE_COLUMN_WIDTH,} from './wrapping';
+import {DESCRIPTION_COLUMN_WIDTH, ICON_CELL_WIDTH, rowHeightForText, TEST_CASE_COLUMN_WIDTH} from './wrapping';
 
-const DELETED_ROW_TOOLTIP =
-    'Removed from the model — kept for reference, will not be used in future runs.';
+const DELETED_ROW_TOOLTIP = 'Removed from the model — kept for reference, will not be used in future runs.';
 
 export const ROW_HEIGHT = 40;
 
 function noSubscription(): () => void {
-    return () => {
-    };
+    return () => {};
 }
 
 // One row: drag handle, path cell, description cell, its case cells. Row height grows in
 // `ROW_HEIGHT_STEP` increments to fit a wrapped Description (see `wrapping.ts`) — every other cell
 // in the row just gets the extra space.
 export function TestRowLine({
-                                row,
-                                visibleCases,
-                                pathColumnWidth,
-                                knownPaths,
-                            }: {
+    row,
+    visibleCases,
+    pathColumnWidth,
+    knownPaths,
+}: {
     row: TestRow;
     visibleCases: TestCase[];
     pathColumnWidth: number;
     knownPaths: ReadonlySet<string>;
 }): ReactElement {
-    const {testCasesService, documentationService, subject, readOnly} =
-        useTestsManagerContext();
+    const {testCasesService, documentationService, subject, readOnly} = useTestsManagerContext();
     const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
     const sortable = useSortable({id: row.path, disabled: readOnly});
     const deleted = !row.present;
@@ -68,11 +65,7 @@ export function TestRowLine({
     const hasMenuActions = menuActions.length > 0;
 
     return (
-        <TableRow
-            ref={sortable.setNodeRef}
-            style={style}
-            data-testid={`row-${row.path || '(result)'}`}
-        >
+        <TableRow ref={sortable.setNodeRef} style={style} data-testid={`row-${row.path || '(result)'}`}>
             <TableCell
                 sx={{
                     ...CELL_BORDER_SX,
@@ -99,7 +92,7 @@ export function TestRowLine({
                             height: ICON_CELL_WIDTH,
                         }}
                     >
-                        <DragIndicatorIcon fontSize="small"/>
+                        <DragIndicatorIcon fontSize="small" />
                     </span>
                 )}
             </TableCell>
@@ -114,7 +107,7 @@ export function TestRowLine({
                     width: pathColumnWidth,
                 }}
             >
-                <PathCell row={row} columnWidth={pathColumnWidth} knownPaths={knownPaths}/>
+                <PathCell row={row} columnWidth={pathColumnWidth} knownPaths={knownPaths} />
                 {deleted && (
                     <Tooltip title={DELETED_ROW_TOOLTIP}>
                         <WarningAmberIcon
@@ -163,15 +156,11 @@ export function TestRowLine({
                                 justifyContent: 'center',
                             }}
                         >
-                            <MoreVertIcon fontSize="small"/>
+                            <MoreVertIcon fontSize="small" />
                         </button>
                     </span>
                 )}
-                <TestsMenu
-                    anchorEl={menuAnchor}
-                    onClose={() => setMenuAnchor(null)}
-                    actions={menuActions}
-                />
+                <TestsMenu anchorEl={menuAnchor} onClose={() => setMenuAnchor(null)} actions={menuActions} />
             </TableCell>
             <TableCell
                 sx={{
@@ -190,12 +179,7 @@ export function TestRowLine({
                         aria-label={`description ${row.path}`}
                         value={description}
                         disabled={readOnly}
-                        onChange={(event) =>
-                            documentationService.setDescription(
-                                qualifiedPath,
-                                event.target.value,
-                            )
-                        }
+                        onChange={(event) => documentationService.setDescription(qualifiedPath, event.target.value)}
                         style={{
                             position: 'absolute',
                             inset: 0,
@@ -222,15 +206,9 @@ export function TestRowLine({
                         backgroundColor: deleted ? DELETED_ROW_BG : undefined,
                     }}
                 >
-                    {row.section === 'inputs' && (
-                        <InputCell testCaseId={testCase.id} row={row}/>
-                    )}
-                    {row.section === 'assertions' && (
-                        <AssertionCell testCaseId={testCase.id} row={row}/>
-                    )}
-                    {row.section === 'validations' && (
-                        <ValidationCell testCaseId={testCase.id} row={row}/>
-                    )}
+                    {row.section === 'inputs' && <InputCell testCaseId={testCase.id} row={row} />}
+                    {row.section === 'assertions' && <AssertionCell testCaseId={testCase.id} row={row} />}
+                    {row.section === 'validations' && <ValidationCell testCaseId={testCase.id} row={row} />}
                 </TableCell>
             ))}
             <TableCell

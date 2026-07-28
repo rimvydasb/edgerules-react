@@ -89,6 +89,39 @@ keep computed fields in `result` (so the merge cannot overwrite them) and report
 `API_SPEC.md` already states that computed fields are ones the host "reads but does not supply at execution time" — so
 supplying one is a caller error the API should surface rather than absorb.
 
+## A single dangling reference anywhere breaks `get()` globally, for every path — not just the affected one (@edgerules/node + @edgerules/web)
+
+`remove`/`rename` intentionally leave a broken reference in place rather than rolling back or rewriting call sites
+(the sibling repo's own documented "refactoring state" — see this repo's `docs/boxed-editor/phase-08-quality-gate.md`
+Resolved Decision #12, which expects the fallout to surface as an ordinary **path-scoped** error "where next read").
+In practice the fallout is global: once any reference anywhere is left dangling, `get()` on **every other path in the
+model** — including paths with no relationship whatsoever to the broken one — returns the identical linker error
+instead of that path's own value.
+
+```ts
+const service = MutableDecisionService.fromCode(
+  '{ a: 1, b: a + 1, unrelated: { deep: { value: 42 } } }',
+);
+
+service.get('unrelated.deep.value', 'ALL');
+// { '@kind': 'type', type: 'number', readOnly: true }  — fine before the break
+
+service.remove('a'); // 'b' now references a name that no longer exists
+
+service.get('unrelated.deep.value', 'ALL');
+// { '@kind': 'error', type: 'Execution', message: "linker error: E102: unresolved reference 'a' in node NodeId(2)" }
+service.get('*', 'ALL');
+// same error — every path, not only 'a' or 'b', now returns it
+```
+
+Expected behavior: an unresolved reference should fail `get()` only for the node that carries it (and anything that
+transitively depends on it), the same way a single bad expression fails to parse without invalidating sibling nodes.
+For `BoxedEditor`, whose entire error model (`docs/boxed-editor/phase-08-quality-gate.md` §5, "Errors") relies on a
+path-scoped `PortableError` leaving "last-good row visible" everywhere else, this means one broken reference anywhere
+in a model currently blanks every row's `readAuthored` and trips the fatal "path does not exist" alert for the whole
+grid, not just the row that broke — there is no denormalizer-side workaround, since the underlying `get()` call
+itself returns the same global error regardless of which path asked.
+
 ## Array-typed fields reject elements with differing optional-field shapes — linker treats a heterogeneous array as a type mismatch (@edgerules/node + @edgerules/web)
 
 A single (non-array) value happily omits an optional field of its declared type — `set('a', {name: "Ada"})` against

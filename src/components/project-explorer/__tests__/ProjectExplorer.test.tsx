@@ -1,162 +1,151 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import {describe, expect, it, vi} from 'vitest';
+import {render, screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 // A real, Node-loadable build of the same engine `@edgerules/web` ships to the browser (see the
 // plan's "WASM loading" note) — not a mock. `@edgerules/web`'s async, fetch-based `init()` isn't
 // reliably usable under Vitest/Node, so tests exercise the identical engine core via this build.
-import { MutableDecisionService } from '@edgerules/node/mutable';
-import { ProjectExplorer } from '../ProjectExplorer';
-import { MODEL_DSL } from '../testing/model.dsl';
+import {MutableDecisionService} from '@edgerules/node/mutable';
+import {ProjectExplorer} from '../ProjectExplorer';
+import {MODEL_DSL} from '../testing/model.dsl';
 
 function buildService() {
-  return MutableDecisionService.fromCode(MODEL_DSL);
+    return MutableDecisionService.fromCode(MODEL_DSL);
 }
 
 describe('ProjectExplorer', () => {
-  it('renders Types, Variables, and ordered ctx entries at the root, collapsed by default', () => {
-    render(<ProjectExplorer service={buildService()} />);
+    it('renders Types, Variables, and ordered ctx entries at the root, collapsed by default', () => {
+        render(<ProjectExplorer service={buildService()} />);
 
-    expect(screen.getByText('Types')).toBeInTheDocument();
-    expect(screen.getByText('Variables')).toBeInTheDocument();
-    expect(screen.getByText('nested')).toBeInTheDocument();
-    // `risk` is a `ruleset` declaration in the DSL (decision tables are now first-class rulesets,
-    // not the deprecated `firstMatch(...)` call form). `classifyFieldNode` correctly maps a
-    // `ruleset`/`ruleset-schema` node to `[dt]` (see tree-model.test.ts). The real engine's `get()`
-    // now projects a `ruleset` field when listing its containing context too (fixed upstream as of
-    // alpha .202607061957 — previously an open gap, see the memory of this fix), so `risk()`
-    // renders immediately as a `[dt]` leaf, same as a sibling `[func]`.
-    expect(screen.getByText('risk()')).toBeInTheDocument();
+        expect(screen.getByText('Types')).toBeInTheDocument();
+        expect(screen.getByText('Variables')).toBeInTheDocument();
+        expect(screen.getByText('nested')).toBeInTheDocument();
+        // `risk` is a `ruleset` declaration in the DSL (decision tables are now first-class rulesets,
+        // not the deprecated `firstMatch(...)` call form). `classifyFieldNode` correctly maps a
+        // `ruleset`/`ruleset-schema` node to `[dt]` (see tree-model.test.ts). The real engine's `get()`
+        // now projects a `ruleset` field when listing its containing context too (fixed upstream as of
+        // alpha .202607061957 — previously an open gap, see the memory of this fix), so `risk()`
+        // renders immediately as a `[dt]` leaf, same as a sibling `[func]`.
+        expect(screen.getByText('risk()')).toBeInTheDocument();
 
-    // Collapsed: group contents not yet in the DOM.
-    expect(screen.queryByText('globalConst')).not.toBeInTheDocument();
-    expect(screen.queryByText('list')).not.toBeInTheDocument();
-    expect(screen.queryByText('Person')).not.toBeInTheDocument();
-  });
-
-  it('classifies a live ruleset as [dt] once fetched by its own path', () => {
-    // Pins the real engine's per-path behavior: `get('risk')` returns a `ruleset-schema`, which
-    // `classifyFieldNode` maps to `[dt]`.
-    const service = buildService();
-    const riskNode = service.get('risk');
-    expect(riskNode).toMatchObject({
-      '@kind': 'ruleset-schema',
-      '@hitPolicy': 'first-match',
+        // Collapsed: group contents not yet in the DOM.
+        expect(screen.queryByText('globalConst')).not.toBeInTheDocument();
+        expect(screen.queryByText('list')).not.toBeInTheDocument();
+        expect(screen.queryByText('Person')).not.toBeInTheDocument();
     });
-  });
 
-  it('expands Variables client-side with no additional get() call', async () => {
-    const service = buildService();
-    const getSpy = vi.spyOn(service, 'get');
-    const user = userEvent.setup();
-    render(<ProjectExplorer service={service} />);
-    getSpy.mockClear();
+    it('classifies a live ruleset as [dt] once fetched by its own path', () => {
+        // Pins the real engine's per-path behavior: `get('risk')` returns a `ruleset-schema`, which
+        // `classifyFieldNode` maps to `[dt]`.
+        const service = buildService();
+        const riskNode = service.get('risk');
+        expect(riskNode).toMatchObject({
+            '@kind': 'ruleset-schema',
+            '@hitPolicy': 'first-match',
+        });
+    });
 
-    await user.click(screen.getByText('Variables'));
+    it('expands Variables client-side with no additional get() call', async () => {
+        const service = buildService();
+        const getSpy = vi.spyOn(service, 'get');
+        const user = userEvent.setup();
+        render(<ProjectExplorer service={service} />);
+        getSpy.mockClear();
 
-    expect(screen.getByText('globalConst')).toBeInTheDocument();
-    expect(screen.getByText('list')).toBeInTheDocument();
-    expect(getSpy).not.toHaveBeenCalled();
-  });
+        await user.click(screen.getByText('Variables'));
 
-  it('expands Types client-side with no additional get() call', async () => {
-    const service = buildService();
-    const getSpy = vi.spyOn(service, 'get');
-    const user = userEvent.setup();
-    render(<ProjectExplorer service={service} />);
-    getSpy.mockClear();
+        expect(screen.getByText('globalConst')).toBeInTheDocument();
+        expect(screen.getByText('list')).toBeInTheDocument();
+        expect(getSpy).not.toHaveBeenCalled();
+    });
 
-    await user.click(screen.getByText('Types'));
+    it('expands Types client-side with no additional get() call', async () => {
+        const service = buildService();
+        const getSpy = vi.spyOn(service, 'get');
+        const user = userEvent.setup();
+        render(<ProjectExplorer service={service} />);
+        getSpy.mockClear();
 
-    expect(screen.getByText('Person')).toBeInTheDocument();
-    expect(screen.getByText('PeopleList')).toBeInTheDocument();
-    expect(getSpy).not.toHaveBeenCalled();
-  });
+        await user.click(screen.getByText('Types'));
 
-  it('lazily fetches a [ctx] node exactly once, on first expansion, and caches it', async () => {
-    const service = buildService();
-    const getSpy = vi.spyOn(service, 'get');
-    const user = userEvent.setup();
-    render(<ProjectExplorer service={service} />);
-    getSpy.mockClear();
+        expect(screen.getByText('Person')).toBeInTheDocument();
+        expect(screen.getByText('PeopleList')).toBeInTheDocument();
+        expect(getSpy).not.toHaveBeenCalled();
+    });
 
-    await user.click(screen.getByText('nested'));
-    expect(getSpy).toHaveBeenCalledTimes(1);
-    expect(getSpy).toHaveBeenCalledWith('nested');
+    it('lazily fetches a [ctx] node exactly once, on first expansion, and caches it', async () => {
+        const service = buildService();
+        const getSpy = vi.spyOn(service, 'get');
+        const user = userEvent.setup();
+        render(<ProjectExplorer service={service} />);
+        getSpy.mockClear();
 
-    // `get('nested')` now nests `deep()`'s function schema under `nested` correctly (see
-    // docs/BUG_REPORTS.md, Bug 2 — fixed upstream), so expanding `nested` reveals it as a
-    // `[func]` leaf.
-    expect(screen.getByText('deep()')).toBeInTheDocument();
+        await user.click(screen.getByText('nested'));
+        expect(getSpy).toHaveBeenCalledTimes(1);
+        expect(getSpy).toHaveBeenCalledWith('nested');
 
-    // Collapse and re-expand: must not re-fetch an already-cached path.
-    await user.click(screen.getByText('nested'));
-    await user.click(screen.getByText('nested'));
-    expect(getSpy).toHaveBeenCalledTimes(1);
-  });
+        // `get('nested')` now nests `deep()`'s function schema under `nested` correctly (see
+        // docs/BUG_REPORTS.md, Bug 2 — fixed upstream), so expanding `nested` reveals it as a
+        // `[func]` leaf.
+        expect(screen.getByText('deep()')).toBeInTheDocument();
 
-  it('fires onOpenVariables with the context path when clicking the group header or a leaf', async () => {
-    const onOpenVariables = vi.fn();
-    const user = userEvent.setup();
-    render(
-      <ProjectExplorer
-        service={buildService()}
-        onOpenVariables={onOpenVariables}
-      />,
-    );
+        // Collapse and re-expand: must not re-fetch an already-cached path.
+        await user.click(screen.getByText('nested'));
+        await user.click(screen.getByText('nested'));
+        expect(getSpy).toHaveBeenCalledTimes(1);
+    });
 
-    await user.click(screen.getByText('Variables'));
-    expect(onOpenVariables).toHaveBeenLastCalledWith('');
+    it('fires onOpenVariables with the context path when clicking the group header or a leaf', async () => {
+        const onOpenVariables = vi.fn();
+        const user = userEvent.setup();
+        render(<ProjectExplorer service={buildService()} onOpenVariables={onOpenVariables} />);
 
-    await user.click(screen.getByText('globalConst'));
-    expect(onOpenVariables).toHaveBeenLastCalledWith('');
-  });
+        await user.click(screen.getByText('Variables'));
+        expect(onOpenVariables).toHaveBeenLastCalledWith('');
 
-  it('fires onOpenTypes with no argument for the group and the type name for a leaf', async () => {
-    const onOpenTypes = vi.fn();
-    const user = userEvent.setup();
-    render(
-      <ProjectExplorer service={buildService()} onOpenTypes={onOpenTypes} />,
-    );
+        await user.click(screen.getByText('globalConst'));
+        expect(onOpenVariables).toHaveBeenLastCalledWith('');
+    });
 
-    await user.click(screen.getByText('Types'));
-    expect(onOpenTypes).toHaveBeenLastCalledWith();
+    it('fires onOpenTypes with no argument for the group and the type name for a leaf', async () => {
+        const onOpenTypes = vi.fn();
+        const user = userEvent.setup();
+        render(<ProjectExplorer service={buildService()} onOpenTypes={onOpenTypes} />);
 
-    await user.click(screen.getByText('Person'));
-    expect(onOpenTypes).toHaveBeenLastCalledWith('Person');
-  });
+        await user.click(screen.getByText('Types'));
+        expect(onOpenTypes).toHaveBeenLastCalledWith();
 
-  it('fires onOpenFunction with the function path when clicking a [func] leaf', async () => {
-    // A root-level function is unaffected by the nested-flattening gap above, so this exercises
-    // the real click-through path end to end against the real engine.
-    const service = MutableDecisionService.fromCode('{ func topFn(): 42 }');
-    const onOpenFunction = vi.fn();
-    const user = userEvent.setup();
-    render(
-      <ProjectExplorer service={service} onOpenFunction={onOpenFunction} />,
-    );
+        await user.click(screen.getByText('Person'));
+        expect(onOpenTypes).toHaveBeenLastCalledWith('Person');
+    });
 
-    await user.click(screen.getByText('topFn()'));
-    expect(onOpenFunction).toHaveBeenCalledWith('topFn');
-  });
+    it('fires onOpenFunction with the function path when clicking a [func] leaf', async () => {
+        // A root-level function is unaffected by the nested-flattening gap above, so this exercises
+        // the real click-through path end to end against the real engine.
+        const service = MutableDecisionService.fromCode('{ func topFn(): 42 }');
+        const onOpenFunction = vi.fn();
+        const user = userEvent.setup();
+        render(<ProjectExplorer service={service} onOpenFunction={onOpenFunction} />);
 
-  it('renders an error badge/tooltip and stops expanding once get() fails for a [ctx] node', async () => {
-    const service = MutableDecisionService.fromCode(
-      '{ box: { a: 1 b: a + 1 } }',
-    );
-    const user = userEvent.setup();
-    render(<ProjectExplorer service={service} />);
+        await user.click(screen.getByText('topFn()'));
+        expect(onOpenFunction).toHaveBeenCalledWith('topFn');
+    });
 
-    // A real CRUD edit that leaves the AST dirty (docs/PROJECT_EXPLORER_STORY.md's Error
-    // Handling section) — not a mock. The broken reference only surfaces on the next `get()`.
-    service.remove('box.a');
+    it('renders an error badge/tooltip and stops expanding once get() fails for a [ctx] node', async () => {
+        const service = MutableDecisionService.fromCode('{ box: { a: 1 b: a + 1 } }');
+        const user = userEvent.setup();
+        render(<ProjectExplorer service={service} />);
 
-    await user.click(screen.getByText('box'));
+        // A real CRUD edit that leaves the AST dirty (docs/PROJECT_EXPLORER_STORY.md's Error
+        // Handling section) — not a mock. The broken reference only surfaces on the next `get()`.
+        service.remove('box.a');
 
-    // Treated as a leaf: no children rendered despite the error.
-    expect(screen.queryByText('b')).not.toBeInTheDocument();
+        await user.click(screen.getByText('box'));
 
-    await user.hover(screen.getByTestId('icon-ctx'));
-    const tooltip = await screen.findByRole('tooltip');
-    expect(tooltip).toHaveTextContent(/unresolved reference/i);
-  });
+        // Treated as a leaf: no children rendered despite the error.
+        expect(screen.queryByText('b')).not.toBeInTheDocument();
+
+        await user.hover(screen.getByTestId('icon-ctx'));
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toHaveTextContent(/unresolved reference/i);
+    });
 });
