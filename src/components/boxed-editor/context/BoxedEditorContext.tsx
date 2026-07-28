@@ -25,6 +25,9 @@ export interface BoxedEditorContextValue {
   testRunner?: TestRunner;
   testSubjectId?: TestSubjectId;
   autoRunTests: boolean;
+  /** Host-controlled invalidation token; on change the provider calls `service.invalidate()`, and
+   * `BoxedEditorTestContext` compares it against each result set's `modelRevision` for staleness. */
+  revision?: string | number;
   /** Fired once per successful committed mutation, by `useRowCommands`. */
   onChange?: (snapshot: PortableRootContext) => void;
   /** Routes `View as code` (and any future host-editor handoff) to the host. */
@@ -33,19 +36,13 @@ export interface BoxedEditorContextValue {
 
 const BoxedEditorContext = createContext<BoxedEditorContextValue | null>(null);
 
-export interface BoxedEditorProviderProps extends BoxedEditorContextValue {
-  /** Host-controlled invalidation token; on change the provider calls `service.invalidate()`. */
-  revision?: string | number;
+export type BoxedEditorProviderProps = BoxedEditorContextValue & {
   children: ReactNode;
-}
+};
 
 /** Mounts the facade + column-visibility context every row and hook in this tree reads from. */
-export function BoxedEditorProvider({
-  revision,
-  children,
-  ...value
-}: BoxedEditorProviderProps): ReactElement {
-  const { service } = value;
+export function BoxedEditorProvider({ children, ...value }: BoxedEditorProviderProps): ReactElement {
+  const { service, revision } = value;
 
   useEffect(() => {
     service.invalidate();

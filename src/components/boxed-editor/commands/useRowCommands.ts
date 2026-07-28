@@ -4,8 +4,9 @@ import { isPortableError } from '../../../lib/portable';
 import type { DocumentationService } from '../../documentation-service';
 import type { TestCasesService, TestSubjectId } from '../../test-cases-service';
 import { useBoxedEditorContext } from '../context/BoxedEditorContext';
+import { useBoxedEditorTestContext } from '../context/BoxedEditorTestContext';
 import type { BoxedEditorService, BoxedRowData } from '../boxed-editor-types';
-import { childPath, indexedPath, parentPath } from '../service/portable-utils';
+import { childPath, indexedPath, parentPath, unqualifyPath } from '../service/portable-utils';
 
 export interface RowCommands {
   /**
@@ -38,16 +39,6 @@ function collectSubtreePaths(service: BoxedEditorService, rootPath: string): str
  * descendant's own CRUD path is always built through `childPath`/`indexedPath` on its ancestors. */
 function rewriteUnderNewRoot(path: string, oldRoot: string, newRoot: string): string {
   return newRoot + path.slice(oldRoot.length);
-}
-
-// '*' + 'credit.balance' -> 'credit.balance'; 'creditDecision' + 'approved' -> 'creditDecision.approved'.
-// Inverse of `test-cases-service`'s own `qualifyPath` — `undefined` when `path` doesn't fall under
-// `subjectId` at all (the overlay call for that pair is simply skipped).
-function unqualifyPath(subjectId: TestSubjectId, path: string): string | undefined {
-  if (subjectId === '*') return path;
-  if (path === subjectId) return '';
-  if (path.startsWith(`${subjectId}.`)) return path.slice(subjectId.length + 1);
-  return undefined;
 }
 
 /**
@@ -106,9 +97,15 @@ function computeMovedPath(
 export function useRowCommands(): RowCommands {
   const { service, onChange, documentationService, testCasesService, testSubjectId } =
     useBoxedEditorContext();
+  const { scheduleTestRun } = useBoxedEditorTestContext();
 
   return useMemo<RowCommands>(() => {
-    const notifyChange = (): void => onChange?.(service.toPortable());
+    // Fired once per successful commit (Triggers table, Phase 7): schedules a debounced, coalesced
+    // re-run of the selected test case after `onChange` so a burst of edits produces one execution.
+    const notifyChange = (): void => {
+      onChange?.(service.toPortable());
+      scheduleTestRun();
+    };
     const migrate = (oldPaths: string[], oldRoot: string, newRoot: string): void =>
       migrateOverlayPaths(oldPaths, oldRoot, newRoot, documentationService, testCasesService, testSubjectId);
 
@@ -144,5 +141,5 @@ export function useRowCommands(): RowCommands {
         return undefined;
       },
     };
-  }, [service, onChange, documentationService, testCasesService, testSubjectId]);
+  }, [service, onChange, documentationService, testCasesService, testSubjectId, scheduleTestRun]);
 }

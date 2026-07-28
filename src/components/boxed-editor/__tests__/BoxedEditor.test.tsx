@@ -1,8 +1,10 @@
+import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MutableDecisionService } from '@edgerules/node/mutable';
 import { BoxedEditor } from '../BoxedEditor';
 import { createBoxedEditorService } from '../service/createBoxedEditorService';
+import { createTestCasesService } from '../../test-cases-service';
 
 const MODEL = `{
   type Applicant: { name: <string, required: true> }
@@ -12,6 +14,10 @@ const MODEL = `{
 
 function buildService() {
   return createBoxedEditorService(MutableDecisionService.fromCode(MODEL));
+}
+
+function uniqueDbName(): string {
+  return `boxed-editor-test-${Math.random().toString(36).slice(2)}`;
 }
 
 describe('BoxedEditor', () => {
@@ -59,9 +65,17 @@ describe('BoxedEditor', () => {
     expect(screen.getAllByLabelText('Drag to reorder row').length).toBeGreaterThan(0);
   });
 
+  it('hides the test-results column entirely when no testCasesService is provided', () => {
+    const { container } = render(<BoxedEditor service={buildService()} path="*" />);
+
+    expect(container.querySelectorAll('[data-column="description"]').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[data-column="test-results"]').length).toBe(0);
+  });
+
   it('toggles the description and test-results columns via props', () => {
+    const testCasesService = createTestCasesService('model', '*', { dbName: uniqueDbName() });
     const { container, rerender } = render(
-      <BoxedEditor service={buildService()} path="*" />,
+      <BoxedEditor service={buildService()} path="*" testCasesService={testCasesService} />,
     );
     expect(container.querySelectorAll('[data-column="description"]').length).toBeGreaterThan(0);
     expect(container.querySelectorAll('[data-column="test-results"]').length).toBeGreaterThan(0);
@@ -70,11 +84,14 @@ describe('BoxedEditor', () => {
       <BoxedEditor
         service={buildService()}
         path="*"
+        testCasesService={testCasesService}
         showDescription={false}
         showTestResults={false}
       />,
     );
     expect(container.querySelectorAll('[data-column="description"]').length).toBe(0);
     expect(container.querySelectorAll('[data-column="test-results"]').length).toBe(0);
+
+    testCasesService.dispose();
   });
 });

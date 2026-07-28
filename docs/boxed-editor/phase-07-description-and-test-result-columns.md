@@ -228,18 +228,18 @@ src/components/boxed-editor/
 
 ## 11. Tasks
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `cells/DescriptionCell.tsx` + `hooks/useDescription.ts`; empty and read-only when no `documentationService`
-- [ ] Add `context/BoxedEditorTestContext.tsx` hoisting `useTestCases(testCasesService)` once, exposing the selected
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `cells/DescriptionCell.tsx` + `hooks/useDescription.ts`; empty and read-only when no `documentationService`
+- [x] Add `context/BoxedEditorTestContext.tsx` hoisting the selected-test-case state once, exposing the selected
       case, `next`/`prev`, and the runner's `getRunning()` snapshot
-- [ ] Add the `TestResultsColumn` header: case name, `i/N`, previous/next, running spinner, run-level error chip
-- [ ] Add `cells/TestResultCell.tsx` + `hooks/useRowTestResult.ts`: `qualifyPath` lookup and the
+- [x] Add the `TestResultsColumn` header: case name, `i/N`, previous/next, running spinner, run-level error chip
+- [x] Add `cells/TestResultCell.tsx` + `hooks/useRowTestResult.ts`: subject-relative path lookup and the
       [Result formatting](#8-result-formatting) table
-- [ ] Implement the [Triggers](#triggers) table: debounced `run(currentCaseId)` after every successful commit, and a
+- [x] Implement the [Triggers](#triggers) table: debounced `run(currentCaseId)` after every successful commit, and a
       freshness-checked run on mount / `revision` change / case selection change
-- [ ] Add `__tests__/test-results.test.tsx` (real engine + `fake-indexeddb` + solver stub) covering every trigger,
-      staleness, pending, and run-level error rendering
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Add `__tests__/test-results.test.tsx` (real engine + `fake-indexeddb`) covering every trigger, staleness,
+      pending, and run-level error rendering
+- [x] Mark all checkboxes as done in this document once verified
 
 ## 12. Verification
 

@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -8,6 +8,13 @@ import {
   createBoxedEditorService,
   type BoxedEditorService,
 } from '../../../src/components/boxed-editor';
+import { createDocumentationService } from '../../../src/components/documentation-service';
+import { createTestCasesService } from '../../../src/components/test-cases-service';
+import {
+  createTestRunner,
+  type MutableDecisionService as RunnerService,
+  type TestSubject,
+} from '../../../src/components/tests-manager';
 
 const LOAN_ORIGINATION_MODEL = `{
   type Applicant: {
@@ -88,6 +95,81 @@ function EditableHarness({
         payment (committed): {payment}
       </Typography>
     </Box>
+  );
+}
+
+async function buildServiceWithMutable(code: string) {
+  await init();
+  const mutable = MutableDecisionService.fromCode(code);
+  return { service: createBoxedEditorService(mutable), mutable };
+}
+
+const MODEL_SUBJECT: TestSubject = { id: '*', kind: 'model', name: 'Model' };
+
+/**
+ * Phase 7: wires a `DocumentationService` and a `TestCasesService` + `TestRunner` exactly as a
+ * host would — `testRunner` memoized on `[mutable, testCasesService, revision]` and `revision`
+ * bumped from `onChange`, so an edit re-runs the selected case (debounced) and `TestResultCell`
+ * shows the live value.
+ */
+function TestResultsHarness({
+  service,
+  mutable,
+  path,
+}: {
+  service: BoxedEditorService;
+  mutable: InstanceType<typeof MutableDecisionService>;
+  path: string;
+}): ReactElement {
+  const [revision, setRevision] = useState(0);
+  const documentationService = useMemo(
+    () => createDocumentationService('boxed-editor-story'),
+    [],
+  );
+  const testCasesService = useMemo(
+    () => createTestCasesService('boxed-editor-story', '*'),
+    [],
+  );
+  const testRunner = useMemo(
+    () =>
+      createTestRunner(mutable as unknown as RunnerService, testCasesService, MODEL_SUBJECT, {
+        modelRevision: String(revision),
+      }),
+    [mutable, testCasesService, revision],
+  );
+
+  // Seeds one test case the first time this story mounts against a fresh IndexedDB database.
+  useEffect(() => {
+    if (testCasesService.listTestCases().length > 0) return;
+    testCasesService.syncRows([
+      { path: 'application.loanAmount', section: 'inputs', order: 0, type: 'number', present: true },
+      { path: 'application.propertyValue', section: 'inputs', order: 1, type: 'number', present: true },
+      {
+        path: 'application.applicationDate',
+        section: 'inputs',
+        order: 2,
+        type: 'date',
+        present: true,
+      },
+    ]);
+    const testCase = testCasesService.addTestCase('Standard application');
+    testCasesService.setCell(testCase.id, 'application.loanAmount', 'input', '250000');
+    testCasesService.setCell(testCase.id, 'application.propertyValue', 'input', '320000');
+    testCasesService.setCell(testCase.id, 'application.applicationDate', 'input', '"2024-01-01"');
+  }, [testCasesService]);
+
+  return (
+    <BoxedEditor
+      service={service}
+      path={path}
+      languageService={MutableDecisionService}
+      documentationService={documentationService}
+      testCasesService={testCasesService}
+      testRunner={testRunner}
+      testSubjectId="*"
+      revision={revision}
+      onChange={() => setRevision((current) => current + 1)}
+    />
   );
 }
 
@@ -212,5 +294,23 @@ export const LargeModel: Story = {
   loaders: [async () => ({ service: await buildService(LARGE_MODEL) })],
   render: (args, { loaded }) => (
     <BoxedEditor {...args} service={loaded.service} path="*" readOnly />
+  ),
+};
+
+export const DescriptionsAndLiveTestResults: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Phase 7: free-text descriptions persist through a `DocumentationService`; the Test ' +
+          'Results column shows the seeded "Standard application" case, re-running (debounced ' +
+          '~300 ms) whenever a field is edited — try editing `application.loanAmount` and watch ' +
+          'its own test-results cell pick up the new value once the run lands.',
+      },
+    },
+  },
+  loaders: [async () => buildServiceWithMutable(LOAN_ORIGINATION_MODEL)],
+  render: (_args, { loaded }) => (
+    <TestResultsHarness service={loaded.service} mutable={loaded.mutable} path="*" />
   ),
 };

@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import type { BoxedEditorProps } from './BoxedEditorProps';
 import { useRowCommands } from './commands/useRowCommands';
 import { BoxedEditorProvider } from './context/BoxedEditorContext';
+import { BoxedEditorTestProvider } from './context/BoxedEditorTestContext';
 import { BoxedEditorUiProvider } from './context/BoxedEditorUiContext';
 import { isValidDrop, type DragPayload, type DropTargetPayload } from './dnd/dropRules';
 import { useBoxedEditorService } from './hooks/useBoxedEditorService';
@@ -113,9 +114,11 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
         autoRunTests={autoRunTests}
         revision={revision}
       >
-        <BoxedEditorUiProvider defaultExpanded={expanded}>
-          <BoxedEditorGrid path={path} showHeader={showHeader} />
-        </BoxedEditorUiProvider>
+        <BoxedEditorTestProvider>
+          <BoxedEditorUiProvider defaultExpanded={expanded}>
+            <BoxedEditorGrid path={path} showHeader={showHeader} />
+          </BoxedEditorUiProvider>
+        </BoxedEditorTestProvider>
       </BoxedEditorProvider>
     </Box>
   );

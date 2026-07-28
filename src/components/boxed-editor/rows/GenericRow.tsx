@@ -1,5 +1,7 @@
 import Box from '@mui/material/Box';
 import type { KeyboardEvent, ReactElement, ReactNode } from 'react';
+import { DescriptionCell } from '../cells/DescriptionCell';
+import { TestResultCell } from '../cells/TestResultCell';
 import { useBoxedEditorContext } from '../context/BoxedEditorContext';
 import type { BoxedRowData } from '../boxed-editor-types';
 import { useRowDrag } from '../dnd/useRowDrag';
@@ -77,7 +79,10 @@ export function GenericRow({
   actions = [],
   onActivate,
 }: GenericRowProps): ReactElement {
-  const { showDescription, showTestResults, showType } = useBoxedEditorContext();
+  const { showDescription, showTestResults, showType, testCasesService } = useBoxedEditorContext();
+  // The `TestResultsColumn` is hidden entirely (not just emptied) when no `testCasesService` is
+  // provided — unlike `showDescription`, which always shows the column (empty + read-only).
+  const showTestResultsColumn = showTestResults && testCasesService !== undefined;
   const menu = useRowMenu();
   const height = tall ? TALL_ROW_HEIGHT : ROW_HEIGHT;
   const drag = useRowDrag(row);
@@ -102,7 +107,10 @@ export function GenericRow({
       sx={{
         position: 'relative',
         display: 'grid',
-        gridTemplateColumns: gridTemplateColumns({ showDescription, showTestResults }),
+        gridTemplateColumns: gridTemplateColumns({
+          showDescription,
+          showTestResults: showTestResultsColumn,
+        }),
         height,
         bgcolor: 'background.paper',
         cursor: onActivate ? 'pointer' : undefined,
@@ -205,8 +213,12 @@ export function GenericRow({
           }}
         />
       )}
-      {showDescription && <Cell column="description" />}
-      {showTestResults && <Cell column="test-results" />}
+      {showDescription && (
+        <Cell column="description">{row && <DescriptionCell path={row.path} />}</Cell>
+      )}
+      {showTestResultsColumn && (
+        <Cell column="test-results">{row && <TestResultCell path={row.path} />}</Cell>
+      )}
       <RowLine />
     </Box>
   );

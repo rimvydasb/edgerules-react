@@ -28,6 +28,16 @@ export function childPath(parent: string, name: string): string {
   return parent === '*' ? name : `${parent}.${name}`;
 }
 
+// '*' + 'credit.balance' -> 'credit.balance'; 'creditDecision' + 'creditDecision.approved' -> 'approved'.
+// Inverse of `test-cases-service`'s own `qualifyPath`: derives the subject-relative path from a
+// row's fully qualified one — `undefined` when `path` doesn't fall under `subjectId` at all.
+export function unqualifyPath(subjectId: string, path: string): string | undefined {
+  if (subjectId === '*') return path;
+  if (path === subjectId) return '';
+  if (path.startsWith(`${subjectId}.`)) return path.slice(subjectId.length + 1);
+  return undefined;
+}
+
 export function indexedPath(parent: string, index: number): string {
   return `${parent}[${index}]`;
 }
