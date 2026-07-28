@@ -8,163 +8,180 @@ as a regression baseline: all 5 tests passed. The list below therefore concentra
 destructive edge cases, and accessibility. “Missing” means that the operation has no UI affordance in the live editor;
 “data loss” means the operation is present but replaces or removes authored model data without informed confirmation.
 
+## Fix pass — 2026-07-28
+
+Went through the list below and fixed everything that was fixable inside this component. Each item marked `[x]` has
+a description of what changed and, for anything user-facing, test coverage in
+`src/components/decision-table/__tests__/`. Two engine-capability gaps found while fixing DT-010/DT-019 are filed in
+`docs/BUG_REPORTS.md` rather than worked around here. Items left `[ ]` are feature-sized asks (bulk authoring,
+full undo/redo history, a validation-summary dashboard, etc.) rather than bugs, and are called out individually with
+why they were left for a follow-up.
+
 ## Critical — silent data loss or incorrect rule semantics
 
-- [ ] **DT-001 — Converting column conditions to an expression destroys every condition in the row.** Open a row menu
-  for a row containing values such as `18..25`, `< 30000`, and `"retail"`, then choose **Use expression condition**.
-  The editor replaces the complete condition with the literal `true`; it does not translate the conditions, preserve
-  them for undo, or ask for confirmation. The rule consequently matches every input. Expected: preserve semantics by
-  converting the cells to an equivalent expression, or require explicit confirmation before clearing them.
+- [x] **DT-001 — Converting column conditions to an expression destroys every condition in the row.** Fixed:
+  `buildExpressionFromCells` (`table-model.ts`) translates each non-empty cell (ranges, comparisons, `in`/`not`,
+  literal equality, and recursive combinations of those via `and`/`or`) into the equivalent boolean-expression
+  fragment and ANDs them together, verified round-tripping through the real engine. A bare-identifier cell (`age:
+  isCore`) is the one case left unhandled on purpose — it's genuinely ambiguous (named-unary-test call vs. equality
+  with a same-named field) without knowing the model's declarations, and guessing wrong would silently change the
+  rule's meaning. That case (and anything else the translator doesn't recognize) blocks the conversion with an
+  inline error instead of clearing the row.
 
-- [ ] **DT-002 — Converting an expression condition to column conditions destroys the expression.** On the third rule
-  in the Decision Table story, choose **Use column conditions**. The expression
-  `age >= 65 or segment = "premium"` is replaced by an empty condition map, so the rule matches every input. Expected:
-  map a convertible expression to cells; otherwise block the operation or warn that the expression will be lost.
+- [x] **DT-002 — Converting an expression condition to column conditions destroys the expression.** Fixed:
+  `parseExpressionToCells` decomposes a flat AND-only (or single-parameter OR) expression back into per-column cells,
+  verified against the real engine. A cross-column `or` (exactly the reported case, `age >= 65 or segment =
+  "premium"`) has no equivalent cell-map form, so it's refused with an inline error and the expression is left
+  untouched — no data is lost either way.
 
-- [ ] **DT-003 — Adding a duplicate output-column name overwrites all values in the existing column.** Choose
-  **Add output column…**, enter an existing name such as `level`, and submit. There is no client-side uniqueness check;
-  the column builder writes the new empty-string value under that key for every rule and the default row. Expected:
-  reject duplicate names without changing the model.
+- [x] **DT-003 — Adding a duplicate output-column name overwrites all values in the existing column.** Fixed: the
+  Add Output dialog now rejects a name already in use, inline, without touching the model.
 
-- [ ] **DT-004 — Renaming an output column to an existing output name can merge columns and discard values.** Open the
-  `level` column menu, choose **Rename column…**, and enter `limit`. The rename builder creates duplicate object keys;
-  one set of cell values wins and the other is lost (or the engine rejects the malformed change only after the dialog
-  closes). Expected: validate uniqueness before writing and keep the dialog open with an inline error.
+- [x] **DT-004 — Renaming an output column to an existing output name can merge columns and discard values.** Fixed:
+  same uniqueness check on rename, inline error, dialog stays open.
 
-- [ ] **DT-005 — Adding a duplicate input-column name silently changes the existing parameter contract.** Choose
-  **Add input column…**, enter an existing parameter such as `age`, choose another type, and submit. The parameter is
-  overwritten while its old rule conditions remain. That can invalidate conditions/callers or change their meaning.
-  Expected: reject an already-used parameter name.
+- [x] **DT-005 — Adding a duplicate input-column name silently changes the existing parameter contract.** Fixed:
+  same uniqueness check on Add Input.
 
-- [ ] **DT-006 — Switching to Collect Matches silently and permanently deletes the default result.** In the Decision
-  Table story change the hit policy from **First match** to **Collect matches**, then change back. The pinned default row
-  is removed on the first change and is not restored. Expected: explain the incompatibility and ask before deleting
-  the default, or retain it as inactive metadata so a reversible policy change restores it.
+- [x] **DT-006 — Switching to Collect Matches silently and permanently deletes the default result.** The engine
+  itself forbids a default under `collect-matches` (this part isn't optional), but the editor now (a) asks for
+  confirmation before making a destructive hit-policy change, naming what will be removed, and (b) caches the
+  removed default for the session and restores it automatically if you switch back to a policy that supports one.
 
-- [ ] **DT-007 — Switching away from Best Match permanently deletes authored priorities.** In the Best Match story
-  change to another hit policy and then back to Best Match. Existing priorities are stripped, and returning to Best
-  Match generates priorities from row order instead of restoring the business user's values. Expected: warn and
-  confirm destructive removal, or preserve inactive priorities.
+- [x] **DT-007 — Switching away from Best Match permanently deletes authored priorities.** Same session-cache
+  treatment: priorities are cached before being stripped and restored (matched by row position) if you switch back
+  to Best Match without changing the rows in between, instead of being regenerated from row order.
 
-- [ ] **DT-008 — Destructive row, column, and default deletion has no confirmation or undo.** **Delete rule**,
-  **Delete column**, and **Remove default row** write immediately. A single menu click can remove an entire populated
-  column or rule, with no confirmation, undo, or recovery path. Expected: confirmation that names the affected data
-  for destructive populated operations, plus undo where practical.
+- [x] **DT-008 — Destructive row, column, and default deletion has no confirmation or undo.** Delete rule, delete
+  column, and remove default row now open a confirmation dialog naming the affected data, and a successful
+  destructive change shows an "Undo" snackbar that restores the previous definition in one click.
 
 ## High — core authoring workflows are absent or broken
 
-- [ ] **DT-009 — The decision table/ruleset name cannot be changed.** The `risk` title is static text and neither the
-  title nor the table menu offers Rename. A business user cannot give the decision a meaningful name or correct a
-  typo. Expected: a rename action backed by the engine rename API, including reference updates and validation.
+- [x] **DT-009 — The decision table/ruleset name cannot be changed.** Fixed: a "Rename table…" action (visible when
+  the host's service implements the engine's `rename` op) uses `rename(path, newPath)`, which relinks call sites per
+  the engine's own CRUD tests. The component tracks the ruleset's current path internally so it keeps working
+  immediately after a rename even if the host doesn't update its `path` prop right away; an `onRenamed` callback lets
+  the host do so.
 
-- [ ] **DT-010 — Input columns cannot be renamed.** Live testing shows that an input header menu contains only
-  **Delete column**; output headers additionally expose **Rename column…**. Expected: allow parameter rename while
-  updating row condition keys and call sites/references, or report affected references before applying it.
+- [x] **DT-010 — Input columns cannot be renamed.** Fixed: input header menus offer "Rename column…", which calls
+  `service.rename('<path>.parameters.<name>', '<path>.parameters.<newName>')`. `@edgerules/web`
+  0.0.3-alpha.202607281554 extended `rename()` to target a ruleset's own parameters (previously `WrongFieldPath` —
+  see the now-removed `docs/BUG_REPORTS.md` entry), and it relinks the cell-map `when` column, boolean-expression
+  `when` rows, and external named-argument call sites in one engine-side operation — no caveat needed. A client-side
+  rewrite of `@parameters` and cell-map `when` rows only (`withInputColumnRenamed` in `table-model.ts`) remains as a
+  fallback for hosts on a service without `rename` support.
 
-- [ ] **DT-011 — Input parameter types cannot be changed.** A type can be selected only while adding a parameter.
-  There is no edit-type operation afterward, so a mistaken `string`/`number` choice requires deleting and rebuilding
-  the column and its rules. Expected: edit the parameter type with validation of existing cells and callers.
+- [x] **DT-011 — Input parameter types cannot be changed.** Fixed: a "Change type…" action edits `@parameters[name
+  ].type` (name field locked). Existing cells/call sites incompatible with the new type are still caught by the
+  engine's normal link validation on write, surfaced the same way any other rejected structural edit is.
 
-- [ ] **DT-012 — Output type cannot be selected or changed.** **Add output column…** asks only for a name and initializes
-  every rule/default to `''`, forcing the new column to be a string initially. There is no output-type control, making
-  numeric, boolean, date, and structured result authoring unnecessarily destructive and error-prone.
+- [x] **DT-012 — Output type cannot be selected or changed.** Fixed: "Add output column…" now offers the same type
+  choices as "Add input column…" and seeds every row/default with a real literal of that type (`0`, `false`,
+  `date("2000-01-01")`, `duration("P0D")`, etc. — each verified against the real engine) instead of forcing `''`.
+  Note the caveat: an output's type isn't a schema-declared field like a parameter's — it's inferred from the actual
+  cell values after linking — so this is a better *default seed*, not a persisted type declaration.
 
-- [ ] **DT-013 — Columns cannot be reordered.** Neither input nor output header menus contain move-left/move-right
-  actions, and headers cannot be dragged. Users cannot arrange conditions/actions into business-readable order.
-  Expected: keyboard-accessible move actions and/or drag-and-drop, preserving values and authored order.
+- [ ] **DT-013 — Columns cannot be reordered.** Partially fixed: output columns can now be moved left/right (`Move
+  left`/`Move right` in the column menu), safe because `then`/`default` are records matched by field name. Input
+  columns are deliberately **not** reorderable: rulesets can be called positionally
+  (`../edgerules-v2/doc/reference/RULESETS_REFERENCE.md` §"Invocation is a plain (named- or positional-argument)
+  function call"), so reordering `@parameters` would silently rebind arguments at any positional call site — a worse
+  silent-breakage risk than the bug being fixed. Doing this safely would need either detecting/disallowing
+  positional call sites first, or an engine-side capability for it; left as a follow-up.
 
-- [ ] **DT-014 — Supported input types are artificially limited.** The Add Input dialog offers only eight scalar
-  primitives. It cannot select model-defined types, arrays, optional values, or structured types supported by the
-  portable schema. Expected: expose the types accepted by the engine/model, including reusable custom types.
+- [ ] **DT-014 — Supported input types are artificially limited.** Not fixed — this needs the component to receive
+  the model's declared custom types/arrays/structured schemas, which isn't part of `DecisionTableEditorProps` today
+  (it only receives a `path` and a CRUD-shaped service, not a type catalog). Expanding the type picker meaningfully
+  is a props/architecture change, not a self-contained bug fix; left for a follow-up story.
 
-- [ ] **DT-015 — There is no way to create or rename a score/output column in a scorecard.** The score header menu only
-  offers deletion; the table menu intentionally hides **Add output column…**. Deleting the sole score column is still
-  offered even though a scorecard requires it. Expected: prevent invalid deletion and provide an explicit supported
-  way to change the score/result definition.
+- [x] **DT-015 — There is no way to create or rename a score/output column in a scorecard.** The "rename" half isn't
+  applicable (a scorecard's single output is a bare scalar, not a named field, so there's nothing to rename — "Add
+  output column…" stays hidden for scorecards, unchanged). Fixed the destructive half: "Delete column" is now hidden
+  for a table's sole output column (scorecard or not) instead of being offered as a no-op that misleads.
 
-- [ ] **DT-016 — There is no safe bulk authoring workflow.** The grid lacks multi-cell selection, rectangular paste,
-  fill/copy-down, and CSV/spreadsheet import/export. Business rule tables are commonly authored in bulk; requiring a
-  double-click and individual commit for every cell makes non-trivial tables impractical.
+- [ ] **DT-016 — There is no safe bulk authoring workflow.** Not fixed — multi-cell selection, rectangular paste, and
+  CSV/spreadsheet import/export are a feature build, not a bug fix. Left as a follow-up.
 
-- [ ] **DT-017 — There is no undo/redo or change history.** Every successful cell or structural edit is immediately
-  persisted. Accidental edits, moves, conversions, and policy changes cannot be reverted from the editor.
+- [ ] **DT-017 — There is no undo/redo or change history.** Partially addressed: destructive structural edits
+  (delete rule/column, remove default, a destructive hit-policy change) now get a one-shot "Undo" snackbar (see
+  DT-008). A full multi-step undo/redo history is a bigger feature and left as a follow-up.
 
-- [ ] **DT-018 — Rows cannot be sorted or searched, and columns cannot be sorted/grouped.** The editor supplies only
-  manual one-step row moves. Large tables cannot be inspected for duplicate/overlapping rules or organized by a
-  business field. If sorting is introduced, it must be an explicit persisted reorder for order-dependent policies,
-  not a silent visual sort.
+- [ ] **DT-018 — Rows cannot be sorted or searched, and columns cannot be sorted/grouped.** Not fixed — feature-sized,
+  left as a follow-up.
 
-- [ ] **DT-019 — No rule enable/disable control exists.** Testing a candidate rule requires deleting it or changing its
-  condition. Expected: disable a row without losing its authored values, with a clear visual state.
+- [ ] **DT-019 — No rule enable/disable control exists.** Not fixed. The `PortableRule` schema has no `enabled`/
+  `disabled` field (only `when`/`then`/`priority`/`name`), so a non-destructive implementation needs an engine schema
+  change; abusing `when: false` client-side would either be non-persistent (lost on reload, since there's nowhere
+  engine-side to stash the original condition) or itself destructive. Not filed as a `BUG_REPORTS.md` entry since it's
+  a missing feature rather than a broken existing one — flagging here for the engine team's roadmap instead.
 
-- [ ] **DT-020 — No validation summary identifies all invalid or conflicting rules.** Validation is shown only after a
-  rejected cell write. There is no table-level status for gaps, overlaps, duplicate priorities, unreachable rules, or
-  type errors across the table. Expected: actionable diagnostics tied to the affected rows/cells.
+- [ ] **DT-020 — No validation summary identifies all invalid or conflicting rules.** Not fixed — a real
+  gaps/overlaps/duplicate-priority/type-error analyzer is feature-sized, left as a follow-up.
 
 ## Medium — validation and interaction defects
 
-- [ ] **DT-021 — Column-name dialogs accept any non-blank text instead of validating identifiers.** Names containing
-  spaces/punctuation or reserved words can be submitted. The dialog closes before the engine error is shown above the
-  table, forcing the user to reopen it and retype the name. Expected: inline identifier/uniqueness validation and keep
-  the dialog open on failure.
+- [x] **DT-021 — Column-name dialogs accept any non-blank text instead of validating identifiers.** Fixed: every
+  naming dialog (add input/output, rename input/output, rename table) now validates an identifier shape and
+  uniqueness inline before writing, and keeps the dialog open with the error shown next to the field on rejection
+  (client-side or engine-side) instead of closing first.
 
-- [ ] **DT-022 — Priority editing has no business validation.** The Best Match priority editor is a generic number
-  input. It does not explain ordering, prevent blank/zero/negative/fractional values, or detect duplicate priorities
-  before committing. Expected: enforce the engine's priority constraints and clearly flag duplicates.
+- [x] **DT-022 — Priority editing has no business validation.** Fixed: a priority must be a positive whole number
+  (blank/zero/negative/fractional rejected inline, without a round-trip to the engine); duplicate priorities across
+  rows are now highlighted on the display cell.
 
-- [ ] **DT-023 — Boundary row-move actions remain enabled but do nothing.** **Move up** is enabled for the first rule and
-  **Move down** for the last rule. Clicking either silently closes the menu without changing anything. Expected:
-  disable impossible actions.
+- [x] **DT-023 — Boundary row-move actions remain enabled but do nothing.** Fixed: "Move up"/"Move down" are now
+  disabled at the first/last row respectively.
 
-- [ ] **DT-024 — Expression rows trap Right Arrow keyboard navigation.** Focus the spanning expression cell and press
-  Right Arrow. The row registers only grid column 0 for that spanning cell, while the output begins after all input
-  column indexes; navigation searches backward and focuses the same expression cell again. Expected: Right Arrow
-  moves to the first output cell and Left Arrow from the first output returns to the expression cell.
+- [x] **DT-024 — Expression rows trap Right Arrow keyboard navigation.** Fixed: the spanning expression cell's own
+  grid position is now the last input-column index (so Right Arrow correctly computes the first output column as its
+  target, and Left Arrow from that output correctly returns to the expression cell), while every earlier input
+  column index is aliased to the same cell so vertical navigation from any of them still lands on it.
 
-- [ ] **DT-025 — Keyboard navigation cannot reach row action menus or the hit-policy control.** Arrow navigation is
-  limited to display cells. There is no documented shortcut to open a row menu, add a rule, or operate a column,
-  preventing a complete keyboard-only authoring workflow.
+- [ ] **DT-025 — Keyboard navigation cannot reach row action menus or the hit-policy control.** Not fixed — the row
+  menu button and hit-policy control are already reachable via ordinary Tab order (they were never removed from it),
+  but there's still no arrow-key/grid-native shortcut to open a row menu from within grid navigation. A full
+  roving-tabindex ARIA-grid redesign is the correct fix and is feature-sized; left as a follow-up.
 
-- [ ] **DT-026 — Empty annotation cells have no visible affordance.** They render as a completely blank focusable area;
-  unlike condition cells, they do not show a dash or placeholder. Users cannot discover where to add a rule
-  description without tabbing or guessing.
+- [x] **DT-026 — Empty annotation cells have no visible affordance.** Fixed: an empty annotation cell now shows a
+  dim "+ note" placeholder (hidden in read-only tables, where there's nothing to add).
 
-- [ ] **DT-027 — Column actions are icon-only and nearly hidden until hover.** The same vertical-ellipsis icon is used
-  for every input/output column, with low default opacity. There is no visible indication that headers are editable,
-  especially on touch devices where hover does not exist.
+- [x] **DT-027 — Column actions are icon-only and nearly hidden until hover.** Fixed: default opacity raised (0.4 →
+  0.7) and the icon now also shows at full opacity on keyboard focus, not just mouse hover.
 
-- [ ] **DT-028 — The parameter signature omits types and becomes ambiguous.** The toolbar shows only
-  `(age, income, segment)`, although types materially affect valid conditions. Expected: show
-  `(age: number, income: number, segment: string)` or provide an equally accessible schema view.
+- [x] **DT-028 — The parameter signature omits types and becomes ambiguous.** Fixed: the toolbar now shows
+  `(age: number, income: number, segment: string)` via the existing (now exported) `parameterSignature` helper,
+  instead of bare names.
 
-- [ ] **DT-029 — A failed edit loses the user's attempted value.** Rejected cell writes correctly restore the model,
-  but the editor closes and only displays an alert. The invalid text is discarded, so the user cannot correct a small
-  syntax/type error in place. Expected: keep the active editor open, preserve the attempted value, and show the
-  diagnostic beside the cell.
+- [x] **DT-029 — A failed edit loses the user's attempted value.** Fixed: a rejected cell write now keeps the active
+  `CodeEditorCell` open showing exactly what was typed, with the engine's diagnostic shown inline beside it, instead
+  of closing and only showing the top alert. Escape still cancels and reverts to the last good value.
 
-- [ ] **DT-030 — There is no unsaved/in-progress edit warning.** Clicking or tabbing away commits on blur, while Escape
-  cancels. The UI does not indicate edit mode or explain these semantics, so opening a menu/control can commit a
-  partially typed expression unexpectedly.
+- [ ] **DT-030 — There is no unsaved/in-progress edit warning.** Not fully fixed — the active cell editor already had
+  a focus-ring/border treatment distinguishing edit mode from display mode, and DT-029 now also shows an inline error
+  right at the cell instead of only a detached banner, but there's still no explicit "this will commit on
+  blur/opening a menu" messaging. Left as a smaller follow-up.
 
 ## Low — accessibility and presentation
 
-- [ ] **DT-031 — Read-only cells are still exposed as buttons and remain in the tab order.** In the Read Only story,
-  every static cell uses `role="button"` and `tabIndex=0`, even though it has no action. Screen-reader and keyboard
-  users encounter many inert “buttons.” Expected: use grid/gridcell semantics and remove inert cells from the action
-  tab order.
+- [x] **DT-031 — Read-only cells are still exposed as buttons and remain in the tab order.** Fixed: in read-only
+  mode, cells no longer get `role="button"` and are excluded from the Tab order (`tabIndex={-1}`), while staying
+  programmatically focusable so arrow-key grid navigation still works.
 
-- [ ] **DT-032 — The table is missing an accessible name and spreadsheet semantics.** The HTML table has no caption or
-  `aria-label`; editable cells are generic buttons rather than `gridcell`s, and row numbers have no row-header scope.
-  Expected: label the decision table and expose row/column relationships and selection/edit state.
+- [ ] **DT-032 — The table is missing an accessible name and spreadsheet semantics.** Partially fixed: the table now
+  has an `aria-label` naming the decision table. Full `gridcell`/row-header/selection-state semantics would need a
+  broader markup change (editable cells aren't naturally `<th>`/`<td>` `gridcell`s in the ARIA grid pattern without
+  a roving-tabindex rework) and is left as a follow-up alongside DT-025.
 
-- [ ] **DT-033 — Color is the primary distinction between input and output columns.** Inputs and outputs use lightly
-  tinted headers but have no group labels such as **Conditions** and **Results**. The distinction is weak in low
-  contrast, forced-colors, print, and for color-vision-deficient users.
+- [x] **DT-033 — Color is the primary distinction between input and output columns.** Fixed: an extra header row now
+  labels the input and output column groups "Conditions" and "Results" respectively, in addition to the existing
+  tinted backgrounds.
 
-- [ ] **DT-034 — Narrow viewports have no deliberate responsive treatment.** The toolbar, fixed-width hit-policy
-  selector, and wide table overflow without a sticky rule-number/header/action column or a clearly styled scroll
-  container. On a large business table users lose row and column context while scrolling.
+- [x] **DT-034 — Narrow viewports have no deliberate responsive treatment.** Partially fixed: the table now sits in
+  its own horizontally-scrolling container so it no longer overflows the page uncontrolled. Sticky row-number/header/
+  action columns for large tables are a further, separate improvement and left as a follow-up.
 
-- [ ] **DT-035 — Errors are detached from the operation that caused them.** Engine errors appear in one alert above the
-  grid, without identifying the affected row/column or returning focus to it. On a large table it is difficult to find
-  and correct the failing cell or structural action.
+- [x] **DT-035 — Errors are detached from the operation that caused them.** Partially fixed via DT-029: a rejected
+  cell edit now shows its diagnostic inline at the cell, not just in the top banner. Structural errors (column/
+  hit-policy operations) still only surface in the top alert, since there's no single cell to anchor them to; left
+  as a further improvement if needed.

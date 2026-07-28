@@ -289,14 +289,23 @@ export function rowToRule(row: DecisionTableRow, scorecard: boolean): PortableRu
 }
 
 /** A default cell text per output type, so a new row links immediately. */
-function defaultTextForType(typeLabel: string): string {
+export function defaultTextForType(typeLabel: string): string {
   switch (typeLabel) {
     case 'number':
       return '0';
     case 'boolean':
       return 'false';
+    case 'date':
+      return 'date("2000-01-01")';
+    case 'time':
+      return 'time("00:00:00")';
+    case 'datetime':
+      return 'datetime("2000-01-01T00:00:00")';
+    case 'duration':
+      return 'duration("P0D")';
+    case 'period':
+      return 'period("P0M")';
     case 'string':
-      return "''";
     default:
       return "''";
   }
@@ -400,6 +409,39 @@ export function withOutputColumnRenamed(
   );
 }
 
+/** Reorders `then`/`default` fields to `order` (any fields not listed keep their relative position at the end). */
+export function withOutputColumnsReordered(
+  definition: PortableRulesetDefinition,
+  order: string[],
+): PortableRulesetDefinition {
+  return mapThens(definition, (then) => {
+    const next: PortableContext = {};
+    for (const name of order) {
+      if (Object.prototype.hasOwnProperty.call(then, name)) {
+        next[name] = then[name];
+      }
+    }
+    for (const [key, value] of Object.entries(then)) {
+      if (!Object.prototype.hasOwnProperty.call(next, key)) {
+        next[key] = value;
+      }
+    }
+    return next;
+  });
+}
+
+/**
+ * A JS identifier shape: what the engine accepts as a field/parameter name. Client-side gate
+ * before writing — the engine still validates and may reject reserved words the editor doesn't
+ * know about, in which case the write fails and the existing error path (`applyDefinition`)
+ * surfaces the engine's message.
+ */
+const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+export function isValidColumnName(name: string): boolean {
+  return IDENTIFIER_PATTERN.test(name);
+}
+
 /** A default value per parameter type, so a new input column doesn't break existing call sites. */
 function defaultValueForType(type: PortableTypeReference): PortableTypedValue['default'] {
   switch (type) {
@@ -439,6 +481,47 @@ export function withInputColumnRemoved(
   };
 }
 
+/**
+ * Renames an input column: the `@parameters` key and every `cells`-form `when` key that
+ * references it. This is a **fallback** for services without `rename` support — prefer
+ * `service.rename('<path>.parameters.<name>', '<path>.parameters.<newName>')`, which the engine
+ * now relinks fully (cell-map `when`, boolean-expression `when`, and named-argument call sites
+ * anywhere in the model; see docs/BUG_REPORTS.md history). This client-side rewrite only covers
+ * `@parameters` and cell-map `when` rows: boolean-expression `when` rows and any external
+ * named-argument call site that still references the old name are **not** rewritten and must be
+ * fixed manually (the engine will report an unresolved-reference/link error on the next write
+ * touching them, not silently).
+ */
+export function withInputColumnRenamed(
+  definition: PortableRulesetDefinition,
+  from: string,
+  to: string,
+): PortableRulesetDefinition {
+  const parameters = Object.fromEntries(
+    Object.entries(definition['@parameters']).map(([key, value]) => [key === from ? to : key, value]),
+  );
+  const rules = definition['@rules'].map((rule) => {
+    if (!rule.when || isExpressionNode(rule.when) || !Object.prototype.hasOwnProperty.call(rule.when, from)) {
+      return rule;
+    }
+    const cells = Object.fromEntries(
+      Object.entries(rule.when).map(([key, value]) => [key === from ? to : key, value]),
+    );
+    return { ...rule, when: cells };
+  });
+  return { ...definition, '@parameters': parameters, '@rules': rules };
+}
+
+/** Changes an input column's declared type, keeping the name and re-deriving its default. */
+export function withInputColumnTypeChanged(
+  definition: PortableRulesetDefinition,
+  name: string,
+  type: PortableTypeReference,
+): PortableRulesetDefinition {
+  const parameter: PortableTypedValue = { '@kind': 'type', type, default: defaultValueForType(type) };
+  return { ...definition, '@parameters': { ...definition['@parameters'], [name]: parameter } };
+}
+
 export function withDefaultRow(
   definition: PortableRulesetDefinition,
   defaultNode: PortableContext | undefined,
@@ -452,7 +535,269 @@ export function withDefaultRow(
   return next;
 }
 
-function parameterSignature(definition: PortableRulesetDefinition): string {
+/** `best-match` priorities: a positive integer (blank/zero/negative/fractional are rejected). */
+export function isValidPriority(text: string): boolean {
+  const trimmed = text.trim();
+  return /^\d+$/.test(trimmed) && Number(trimmed) > 0;
+}
+
+/** True when two or more rows share the same `best-match` priority. */
+export function duplicatePriorities(rows: DecisionTableRow[]): Set<number> {
+  const counts = new Map<number, number>();
+  for (const row of rows) {
+    if (row.priority !== undefined) {
+      counts.set(row.priority, (counts.get(row.priority) ?? 0) + 1);
+    }
+  }
+  const duplicates = new Set<number>();
+  for (const [priority, count] of counts) {
+    if (count > 1) {
+      duplicates.add(priority);
+    }
+  }
+  return duplicates;
+}
+
+// ── `when` cells ↔ boolean expression ───────────────────────────────────────
+//
+// Converting between the two `when` forms without changing what a rule matches is only possible
+// for a bounded subset of the unary-test grammar (see `../../../edgerules-v2/doc/architecture/EBNF.md`
+// `UnaryTest`) — a bare identifier cell (`age: isCore`) is genuinely ambiguous without knowing
+// whether the model declares `isCore` as a one-parameter function (a named unary test call) or a
+// field (a same-named equality target), which this component cannot resolve. Rather than guess and
+// risk a *valid but wrong* expression succeeding silently, every function below returns `null` to
+// mean "not confidently convertible" and the caller must refuse the operation instead of applying
+// a lossy fallback.
+
+const LITERAL_PATTERN = /^(-?\d+(\.\d+)?|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|true|false)$/;
+const COMPARATOR_PATTERN = /^(>=|<=|<>|!=|>|<|=)\s*(.+)$/;
+const RANGE_PATTERN = /^(.+?)\.\.(.+)$/;
+const NOT_CALL_PATTERN = /^not\s*\((.*)\)$/is;
+const IN_PATTERN = /^in\s+(.+)$/i;
+const NAMED_ARG_PATTERN = /^([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)$/;
+const PARAM_COMPARATOR_PATTERN = /^([A-Za-z_][A-Za-z0-9_]*)\s*(>=|<=|<>|!=|>|<|=)\s*(.+)$/;
+const CONTAINS_CALL_PATTERN = /^contains\s*\(\s*(.+?)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)$/is;
+
+/**
+ * Splits a unary-test/boolean-expression string into `[term, connective, term, ...]` at its
+ * top-level `and`/`or` keywords — respecting parenthesis nesting and skipping keywords that occur
+ * inside a quoted string literal (e.g. `segment = "rock and roll"`).
+ */
+function splitTopLevelConnectives(text: string): string[] {
+  const tokens: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let start = 0;
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === '\\') {
+        i += 2;
+        continue;
+      }
+      if (ch === quote) {
+        quote = null;
+      }
+      i += 1;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      i += 1;
+      continue;
+    }
+    if (ch === '(') {
+      depth += 1;
+      i += 1;
+      continue;
+    }
+    if (ch === ')') {
+      depth -= 1;
+      i += 1;
+      continue;
+    }
+    if (depth === 0) {
+      const rest = text.slice(i);
+      const isWordBoundaryBefore = i === 0 || !/[A-Za-z0-9_]/.test(text[i - 1]);
+      const keyword = isWordBoundaryBefore ? /^(and|or)\b/i.exec(rest) : null;
+      if (keyword) {
+        tokens.push(text.slice(start, i).trim());
+        tokens.push(keyword[1].toLowerCase());
+        i += keyword[1].length;
+        start = i;
+        continue;
+      }
+    }
+    i += 1;
+  }
+  tokens.push(text.slice(start).trim());
+  return tokens;
+}
+
+/** Translates one top-level unary-test term (no `and`/`or` of its own) into an expression fragment. */
+function translateUnaryTestTerm(param: string, rawTerm: string): string | null {
+  const term = rawTerm.trim();
+  if (term.length === 0) {
+    return null;
+  }
+  const notMatch = NOT_CALL_PATTERN.exec(term);
+  if (notMatch) {
+    const inner = translateUnaryTestCell(param, notMatch[1]);
+    return inner === null || inner.length === 0 ? null : `not (${inner})`;
+  }
+  const inMatch = IN_PATTERN.exec(term);
+  if (inMatch) {
+    return `contains(${inMatch[1].trim()}, ${param})`;
+  }
+  const comparator = COMPARATOR_PATTERN.exec(term);
+  if (comparator) {
+    return `${param} ${comparator[1]} ${comparator[2].trim()}`;
+  }
+  const range = RANGE_PATTERN.exec(term);
+  if (range && !range[1].includes('..') && !range[2].includes('..')) {
+    return `(${param} >= ${range[1].trim()} and ${param} <= ${range[2].trim()})`;
+  }
+  if (LITERAL_PATTERN.test(term)) {
+    return `${param} = ${term}`;
+  }
+  // A bare identifier (named-unary-test call vs. equality with a same-named field) is ambiguous
+  // without the model's declarations — refuse rather than guess.
+  return null;
+}
+
+/** Translates one `when` cell's full unary-test text (with its own `and`/`or`) into an expression. */
+function translateUnaryTestCell(param: string, cellText: string): string | null {
+  const trimmed = cellText.trim();
+  if (trimmed.length === 0 || trimmed === 'any') {
+    return '';
+  }
+  const tokens = splitTopLevelConnectives(trimmed);
+  const pieces: string[] = [];
+  for (let i = 0; i < tokens.length; i += 2) {
+    const translated = translateUnaryTestTerm(param, tokens[i]);
+    if (translated === null) {
+      return null;
+    }
+    pieces.push(translated);
+  }
+  let result = pieces[0];
+  for (let i = 1, c = 1; i < pieces.length; i += 1, c += 2) {
+    result += ` ${tokens[c]} ${pieces[i]}`;
+  }
+  return result;
+}
+
+/**
+ * Builds a single boolean expression equivalent to a row's `cells` map, or `null` if any non-empty
+ * cell isn't confidently translatable (the caller must refuse the conversion rather than fall back
+ * to clearing the row — see docs/boxed-editor/bugs-in-decision-table.md DT-001).
+ */
+export function buildExpressionFromCells(paramNames: string[], cells: Record<string, string>): string | null {
+  const pieces: string[] = [];
+  for (const param of paramNames) {
+    const translated = translateUnaryTestCell(param, cells[param] ?? '');
+    if (translated === null) {
+      return null;
+    }
+    if (translated.length > 0) {
+      pieces.push(`(${translated})`);
+    }
+  }
+  return pieces.length > 0 ? pieces.join(' and ') : 'true';
+}
+
+/** Reverse of a single translated term: `age >= 18` → `{param: 'age', text: '>= 18'}`. */
+function parseUnaryTestTerm(
+  paramNames: string[],
+  rawTerm: string,
+): {param: string; text: string} | null {
+  const term = rawTerm.trim();
+  if (term.length === 0) {
+    return null;
+  }
+  const notMatch = NOT_CALL_PATTERN.exec(term);
+  if (notMatch) {
+    const innerTokens = splitTopLevelConnectives(notMatch[1]);
+    if (innerTokens.length !== 1) {
+      return null; // nested and/or inside not(...) isn't confidently reversible
+    }
+    const inner = parseUnaryTestTerm(paramNames, innerTokens[0]);
+    return inner === null ? null : {param: inner.param, text: `not(${inner.text})`};
+  }
+  const containsMatch = CONTAINS_CALL_PATTERN.exec(term);
+  if (containsMatch && paramNames.includes(containsMatch[2])) {
+    return {param: containsMatch[2], text: `in ${containsMatch[1].trim()}`};
+  }
+  const namedArg = NAMED_ARG_PATTERN.exec(term);
+  if (namedArg && paramNames.includes(namedArg[2])) {
+    return {param: namedArg[2], text: namedArg[1]};
+  }
+  const comparator = PARAM_COMPARATOR_PATTERN.exec(term);
+  if (comparator && paramNames.includes(comparator[1])) {
+    const op = comparator[2] === '<>' ? '!=' : comparator[2];
+    return {param: comparator[1], text: `${op} ${comparator[3].trim()}`};
+  }
+  return null;
+}
+
+/**
+ * Decomposes a boolean-expression `when` into a per-column `cells` map, or `null` if it can't be
+ * represented that way without changing its meaning — most commonly a top-level `or` across two
+ * *different* parameters (DT-002's reported case, `age >= 65 or segment = "premium"`), which has
+ * no equivalent AND-of-cells form. A single-parameter `or` (`age: > 500 or < 10`) is still
+ * convertible. Mixed `and`/`or` at the top level is refused outright — resolving that correctly
+ * needs real operator-precedence parsing, and guessing wrong would silently change the rule.
+ */
+export function parseExpressionToCells(paramNames: string[], expressionText: string): Record<string, string> | null {
+  const trimmed = expressionText.trim();
+  if (trimmed.length === 0 || trimmed === 'true') {
+    return {};
+  }
+  const tokens = splitTopLevelConnectives(trimmed);
+  const terms: string[] = [];
+  const connectives: string[] = [];
+  for (let i = 0; i < tokens.length; i += 2) {
+    terms.push(tokens[i]);
+    if (i + 1 < tokens.length) {
+      connectives.push(tokens[i + 1]);
+    }
+  }
+  const parsed = terms.map((term) => parseUnaryTestTerm(paramNames, term));
+  if (parsed.some((entry) => entry === null)) {
+    return null;
+  }
+  const entries = parsed as Array<{param: string; text: string}>;
+  const uniqueConnectives = new Set(connectives);
+  if (uniqueConnectives.size > 1) {
+    return null; // mixed and/or at the top level — ambiguous without a real parser
+  }
+
+  if (uniqueConnectives.size === 0 || connectives[0] === 'and') {
+    const byParam = new Map<string, string[]>();
+    for (const {param, text} of entries) {
+      const texts = byParam.get(param) ?? [];
+      texts.push(text);
+      byParam.set(param, texts);
+    }
+    const cells: Record<string, string> = {};
+    for (const [param, texts] of byParam) {
+      cells[param] = texts.join(' and ');
+    }
+    return cells;
+  }
+
+  // A top-level `or`: only representable as a single cell if every term names the same parameter.
+  const params = new Set(entries.map((entry) => entry.param));
+  if (params.size !== 1) {
+    return null;
+  }
+  const [param] = params;
+  return {[param]: entries.map((entry) => entry.text).join(' or ')};
+}
+
+/** `(age: number, income: number, segment: string)` — the typed signature for display and embed contexts. */
+export function parameterSignature(definition: PortableRulesetDefinition): string {
   return Object.entries(definition['@parameters'])
     .map(([name, type]) => {
       const label = typeLabelOf(type);

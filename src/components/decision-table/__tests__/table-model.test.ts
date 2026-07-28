@@ -6,17 +6,25 @@ import type {
   PortableRulesetSchema,
 } from '@edgerules/portable';
 import {
+  buildExpressionFromCells,
   buildTableModel,
+  duplicatePriorities,
   emptyRow,
   formatCellValue,
+  isValidColumnName,
+  isValidPriority,
+  parseExpressionToCells,
   prettyUnaryTest,
   rowToRule,
   whenCellEmbedContext,
   withHitPolicy,
   withInputColumnAdded,
   withInputColumnRemoved,
+  withInputColumnRenamed,
+  withInputColumnTypeChanged,
   withOutputColumnAdded,
   withOutputColumnRenamed,
+  withOutputColumnsReordered,
 } from '../table-model';
 import { RISK_MODEL_DSL, SCORECARD_MODEL_DSL } from '../testing/model.dsl';
 
@@ -275,5 +283,112 @@ describe('whenCellEmbedContext', () => {
       `${embed.prefix}"oops"${embed.suffix}`,
     );
     expect(bad.length).toBeGreaterThan(0);
+  });
+});
+
+describe('cells <-> expression conversion (DT-001 / DT-002)', () => {
+  it('buildExpressionFromCells produces a semantics-preserving expression the engine accepts', async () => {
+    const { service } = riskDefinition();
+    const expression = buildExpressionFromCells(['age', 'income', 'segment'], {
+      age: '18..25',
+      income: '< 30000',
+      segment: '"retail"',
+    });
+    expect(expression).not.toBeNull();
+    const result = service.set('risk.rules[0]', {
+      '@kind': 'rule',
+      when: { '@kind': 'expression', expression } as unknown as Record<string, unknown>,
+      then: { level: "'high'", limit: 1000 },
+    } as unknown as Parameters<typeof service.set>[1]);
+    expect((result as { '@kind'?: string })['@kind']).toBe('rule');
+    await expect(service.execute('decision')).resolves.toEqual({ level: 'high', limit: 1000 });
+  });
+
+  it('buildExpressionFromCells refuses a bare identifier cell (ambiguous named test vs. equality)', () => {
+    expect(buildExpressionFromCells(['age'], { age: 'isCore' })).toBeNull();
+  });
+
+  it('parseExpressionToCells refuses a cross-column "or" (DT-002)', () => {
+    expect(
+      parseExpressionToCells(['age', 'segment'], 'age >= 65 or segment = "premium"'),
+    ).toBeNull();
+  });
+
+  it('parseExpressionToCells decomposes a flat AND-only expression', () => {
+    expect(
+      parseExpressionToCells(['age', 'income', 'segment'], 'age >= 18 and age <= 25 and income < 30000'),
+    ).toEqual({ age: '>= 18 and <= 25', income: '< 30000' });
+  });
+});
+
+describe('isValidColumnName / isValidPriority / duplicatePriorities', () => {
+  it('accepts identifier-shaped names and rejects the rest', () => {
+    expect(isValidColumnName('age')).toBe(true);
+    expect(isValidColumnName('_private1')).toBe(true);
+    expect(isValidColumnName('has space')).toBe(false);
+    expect(isValidColumnName('123start')).toBe(false);
+    expect(isValidColumnName('')).toBe(false);
+  });
+
+  it('accepts only positive whole numbers as a priority', () => {
+    expect(isValidPriority('1')).toBe(true);
+    expect(isValidPriority('0')).toBe(false);
+    expect(isValidPriority('-1')).toBe(false);
+    expect(isValidPriority('1.5')).toBe(false);
+    expect(isValidPriority('')).toBe(false);
+    expect(isValidPriority('abc')).toBe(false);
+  });
+
+  it('flags rows that share a best-match priority', () => {
+    const rows = [
+      { when: { kind: 'cells' as const, cells: {} }, then: {}, priority: 1 },
+      { when: { kind: 'cells' as const, cells: {} }, then: {}, priority: 1 },
+      { when: { kind: 'cells' as const, cells: {} }, then: {}, priority: 2 },
+    ];
+    expect(duplicatePriorities(rows)).toEqual(new Set([1]));
+  });
+});
+
+describe('withInputColumnRenamed / withInputColumnTypeChanged / withOutputColumnsReordered', () => {
+  it('renames the parameter and every referencing when-cell key, accepted by the real engine', () => {
+    // A standalone model whose only call site passes positional (not named) arguments, so the
+    // rename's one known gap — unrewritten named-argument call sites — doesn't apply here.
+    const service = MutableDecisionService.fromCode(`{
+      ruleset risk(age: number, income: number): {
+        hitPolicy: "first-match"
+        rules: [ { when: { age: 18..25, income: < 30000 }, then: { level: "high" } } ]
+        default: { level: "none" }
+      }
+      decision: risk(20, 25000)
+    }`);
+    const definition = service.get('risk.*') as PortableRulesetDefinition;
+    const renamed = withInputColumnRenamed(definition, 'income', 'salary');
+    expect(Object.keys(renamed['@parameters'])).toEqual(['age', 'salary']);
+    expect(renamed['@rules'][0].when).toEqual({ age: '18..25', salary: '< 30000' });
+    expect((service.set('risk', renamed) as { '@kind'?: string })['@kind']).toBe('ruleset-schema');
+  });
+
+  it('a renamed parameter still referenced by an unrewritten boolean-expression row surfaces as an engine error, not silent breakage', () => {
+    const { service, definition } = riskDefinition();
+    // Rule 3's `when` is the boolean expression `age >= 65 or segment = "premium"` — renaming
+    // `age` doesn't rewrite that identifier (see the function's doc comment), so the engine
+    // reports it as an unresolved reference rather than linking incorrectly.
+    const renamed = withInputColumnRenamed(definition, 'age', 'years');
+    const result = service.set('risk', renamed) as { '@kind'?: string; message?: string };
+    expect(result['@kind']).toBe('error');
+  });
+
+  it('changes a parameter type and is accepted by the real engine', () => {
+    const { service, definition } = riskDefinition();
+    const changed = withInputColumnTypeChanged(definition, 'income', 'number');
+    expect((service.set('risk', changed) as { '@kind'?: string })['@kind']).toBe('ruleset-schema');
+  });
+
+  it('reorders then/default fields without changing their values', async () => {
+    const { service, definition } = riskDefinition();
+    const reordered = withOutputColumnsReordered(definition, ['limit', 'level']);
+    expect(Object.keys(reordered['@rules'][0].then).filter((key) => key !== '@kind')).toEqual(['limit', 'level']);
+    expect((service.set('risk', reordered) as { '@kind'?: string })['@kind']).toBe('ruleset-schema');
+    await expect(service.execute('decision')).resolves.toEqual({ level: 'high', limit: 1000 });
   });
 });
