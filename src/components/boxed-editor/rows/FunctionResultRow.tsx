@@ -34,6 +34,7 @@ export function FunctionResultRow({ row, functionRow }: FunctionResultRowProps):
 
   return (
     <GenericRow
+      row={row}
       name={row.name}
       value={<ExpressionCell row={row} onCommit={onCommit} />}
       valueIsInteractive

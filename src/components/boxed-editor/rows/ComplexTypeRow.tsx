@@ -20,6 +20,7 @@ export function ComplexTypeRow({ row }: ComplexTypeRowProps): ReactElement {
   return (
     <Fragment>
       <GenericRow
+        row={row}
         name={row.name}
         depth={row.depth}
         occupiesNameAndValue

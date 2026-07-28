@@ -187,6 +187,7 @@ export function RulesetRow({ row }: RulesetRowProps): ReactElement {
   return (
     <Fragment>
       <GenericRow
+        row={row}
         name={row.name}
         depth={row.depth}
         tall

@@ -1,6 +1,9 @@
 import Box from '@mui/material/Box';
 import type { KeyboardEvent, ReactElement, ReactNode } from 'react';
 import { useBoxedEditorContext } from '../context/BoxedEditorContext';
+import type { BoxedRowData } from '../boxed-editor-types';
+import { useRowDrag } from '../dnd/useRowDrag';
+import { useRowDrop } from '../dnd/useRowDrop';
 import { RowActionsMenu, type RowMenuItem } from '../menu/RowActionsMenu';
 import { useRowMenu } from '../menu/useRowMenu';
 import {
@@ -23,6 +26,9 @@ import {
 // optimisation header rows, Phase 4) may still compose it for their name/icon column.
 
 export interface GenericRowProps {
+  /** The full row data — enables this row's drag/drop wiring (Phase 6) when its `kind` is
+   * sortable. Omitted by `NewRow`'s synthetic placeholder and the fixed `model` root. */
+  row?: BoxedRowData;
   name: ReactNode;
   value?: ReactNode;
   type?: string;
@@ -53,6 +59,7 @@ export interface GenericRowProps {
 }
 
 export function GenericRow({
+  row,
   name,
   value,
   type,
@@ -73,6 +80,8 @@ export function GenericRow({
   const { showDescription, showTestResults, showType } = useBoxedEditorContext();
   const menu = useRowMenu();
   const height = tall ? TALL_ROW_HEIGHT : ROW_HEIGHT;
+  const drag = useRowDrag(row);
+  const drop = useRowDrop(row);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (!onActivate) return;
@@ -84,6 +93,8 @@ export function GenericRow({
 
   return (
     <Box
+      ref={drop.setNodeRef}
+      data-testid={row ? `row-${row.path}` : undefined}
       role={onActivate ? 'button' : undefined}
       tabIndex={onActivate ? 0 : undefined}
       onClick={onActivate}
@@ -95,6 +106,11 @@ export function GenericRow({
         height,
         bgcolor: 'background.paper',
         cursor: onActivate ? 'pointer' : undefined,
+        opacity: drag.isDragging ? 0.4 : 1,
+        outline: drop.isOver
+          ? (theme) => `2px solid ${drop.canDrop ? theme.palette.success.main : theme.palette.error.main}`
+          : 'none',
+        outlineOffset: '-2px',
       }}
     >
       <Box
@@ -119,11 +135,22 @@ export function GenericRow({
             }}
           />
         ))}
-        {showDragHandle && !iconActsAsDragHandle && <Drag />}
+        {showDragHandle && !iconActsAsDragHandle && (
+          <Drag
+            dragRef={drag.setNodeRef}
+            dragListeners={drag.listeners}
+            dragAttributes={drag.attributes}
+            draggable={drag.draggable}
+          />
+        )}
         {icon && (
           <TallIconHandle
             ariaLabel={iconActsAsDragHandle ? 'Drag to reorder row' : undefined}
             sx={{ bgcolor: iconBgColor }}
+            dragRef={iconActsAsDragHandle ? drag.setNodeRef : undefined}
+            dragListeners={iconActsAsDragHandle ? drag.listeners : undefined}
+            dragAttributes={iconActsAsDragHandle ? drag.attributes : undefined}
+            draggable={iconActsAsDragHandle && drag.draggable}
           >
             {icon}
           </TallIconHandle>

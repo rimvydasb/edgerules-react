@@ -18,7 +18,7 @@ export function ContextRow({ row }: ContextRowProps): ReactElement {
 
   return (
     <Fragment>
-      <GenericRow name={row.name} depth={row.depth} occupiesNameAndValue strong actions={actions} />
+      <GenericRow row={row} name={row.name} depth={row.depth} occupiesNameAndValue strong actions={actions} />
       {expanded && (
         <Fragment>
           {row.children?.map((child) => (

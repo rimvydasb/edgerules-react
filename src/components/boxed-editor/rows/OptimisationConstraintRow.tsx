@@ -13,6 +13,7 @@ export function OptimisationConstraintRow({ row }: OptimisationConstraintRowProp
   const actions = useRowActions(row);
   return (
     <GenericRow
+      row={row}
       name={row.name}
       value={<ExpressionCell row={row} />}
       valueIsInteractive

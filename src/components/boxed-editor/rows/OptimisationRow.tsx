@@ -28,6 +28,7 @@ export function OptimisationRow({ row }: OptimisationRowProps): ReactElement {
   return (
     <Fragment>
       <GenericRow
+        row={row}
         name={row.name}
         depth={row.depth}
         tall

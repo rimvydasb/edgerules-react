@@ -65,6 +65,7 @@ export function RelationItemRow({ row }: RelationItemRowProps): ReactElement {
   return (
     <Fragment>
       <GenericRow
+        row={row}
         name={row.name}
         depth={row.depth}
         value={<RelationCells row={row} />}

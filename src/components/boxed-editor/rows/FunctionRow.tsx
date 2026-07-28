@@ -22,6 +22,7 @@ export function FunctionRow({ row }: FunctionRowProps): ReactElement {
   return (
     <Fragment>
       <GenericRow
+        row={row}
         name={row.name}
         type={row.type}
         depth={row.depth}

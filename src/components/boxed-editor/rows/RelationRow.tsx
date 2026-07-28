@@ -43,6 +43,7 @@ export function RelationRow({ row }: RelationRowProps): ReactElement {
   return (
     <Fragment>
       <GenericRow
+        row={row}
         name={row.name}
         depth={row.depth}
         strong

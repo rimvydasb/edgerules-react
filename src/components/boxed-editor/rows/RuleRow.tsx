@@ -175,6 +175,7 @@ export function RuleRow({ row, showPriority = false }: RuleRowProps): ReactEleme
   const actions = useRowActions(row);
   return (
     <GenericRow
+      row={row}
       name={row.name}
       depth={row.depth}
       value={<RuleCells row={row} showPriority={showPriority} />}

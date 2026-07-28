@@ -13,6 +13,7 @@ export function FieldRow({ row }: FieldRowProps): ReactElement {
   const actions = useRowActions(row);
   return (
     <GenericRow
+      row={row}
       name={row.name}
       value={<ExpressionCell row={row} />}
       valueIsInteractive

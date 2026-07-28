@@ -15,6 +15,7 @@ export function ListRow({ row }: ListRowProps): ReactElement {
   return (
     <Fragment>
       <GenericRow
+        row={row}
         name={row.name}
         type={row.type}
         depth={row.depth}

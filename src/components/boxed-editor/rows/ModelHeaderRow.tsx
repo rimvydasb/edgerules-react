@@ -15,6 +15,7 @@ export function ModelHeaderRow({ row }: ModelHeaderRowProps): ReactElement {
   return (
     <Fragment>
       <GenericRow
+        row={row}
         name={row.name}
         depth={0}
         tall

@@ -1,3 +1,5 @@
+import Box from '@mui/material/Box';
+import { useDndContext, useDroppable } from '@dnd-kit/core';
 import type { ReactElement } from 'react';
 import type {
   BoxedRowData,
@@ -14,6 +16,8 @@ import {
 } from '../commands/rowFactories';
 import { useRowCommands } from '../commands/useRowCommands';
 import { useBoxedEditorContext } from '../context/BoxedEditorContext';
+import { isValidDrop, type DragPayload } from '../dnd/dropRules';
+import { buildContainerDropPayload } from '../dnd/useRowDrop';
 import { indexedPath, pathDepth } from '../service/portable-utils';
 import { GenericRow } from './GenericRow';
 
@@ -51,8 +55,25 @@ export interface NewRowProps {
  * without opening the three-dot menu (menu wiring itself is Phase 5). Hidden under `readOnly`.
  */
 export function NewRow({ row }: NewRowProps): ReactElement | null {
-  const { readOnly } = useBoxedEditorContext();
+  const { readOnly, service } = useBoxedEditorContext();
   const commands = useRowCommands();
+  const { active } = useDndContext();
+  // A `ruleset`'s `children` interleave `hitPolicy`/`rule`s/`default` — appending a rule has to
+  // land after the existing rules specifically, not after the whole mixed list (mirrors
+  // `appendRule`'s own `rules.length`).
+  const appendIndex =
+    row.kind === 'ruleset'
+      ? (row.children ?? []).filter((child) => child.kind === 'rule').length
+      : (row.children ?? []).length;
+  const dropPayload = buildContainerDropPayload(service, row.path, appendIndex);
+  const { setNodeRef, isOver } = useDroppable({
+    id: `${row.path}::append`,
+    data: dropPayload,
+    disabled: readOnly,
+  });
+  const sourcePayload = active?.data.current as DragPayload | undefined;
+  const canDrop = isOver && sourcePayload !== undefined && isValidDrop(sourcePayload, dropPayload);
+
   const config = NEW_ROW_CONFIG[row.kind];
   if (!config || readOnly) return null;
 
@@ -112,13 +133,24 @@ export function NewRow({ row }: NewRowProps): ReactElement | null {
   }
 
   return (
-    <GenericRow
-      name={config.label}
-      depth={depth}
-      placeholder
-      showDragHandle={false}
-      showActions={false}
-      onActivate={onActivate}
-    />
+    <Box
+      ref={setNodeRef}
+      data-testid={`append-${row.path}`}
+      sx={{
+        outline: isOver
+          ? (theme) => `2px solid ${canDrop ? theme.palette.success.main : theme.palette.error.main}`
+          : 'none',
+        outlineOffset: '-2px',
+      }}
+    >
+      <GenericRow
+        name={config.label}
+        depth={depth}
+        placeholder
+        showDragHandle={false}
+        showActions={false}
+        onActivate={onActivate}
+      />
+    </Box>
   );
 }

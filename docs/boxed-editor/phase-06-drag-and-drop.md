@@ -114,14 +114,14 @@ src/components/boxed-editor/
 
 ## 9. Tasks
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add `dnd/dropRules.ts` as a pure predicate over the [drag-and-drop matrix](#4-dnddroprulests--the-single-pure-predicate)
-- [ ] Add `dnd/useRowDrag.ts` / `dnd/useRowDrop.ts`; handles stay visible but drag is suppressed under `readOnly`
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add `dnd/dropRules.ts` as a pure predicate over the [drag-and-drop matrix](#4-dnddroprulests--the-single-pure-predicate)
+- [x] Add `dnd/useRowDrag.ts` / `dnd/useRowDrop.ts`; handles stay visible but drag is suppressed under `readOnly`
       (Resolved Decision #4); the same `dropRules` gates both preview and the `move()` call
-- [ ] Call `renamePath(from, to)` on `DocumentationService` and `TestCasesService` after every successful
+- [x] Call `renamePath(from, to)` on `DocumentationService` and `TestCasesService` after every successful
       `rename`/`move`
-- [ ] Add `__tests__/dnd.test.tsx`: reorder, reparent, rejected drops, non-draggable kinds, overlay migration
-- [ ] Mark all checkboxes as done in this document once verified
+- [x] Add `__tests__/dnd.test.tsx`: reorder, reparent, rejected drops, non-draggable kinds, overlay migration
+- [x] Mark all checkboxes as done in this document once verified
 
 ## 10. Verification
 

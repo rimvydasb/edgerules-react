@@ -5,6 +5,7 @@ export { Cell } from './Cell';
 export { ColumnDragHandle } from './ColumnDragHandle';
 export type { DropdownChipProps } from './DropdownChip';
 export { DropdownChip } from './DropdownChip';
+export type { DragProps } from './Drag';
 export { Drag } from './Drag';
 export type { BoxedColumn, ColumnVisibility } from './layout';
 export {
