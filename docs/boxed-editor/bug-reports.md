@@ -236,6 +236,9 @@ starting points, don't fork the harness pattern.
       execution output, not just DOM text.
 - [ ] `RelationCrudPlayground` — a `relation` with 3+ columns, 3+ records, and at least one column holding a
       complex/drill-down value, to cover column CRUD on the *other* table-shaped construct.
+- [ ] `BlankModel` — `MutableDecisionService.fromCode('{}')` (or the minimal equivalent), no other setup. This is the
+      **only** fixture 2.5's business-flow spec is allowed to load — see 2.5.0: that spec must construct everything
+      itself via `Add …` actions, not start from an already-populated model like the three playgrounds above.
 
 ### 2.2 Function CRUD matrix (new e2e spec: `e2e/boxed-editor-functions.spec.ts`)
 
@@ -301,47 +304,99 @@ starting points, don't fork the harness pattern.
 ### 2.5 The long business-workflow flow (new e2e spec: `e2e/boxed-editor-business-flow.spec.ts`)
 
 One long, single `test()` (or a `test.step`-segmented sequence sharing one page/model, deliberately **not** reset
-between steps) simulating a business/rules analyst building out a loan-origination model over one sitting. Long and
-stateful on purpose: several confirmed bugs (1, 5, 6) only manifest after a *prior* action has already left the model
-in a subtly bad state — a suite of short, independent tests structurally cannot catch that class of regression.
+between steps) simulating a rules analyst building a real model **from a completely blank starting point, using only
+the editor's own "Add …" affordances** — never a pre-baked `MutableDecisionService.fromCode('{ ... a lot ... }')`
+fixture. That distinction matters: every other spec in this plan (2.2–2.4) is free to load an existing playground
+story and mutate it, but this one exists specifically to prove the *construction* path end-to-end, in narrative
+order, with state carried forward — which is exactly the condition under which Bugs 1, 5, and 6 actually occur. A
+suite of short, independent tests structurally cannot catch that class of regression.
 
-- [ ] **Step 1 — model skeleton.** Start from an empty model. Add a `context` (`application`), several typed fields,
-      a `type` definition, and a `list`.
-- [ ] **Step 2 — first function, first failure.** Add a function (`monthlyPayment`). Add its first argument.
-      **Deliberately add a second argument immediately** (Bug 1's exact trigger) and assert on whichever the *fixed*
-      behavior should be: two distinct arguments present, model still links, no silent no-op.
-- [ ] **Step 3 — recovery checkpoint (Bug 6's scenario).** Immediately after step 2, perform an entirely unrelated
-      mutation — `Add relation` on the model root — and assert it succeeds. This is the single most important
-      assertion in the whole file: it directly tests "cannot create anything, even after the error is fixed."
-* [ ] **Step 4 — deliberate parse failure and recovery.** Open the function's `result` expression, commit a
+#### 2.5.0 The scenario: "Loan Origination & Portfolio Decisioning"
+
+A single coherent story, not a kitchen-sink dump of unrelated constructs: a lender's rules analyst models (1) intake
+of a loan application and its applicant/collateral data, (2) the calculations underwriting depends on, (3) a risk-
+tiering decision table, and (4) a portfolio-level capital-allocation optimisation that decides how many loans of each
+risk tier the bank originates this quarter. Every entity added below is motivated by that story — nothing is added
+just to tick a box — and together they touch **every one of the 21 `BoxedRowKind`s** the editor supports, so this one
+flow doubles as the full-entity-type regression suite:
+
+| `BoxedRowKind`                    | Where it's introduced in the scenario                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------------- |
+| `model`                             | Implicit root of the blank starting model.                                       |
+| `context`                           | `application` — the intake record (Step 1).                                      |
+| `field`                             | `application.applicationDate`/`loanAmount`/`propertyValue`, plus one typed placeholder field (Step 1). |
+| `complexType`                       | `type Applicant: { name, age, income }`, reused as a field's type (Step 1).       |
+| `list`                              | `requiredDocuments` — scalar string list (Step 2).                               |
+| `list-item`                         | Individual document entries in `requiredDocuments` (Step 2).                      |
+| `relation`                          | `collateralProperties` — one record per pledged property (Step 3).               |
+| `relation-item`                     | Individual property records, at least one with a drill-down (complex-cell) column (Step 3). |
+| `function`                          | `monthlyPayment` (inline), `affordabilityScore` (multi-statement), `originationFee` (no-arg), `application.loanToValue` (nested) (Step 4). |
+| `function-result`                   | Synthesized `result` row of each inline function above (Step 4).                 |
+| `ruleset`                           | `riskTier` decision table (Step 5).                                              |
+| `rule`                              | `riskTier`'s individual rules — both cell-map and boolean-expression forms (Step 5). |
+| `ruleset-default`                   | `riskTier`'s pinned fallback row (Step 5).                                       |
+| `ruleset-hit-policy`                | `riskTier`'s hit-policy chip, exercised via a `first-match` → `best-match` switch (Step 5). |
+| `optimisation`                      | `portfolioMix` — this quarter's capital allocation (Step 6).                     |
+| `optimisation-setting`              | `portfolioMix`'s `using`/`bottlenecks`/`timeLimit` settings (Step 6).            |
+| `optimisation-variable-group`/`-variable` | One loan-count variable per risk tier from `riskTier` (Step 6).            |
+| `optimisation-objective`            | Maximise expected portfolio yield (Step 6).                                     |
+| `optimisation-constraint-group`/`-constraint` | Capital-adequacy and per-tier exposure limits (Step 6).                |
+
+- [ ] **Step 1 — applicant & application intake.** From a blank model: `Add field` × 3 directly on the model root
+      first (to prove root-level field creation before any container exists), then convert the working set into a
+      proper `context` named `application` (`Convert to context`, or `Add field` inside a freshly-added context —
+      pick whichever the current UI actually supports and note if neither reads naturally, that's itself a finding)
+      holding `applicationDate` (date), `loanAmount` (number), `propertyValue` (number). Separately, add a
+      `complexType` named `Applicant` with `name`/`age`/`income` fields, then reference it as a typed field
+      (`application.applicant: <Applicant, required: true>`).
+- [ ] **Step 2 — required documents.** `Add list` (`requiredDocuments`) at the model root; append 3+ string items via
+      the trailing "(new item)" placeholder.
+- [ ] **Step 3 — collateral properties.** `Add relation` (`collateralProperties`); add its columns one at a time
+      (`address`, `value`, `propertyType`), then add 2+ records; make one record's `address` a drill-down complex
+      cell rather than a flat string, to exercise `RelationItemRow`'s drill-down path.
+- [ ] **Step 4 — calculations, first failure.** Add the inline function `monthlyPayment`. Add its first argument
+      (`loanAmount`). **Deliberately add a second argument immediately** (Bug 1's exact trigger) and assert on the
+      *fixed* behavior: two distinct arguments present, model still links, no silent no-op. Then add
+      `affordabilityScore` as a multi-statement function (2+ body fields), `originationFee` with zero arguments, and
+      a `loanToValue` function nested inside the `application` context.
+- [ ] **Step 5 — recovery checkpoint (Bug 6's scenario).** Immediately after Step 4's deliberate failure, perform an
+      entirely unrelated mutation — `Add relation` on the model root, distinct from `collateralProperties` — and
+      assert it succeeds. This is the single most important assertion in the whole file: it directly tests "cannot
+      create anything, even after the error is fixed."
+- [ ] **Step 6 — deliberate parse failure and recovery.** Open `monthlyPayment`'s result expression, commit a
       syntactically invalid body (e.g. `application.loanAmount /`), assert the inline error appears, assert every
       *other* row is still interactive (click into an unrelated field, cancel with Escape, confirm no residual edit
-      state — mirroring the existing single-field version of this check but now inside a function body), then commit
-      a valid expression and confirm the error clears.
-- [ ] **Step 5 — deliberate link failure and recovery.** Delete a function argument that the body *does* reference;
-      assert the rejection is visible (post-Bug-5-fix) and the signature is unchanged; then delete an argument that
-      genuinely is unused and confirm that one succeeds.
-- [ ] **Step 6 — decision table introduced mid-flow.** Add a decision table (`riskTier`) referencing fields already
-      authored in step 1. Build out 3+ rules, 2+ condition columns, 2+ action columns, incrementally — reusing the
-      2.3 matrix's incremental-assertion style (assert cumulative state after each add, not just at the end).
-- [ ] **Step 7 — cross-construct reference and re-link.** Reference the decision table's output from the function
-      added in step 2 (or vice versa), forcing a real link-time dependency between two structures created in
-      different steps; verify execution reflects the composed result.
-- [ ] **Step 8 — rename under load.** Rename the `context` from step 1 (touching every downstream reference built in
-      steps 2, 6, 7); assert every dependent row's displayed expression/column follows the rename and the model
+      state), then commit a valid expression and confirm the error clears.
+- [ ] **Step 7 — deliberate link failure and recovery.** Delete a `monthlyPayment` argument that the body *does*
+      reference; assert the rejection is visible (post-Bug-5-fix) and the signature is unchanged; then delete an
+      argument that genuinely is unused and confirm that one succeeds.
+- [ ] **Step 8 — risk-tiering decision table.** `Add decision table` (`riskTier`), parametrized on
+      `application.applicant.age`/`income`/`loanAmount`. Build out 3+ rules and 2+ condition/action columns
+      **incrementally**, asserting cumulative state after each add (per the 2.3 matrix's style) — one rule authored
+      as a cell-map condition, another as a boolean-expression condition. Switch `hitPolicy` to `best-match` and
+      confirm the `priority` column appears everywhere it should, then switch back.
+- [ ] **Step 9 — portfolio capital allocation.** `Add optimisation` (`portfolioMix`) at the model root — **root only**,
+      per `nextOptimisationRow`'s own doc comment. Add one `optimisation-variable` per `riskTier` output tier (loan
+      count to originate this quarter), set the `maximise` objective to expected yield across those variables, and
+      add capital/exposure `optimisation-constraint`s referencing both the variables and a value pulled from
+      `application`/`riskTier` — this is the cross-construct reference: `riskTier`'s output shapes the constraint a
+      structure built in Step 8 imposes on Step 9. Verify `Add Variable`'s seeded companion constraint (`E339`
+      avoidance, per `addOptimisationVariable`'s doc comment) never leaves a variable unreferenced.
+- [ ] **Step 10 — rename under load.** Rename the `application` context (touching every downstream reference built in
+      Steps 1, 4, 8, 9); assert every dependent row's displayed expression/column follows the rename and the model
       still links and executes (this exercises `useRowCommands.rename`'s overlay-migration path end-to-end, which no
       current e2e test touches at all).
-- [ ] **Step 9 — bulk maintenance pass.** In one continuous sequence: reorder two rules by drag, duplicate a rule,
-      delete the duplicate, add a fourth condition column, delete a different existing column, rename yet another —
-      i.e. the "various renames, cell value changes, column type changes, column reorders" the original report asked
-      for, but chained back-to-back rather than in isolation, since that chaining is what the original bugs actually
-      needed to surface.
-- [ ] **Step 10 — read-only handoff.** Re-render the same underlying service in `readOnly` mode (simulating handing
+- [ ] **Step 11 — bulk maintenance pass.** In one continuous sequence: reorder two `riskTier` rules by drag,
+      duplicate a rule, delete the duplicate, add a fourth condition column, delete a different existing column,
+      rename yet another — i.e. the "various renames, cell value changes, column type changes, column reorders" the
+      original report asked for, but chained back-to-back rather than in isolation, since that chaining is what the
+      original bugs actually needed to surface.
+- [ ] **Step 12 — read-only handoff.** Re-render the same underlying service in `readOnly` mode (simulating handing
       the finished model to a reviewer) and confirm no mutation control survives the switch, matching the existing
       `read-only story` test's intent but against the now fully-built, non-trivial model rather than a fresh one.
-- [ ] **Step 11 — final execution audit.** Run the model end-to-end with 3+ distinct input sets chosen to hit
-      different branches of both the function and the decision table added along the way (first-rule match,
-      later-rule match, default fallback), asserting the live-result output for each.
+- [ ] **Step 13 — final execution audit.** Run the model end-to-end with 3+ distinct applicant/application input sets
+      chosen to hit different branches of `riskTier` (first-rule match, later-rule match, default fallback) and
+      confirm `portfolioMix` re-optimises consistently against each, asserting the live-result output for every run.
 
 ### 2.6 Test-writing standards for all of the above
 
