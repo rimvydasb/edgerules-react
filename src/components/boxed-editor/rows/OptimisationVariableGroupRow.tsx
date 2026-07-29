@@ -14,7 +14,7 @@ export function OptimisationVariableGroupRow({row}: OptimisationVariableGroupRow
     const actions = useRowActions(row);
     return (
         <Fragment>
-            <SettingRow name={row.name} depth={row.depth} occupiesNameAndValue showActions actions={actions} />
+            <SettingRow row={row} name={row.name} depth={row.depth} occupiesNameAndValue showActions actions={actions} />
             {row.children?.map((child) => (
                 <OptimisationVariableRow key={child.path} row={child} />
             ))}

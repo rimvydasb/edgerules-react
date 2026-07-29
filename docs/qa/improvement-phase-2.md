@@ -33,29 +33,29 @@ literally named `null` unreferenceable, for nothing. `normalize.ts`/`denormalize
 
 ### 2.2 Bug 5 — a visible error channel for menu and append actions
 
-- [ ] Add a shared per-row error channel — an alert surfaced next to the acting row, keyed by its path, with
+- [x] Add a shared per-row error channel — an alert surfaced next to the acting row, keyed by its path, with
       `role="alert"` and `data-testid="row-error-${path}"`. Match `ExpressionCell`'s existing inline-error behaviour
       as closely as makes sense so there is one error idiom, not two.
-- [ ] `hooks/useRowActions.ts` — stop discarding the `PortableError` returned by **every** mutating `onSelect`:
+- [x] `hooks/useRowActions.ts` — stop discarding the `PortableError` returned by **every** mutating `onSelect`:
       `add-field`, `add-function`, `add-optimisation`, `add-ruleset`, `add-relation`, `add-list`, `add-argument`,
       `add-column`, `add-condition-column`, `add-action-column`, `add-rule`, `add-variable`, `add-constraint`,
       `delete`, `delete-column`, `delete-argument`, `duplicate`, `convert-to-*`, `switch-objective-direction`.
-- [ ] `rows/NewRow.tsx` — same for every `onActivate` append path (`appendListItem`, `appendRelationItem`,
+- [x] `rows/NewRow.tsx` — same for every `onActivate` append path (`appendListItem`, `appendRelationItem`,
       `appendRule`, `appendOptimisationVariable`, `appendOptimisationConstraint`, `nextFieldRow`).
-- [ ] The error must clear when the row's next mutation succeeds — a stale error is its own bug.
+- [x] The error must clear when the row's next mutation succeeds — a stale error is its own bug.
 
 ### 2.3 Bug 11 / Bug 6 — the model-global link latch
 
-- [ ] **Surface it.** In `setWithLinkCheck`, when the rollback is caused by a link error whose `path` is *not* the row
+- [x] **Surface it.** In `setWithLinkCheck`, when the rollback is caused by a link error whose `path` is *not* the row
       being written, report it as a **model-level** problem naming the offending path — a persistent banner, not a
       transient per-row alert. Give it a stable `data-testid="model-error"`.
-- [ ] **Distinguish the two failure modes.** Snapshot linkability *before* the `set`; roll back only when the write
+- [x] **Distinguish the two failure modes.** Snapshot linkability *before* the `set`; roll back only when the write
       made things worse. A link error that already existed must not block an unrelated, otherwise-valid write.
-- [ ] Decide and document what happens to `remove`/`rename`/`move` (they skip the link check today per Resolved
+- [x] Decide and document what happens to `remove`/`rename`/`move` (they skip the link check today per Resolved
       Decision #12). At minimum they must trigger the model-level banner when they leave the model unlinkable —
       "succeeds silently and freezes the editor" is not an acceptable outcome. Bug 10's own fix lands in
       [Phase 6](improvement-phase-6.md); this phase only has to make the state *visible*.
-- [ ] Write down the decision in `docs/BOXED_EDITOR_STORY.md` (or wherever Resolved Decision #12 lives) so the next
+- [x] Write down the decision in `docs/BOXED_EDITOR_STORY.md` (or wherever Resolved Decision #12 lives) so the next
       agent does not undo it.
 
 ---
@@ -67,21 +67,21 @@ New file: `e2e/boxed-editor/commit-pipeline.spec.ts` —
 [`qa-general-info.md`](qa-general-info.md) §1.3.
 
 Bug 1:
-- [ ] adds two arguments in a row to a brand-new function and keeps both distinct
-- [ ] adds two arguments in a row to a function nested inside a context and keeps both distinct
-- [ ] adds five arguments one at a time, asserting after each click that every earlier argument survives
-- [ ] executes the function successfully after each argument is added
+- [x] adds two arguments in a row to a brand-new function and keeps both distinct
+- [x] adds two arguments in a row to a function nested inside a context and keeps both distinct
+- [x] adds five arguments one at a time, asserting after each click that every earlier argument survives
+- [x] executes the function successfully after each argument is added
 
 Bug 5:
-- [ ] shows a visible error when a menu action's commit is rejected, instead of silently doing nothing
-- [ ] shows a visible error when a trailing "(new …)" append is rejected
-- [ ] clears a row's error once its next mutation succeeds
+- [x] shows a visible error when a menu action's commit is rejected, instead of silently doing nothing
+- [x] shows a visible error when a trailing "(new …)" append is rejected
+- [x] clears a row's error once its next mutation succeeds
 
 Bugs 6 / 11:
-- [ ] keeps accepting unrelated edits after a rejected commit elsewhere in the model
-- [ ] names the offending path in a model-level banner after a referenced row is deleted
-- [ ] accepts an unrelated `Add field` while a dangling reference exists
-- [ ] clears the model-level banner once the dangling reference is repaired, and resumes normal editing
+- [x] keeps accepting unrelated edits after a rejected commit elsewhere in the model
+- [x] names the offending path in a model-level banner after a referenced row is deleted
+- [x] accepts an unrelated `Add field` while a dangling reference exists
+- [x] clears the model-level banner once the dangling reference is repaired, and resumes normal editing
 
 Every "should have succeeded" assertion above must check `live-result` or `live-model`, not row text alone
 ([`qa-general-info.md`](qa-general-info.md) §3).
@@ -94,14 +94,14 @@ Allowed, never a substitute for the browser tests above (`src/components/boxed-e
 
 - [x] `normalization.test.ts` — repeated `Add argument` on a function round-trips through the real engine and keeps
       every untyped parameter (replaces the obsolete `'null'`-string normalization check; see §2.1).
-- [ ] `mutation.test.ts` — an unrelated write still commits after a removal left another row's reference dangling.
+- [x] `mutation.test.ts` — an unrelated write still commits after a removal left another row's reference dangling.
 
 ---
 
 ## Definition of done
 
-- [ ] Clicking "Add argument" repeatedly on a fresh function works, in the browser, with the model still executing.
-- [ ] No mutating action anywhere in the editor can fail without the user seeing why.
-- [ ] Deleting a referenced row does not freeze the editor; the offending path is named on screen.
-- [ ] All 11 browser tests above pass; `tsc --noEmit` clean; existing suites still green.
-- [ ] [`current-bugs.md`](current-bugs.md) checkboxes for Bugs 1, 5, 6, 11 updated.
+- [x] Clicking "Add argument" repeatedly on a fresh function works, in the browser, with the model still executing.
+- [x] No mutating action anywhere in the editor can fail without the user seeing why.
+- [x] Deleting a referenced row does not freeze the editor; the offending path is named on screen.
+- [x] All 11 browser tests above pass; `tsc --noEmit` clean; existing suites still green.
+- [x] [`current-bugs.md`](current-bugs.md) checkboxes for Bugs 1, 5, 6, 11 updated.

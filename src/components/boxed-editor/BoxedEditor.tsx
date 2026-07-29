@@ -7,6 +7,7 @@ import {useRowCommands} from './commands/useRowCommands';
 import {BoxedEditorProvider} from './context/BoxedEditorContext';
 import {BoxedEditorTestProvider} from './context/BoxedEditorTestContext';
 import {BoxedEditorUiProvider} from './context/BoxedEditorUiContext';
+import {useBoxedEditorUi} from './context/BoxedEditorUiContext';
 import {isValidDrop, type DragPayload, type DropTargetPayload} from './dnd/dropRules';
 import {useBoxedEditorService} from './hooks/useBoxedEditorService';
 import {useBoxedRows} from './hooks/useBoxedRows';
@@ -24,6 +25,7 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
     const rows = useBoxedRows(path);
     const rootRow = service.getBoxedRowData(path);
     const commands = useRowCommands();
+    const {modelError} = useBoxedEditorUi();
     const sensors = useSensors(useSensor(PointerSensor, {activationConstraint: {distance: 6}}));
 
     if (rootRow === undefined) {
@@ -42,24 +44,32 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
     };
 
     return (
-        <Box
-            role="treegrid"
-            sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                width: 'fit-content',
-                border: (theme) => `1px solid ${theme.palette.divider}`,
-                bgcolor: 'background.paper',
-            }}
-        >
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-                {showHeader && rootRow.kind === 'model' && <ModelHeaderRow row={rootRow} />}
-                {rows.map((row) => (
-                    <RowSwitch key={row.path} row={row} />
-                ))}
-                <NewRow row={{...rootRow, children: rows}} />
-            </DndContext>
-        </Box>
+        <>
+            {modelError && (
+                <Alert severity="error" role="alert" data-testid="model-error" sx={{mb: 1}}>
+                    {modelError.path ? `${modelError.path}: ` : ''}
+                    {modelError.message}
+                </Alert>
+            )}
+            <Box
+                role="treegrid"
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: 'fit-content',
+                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                    bgcolor: 'background.paper',
+                }}
+            >
+                <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+                    {showHeader && rootRow.kind === 'model' && <ModelHeaderRow row={rootRow} />}
+                    {rows.map((row) => (
+                        <RowSwitch key={row.path} row={row} />
+                    ))}
+                    <NewRow row={{...rootRow, children: rows}} />
+                </DndContext>
+            </Box>
+        </>
     );
 }
 

@@ -1,8 +1,7 @@
 import Box from '@mui/material/Box';
 import type {ReactElement} from 'react';
-import {ColumnDragHandle} from './ColumnDragHandle';
+import {EditableColumnHeader} from './EditableColumnHeader';
 import {CELL, TALL_ROW_HEIGHT} from './layout';
-import {TypeName} from './TypeName';
 
 export interface Argument {
     name: string;
@@ -10,7 +9,11 @@ export interface Argument {
 }
 
 export interface ArgumentHeadersProps {
+    rowPath: string;
     arguments: Argument[];
+    onRename: (from: string, to: string) => string | undefined;
+    onRetype: (name: string, type: string) => string | undefined;
+    onMove: (from: number, to: number) => void;
 }
 
 /**
@@ -18,7 +21,13 @@ export interface ArgumentHeadersProps {
  * `function`, `ruleset`, `optimisation`. Not consumed until Phase 4, built now alongside the
  * rest of the shared primitive set.
  */
-export function ArgumentHeaders({arguments: args}: ArgumentHeadersProps): ReactElement {
+export function ArgumentHeaders({
+    rowPath,
+    arguments: args,
+    onRename,
+    onRetype,
+    onMove,
+}: ArgumentHeadersProps): ReactElement {
     return (
         <Box sx={{display: 'flex', flexDirection: 'column', width: '100%', height: TALL_ROW_HEIGHT}}>
             <Box
@@ -38,7 +47,7 @@ export function ArgumentHeaders({arguments: args}: ArgumentHeadersProps): ReactE
                 arguments
             </Box>
             <Box sx={{display: 'flex', height: CELL}}>
-                {args.map((argument) => (
+                {args.map((argument, index) => (
                     <Box
                         key={argument.name}
                         sx={{
@@ -50,10 +59,17 @@ export function ArgumentHeaders({arguments: args}: ArgumentHeadersProps): ReactE
                             '&:last-of-type': {borderRight: 'none'},
                         }}
                     >
-                        <ColumnDragHandle />
-                        <TypeName type={argument.type} sx={{px: 1}}>
-                            {argument.name}
-                        </TypeName>
+                        <EditableColumnHeader
+                            rowPath={rowPath}
+                            name={argument.name}
+                            type={argument.type}
+                            typeEditable
+                            index={index}
+                            count={args.length}
+                            onRename={(name) => onRename(argument.name, name)}
+                            onRetype={(type) => onRetype(argument.name, type)}
+                            onMove={(to) => onMove(index, to)}
+                        />
                     </Box>
                 ))}
             </Box>

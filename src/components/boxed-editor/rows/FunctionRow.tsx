@@ -1,6 +1,8 @@
 import FunctionsIcon from '@mui/icons-material/Functions';
 import {Fragment, type ReactElement} from 'react';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
+import {moveArgument, renameArgument, retypeArgument} from '../commands/rowFactories';
+import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {useRowActions} from '../hooks/useRowActions';
 import {ArgumentHeaders} from '../primitives';
@@ -18,6 +20,15 @@ export function FunctionRow({row}: FunctionRowProps): ReactElement {
     const {isExpanded} = useBoxedEditorUi();
     const expanded = isExpanded(row.path);
     const actions = useRowActions(row);
+    const commands = useRowCommands();
+    const commit = (next: BoxedTableRowData): string | undefined =>
+        commands.setBoxedRowData(row.path, next, row.path)?.message;
+    const rename = (from: string, to: string): string | undefined => {
+        if (to !== from && row.parameters?.some((parameter) => parameter.name === to)) {
+            return `An argument named "${to}" already exists.`;
+        }
+        return commit(renameArgument(row, from, to));
+    };
 
     return (
         <Fragment>
@@ -31,7 +42,17 @@ export function FunctionRow({row}: FunctionRowProps): ReactElement {
                 iconActsAsDragHandle
                 icon={<FunctionsIcon sx={{fontSize: 19, color: '#fff'}} />}
                 iconBgColor="#1976d2"
-                value={<ArgumentHeaders arguments={row.parameters ?? []} />}
+                value={
+                    <ArgumentHeaders
+                        rowPath={row.path}
+                        arguments={row.parameters ?? []}
+                        onRename={rename}
+                        onRetype={(name, type) => commit(retypeArgument(row, name, type))}
+                        onMove={(from, to) => {
+                            commit(moveArgument(row, from, to));
+                        }}
+                    />
+                }
                 valueIsInteractive
                 actions={actions}
             />

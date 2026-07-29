@@ -18,6 +18,59 @@ export function valueCell(page: Page, path: string) {
   return page.getByTestId(`row-${path}`).locator('[data-column="value"]');
 }
 
+export async function expectLiveResult(page: Page, expected: string | RegExp): Promise<void> {
+  await expect(page.getByTestId('live-result')).toHaveText(expected);
+}
+
+export async function expectLiveModel(page: Page, expected: string | RegExp): Promise<void> {
+  await expect(page.getByTestId('live-model')).toHaveText(expected);
+}
+
+export async function expectRowError(page: Page, path: string, text: string | RegExp): Promise<void> {
+  await expect(
+    page.getByTestId(`row-error-${path}`),
+    `Mutation error for "${path}" should be visible (Phase 2 error channel may not be implemented yet)`,
+  ).toContainText(text);
+}
+
+export async function expectNoRowError(page: Page, path: string): Promise<void> {
+  await expect(page.getByTestId(`row-error-${path}`)).toHaveCount(0);
+}
+
+/** Ordered argument/column labels, read from the stable Phase 4 header-cell test IDs. */
+export async function columnHeaders(page: Page, rowPath: string): Promise<string[]> {
+  const prefix = `column-${rowPath}-`;
+  return valueCell(page, rowPath)
+    .locator(`[data-testid^="${prefix}"]`)
+    .evaluateAll(
+      (elements, idPrefix) =>
+        elements.map((element) => element.getAttribute('data-testid')?.slice(idPrefix.length) ?? ''),
+      prefix,
+    );
+}
+
+/** Performs an intentionally stepped pointer gesture because @dnd-kit ignores instantaneous moves. */
+export async function dragRow(page: Page, fromPath: string, toPath: string): Promise<void> {
+  const handle = page.getByTestId(`row-${fromPath}`).getByLabel('Drag to reorder row');
+  const target = page.getByTestId(toPath.startsWith('append-') ? toPath : `row-${toPath}`);
+  await handle.scrollIntoViewIfNeeded();
+  await target.scrollIntoViewIfNeeded();
+  const from = await handle.boundingBox();
+  const to = await target.boundingBox();
+  if (!from || !to) throw new Error(`Cannot drag "${fromPath}" to "${toPath}": a row is not visible`);
+
+  const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+  const end = { x: to.x + to.width / 2, y: to.y + to.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.waitForTimeout(10);
+  for (let step = 1; step <= 8; step += 1) {
+    await page.mouse.move(start.x + ((end.x - start.x) * step) / 8, start.y + ((end.y - start.y) * step) / 8);
+    await page.waitForTimeout(10);
+  }
+  await page.mouse.up();
+}
+
 export async function replaceActiveExpression(page: Page, value: string): Promise<void> {
   const editor = page.locator('.cm-content');
   await expect(editor).toHaveCount(1);
@@ -71,5 +124,5 @@ export async function addList(page: Page, name: string): Promise<string> {
  * of hand-rolling the button lookup per call site. */
 export async function chooseRowAction(page: Page, path: string, label: string): Promise<void> {
   await page.getByTestId(`row-${path}`).getByRole('button', { name: 'Open row actions' }).click();
-  await page.getByRole('menuitem', { name: label }).click();
+  await page.getByRole('menuitem', { name: label, exact: true }).click();
 }

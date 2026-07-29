@@ -6,6 +6,32 @@ Open engine defects only. A report is deleted once the engine fixes it; behaviou
 All entries below were last re-verified against `@edgerules/node` / `@edgerules/web`
 **`0.0.6-alpha.202607291629`** on **2026-07-29** with throwaway Node scripts — no React, no mocks.
 
+## Empty zero-column relations round-trip as lists
+
+An empty relation has no record keys from which the engine can infer relation columns. After a mutable write, `[]`
+therefore normalizes as a scalar list rather than a relation. A UI may preserve a relation with zero records once at
+least one column is known, but cannot represent the distinct “zero columns, zero records” state across the portable
+engine boundary. Phase 10's exact empty-relation browser case is marked **CANNOT COMPLETE**; the editor seeds a single
+empty record when creating a zero-column relation as a compatibility workaround.
+
+Expected behavior: portable data needs an unambiguous empty-relation representation, or engine metadata preserving
+the intended collection kind when no values exist.
+
+## Root `set('*', …)` rejects a valid model containing a root optimisation
+
+When a linked model already contains a root-level `@kind: "optimise"` declaration, replacing the model with its own
+portable root plus an unrelated ruleset-signature/call-site edit can fail with:
+
+`invalid portable structure: optimise declarations are allowed only at the model root`
+
+The optimisation is already a direct child of the root. The Boxed Editor hit this while atomically adding a decision
+table condition column and its named call-site argument after a root optimisation had been created. The editor now
+works around the engine defect by setting only the changed top-level definitions and linking after the batch, rather
+than calling `set('*', …)`.
+
+Expected behavior: `set('*', service.toPortable())` (and the same root with unrelated valid edits) must accept a
+root-level optimisation exactly as initial construction does.
+
 ## Root metadata (`@model-name`, `@model-version`) is silently dropped by
 
 `set('*', …)` — a mutable service can set it at construction but never edit it (@edgerules/node + @edgerules/web)

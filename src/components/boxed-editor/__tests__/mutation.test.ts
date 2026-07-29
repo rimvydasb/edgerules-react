@@ -283,6 +283,25 @@ describe('BoxedEditorService mutations and cache', () => {
     expect(service.link()).toBeUndefined();
   });
 
+  it('commits an unrelated write when a pre-existing dangling reference still fails linking', () => {
+    const mutable = MutableDecisionService.fromCode('{ a: 1; b: a + 1 }');
+    const service = createBoxedEditorService(mutable);
+    expect(service.remove('a')).toBeUndefined();
+    expect(isPortableError(service.link())).toBe(true);
+
+    const result = service.setBoxedRowData('unrelated', {
+      kind: 'field',
+      depth: 0,
+      path: 'unrelated',
+      name: 'unrelated',
+      value: '42',
+    });
+
+    expect(isPortableError(result)).toBe(false);
+    expect(mutable.toPortable()).toMatchObject({ unrelated: 42 });
+    expect(isPortableError(service.link())).toBe(true);
+  });
+
   it('delegates rename/remove and public invalidation', () => {
     const mutable = MutableDecisionService.fromCode(
       '{ item: 1; removable: 2 }',
@@ -304,5 +323,43 @@ describe('BoxedEditorService mutations and cache', () => {
       'extra',
     ]);
     expect(service.toPortable()).toEqual(mutable.toPortable());
+  });
+
+  it('moves optimisation variables and constraints through their synthetic paths', () => {
+    const mutable = MutableDecisionService.fromCode(`{
+      optimise factory(): {
+        using: "highs"
+        variables: { a: <number>; b: <number> }
+        maximise: a + b
+        constraints: { ca: a >= 0; cb: b >= 0 }
+      }
+    }`);
+    const service = createBoxedEditorService(mutable);
+
+    expect(service.move('factory.variables.b', 'factory.variables', 0)).toBeUndefined();
+    expect(service.move('factory.constraints.cb', 'factory.constraints', 0)).toBeUndefined();
+
+    const optimisation = mutable.toPortable().factory as unknown as Record<string, Record<string, unknown>>;
+    expect(Object.keys(optimisation['@variables'])).toEqual(['b', 'a']);
+    expect(Object.keys(optimisation['@constraints'])).toEqual(['cb', 'ca']);
+  });
+
+  it('renames an optimisation variable and migrates its objective and constraints', () => {
+    const mutable = MutableDecisionService.fromCode(`{
+      optimise factory(): {
+        using: "highs"
+        variables: { variable: <number> }
+        maximise: variable
+        constraints: { bound: variable >= 0 }
+      }
+    }`);
+    const service = createBoxedEditorService(mutable);
+
+    expect(service.rename('factory.variables.variable', 'loans')).toBeUndefined();
+
+    const optimisation = mutable.toPortable().factory as unknown as Record<string, unknown>;
+    expect(Object.keys(optimisation['@variables'] as Record<string, unknown>)).toEqual(['loans']);
+    expect(optimisation['@maximise']).toBe('loans');
+    expect((optimisation['@constraints'] as Record<string, unknown>).bound).toBe('loans >= 0');
   });
 });

@@ -10,6 +10,16 @@ export interface NameCellProps {
     row: BoxedRowData;
 }
 
+const RESERVED_NAMES = new Set(['func', 'ruleset', 'type', 'default']);
+
+function identifierError(name: string): string | undefined {
+    if (!/^\p{L}[\p{L}\p{N}_]*$/u.test(name)) {
+        return 'Names must start with a letter and contain only letters, numbers, or underscores.';
+    }
+    if (RESERVED_NAMES.has(name)) return `"${name}" is a reserved DSL keyword.`;
+    return undefined;
+}
+
 /**
  * Static text ⇄ plain-text-input swap for a named row's name cell — commits through `rename`,
  * never a value `set` (a name is a plain identifier, not a DSL expression, so this has no
@@ -52,9 +62,17 @@ export function NameCell({row}: NameCellProps): ReactElement {
             setActiveCellPath(null);
             return;
         }
+        if (draft !== '') {
+            const validationError = identifierError(draft);
+            if (validationError) {
+                setError(validationError);
+                return;
+            }
+        }
         const result = commands.rename(row.path, draft);
         if (result) {
-            setError(result.message);
+            // The shared command channel renders engine/service failures on the owning row.
+            // Keep this editor active, but do not duplicate that same error in a second alert.
             return;
         }
         setActiveCellPath(null);

@@ -1,7 +1,10 @@
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import SettingsIcon from '@mui/icons-material/Settings';
 import type {ReactElement, ReactNode} from 'react';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
+import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
+import type {BoxedRowData} from '../boxed-editor-types';
 import {RowActionsMenu, type RowMenuItem} from '../menu/RowActionsMenu';
 import {useRowMenu} from '../menu/useRowMenu';
 import {Cell} from './Cell';
@@ -10,6 +13,7 @@ import {RowActionsButton} from './RowActionsButton';
 import {RowLine} from './RowLine';
 
 export interface SettingRowProps {
+    row?: BoxedRowData;
     name: ReactNode;
     depth?: number;
     children?: ReactNode;
@@ -29,6 +33,7 @@ export interface SettingRowProps {
  * Gear icon instead of a drag handle. First consumed by Phase 4's ruleset/optimisation rows.
  */
 export function SettingRow({
+    row,
     name,
     depth = 1,
     children,
@@ -39,10 +44,13 @@ export function SettingRow({
     actions = [],
 }: SettingRowProps): ReactElement {
     const {showDescription, showTestResults} = useBoxedEditorContext();
+    const {rowErrors} = useBoxedEditorUi();
+    const rowError = row ? rowErrors.get(row.path) : undefined;
     const menu = useRowMenu();
 
     return (
         <Box
+            data-testid={row ? `row-${row.path}` : undefined}
             sx={{
                 position: 'relative',
                 display: 'grid',
@@ -117,6 +125,27 @@ export function SettingRow({
             )}
             {showDescription && <Cell column="description">{description}</Cell>}
             {showTestResults && <Cell column="test-results">{result}</Cell>}
+            {rowError && (
+                <Alert
+                    severity="error"
+                    role="alert"
+                    data-testid={`row-error-${row?.path}`}
+                    sx={{
+                        position: 'absolute',
+                        insetInlineEnd: 4,
+                        bottom: 2,
+                        zIndex: 3,
+                        py: 0,
+                        px: 0.75,
+                        maxWidth: '60%',
+                        '& .MuiAlert-message': {py: 0, fontSize: '0.75rem'},
+                        '& .MuiAlert-icon': {py: 0, mr: 0.5},
+                    }}
+                >
+                    {rowError.path ? `${rowError.path}: ` : ''}
+                    {rowError.message}
+                </Alert>
+            )}
             <RowLine />
         </Box>
     );

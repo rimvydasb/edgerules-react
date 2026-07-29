@@ -1,7 +1,9 @@
 import AddIcon from '@mui/icons-material/Add';
 import CodeIcon from '@mui/icons-material/Code';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DataObjectIcon from '@mui/icons-material/DataObject';
 import DeleteIcon from '@mui/icons-material/Delete';
+import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
@@ -22,25 +24,31 @@ import type { SvgIconComponent } from '@mui/icons-material';
 export const rowActionRegistry = [
   { id: 'duplicate', icon: ContentCopyIcon },
   { id: 'delete', icon: DeleteIcon },
+  { id: 'convert-to-field', icon: undefined },
   { id: 'convert-to-context', icon: undefined },
   { id: 'convert-to-relation', icon: undefined },
   { id: 'convert-to-list', icon: undefined },
   { id: 'add-field', icon: AddIcon },
+  { id: 'add-complex-type', icon: DataObjectIcon },
   { id: 'add-argument', icon: AddIcon },
   { id: 'add-variable', icon: AddIcon },
   { id: 'add-constraint', icon: AddIcon },
+  { id: 'add-setting', icon: SettingsIcon },
   { id: 'add-rule', icon: PlaylistAddIcon },
   { id: 'add-condition-column', icon: ViewColumnIcon },
   { id: 'add-action-column', icon: ViewColumnIcon },
   { id: 'add-column', icon: ViewColumnIcon },
   { id: 'delete-column', icon: DeleteIcon },
   { id: 'delete-argument', icon: DeleteIcon },
+  { id: 'rename-argument', icon: DriveFileRenameOutlineIcon },
+  { id: 'rename-column', icon: DriveFileRenameOutlineIcon },
   { id: 'add-function', icon: FunctionsIcon },
   { id: 'add-relation', icon: TableChartIcon },
   { id: 'add-ruleset', icon: RuleIcon },
   { id: 'add-list', icon: ListAltIcon },
   { id: 'add-optimisation', icon: TuneIcon },
   { id: 'switch-objective-direction', icon: SwapVertIcon },
+  { id: 'switch-rule-form', icon: SwapVertIcon },
   { id: 'model-settings', icon: SettingsIcon },
   { id: 'view-as-code', icon: CodeIcon },
   { id: 'expand', icon: UnfoldMoreIcon },

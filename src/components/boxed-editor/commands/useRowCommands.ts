@@ -5,6 +5,7 @@ import type { DocumentationService } from '../../documentation-service';
 import type { TestCasesService, TestSubjectId } from '../../test-cases-service';
 import { useBoxedEditorContext } from '../context/BoxedEditorContext';
 import { useBoxedEditorTestContext } from '../context/BoxedEditorTestContext';
+import { useOptionalBoxedEditorUi } from '../context/BoxedEditorUiContext';
 import type { BoxedEditorService, BoxedRowData } from '../boxed-editor-types';
 import { childPath, indexedPath, parentPath, unqualifyPath } from '../service/portable-utils';
 
@@ -14,7 +15,7 @@ export interface RowCommands {
    * parameter/setting edit and every `Add…` / `Convert to…` action goes through this one call
    * (Phases 3-6 add the callers; this phase wires the value-cell commit).
    */
-  setBoxedRowData(path: string, row: BoxedRowData): PortableError | undefined;
+  setBoxedRowData(path: string, row: BoxedRowData, actingPath?: string): PortableError | undefined;
   /** Name-cell commit on a named kind. */
   rename(path: string, newName: string): PortableError | undefined;
   /** `Delete`, cleared-name special actions, `Delete "‹column›" Column`. */
@@ -98,6 +99,7 @@ export function useRowCommands(): RowCommands {
   const { service, onChange, documentationService, testCasesService, testSubjectId } =
     useBoxedEditorContext();
   const { scheduleTestRun } = useBoxedEditorTestContext();
+  const ui = useOptionalBoxedEditorUi();
 
   return useMemo<RowCommands>(() => {
     // Fired once per successful commit (Triggers table, Phase 7): schedules a debounced, coalesced
@@ -108,38 +110,66 @@ export function useRowCommands(): RowCommands {
     };
     const migrate = (oldPaths: string[], oldRoot: string, newRoot: string): void =>
       migrateOverlayPaths(oldPaths, oldRoot, newRoot, documentationService, testCasesService, testSubjectId);
+    const finish = (
+      actingPath: string,
+      result: PortableError | undefined,
+      onSuccess?: () => void,
+      reportError = true,
+    ): PortableError | undefined => {
+      if (result) {
+        if (reportError) ui?.setRowError(actingPath, result);
+        return result;
+      }
+      ui?.setRowError(actingPath, undefined);
+      onSuccess?.();
+      notifyChange();
+      const modelLinkResult = service.link();
+      ui?.setModelError(isPortableError(modelLinkResult) ? modelLinkResult : undefined);
+      return undefined;
+    };
 
     return {
-      setBoxedRowData(path, row) {
+      setBoxedRowData(path, row, actingPath) {
         const result = service.setBoxedRowData(path, row);
-        if (isPortableError(result)) return result;
-        notifyChange();
-        return undefined;
+        return finish(
+          actingPath ?? path,
+          isPortableError(result) ? result : undefined,
+          undefined,
+          actingPath !== undefined,
+        );
       },
       rename(path, newName) {
         const oldPaths = collectSubtreePaths(service, path);
         const result = service.rename(path, newName);
-        if (isPortableError(result)) return result;
-        notifyChange();
-        const newPath = childPath(parentPath(path) ?? '*', newName);
-        migrate(oldPaths, path, newPath);
-        return undefined;
+        return finish(
+          path,
+          isPortableError(result) ? result : undefined,
+          () => {
+            const newPath = childPath(parentPath(path) ?? '*', newName);
+            migrate(oldPaths, path, newPath);
+          },
+        );
       },
       remove(path) {
         const result = service.remove(path);
-        if (isPortableError(result)) return result;
-        notifyChange();
-        return undefined;
+        return finish(path, isPortableError(result) ? result : undefined);
       },
       move(fromPath, toParentPath, index) {
         const oldPaths = collectSubtreePaths(service, fromPath);
         const newPath = computeMovedPath(service, fromPath, toParentPath, index);
         const result = service.move(fromPath, toParentPath, index);
-        if (isPortableError(result)) return result;
-        notifyChange();
-        migrate(oldPaths, fromPath, newPath);
-        return undefined;
+        return finish(fromPath, isPortableError(result) ? result : undefined, () =>
+          migrate(oldPaths, fromPath, newPath),
+        );
       },
     };
-  }, [service, onChange, documentationService, testCasesService, testSubjectId, scheduleTestRun]);
+  }, [
+    service,
+    onChange,
+    documentationService,
+    testCasesService,
+    testSubjectId,
+    scheduleTestRun,
+    ui,
+  ]);
 }

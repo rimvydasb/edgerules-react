@@ -18,7 +18,7 @@ export interface OptimisationObjectiveRowProps {
 export function OptimisationObjectiveRow({row}: OptimisationObjectiveRowProps): ReactElement {
     const actions = useRowActions(row);
     return (
-        <SettingRow name={row.name} depth={row.depth} showActions actions={actions}>
+        <SettingRow row={row} name={row.name} depth={row.depth} showActions actions={actions}>
             <ExpressionCell row={row} />
         </SettingRow>
     );

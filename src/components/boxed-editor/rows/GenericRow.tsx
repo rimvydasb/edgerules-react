@@ -1,9 +1,11 @@
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import type {KeyboardEvent, ReactElement, ReactNode} from 'react';
 import {DescriptionCell} from '../cells/DescriptionCell';
 import {NameCell} from '../cells/NameCell';
 import {TestResultCell} from '../cells/TestResultCell';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
+import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import type {BoxedRowData, BoxedRowKind} from '../boxed-editor-types';
 import {useRowDrag} from '../dnd/useRowDrag';
 import {useRowDrop} from '../dnd/useRowDrop';
@@ -98,6 +100,8 @@ export function GenericRow({
     onActivate,
 }: GenericRowProps): ReactElement {
     const {showDescription, showTestResults, showType, testCasesService} = useBoxedEditorContext();
+    const {rowErrors} = useBoxedEditorUi();
+    const rowError = row ? rowErrors.get(row.path) : undefined;
     // The `TestResultsColumn` is hidden entirely (not just emptied) when no `testCasesService` is
     // provided — unlike `showDescription`, which always shows the column (empty + read-only).
     const showTestResultsColumn = showTestResults && testCasesService !== undefined;
@@ -233,6 +237,27 @@ export function GenericRow({
             )}
             {showDescription && <Cell column="description">{row && <DescriptionCell path={row.path} />}</Cell>}
             {showTestResultsColumn && <Cell column="test-results">{row && <TestResultCell path={row.path} />}</Cell>}
+            {rowError && (
+                <Alert
+                    severity="error"
+                    role="alert"
+                    data-testid={`row-error-${row?.path}`}
+                    sx={{
+                        position: 'absolute',
+                        insetInlineEnd: 4,
+                        bottom: 2,
+                        zIndex: 3,
+                        py: 0,
+                        px: 0.75,
+                        maxWidth: '60%',
+                        '& .MuiAlert-message': {py: 0, fontSize: '0.75rem'},
+                        '& .MuiAlert-icon': {py: 0, mr: 0.5},
+                    }}
+                >
+                    {rowError.path ? `${rowError.path}: ` : ''}
+                    {rowError.message}
+                </Alert>
+            )}
             <RowLine />
         </Box>
     );

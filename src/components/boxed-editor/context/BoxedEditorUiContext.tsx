@@ -1,4 +1,5 @@
 import {createContext, useCallback, useContext, useMemo, useState, type ReactElement, type ReactNode} from 'react';
+import type {PortableError} from '@edgerules/portable';
 import {AltHeldContext, useAltHeldState} from '../hooks/useAltHeld';
 
 export interface BoxedEditorUiValue {
@@ -13,6 +14,12 @@ export interface BoxedEditorUiValue {
     modelSettingsOpen: boolean;
     openModelSettings: () => void;
     closeModelSettings: () => void;
+    /** Mutation failures that cannot live inside an editing cell (menus and append placeholders). */
+    rowErrors: ReadonlyMap<string, PortableError>;
+    setRowError: (path: string, error: PortableError | undefined) => void;
+    /** Current whole-model link failure after a structural mutation. */
+    modelError: PortableError | undefined;
+    setModelError: (error: PortableError | undefined) => void;
 }
 
 const BoxedEditorUiContext = createContext<BoxedEditorUiValue | null>(null);
@@ -29,6 +36,8 @@ export function BoxedEditorUiProvider({children, defaultExpanded = true}: BoxedE
     const [overrides, setOverrides] = useState<Map<string, boolean>>(() => new Map());
     const [activeCellPath, setActiveCellPath] = useState<string | null>(null);
     const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
+    const [rowErrors, setRowErrors] = useState<Map<string, PortableError>>(() => new Map());
+    const [modelError, setModelError] = useState<PortableError | undefined>();
 
     const isExpanded = useCallback(
         (path: string) => overrides.get(path) ?? defaultExpanded,
@@ -47,6 +56,14 @@ export function BoxedEditorUiProvider({children, defaultExpanded = true}: BoxedE
 
     const openModelSettings = useCallback(() => setModelSettingsOpen(true), []);
     const closeModelSettings = useCallback(() => setModelSettingsOpen(false), []);
+    const setRowError = useCallback((path: string, error: PortableError | undefined) => {
+        setRowErrors((previous) => {
+            const next = new Map(previous);
+            if (error) next.set(path, error);
+            else next.delete(path);
+            return next;
+        });
+    }, []);
 
     const value = useMemo<BoxedEditorUiValue>(
         () => ({
@@ -57,8 +74,22 @@ export function BoxedEditorUiProvider({children, defaultExpanded = true}: BoxedE
             modelSettingsOpen,
             openModelSettings,
             closeModelSettings,
+            rowErrors,
+            setRowError,
+            modelError,
+            setModelError,
         }),
-        [isExpanded, toggleExpand, activeCellPath, modelSettingsOpen, openModelSettings, closeModelSettings],
+        [
+            isExpanded,
+            toggleExpand,
+            activeCellPath,
+            modelSettingsOpen,
+            openModelSettings,
+            closeModelSettings,
+            rowErrors,
+            setRowError,
+            modelError,
+        ],
     );
 
     return (
@@ -74,4 +105,9 @@ export function useBoxedEditorUi(): BoxedEditorUiValue {
         throw new Error('useBoxedEditorUi must be used within a BoxedEditor');
     }
     return context;
+}
+
+/** Command-hook tests and non-visual hosts may provide only the data context. */
+export function useOptionalBoxedEditorUi(): BoxedEditorUiValue | null {
+    return useContext(BoxedEditorUiContext);
 }

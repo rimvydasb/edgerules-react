@@ -4,8 +4,8 @@ import type {ReactElement} from 'react';
 import type {BoxedRowData, BoxedRowKind, BoxedTableRowData} from '../boxed-editor-types';
 import {
     appendListItem,
+    addOptimisationVariable,
     appendOptimisationConstraint,
-    appendOptimisationVariable,
     appendRelationItem,
     appendRule,
     nextFieldRow,
@@ -14,7 +14,7 @@ import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {isValidDrop, type DragPayload} from '../dnd/dropRules';
 import {buildContainerDropPayload} from '../dnd/useRowDrop';
-import {indexedPath, pathDepth} from '../service/portable-utils';
+import {indexedPath, parentPath, pathDepth} from '../service/portable-utils';
 import {GenericRow} from './GenericRow';
 
 interface NewRowConfig {
@@ -81,14 +81,24 @@ export function NewRow({row}: NewRowProps): ReactElement | null {
             const field = nextFieldRow(row, row.kind === 'complexType');
             depth = field.depth;
             onActivate = () => {
-                commands.setBoxedRowData(field.path, field);
+                if (row.kind === 'function') {
+                    // An inline function's `result` is synthetic and `<fn>.field` is not directly
+                    // addressable. Rewrite the whole function to promote its body to a context.
+                    commands.setBoxedRowData(
+                        row.path,
+                        {...row, children: [...(row.children ?? []), field]},
+                        row.path,
+                    );
+                } else {
+                    commands.setBoxedRowData(field.path, field, row.path);
+                }
             };
             break;
         }
         case 'list-item': {
             depth = pathDepth(indexedPath(row.path, row.children?.length ?? 0));
             onActivate = () => {
-                commands.setBoxedRowData(row.path, appendListItem(row));
+                commands.setBoxedRowData(row.path, appendListItem(row), row.path);
             };
             break;
         }
@@ -96,7 +106,7 @@ export function NewRow({row}: NewRowProps): ReactElement | null {
             const relation = row as BoxedTableRowData;
             depth = pathDepth(indexedPath(relation.path, relation.children?.length ?? 0));
             onActivate = () => {
-                commands.setBoxedRowData(relation.path, appendRelationItem(relation));
+                commands.setBoxedRowData(relation.path, appendRelationItem(relation), relation.path);
             };
             break;
         }
@@ -104,21 +114,31 @@ export function NewRow({row}: NewRowProps): ReactElement | null {
             const ruleset = row as BoxedTableRowData;
             depth = row.depth + 1;
             onActivate = () => {
-                commands.setBoxedRowData(ruleset.path, appendRule(ruleset));
+                commands.setBoxedRowData(ruleset.path, appendRule(ruleset), ruleset.path);
             };
             break;
         }
         case 'optimisation-variable': {
             depth = row.depth + 1;
             onActivate = () => {
-                commands.setBoxedRowData(row.path, appendOptimisationVariable(row));
+                const optimisationPath = parentPath(row.path);
+                const optimisation = optimisationPath
+                    ? (service.getBoxedRowData(optimisationPath) as BoxedTableRowData | undefined)
+                    : undefined;
+                if (!optimisation || !optimisationPath) return;
+                const children = service.getBoxedRowsData(optimisationPath);
+                commands.setBoxedRowData(
+                    optimisationPath,
+                    addOptimisationVariable({...optimisation, children}),
+                    row.path,
+                );
             };
             break;
         }
         case 'optimisation-constraint': {
             depth = row.depth + 1;
             onActivate = () => {
-                commands.setBoxedRowData(row.path, appendOptimisationConstraint(row));
+                commands.setBoxedRowData(row.path, appendOptimisationConstraint(row), row.path);
             };
             break;
         }

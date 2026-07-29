@@ -250,7 +250,7 @@ describe('commands: model additions', () => {
         });
     });
 
-    it('Add Relation appends an empty array at the model root', async () => {
+    it('Add Relation appends a seeded empty record at the model root', async () => {
         const user = userEvent.setup();
         const mutable = MutableDecisionService.fromCode('{ amount: 10 }');
         const service = createBoxedEditorService(mutable);
@@ -258,9 +258,8 @@ describe('commands: model additions', () => {
         render(<BoxedEditor service={service} path="*" languageService={languageService} />);
         await chooseAction(user, 0, 'Add relation');
 
-        // An empty array has no element to prove it's a relation rather than a scalar list — it reads
-        // back as `list` until the first record is added; the committed literal is what matters here.
-        expect(mutable.toPortable().relation).toMatchObject({'@kind': 'expression', expression: '[]'});
+        // One empty record distinguishes the relation from a scalar list after an engine round-trip.
+        expect(mutable.toPortable().relation).toMatchObject({'@kind': 'expression', expression: '[{  }]'});
     });
 
     it('Add List appends an empty list at the model root', async () => {

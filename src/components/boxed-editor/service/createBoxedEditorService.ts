@@ -305,6 +305,18 @@ function setOptimisationChild(
   });
 }
 
+function getOptimisationChild(
+  owner: OptimisationOwner,
+  path: string,
+): PortableNode | undefined {
+  let current: unknown = owner.node;
+  for (const key of optimisationPathKeys(owner.path, path)) {
+    if (!isRecord(current)) return undefined;
+    current = (current as unknown as Record<string, unknown>)[key];
+  }
+  return current as PortableNode | undefined;
+}
+
 function removeOptimisationChild(
   owner: OptimisationOwner,
   path: string,
@@ -448,18 +460,69 @@ function setWithLinkCheck(
   writeNode: PortableNode,
   previousNode: PortableNode | undefined,
 ): PortableNode | PortableError {
+  let previousLinkError: PortableError | undefined;
+  try {
+    mutable.link();
+  } catch (error) {
+    previousLinkError = error as PortableError;
+  }
   const result = mutable.set(writePath, writeNode);
   if (isPortableError(result)) return result;
   try {
     mutable.link();
     return result;
   } catch (linkError) {
+    const nextLinkError = linkError as PortableError;
+    // An already-dangling reference is a model-level problem, not a global mutation latch.
+    // Preserve an unrelated valid write when linking still reports the same pre-existing fault.
+    if (
+      previousLinkError &&
+      previousLinkError.type === nextLinkError.type &&
+      previousLinkError.path === nextLinkError.path &&
+      previousLinkError.message === nextLinkError.message
+    ) {
+      return result;
+    }
     if (previousNode === undefined) {
       mutable.remove(writePath);
     } else {
       mutable.set(writePath, previousNode);
     }
-    return linkError as PortableError;
+    return nextLinkError;
+  }
+}
+
+function setChangedTopLevelWithLinkCheck(
+  mutable: MutableDecisionService,
+  previousRoot: PortableRootContext,
+  nextRoot: PortableRootContext,
+): PortableNode | PortableError {
+  const previous = previousRoot as unknown as Record<string, PortableNode>;
+  const next = nextRoot as unknown as Record<string, PortableNode>;
+  const changed = new Set([...Object.keys(previous), ...Object.keys(next)]);
+  changed.delete('@kind');
+  const paths = [...changed].filter((path) => JSON.stringify(previous[path]) !== JSON.stringify(next[path]));
+
+  const rollback = (): void => {
+    for (const path of paths) {
+      if (previous[path] === undefined) mutable.remove(path);
+      else mutable.set(path, previous[path]);
+    }
+  };
+
+  for (const path of paths) {
+    const result = next[path] === undefined ? mutable.remove(path) : mutable.set(path, next[path]);
+    if (isPortableError(result)) {
+      rollback();
+      return result;
+    }
+  }
+  try {
+    mutable.link();
+    return nextRoot;
+  } catch (error) {
+    rollback();
+    return error as PortableError;
   }
 }
 
@@ -470,6 +533,216 @@ function duplicateNameError(path: string, name: string): PortableError {
     message: `A field named "${name}" already exists.`,
     path,
   } as PortableError;
+}
+
+function referencedParameterError(path: string, name: string): PortableError {
+  return {
+    '@kind': 'error',
+    type: 'WrongFieldPath',
+    message: `Cannot delete argument "${name}" because the callable body still references it.`,
+    path,
+  } as PortableError;
+}
+
+function identifierPattern(name: string): RegExp {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}_])${escaped}(?=[^\\p{L}\\p{N}_]|$)`, 'gu');
+}
+
+function containsIdentifier(node: PortableNode, name: string): boolean {
+  if (Array.isArray(node)) return node.some((child) => containsIdentifier(child, name));
+  if (!isRecord(node)) return false;
+  const expression = node['expression'];
+  if (
+    typeof expression === 'string' &&
+    identifierPattern(name).test(expression)
+  ) {
+    return true;
+  }
+  return Object.entries(node).some(
+    ([key, child]) => key !== '@parameters' && containsIdentifier(child as PortableNode, name),
+  );
+}
+
+function rewriteIdentifier(
+  node: PortableNode,
+  from: string,
+  to: string,
+  parentKey?: string,
+): PortableNode {
+  if (Array.isArray(node)) {
+    return node.map((child) => rewriteIdentifier(child, from, to, parentKey)) as unknown as PortableNode;
+  }
+  if (typeof node === 'string') {
+    if (parentKey === '@kind') return node;
+    return node.replace(identifierPattern(from), `$1${to}`) as unknown as PortableNode;
+  }
+  if (!isRecord(node)) return node;
+  return Object.fromEntries(
+    Object.entries(node).map(([key, child]) => [
+      key === from ? to : key,
+      rewriteIdentifier(child as PortableNode, from, to, key),
+    ]),
+  ) as unknown as PortableNode;
+}
+
+function renameWithLinkCheck(
+  mutable: MutableDecisionService,
+  path: string,
+  newName: string,
+): void | PortableError {
+  const previousRoot = mutable.toPortable();
+  const oldName = lastPathName(path);
+  let previousLinkError: PortableError | undefined;
+  try {
+    mutable.link();
+  } catch (error) {
+    previousLinkError = error as PortableError;
+  }
+  const result = mutable.rename(path, newName);
+  if (isPortableError(result)) return result;
+  if (oldName && oldName !== newName) {
+    const renamedRoot = mutable.toPortable();
+    const migrated = rewriteIdentifier(
+      renamedRoot as unknown as PortableNode,
+      oldName,
+      newName,
+    ) as PortableRootContext;
+    if (JSON.stringify(migrated) !== JSON.stringify(renamedRoot)) {
+      const setResult = mutable.set('*', migrated);
+      if (isPortableError(setResult)) {
+        mutable.set('*', previousRoot);
+        return setResult;
+      }
+    }
+  }
+  try {
+    mutable.link();
+    return undefined;
+  } catch (error) {
+    const nextLinkError = error as PortableError;
+    if (
+      previousLinkError &&
+      previousLinkError.type === nextLinkError.type &&
+      previousLinkError.path === nextLinkError.path &&
+      previousLinkError.message === nextLinkError.message
+    ) {
+      return undefined;
+    }
+    mutable.set('*', previousRoot);
+    return nextLinkError;
+  }
+}
+
+type CallableParameterChange =
+  | {kind: 'rename'; from: string; to: string}
+  | {kind: 'add'; name: string; value: PortableNode}
+  | {kind: 'remove'; name: string};
+
+function parameterSeed(type: unknown): PortableNode {
+  const name = typeof type === 'string' ? type : isRecord(type) ? type.type : undefined;
+  if (name === 'number') return 0;
+  if (name === 'boolean') return false;
+  if (name === 'date') return '@"1970-01-01"' as unknown as PortableNode;
+  if (name === 'datetime') return '@"1970-01-01T00:00:00Z"' as unknown as PortableNode;
+  return '""' as unknown as PortableNode;
+}
+
+function callableParameterChange(
+  previous: PortableNode | undefined,
+  row: BoxedRowData,
+): CallableParameterChange | undefined {
+  if (
+    (row.kind !== 'function' && row.kind !== 'ruleset' && row.kind !== 'optimisation') ||
+    !isRecord(previous)
+  )
+    return undefined;
+  const oldParameters = previous['@parameters'];
+  if (!isRecord(oldParameters)) return undefined;
+  const oldNames = Object.keys(oldParameters);
+  const newNames = (row as BoxedRowData & {parameters?: {name: string}[]}).parameters?.map(
+    (parameter) => parameter.name,
+  ) ?? [];
+  if (newNames.length === oldNames.length + 1) {
+    const name = newNames.find((candidate) => !oldNames.includes(candidate));
+    const next = denormalize(row);
+    const parameters = isRecord(next) ? next['@parameters'] : undefined;
+    if (name && isRecord(parameters)) {
+      return {kind: 'add', name, value: parameterSeed(parameters[name])};
+    }
+  }
+  if (oldNames.length === newNames.length + 1) {
+    const name = oldNames.find((candidate) => !newNames.includes(candidate));
+    if (name) return {kind: 'remove', name};
+  }
+  if (oldNames.length !== newNames.length) return undefined;
+  const changed = oldNames
+    .map((from, index) => ({from, to: newNames[index]}))
+    .filter(({from, to}) => from !== to);
+  return changed.length === 1 ? {kind: 'rename', ...changed[0]} : undefined;
+}
+
+function rewriteInvocationArguments(
+  node: PortableNode,
+  functionPath: string,
+  change: CallableParameterChange,
+): PortableNode {
+  if (Array.isArray(node)) {
+    return node.map((child) =>
+      rewriteInvocationArguments(child, functionPath, change),
+    ) as unknown as PortableNode;
+  }
+  if (!isRecord(node)) return node;
+  const result = Object.fromEntries(
+    Object.entries(node).map(([name, child]) => [
+      name,
+      rewriteInvocationArguments(child as PortableNode, functionPath, change),
+    ]),
+  ) as Record<string, unknown>;
+  if (
+    result['@kind'] === 'invocation' &&
+    result['@method'] === functionPath &&
+    isRecord(result['@arguments'])
+  ) {
+    const args = {...result['@arguments']} as Record<string, unknown>;
+    if (change.kind === 'rename' && Object.prototype.hasOwnProperty.call(args, change.from)) {
+      result['@arguments'] = Object.fromEntries(
+        Object.entries(args).map(([name, value]) => [name === change.from ? change.to : name, value]),
+      );
+    } else if (change.kind === 'add') {
+      args[change.name] = change.value;
+      result['@arguments'] = args;
+    } else if (change.kind === 'remove') {
+      delete args[change.name];
+      result['@arguments'] = args;
+    }
+  }
+  return result as PortableNode;
+}
+
+function containsInvocation(node: PortableNode, functionPath: string): boolean {
+  if (Array.isArray(node)) return node.some((child) => containsInvocation(child, functionPath));
+  if (!isRecord(node)) return false;
+  const record = node as unknown as Record<string, unknown>;
+  if (record['@kind'] === 'invocation' && record['@method'] === functionPath) return true;
+  return Object.values(record).some((child) => containsInvocation(child as PortableNode, functionPath));
+}
+
+function replacePortablePath(
+  root: PortableRootContext,
+  path: string,
+  value: PortableNode,
+): PortableRootContext {
+  const keys = path.split('.');
+  const next = structuredClone(root) as unknown as Record<string, unknown>;
+  let current = next;
+  for (const key of keys.slice(0, -1)) {
+    const child = current[key];
+    if (!isRecord(child)) return root;
+    current = child as unknown as Record<string, unknown>;
+  }
+  current[keys.at(-1)!] = value;
+  return next as unknown as PortableRootContext;
 }
 
 export function createBoxedEditorService(
@@ -500,6 +773,24 @@ export function createBoxedEditorService(
     setBoxedRowData(path, row) {
       return commit(path, () => {
         const root = mutable.toPortable();
+        const previous = portableAtPath(root, path);
+        const parameterChange = callableParameterChange(previous, row);
+        if (
+          parameterChange?.kind === 'remove' &&
+          previous !== undefined &&
+          containsIdentifier(previous, parameterChange.name)
+        ) {
+          return referencedParameterError(path, parameterChange.name);
+        }
+        if (parameterChange && containsInvocation(root as unknown as PortableNode, path)) {
+          const withFunction = replacePortablePath(root, path, denormalize(row));
+          const migrated = rewriteInvocationArguments(
+            withFunction as unknown as PortableNode,
+            path,
+            parameterChange,
+          ) as PortableRootContext;
+          return setChangedTopLevelWithLinkCheck(mutable, root, migrated);
+        }
         const owner = optimisationOwner(root, path);
         if (owner && owner.path !== path) {
           let updated = owner.node;
@@ -591,9 +882,14 @@ export function createBoxedEditorService(
 
         const owner = optimisationOwner(root, path);
         if (owner && owner.path !== path) {
-          const result = mutable.set(
+          const renamed = renameOptimisationChild(owner, path, newName);
+          const updated =
+            currentName === undefined ? renamed : rewriteIdentifier(renamed, currentName, newName);
+          const result = setWithLinkCheck(
+            mutable,
             owner.path,
-            renameOptimisationChild(owner, path, newName),
+            updated,
+            owner.node,
           );
           return isPortableError(result) ? result : undefined;
         }
@@ -607,13 +903,15 @@ export function createBoxedEditorService(
           ) {
             return duplicateNameError(path, newName);
           }
-          const result = mutable.set(
+          const result = setWithLinkCheck(
+            mutable,
             typeOwner.path,
             renameComplexTypeChild(typeOwner, path, newName),
+            typeOwner.node,
           );
           return isPortableError(result) ? result : undefined;
         }
-        return mutable.rename(path, newName);
+        return renameWithLinkCheck(mutable, path, newName);
       }) as void | PortableError;
     },
     move(fromPath, toParentPath, index) {
@@ -639,8 +937,8 @@ export function createBoxedEditorService(
                 path: fromPath,
               };
         }
-        const source = portableAtPath(root, fromPath);
-        const destination = portableAtPath(root, toParentPath);
+        const source = getOptimisationChild(sourceOwner, fromPath);
+        const destination = getOptimisationChild(destinationOwner, toParentPath);
         if (
           source === undefined ||
           (!Array.isArray(destination) && !isRecord(destination))

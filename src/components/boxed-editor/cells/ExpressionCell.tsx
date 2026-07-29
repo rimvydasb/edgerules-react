@@ -12,6 +12,7 @@ const ACTIVE_CELL_MARKER = '__boxed_editor_active_cell__';
 
 function expressionErrorMessage(error: PortableError, value: string): string {
     if (error.type !== 'Parse') return error.message;
+    if (error.message === 'Priority must be a whole number') return error.message;
 
     const trailingOperator = /(\?\?|&&|\|\||===|!==|==|!=|<=|>=|[+\-*/%<>])$/.exec(value.trim())?.[1];
     if (trailingOperator && error.message.includes('MissingExpression')) {
@@ -190,6 +191,8 @@ export function ExpressionCell({row, onCommit}: ExpressionCellProps): ReactEleme
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    minHeight: '1em',
+                    '&:empty::before': {content: '"\\00a0"'},
                     cursor: editable ? 'text' : 'default',
                 }}
             >

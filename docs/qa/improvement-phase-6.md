@@ -45,25 +45,25 @@ is a rename button that corrupts models by default.
       `func`/`ruleset`/`loop` and its own declared parameters — verified: call sites, cell-map `when` keys and
       boolean-expression `when` rows all relink. For a plain field, context key or `type`, only the key moves and
       `link()` is the documented way to detect the fallout. `remove()` carries the same caveat.
-- [x] Decision recorded: **option (3)** — the engine will not do (1), and (2) duplicates the engine's name resolution
-      for the shrinking set of cases the engine won't relink.
+- [x] Decision recorded: ship **option (3)** as the safety baseline, then add **option (2)** when the cumulative
+      business-flow test demonstrated that visible rejection alone was insufficient for real maintenance work.
   - [x] ~~**(1) Engine — preferred.** `rename` rewrites every reference to the renamed path.~~ **Rejected upstream:**
         full refactoring is explicitly out of scope for the engine; `link()` exists to check the model after any
         mutation.
-  - [ ] **(2) Editor.** Scan the portable tree for references to the old path, rewrite them, and commit the rename
-        plus every rewrite as one operation, rolling everything back if the result does not link. Substantial, and it
-        duplicates the engine's own name resolution — not taken; revisit only if (3) proves insufficient in use.
-  - [ ] **(3) Minimum viable — chosen; ship this.** Make `rename` link-check like `setBoxedRowData` does and
+  - [x] **(2) Editor — implemented after the capstone proved (3) insufficient.** Scan the portable tree for
+        references to the old identifier, rewrite declarations/call sites/expressions/cell-map keys, and commit the
+        rename plus rewrites atomically with rollback if linking fails.
+  - [x] **(3) Minimum viable — safety baseline.** Make `rename` link-check like `setBoxedRowData` does and
         surface the failure through [Phase 2](improvement-phase-2.md)'s channel. "Succeeds silently and freezes the
         editor" is not an acceptable outcome, whatever else is decided.
 
 ### 6.2 Implement
 
-- [ ] Implement the chosen option in `createBoxedEditorService.rename` / `useRowCommands.rename`.
-- [ ] Revisit Resolved Decision #12 explicitly (`remove`/`rename`/`move` skip the link check because they "may
+- [x] Implement the chosen option in `createBoxedEditorService.rename` / `useRowCommands.rename`.
+- [x] Revisit Resolved Decision #12 explicitly (`remove`/`rename`/`move` skip the link check because they "may
       legitimately leave a *different* row's reference dangling"). Whatever the new behaviour is, write it down where
       that decision lives — a future agent will otherwise revert this.
-- [ ] Apply the same reasoning to `remove` and `move`: a pre-flight warning ("`x` is still referenced by `y` — delete
+- [x] Apply the same reasoning to `remove` and `move`: a pre-flight warning ("`x` is still referenced by `y` — delete
       anyway?") is in scope here if it falls out of the same code path; otherwise file it as a follow-up.
 
 ### 6.3 Overlay migration — verify it actually works
@@ -72,10 +72,10 @@ is a rename button that corrupts models by default.
 rename/move. **No test anywhere exercises it**, and the per-descendant loop (`DocumentationService.renamePath` matches
 exact paths only, with no prefix awareness) is exactly the kind of code that rots unnoticed.
 
-- [ ] Confirm a description survives a rename of its own row.
-- [ ] Confirm a **nested** row's description survives a rename of its ancestor (the per-descendant loop).
-- [ ] Confirm test-case cells survive both a rename and a drag-move.
-- [ ] Confirm `collectSubtreePaths` captures the old shape *before* the commit, as its comment claims.
+- [x] Confirm a description survives a rename of its own row.
+- [x] Confirm a **nested** row's description survives a rename of its ancestor (the per-descendant loop).
+- [x] Confirm test-case cells survive both a rename and a drag-move.
+- [x] Confirm `collectSubtreePaths` captures the old shape *before* the commit, as its comment claims.
 
 ---
 
@@ -83,29 +83,32 @@ exact paths only, with no prefix awareness) is exactly the kind of code that rot
 
 New file: `e2e/boxed-editor/rename.spec.ts` — `test.describe('Boxed Editor / rename')`.
 
-- [ ] renames a field no other row references and keeps the model executing
-- [ ] renames a context that other rows reference, and every dependent expression follows
-- [ ] renames a nested row that a sibling references, and the sibling's expression follows
-- [ ] renames a function that another row calls, and the call site follows
-- [ ] renames a row referenced from a decision table rule, and the rule follows
-- [ ] renames a row referenced from an optimisation constraint, and the constraint follows
-- [ ] reports a visible error instead of silently corrupting the model when a rename cannot be migrated
-- [ ] keeps accepting unrelated edits after any rename
-- [ ] migrates a row's description across a rename of that row
-- [ ] migrates a nested row's description across a rename of its ancestor
-- [ ] migrates test-case cells across a rename
-- [ ] migrates test-case cells across a drag-move
+- [x] renames a field no other row references and keeps the model executing
+- [x] renames a context that other rows reference, and every dependent expression follows
+- [x] renames a nested row that a sibling references, and the sibling's expression follows
+- [x] renames a function that another row calls, and the call site follows
+- [x] renames a row referenced from a decision table rule, and the rule follows
+- [x] renames a row referenced from an optimisation constraint, and the constraint follows
+- [x] reports a visible error instead of silently corrupting the model when a rename cannot be migrated
+- [x] keeps accepting unrelated edits after any rename
+- [x] migrates a row's description across a rename of that row
+- [x] migrates a nested row's description across a rename of its ancestor
+- [x] migrates test-case cells across a rename
+- [x] migrates test-case cells across a drag-move
 
-If option (3) alone is shipped, the "…and every dependent expression follows" tests become `test.fixme` pending the
-upstream fix — but the "reports a visible error" and "keeps accepting unrelated edits" tests must pass either way.
-Do not weaken them.
+The dependent-expression tests now run normally because option (2) is implemented. The visible-error cases use a
+genuinely invalid colliding rename and still prove atomic non-corruption plus unrelated-edit recovery.
+
+**Result:** option (3) remains the safety baseline and option (2) is now shipped for full editor-side refactoring.
+All 12 tests run and pass, including the five formerly fixme'd dependent-reference cases and all four overlay
+migration cases.
 
 ---
 
 ## Definition of done
 
-- [ ] Renaming anything either migrates references or fails visibly. Neither silently corrupts the model.
-- [ ] The decision from 6.1 is recorded, both here and where Resolved Decision #12 lives.
-- [ ] Overlay migration is proven by a browser test for the first time.
-- [ ] All 12 browser tests pass (or the fixme'd subset is explicitly justified above); `tsc --noEmit` clean.
-- [ ] [`current-bugs.md`](current-bugs.md) checkboxes for Bug 10 updated.
+- [x] Renaming anything either migrates references or fails visibly. Neither silently corrupts the model.
+- [x] The decision from 6.1 is recorded, both here and where Resolved Decision #12 lives.
+- [x] Overlay migration is proven by a browser test for the first time.
+- [x] All 12 browser tests pass (or the fixme'd subset is explicitly justified above); `tsc --noEmit` clean.
+- [x] [`current-bugs.md`](current-bugs.md) checkboxes for Bug 10 updated.

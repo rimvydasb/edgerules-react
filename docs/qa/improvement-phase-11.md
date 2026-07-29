@@ -152,12 +152,12 @@ outputs.
 
 ## Tasks
 
-- [ ] Create `e2e/boxed-editor/business-flow.spec.ts` with `test.describe('Boxed Editor / business flow')` and a
+- [x] Create `e2e/boxed-editor/business-flow.spec.ts` with `test.describe('Boxed Editor / business flow')` and a
       single `test('builds a loan origination and portfolio decisioning model from a blank start, surviving
       parse/link/argument failures along the way')`, segmented into the 13 `test.step`s below. One page, one model,
       never reset.
 
-- [ ] **Step 1 — applicant & application intake.** `Add field` × 3 directly on the model root first, to prove
+- [x] **Step 1 — applicant & application intake.** `Add field` × 3 directly on the model root first, to prove
       root-level field creation before any container exists. Then create the `application` context.
 
   > Affordance note found while planning: `Convert to context` on a field **replaces** it with an *empty* container
@@ -168,41 +168,41 @@ outputs.
   Add the `complexType` `Applicant` with `name`/`age`/`income`, then reference it as a typed field
   (`application.applicant: <Applicant, required: true>`). *(complexType sub-step gated on Bug 7.)*
 
-- [ ] **Step 2 — required documents.** `Add list` (`requiredDocuments`) at the model root; append 3+ string items via
+- [x] **Step 2 — required documents.** `Add list` (`requiredDocuments`) at the model root; append 3+ string items via
       the trailing "(new item)" placeholder. Assert the seeded default is `""` and that committing a number into one
       is rejected visibly (list homogeneity).
 
-- [ ] **Step 3 — collateral properties.** `Add relation` (`collateralProperties`); add its columns one at a time
+- [x] **Step 3 — collateral properties.** `Add relation` (`collateralProperties`); add its columns one at a time
       (`address`, `value`, `propertyType`), then add records. **Order matters:** add the first record while every
       column is still string-typed, author `value` as a number, *then* append the second record — that append is
       Bug 12's exact trigger and must now succeed. Make one record's `address` a drill-down complex cell rather than
       a flat string, and edit a nested field inside it.
 
-- [ ] **Step 4 — calculations, first failure.** Add the inline function `monthlyPayment`. Add its first argument
+- [x] **Step 4 — calculations, first failure.** Add the inline function `monthlyPayment`. Add its first argument
       (`amount`). **Add a second immediately** — Bug 1's exact trigger — and assert the *fixed* behaviour: two
       distinct arguments, model still links, no silent no-op. Add a third (`years`); the corruption compounds
       per-argument, so three is a stronger assertion than two. Then add `affordabilityScore` as a multi-statement
       function (2+ body fields, via `function-result`'s `Duplicate` — the only path there), `originationFee` with
       zero arguments, and a `loanToValue` function nested inside the `application` context.
 
-- [ ] **Step 5 — recovery checkpoint.** Immediately after Step 4, perform an entirely unrelated mutation —
+- [x] **Step 5 — recovery checkpoint.** Immediately after Step 4, perform an entirely unrelated mutation —
       `Add relation` on the model root, distinct from `collateralProperties` — and assert it succeeds. **This is the
       single most important assertion in the file:** it directly tests "cannot create anything, even after the error
       is fixed." Then strengthen it: delete a row that another row references, assert the model-level error is
       visible and names the offending path, assert an unrelated `Add field` still commits, repair the dangling
       reference, and confirm everything links again.
 
-- [ ] **Step 6 — deliberate parse failure and recovery.** Open `monthlyPayment`'s result expression, commit
+- [x] **Step 6 — deliberate parse failure and recovery.** Open `monthlyPayment`'s result expression, commit
       `application.loanAmount /`, assert the inline error appears **with the trailing-operator message**
       (`Expected a value after "/".`), assert every other row is still interactive (click into an unrelated field,
       cancel with Escape, confirm no residual edit state and no second open editor), then commit a valid expression
       and confirm the error clears and `onChange` fired exactly once.
 
-- [ ] **Step 7 — deliberate link failure and recovery.** Delete a `monthlyPayment` argument the body *does*
+- [x] **Step 7 — deliberate link failure and recovery.** Delete a `monthlyPayment` argument the body *does*
       reference; assert the rejection is visible and the signature unchanged. Then delete one that genuinely is
       unused and confirm that one succeeds.
 
-- [ ] **Step 8 — risk-tiering decision table.** `Add decision table` (`riskTier`). Add condition columns
+- [x] **Step 8 — risk-tiering decision table.** `Add decision table` (`riskTier`). Add condition columns
       `age`/`income`/`ltv` **and retype them to `number`** — without that, only string equality is authorable and the
       step is vacuous. Add action columns `tier`/`maxExposure`/`expectedYield`. Build 3+ rules **incrementally**,
       asserting cumulative state after each add — one as a cell-map condition, another as a boolean expression. Fill
@@ -210,7 +210,7 @@ outputs.
       should, then switch back. Execute after **each** rule is added, so a rule that silently fails to commit is
       caught immediately rather than at the end.
 
-- [ ] **Step 9 — portfolio capital allocation.** `Add optimisation` (`portfolioMix`) at the model root — **root
+- [x] **Step 9 — portfolio capital allocation.** `Add optimisation` (`portfolioMix`) at the model root — **root
       only**; also assert the action is genuinely absent from a nested context's menu. Add one variable per
       `riskTier` output tier, set the `maximise` objective across those variables, and add capital/exposure
       constraints referencing both the variables and a value from `application`/`riskTier` — the cross-construct
@@ -220,22 +220,22 @@ outputs.
       `Switch to maximise`. Add a `timeLimit` setting. Execute — this needs the solver wired in
       [Phase 1](improvement-phase-1.md).
 
-- [ ] **Step 10 — rename under load.** Rename the `application` context, touching every downstream reference built in
+- [x] **Step 10 — rename under load.** Rename the `application` context, touching every downstream reference built in
       Steps 1, 4, 8 and 9. Assert every dependent row's displayed expression follows, and the model still links and
       executes. Also rename a nested row and a relation column in the same step, and assert the description and
       test-case overlays followed. *(Gated on Bug 10 — write against the fixed behaviour and fixme until it lands.)*
 
-- [ ] **Step 11 — bulk maintenance pass.** In one continuous sequence: reorder two `riskTier` rules by drag,
+- [x] **Step 11 — bulk maintenance pass.** In one continuous sequence: reorder two `riskTier` rules by drag,
       duplicate a rule, delete the duplicate, add a fourth condition column, delete a different existing column,
       rename yet another, reorder two columns, change one column's type. Chained back-to-back, not in isolation —
       that chaining is what the original bugs needed to surface. Execute once at the end and assert the result still
       matches the intent.
 
-- [ ] **Step 12 — read-only handoff.** Re-render the same underlying service in `readOnly` mode, simulating handing
+- [x] **Step 12 — read-only handoff.** Re-render the same underlying service in `readOnly` mode, simulating handing
       the finished model to a reviewer. Confirm no mutation control survives — **except** `Duplicate` and
       `Expand`/`Collapse`, which are explicitly `nonMutating` and must remain.
 
-- [ ] **Step 13 — final execution audit.** Run the model with 3+ distinct applicant/application input sets chosen to
+- [x] **Step 13 — final execution audit.** Run the model with 3+ distinct applicant/application input sets chosen to
       hit different branches of `riskTier` (first-rule match, later-rule match, default fallback), and confirm
       `portfolioMix` re-optimises consistently against each. Then assert the finished model against the target shape
       above.
@@ -244,9 +244,13 @@ outputs.
 
 ## Definition of done
 
-- [ ] The spec builds the target model from `{}` using only UI gestures.
-- [ ] All 21 row kinds are created by this flow, or the exception is filed in
+- [x] The spec builds the target model from `{}` using only UI gestures.
+- [x] All 21 row kinds are created by this flow, or the exception is filed in
       [`current-bugs.md`](current-bugs.md).
-- [ ] Every step asserts cumulatively through `live-result` / `live-model`.
-- [ ] Any step still fixme'd names its blocking bug in the step title.
-- [ ] `tsc --noEmit` clean; the full `e2e/boxed-editor` suite green.
+- [x] Every step asserts cumulatively through `live-result` / `live-model`.
+- [x] Any step still fixme'd names its blocking bug in the step title.
+- [x] `tsc --noEmit` clean; the full `e2e/boxed-editor` suite green.
+
+**Result:** the single BlankModel-only scenario now completes all 13 steps. Overlay migration in Step 10 is also
+covered directly by `rename.spec.ts`, while the capstone verifies the same live service remains linkable and
+executable through context, nested-field, and relation-column renames.

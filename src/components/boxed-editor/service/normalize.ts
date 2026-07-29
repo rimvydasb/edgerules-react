@@ -80,7 +80,13 @@ function recordCells(
   return columns.map((column) => {
     const value = values.get(column);
     if (value === undefined) return '';
-    if (nestedAsEmpty && (isRecord(value) || Array.isArray(value))) return '';
+    if (
+      nestedAsEmpty &&
+      (Array.isArray(value) ||
+        (isRecord(value) &&
+          (value['@kind'] === undefined || value['@kind'] === 'context')))
+    )
+      return '';
     return formatPortableValue(value);
   });
 }
@@ -134,7 +140,12 @@ function normalizeArray(
       columns,
       cells: recordCells(value, columns, true),
       children: authoredEntries(value)
-        .filter(([, child]) => isRecord(child) || Array.isArray(child))
+        .filter(
+          ([, child]) =>
+            Array.isArray(child) ||
+            (isRecord(child) &&
+              (child['@kind'] === undefined || child['@kind'] === 'context')),
+        )
         .map(([childName, child]) =>
           normalizeNode(
             childName,
@@ -193,7 +204,9 @@ function normalizeRuleset(
     ...rules.map((rule, index) => {
       const record = isRecord(rule) ? rule : {};
       const when = record.when;
-      const expressionWhen = isRecord(when) && when['@kind'] === 'expression';
+      const expressionWhen =
+        (isRecord(when) && when['@kind'] === 'expression') ||
+        (when !== undefined && !isRecord(when));
       const ruleRow: BoxedTableRowData = {
         ...rowBase(
           'rule',
@@ -224,7 +237,7 @@ function normalizeRuleset(
       ...rowBase('ruleset-default', childPath(path, 'default'), 'default'),
       actionColumns,
       actions: recordCells(node['@default'], actionColumns),
-      deletable: false,
+      deletable: node['@hitPolicy'] === 'collect-matches',
     } as BoxedTableRowData);
   }
   return {

@@ -122,10 +122,15 @@ export function nextFieldRow(
   return isTypeMember ? { ...field, value: 'string' } : field;
 }
 
-function compatibleListItemDefault(value: string | undefined): string {
+export function compatibleLiteralDefault(value: string | undefined): string {
   const trimmed = value?.trim() ?? '';
   if (/^-?\d+(\.\d+)?$/.test(trimmed)) return '0';
   if (trimmed === 'true' || trimmed === 'false') return 'false';
+  // Indexed engine reads materialize temporal values as JSON strings even though the array schema
+  // remains `date`/`datetime`. Restore the temporal shorthand for ISO-shaped values so appending a
+  // record does not silently retype a date column to string.
+  const temporal = /^(['"])(\d{4}-\d{2}-\d{2}(?:T[^'"]+)?)\1$/.exec(trimmed);
+  if (temporal) return `@"${temporal[2]}"`;
   if (/^(['"]).*\1$/.test(trimmed)) return BLANK_LITERAL;
   return trimmed || BLANK_LITERAL;
 }
@@ -141,26 +146,33 @@ export function appendListItem(row: BoxedRowData): BoxedRowData {
   const path = indexedPath(row.path, index);
   const item = {
     ...rowFactories['list-item']!(path, `Item ${index + 1}`, pathDepth(path)),
-    value: compatibleListItemDefault(children.at(-1)?.value),
+    value: compatibleLiteralDefault(children.at(-1)?.value),
   };
   return { ...row, children: [...children, item] };
 }
 
 /**
- * Appends a blank `relation-item` — its cells aligned to the header's `columns` — and returns
- * the whole `relation` row for a parent rewrite. Cells default to `BLANK_LITERAL` rather than an
- * omitted (`''`) field: the engine currently requires every array element to share one identical
- * structural type, so a genuinely blank record (nothing authored at all) is rejected as a type
- * mismatch against existing records that do author every column — see `docs/BUG_REPORTS.md`
- * ("Array-typed fields reject elements with differing optional-field shapes"). Authoring an
- * empty-string literal for every column at least matches a `string`-typed column; a
- * non-`string`-typed column still needs the user's first real edit before it round-trips.
+ * Appends a `relation-item` with cells aligned to the header's columns. Relations are homogeneous,
+ * so each new cell is derived from the previous record's literal (`0`, `false`, `""`, or the
+ * previous literal for richer kinds such as dates/objects). With no previous record, `""` is the
+ * only type-neutral seed available because there is not yet an inferred column type.
  */
 export function appendRelationItem(row: BoxedTableRowData): BoxedTableRowData {
   const children = row.children ?? [];
   const index = children.length;
   const path = indexedPath(row.path, index);
   const columns = row.columns ?? [];
+  const previous = children.at(-1) as BoxedTableRowData | undefined;
+  const rebaseChild = (child: BoxedRowData, parent: string): BoxedRowData => {
+    const nextPath = childPath(parent, child.name);
+    return {
+      ...child,
+      path: nextPath,
+      depth: pathDepth(nextPath),
+      children: child.children?.map((nested) => rebaseChild(nested, nextPath)),
+    };
+  };
+  const drillDownNames = new Set(previous?.children?.map((child) => child.name) ?? []);
   const item: BoxedTableRowData = {
     ...(rowFactories['relation-item']!(
       path,
@@ -168,7 +180,10 @@ export function appendRelationItem(row: BoxedTableRowData): BoxedTableRowData {
       pathDepth(path),
     ) as BoxedTableRowData),
     columns,
-    cells: columns.map(() => BLANK_LITERAL),
+    cells: columns.map((column, columnIndex) =>
+      drillDownNames.has(column) ? '' : compatibleLiteralDefault(previous?.cells?.[columnIndex]),
+    ),
+    children: previous?.children?.map((child) => rebaseChild(child, path)) ?? [],
   };
   return { ...row, children: [...children, item] };
 }
@@ -178,7 +193,8 @@ export function appendRelationItem(row: BoxedTableRowData): BoxedTableRowData {
  * for a parent rewrite. Backfills `BLANK_LITERAL` rather than an omitted (`''`) cell — a truly
  * blank cell authors nothing at all (`recordFromCells` skips empty values), so on the very next
  * read `columnsOf` would no longer see any record actually declaring the new column, and it would
- * vanish (same reasoning as `appendRelationItem`'s own doc comment).
+ * vanish. Unlike `appendRelationItem`, a brand-new column has no previous typed cell to derive a
+ * compatible default from, so this `BLANK_LITERAL` backfill is deliberately unchanged.
  */
 export function addRelationColumn(
   row: BoxedTableRowData,
@@ -224,6 +240,41 @@ export function removeRelationColumn(
   };
 }
 
+export function renameRelationColumn(
+  row: BoxedTableRowData,
+  from: string,
+  to: string,
+): BoxedTableRowData {
+  const columns = (row.columns ?? []).map((column) => (column === from ? to : column));
+  return {
+    ...row,
+    columns,
+    children: (row.children ?? []).map((child) => ({...child, columns})),
+  };
+}
+
+export function moveRelationColumn(
+  row: BoxedTableRowData,
+  from: number,
+  to: number,
+): BoxedTableRowData {
+  const move = <T,>(values: T[]): T[] => {
+    const next = [...values];
+    const [value] = next.splice(from, 1);
+    next.splice(to, 0, value);
+    return next;
+  };
+  const columns = move(row.columns ?? []);
+  return {
+    ...row,
+    columns,
+    children: (row.children ?? []).map((child) => {
+      const table = child as BoxedTableRowData;
+      return {...table, columns, cells: move(table.cells ?? [])};
+    }),
+  };
+}
+
 /**
  * Appends a blank `rule` — its condition/action columns aligned to the owning `ruleset`'s own,
  * inserted just before the `ruleset-default` row when one is present — and returns the whole
@@ -244,6 +295,9 @@ export function appendRule(row: BoxedTableRowData): BoxedTableRowData {
   const path = indexedPath(childPath(row.path, 'rules'), rules.length);
   const conditionColumns = row.conditionColumns ?? [];
   const actionColumns = row.actionColumns ?? [];
+  const bestMatch =
+    children.find((child) => child.kind === 'ruleset-hit-policy')?.value ===
+    'best-match';
   const rule: BoxedTableRowData = {
     ...(rowFactories.rule!(
       path,
@@ -252,8 +306,11 @@ export function appendRule(row: BoxedTableRowData): BoxedTableRowData {
     ) as BoxedTableRowData),
     conditionColumns,
     actionColumns,
-    conditions: conditionColumns.map(() => ''),
+    ...(conditionColumns.length === 0
+      ? {conditionsExpression: 'true'}
+      : {conditions: conditionColumns.map(() => '')}),
     actions: referenceActions ?? actionColumns.map(() => BLANK_LITERAL),
+    ...(bestMatch ? {priority: rules.length + 1} : {}),
   };
   const insertAt = children.findIndex((child) => child.kind === 'ruleset-default');
   const nextChildren =
@@ -408,6 +465,75 @@ export function removeArgument(row: BoxedTableRowData, name: string): BoxedTable
   };
 }
 
+function replaceIdentifier(value: string | undefined, from: string, to: string): string | undefined {
+  if (value === undefined) return undefined;
+  return value.replace(new RegExp(`\\b${from.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'g'), to);
+}
+
+function rewriteRowReferences(row: BoxedRowData, from: string, to: string): BoxedRowData {
+  const table = row as BoxedTableRowData;
+  return {
+    ...row,
+    ...(row.value !== undefined ? { value: replaceIdentifier(row.value, from, to) } : {}),
+    ...(table.cells ? { cells: table.cells.map((value) => replaceIdentifier(value, from, to) ?? '') } : {}),
+    ...(table.conditions
+      ? { conditions: table.conditions.map((value) => replaceIdentifier(value, from, to) ?? '') }
+      : {}),
+    ...(table.actions ? { actions: table.actions.map((value) => replaceIdentifier(value, from, to) ?? '') } : {}),
+    ...(table.conditionsExpression !== undefined
+      ? { conditionsExpression: replaceIdentifier(table.conditionsExpression, from, to) }
+      : {}),
+    ...(row.children
+      ? { children: row.children.map((child) => rewriteRowReferences(child, from, to)) }
+      : {}),
+  };
+}
+
+export function renameArgument(
+  row: BoxedTableRowData,
+  from: string,
+  to: string,
+): BoxedTableRowData {
+  const rewritten = rewriteRowReferences(row, from, to) as BoxedTableRowData;
+  return {
+    ...rewritten,
+    parameters: (rewritten.parameters ?? []).map((parameter) =>
+      parameter.name === from ? { ...parameter, name: to } : parameter,
+    ),
+  };
+}
+
+export function retypeArgument(
+  row: BoxedTableRowData,
+  name: string,
+  type: string,
+): BoxedTableRowData {
+  const required = /^<(.+),\s*required:\s*(true|false)>$/.exec(type);
+  return {
+    ...row,
+    parameters: (row.parameters ?? []).map((parameter) =>
+      parameter.name === name
+        ? {
+            ...parameter,
+            type: required?.[1].trim() ?? type,
+            ...(required ? {required: required[2] === 'true'} : {required: undefined}),
+          }
+        : parameter,
+    ),
+  };
+}
+
+function moved<T>(values: T[], from: number, to: number): T[] {
+  const next = [...values];
+  const [value] = next.splice(from, 1);
+  next.splice(to, 0, value);
+  return next;
+}
+
+export function moveArgument(row: BoxedTableRowData, from: number, to: number): BoxedTableRowData {
+  return {...row, parameters: moved(row.parameters ?? [], from, to)};
+}
+
 // --- Ruleset condition / action columns ---------------------------------------------------
 
 /**
@@ -459,6 +585,69 @@ export function removeConditionColumn(
   };
 }
 
+export function renameConditionColumn(
+  row: BoxedTableRowData,
+  from: string,
+  to: string,
+): BoxedTableRowData {
+  const rewritten = rewriteRowReferences(row, from, to) as BoxedTableRowData;
+  const parameters = (rewritten.parameters ?? []).map((parameter) =>
+    parameter.name === from ? {...parameter, name: to} : parameter,
+  );
+  const conditionColumns = parameters.map((parameter) => parameter.name);
+  return {
+    ...rewritten,
+    parameters,
+    conditionColumns,
+    children: (rewritten.children ?? []).map((child) =>
+      child.kind === 'rule' ? {...child, conditionColumns} : child,
+    ),
+  };
+}
+
+export function retypeConditionColumn(
+  row: BoxedTableRowData,
+  name: string,
+  type: string,
+): BoxedTableRowData {
+  const required = /^<(.+),\s*required:\s*(true|false)>$/.exec(type);
+  return {
+    ...row,
+    parameters: (row.parameters ?? []).map((parameter) =>
+      parameter.name === name
+        ? {
+            ...parameter,
+            type: required?.[1].trim() ?? type,
+            ...(required ? {required: required[2] === 'true'} : {required: undefined}),
+          }
+        : parameter,
+    ),
+  };
+}
+
+export function moveConditionColumn(
+  row: BoxedTableRowData,
+  from: number,
+  to: number,
+): BoxedTableRowData {
+  const parameters = moved(row.parameters ?? [], from, to);
+  const conditionColumns = parameters.map((parameter) => parameter.name);
+  return {
+    ...row,
+    parameters,
+    conditionColumns,
+    children: (row.children ?? []).map((child) => {
+      if (child.kind !== 'rule') return child;
+      const table = child as BoxedTableRowData;
+      return {
+        ...table,
+        conditionColumns,
+        ...(table.conditions ? {conditions: moved(table.conditions, from, to)} : {}),
+      };
+    }),
+  };
+}
+
 /**
  * `Add Action Column` — extends `actionColumns` and every `rule`/`ruleset-default`'s `then` with
  * a blank literal (action columns are pure output shape, not part of `@parameters`).
@@ -494,6 +683,40 @@ export function removeActionColumn(row: BoxedTableRowData, columnName: string): 
   };
 }
 
+export function renameActionColumn(
+  row: BoxedTableRowData,
+  from: string,
+  to: string,
+): BoxedTableRowData {
+  const actionColumns = (row.actionColumns ?? []).map((column) => (column === from ? to : column));
+  return {
+    ...row,
+    actionColumns,
+    children: (row.children ?? []).map((child) =>
+      child.kind === 'rule' || child.kind === 'ruleset-default'
+        ? {...child, actionColumns}
+        : child,
+    ),
+  };
+}
+
+export function moveActionColumn(
+  row: BoxedTableRowData,
+  from: number,
+  to: number,
+): BoxedTableRowData {
+  const actionColumns = moved(row.actionColumns ?? [], from, to);
+  return {
+    ...row,
+    actionColumns,
+    children: (row.children ?? []).map((child) => {
+      if (child.kind !== 'rule' && child.kind !== 'ruleset-default') return child;
+      const table = child as BoxedTableRowData;
+      return {...table, actionColumns, actions: moved(table.actions ?? [], from, to)};
+    }),
+  };
+}
+
 // --- Convert to Context / Relation / List -----------------------------------------------
 
 /** `Convert to Context / Relation / List` — replaces a `field` with an empty container in place. */
@@ -506,6 +729,11 @@ export function convertField(
     return { ...base, kind: 'relation', columns: [], children: [] } as BoxedTableRowData;
   }
   return { ...base, kind, children: [] };
+}
+
+/** Converts a container back to an editable scalar field, discarding its children after confirmation. */
+export function convertContainerToField(row: BoxedRowData): BoxedRowData {
+  return {depth: row.depth, path: row.path, name: row.name, kind: 'field', value: BLANK_LITERAL};
 }
 
 // --- Model / Context: Add Function / Add Decision Table / Add Optimisation / Add Relation / Add List --
@@ -535,6 +763,22 @@ export function nextFunctionRow(
         deletable: false,
       },
     ],
+  };
+}
+
+/** A fresh, empty user-defined type. The engine accepts and links `type X: {}`. */
+export function nextComplexTypeRow(
+  container: Pick<BoxedRowData, 'path'>,
+  existingNames: Set<string>,
+): BoxedRowData {
+  const name = uniqueName('Type', existingNames);
+  const path = childPath(container.path, name);
+  return {
+    kind: 'complexType',
+    depth: pathDepth(path),
+    path,
+    name,
+    children: [],
   };
 }
 
@@ -587,7 +831,29 @@ export function nextRelationRow(
 ): BoxedTableRowData {
   const name = uniqueName('relation', existingNames);
   const path = childPath(container.path, name);
-  return { kind: 'relation', depth: pathDepth(path), path, name, columns: [], children: [] };
+  // The portable format represents both an empty relation and an empty scalar list as `[]`; after
+  // an engine round-trip there is no kind marker with which to recover the user's choice. Seed one
+  // empty record so `get(..., ALL)` infers `array<{}>` and the editor keeps rendering relation
+  // affordances. It remains a no-column relation and the user can immediately add columns/records.
+  const firstPath = indexedPath(path, 0);
+  return {
+    kind: 'relation',
+    depth: pathDepth(path),
+    path,
+    name,
+    columns: [],
+    children: [
+      {
+        ...(rowFactories['relation-item']!(
+          firstPath,
+          'Item 1',
+          pathDepth(firstPath),
+        ) as BoxedTableRowData),
+        columns: [],
+        cells: [],
+      } as BoxedTableRowData,
+    ],
+  };
 }
 
 /** `Add List` — a fresh, empty scalar list. */

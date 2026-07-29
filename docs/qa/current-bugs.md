@@ -30,6 +30,10 @@ Vitest test may accompany one, never replace it.
 | 12 | Appending a record to a non-string-column relation silently does nothing  | High     | react  | [Phase 3](improvement-phase-3.md)          |
 | 13 | New condition columns are hardcoded `string`                              | High     | react  | [Phase 4](improvement-phase-4.md)          |
 | 14 | `collect-matches` rulesets are unreachable                                | Medium   | react  | [Phase 5](improvement-phase-5.md)          |
+| 15 | Promoted function bodies cannot collapse back inline                      | Low      | react  | [Phase 7](improvement-phase-7.md)          |
+| 16 | Invalid row identifiers corrupt path-based lookup                         | High     | react  | [Phase 10](improvement-phase-10.md)        |
+| 17 | Appending after a relation drill-down seeds the wrong scalar type        | High     | react  | [Phase 11](improvement-phase-11.md)        |
+| 18 | Optimisation variable/constraint drag resolves synthetic paths literally | Medium   | react  | [Phase 9](improvement-phase-9.md)          |
 
 ---
 
@@ -48,7 +52,7 @@ argument` from the original report — the same defect observed at two different
 - [x] Root-caused (verified against the real engine)
 - [x] Filed upstream (entry deleted from `docs/BUG_REPORTS.md` once the engine fixed it)
 - [x] Fixed upstream in `0.0.6-alpha.202607291629` (no editor-side workaround needed)
-- [ ] Browser regression test added
+- [x] Browser regression test added
 
 **Root cause.** `API_SPEC.md` §"Function Definition" documents a `@parameters` value as a bare type string,
 a `PortableTypedValue`, or **`null` for an untyped parameter**. `rowFactories.addArgument` and `denormalize.ts`'s
@@ -102,8 +106,8 @@ parameter.
 **Severity: High.** *(by inspection)*
 
 - [x] Root-caused
-- [ ] Rename affordance designed and implemented
-- [ ] Browser regression test added
+- [x] Rename affordance designed and implemented
+- [x] Browser regression test added
 
 **Root cause.** Purely missing UI, not an engine gap. `ArgumentHeaders.tsx`, `RulesetRow.tsx`'s
 `RulesetColumnHeaders` and `RelationRow.tsx`'s `RelationColumnHeaders` all render column names through `TypeName` — a
@@ -133,8 +137,8 @@ test has to match header text and will break on the very rename tests it is tryi
 to build at all. *(by inspection)*
 
 - [x] Root-caused
-- [ ] Fix designed and implemented
-- [ ] Browser regression test added
+- [x] Fix designed and implemented
+- [x] Browser regression test added
 
 **Root cause.** Same as Bug 2 — `TypeName` is read-only. `addConditionColumn` hardcodes `'string'`
 (`rowFactories.ts:423`); `useRowActions`'s `optimisation` branch hardcodes `'number'`; nothing can change either
@@ -163,8 +167,8 @@ retyped to `number` must fail as one atomic rejection, never leave half a table 
 **Severity: Medium.** *(by inspection)*
 
 - [x] Root-caused
-- [ ] Implemented, **or** feature explicitly descoped and the handle removed
-- [ ] Browser regression test added
+- [x] Implemented, **or** feature explicitly descoped and the handle removed
+- [x] Browser regression test added
 
 **Root cause.** `primitives/ColumnDragHandle.tsx` renders a `DragIndicatorIcon` with `cursor: 'grab'` and **no**
 `draggable`, `onMouseDown` or `@dnd-kit` wiring. Row-level reordering *is* fully wired (`dnd/useRowDrag.ts`,
@@ -189,8 +193,8 @@ dependent row's cell order, mirroring `move()`'s whole-parent rewrite), or remov
 actionable error. Worth fixing independently of all of them. *(by inspection)*
 
 - [x] Root-caused
-- [ ] Fix designed and implemented
-- [ ] Browser regression test added
+- [x] Fix designed and implemented
+- [x] Browser regression test added
 
 **Root cause.** Every `onSelect` handler in `useRowActions.ts` calls `commands.setBoxedRowData(...)` (or
 `commands.remove(...)`) and **discards the returned `PortableError`** — e.g. `add-argument`:
@@ -213,8 +217,8 @@ value-cell commit does — a shared alert channel keyed by the acting row's path
 
 - [x] Reproduced with a minimal written-down script
 - [x] Root-caused
-- [ ] Fixed (tracked as Bug 11)
-- [ ] Browser regression test added (tracked as Bug 11)
+- [x] Fixed (tracked as Bug 11)
+- [x] Browser regression test added (tracked as Bug 11)
 
 The report's wording implied a global, not row-scoped, latch. There is one, and it is not React state: it is
 `setWithLinkCheck` calling `mutable.link()`, which validates the **whole model**, combined with
@@ -232,8 +236,8 @@ nothing at all.
 **Severity: High.** Leaves one of the 21 row kinds unreachable. *(by inspection; engine support verified)*
 
 - [x] Root-caused
-- [ ] Fix designed and implemented
-- [ ] Browser regression test added
+- [x] Fix designed and implemented
+- [x] Browser regression test added
 
 **Root cause.** The editor renders, normalizes, denormalizes, duplicates, deletes and adds fields to a `complexType`
 row — but nothing creates one:
@@ -271,8 +275,8 @@ reachable by hand-typing the annotation into a value cell.
 hit-policy set verified)*
 
 - [x] Root-caused
-- [ ] Fix designed and implemented
-- [ ] Browser regression test added
+- [x] Fix designed and implemented
+- [x] Browser regression test added
 
 **Root cause.** `primitives/DropdownChip.tsx` renders a label plus an `ArrowDropDownIcon` and **nothing else** — no
 `onClick`, no `Menu`, no options, no `role`. Its own doc comment says it "opens a dropdown in the real editor"; that
@@ -302,8 +306,8 @@ children of the `optimise` declaration, so an append is an ordinary owner-coales
 **Severity: Medium** (High for the business flow, which needs both forms in one table). *(by inspection)*
 
 - [x] Root-caused
-- [ ] Fix designed and implemented
-- [ ] Browser regression test added
+- [x] Fix designed and implemented
+- [x] Browser regression test added
 
 **Root cause.** `RuleRow.tsx`'s `RuleCells` branches on `hasExpression = row.conditionsExpression !== undefined`:
 - When `undefined` — which is every rule `appendRule` creates, since it seeds `conditions: conditionColumns.map(() =>
@@ -333,14 +337,13 @@ representations are not mechanically convertible.
 > it. Renaming a `func`/`ruleset`/`loop` **or one of its own parameters** does relink every reference (verified
 > 2026-07-29: cell-map `when` keys, boolean-expression `when` rows and call sites all migrate). Renaming anything
 > else — a plain field, a context key, a `type` — only moves the key, and `link()` is the documented way to detect
-> the fallout. So **option 1 below is off the table** and this is now an editor-side bug: the boxed editor renames
-> arbitrary rows without link-checking. Ship option 3.
+> the fallout. So **option 1 below is off the table** and the editor now implements options 2 and 3.
 
 - [x] Reproduced against the real engine
 - [x] Filed upstream — ruled by design; see `docs/BUG_REPORTS.md` §"Clarified behaviour — not bugs"
 - [x] Decided where the fix belongs — **editor** (engine behaviour is by design, confirmed upstream)
-- [ ] Fixed
-- [ ] Browser regression test added
+- [x] Fixed
+- [x] Browser regression test added
 
 **Repro (no React):**
 
@@ -354,20 +357,19 @@ m.link();
 The same holds one level down — renaming `ctx.a` in `{ ctx: { a: 1  b: a + 1 } }` leaves `b`'s `a + 1` dangling — so
 it is not a root-only special case. `toPortable()` confirms the referring expression is left byte-identical.
 
-**Why the editor makes it worse.** `useRowCommands.rename` calls `service.rename` and returns `undefined` on success;
-`createBoxedEditorService`'s `rename` performs **no** link check by design (Resolved Decision #12 — those operations
-"may legitimately leave a *different* row's reference dangling, and rolling them back would make renaming/removing
-anything another row still refers to impossible"). Defensible in isolation; combined with Bug 11 it means one
-innocuous rename can put the model into a state where **no further edit anywhere commits**, with no error at any
-point. `NameCell`-driven renames (every named row) and any future column rename (Bug 2) are both affected.
+**Editor resolution.** `createBoxedEditorService.rename` now snapshots the model, performs the engine rename, migrates
+portable identifiers in expressions, invocation methods, type references, and decision-table cell-map keys, then
+links the result. Any failed migration rolls the snapshot back and surfaces the error through the row error channel.
+Optimisation variables/constraints use their whole-owner path and migrate objective/constraint expressions in the
+same atomic write.
 
 **Fix — pick one and write it down:**
 1. ~~**Engine (preferred).** `rename` rewrites every reference to the renamed path.~~ **Rejected upstream** —
    reference migration is limited to callables and their parameters by design (see the note above); the engine
    will not rewrite references to a renamed field/context/type.
-2. **Editor.** Scan the portable tree for references to the old path, rewrite them, and commit rename + rewrites as
-   one operation, rolling back if the result does not link. Substantial, and duplicates the engine's name resolution.
-3. **Minimum viable, ship regardless of 1/2.** Make `rename` link-check like `setBoxedRowData` does, and surface the
+2. **Editor — shipped.** Scan the portable tree for references to the old path, rewrite them, and commit rename +
+   rewrites as one operation, rolling back if the result does not link.
+3. **Minimum viable — shipped as the fallback.** Make `rename` link-check like `setBoxedRowData` does, and surface the
    error through Bug 5's channel instead of silently corrupting the model. Whether it rolls back or merely warns is
    the Resolved-Decision-#12 trade-off to revisit — but "succeeds silently and freezes the editor" is not an option.
 
@@ -378,8 +380,8 @@ point. `NameCell`-driven renames (every named row) and any future column rename 
 **Severity: Critical.** Bug 6's actual root cause. *(verified)*
 
 - [x] Reproduced against the real engine
-- [ ] Fix designed and implemented
-- [ ] Browser regression test added
+- [x] Fix designed and implemented
+- [x] Browser regression test added
 
 **Mechanism.** `setWithLinkCheck` (`createBoxedEditorService.ts:445`) runs `mutable.link()` after every
 `setBoxedRowData` and rolls the write back if it throws. `link()` validates the **entire model**, not the written
@@ -426,8 +428,8 @@ until you happen to fix it.
 **Severity: High.** *(verified)*
 
 - [x] Reproduced against the real engine
-- [ ] Fix designed and implemented
-- [ ] Browser regression test added
+- [x] Fix designed and implemented
+- [x] Browser regression test added
 
 **Root cause.** `appendRelationItem` seeds every cell with `BLANK_LITERAL` (`""`). EdgeRules arrays are homogeneous by
 structural type, so an all-empty-strings record does not match existing records with numeric/boolean/date columns —
@@ -460,8 +462,8 @@ conflict with; note that in a comment so the asymmetry is deliberate.
 convenience. *(by inspection; consequence verified)*
 
 - [x] Root-caused
-- [ ] Fix designed and implemented (ships with Bug 3)
-- [ ] Browser regression test added
+- [x] Fix designed and implemented (ships with Bug 3)
+- [x] Browser regression test added
 
 `addConditionColumn` writes `{ name: columnName, type: 'string' }`. Every realistic decision table's conditions are
 ranges and comparisons on numbers or dates (`age: 18..25`, `income: < 30000`,
@@ -483,8 +485,8 @@ at column-creation time beats any hardcoded default.
 **Severity: Medium.** *(verified)*
 
 - [x] Reproduced against the real engine
-- [ ] Fix designed and implemented
-- [ ] Browser regression test added
+- [x] Fix designed and implemented
+- [x] Browser regression test added
 
 `nextRulesetRow` always seeds a `ruleset-default` child, deliberately (a ruleset with neither rules nor a default
 cannot infer its result type, `E308`). `normalizeRuleset` marks that row `deletable: false`, and `useRowActions`'s
@@ -502,3 +504,71 @@ accept a default and are fine.
 **Fix.** Make `default`'s `deletable` conditional on the current hit policy, and have the hit-policy picker drop the
 `default` row in the same commit when switching to `collect-matches` (re-seeding it when switching away). Either way
 the two settings must be committed together — they are not independently valid.
+
+---
+
+## Bug 15 — A promoted function body cannot collapse back to inline form
+
+**Severity: Low.** *(verified by Phase 7 browser coverage)*
+
+- [x] Reproduced
+- [x] Fix designed and implemented
+- [x] Browser characterization test added
+
+Appending a body field promotes an inline function into a context body. Deleting that extra field later leaves a
+one-field context unless the delete is coalesced through the owning function. The editor now performs that whole-owner
+rewrite, so deleting the final extra statement restores the inline shape automatically.
+
+---
+
+## Bug 16 — Invalid row identifiers corrupt path-based lookup
+
+**Severity: High.** *(verified by Phase 10 browser coverage)*
+
+- [x] Reproduced
+- [x] Fix designed and implemented
+- [x] Browser regression tests added
+
+The engine accepted row renames such as `bad.name`, `bad name`, `1bad`, and `@kind`. The editor then derived paths
+from those names, so dotted or reserved names could make a successfully renamed row unreachable through the same
+path API that created it.
+
+**Fix.** `NameCell` now validates user-owned row identifiers before calling `rename`: names must begin with a Unicode
+letter, continue with Unicode letters/numbers or `_`, and may not collide with the DSL keywords `func`, `ruleset`,
+`type`, or `default`. An intentionally cleared ordinary row name retains the established delete behavior.
+
+---
+
+## Bug 17 — Appending after a relation drill-down seeds the wrong scalar type
+
+**Severity: High.** *(verified by the Phase 11 business flow)*
+
+- [x] Reproduced
+- [x] Fix designed and implemented
+- [x] Unit and browser regression coverage added
+
+`appendRelationItem` derived defaults only from the prior record's flat `cells`. A complex-object column is instead
+stored in the record's `children`, leaving its flat cell blank; appending therefore authored `""` for that column and
+the engine rejected the heterogeneous record.
+
+**Fix.** Appending now clones complex drill-down children from the previous record, recursively rebases their paths to
+the new record index, and leaves the corresponding flat cell omitted. Scalar columns retain their type-compatible
+defaults.
+
+---
+
+## Bug 18 — Optimisation child drag resolves synthetic paths literally
+
+**Severity: Medium.** *(verified by Phase 9 browser coverage)*
+
+- [x] Reproduced
+- [x] Fix designed and implemented
+- [x] Browser regression test added
+
+Rows expose paths such as `factory.variables.tables` and `factory.constraints.capacity`, while the portable optimise
+node stores those groups under `@variables` and `@constraints`. The move branch correctly used special-path setters
+but read its source and destination through the generic portable path resolver, so both lookups failed and the drag
+left the model unchanged.
+
+**Fix.** Optimisation moves now resolve source and destination through the same synthetic-to-portable key mapping
+used by optimisation set/remove/rename before rebuilding the ordered group.

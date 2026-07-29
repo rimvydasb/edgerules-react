@@ -8,10 +8,12 @@ import {
   addRelationColumn,
   appendOptimisationConstraint,
   appendRule,
+  convertContainerToField,
   convertField,
   duplicateChildAt,
   duplicateNamedRow,
   nextFieldRow,
+  nextComplexTypeRow,
   nextFunctionRow,
   nextListRow,
   nextOptimisationRow,
@@ -62,6 +64,9 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
 
   return useMemo(() => {
     const drafts: ActionDraft[] = [];
+    const commit = (path: string, value: BoxedRowData): void => {
+      commands.setBoxedRowData(path, value, row.path);
+    };
     const push = (
       id: RowActionId,
       label: string,
@@ -80,7 +85,7 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
         () => {
           const siblings = new Set(service.getBoxedRowsData(parent).map((sibling) => sibling.name));
           const { path, row: duplicated } = duplicateNamedRow(row, siblings);
-          commands.setBoxedRowData(path, duplicated);
+          commit(path, duplicated);
         },
         { nonMutating: true },
       );
@@ -102,10 +107,13 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
           const container = service.getBoxedRowData(positionalParent);
           if (!container) return;
           const children = service.getBoxedRowsData(positionalParent);
-          commands.setBoxedRowData(positionalParent, {
-            ...container,
-            children: duplicateChildAt(children, row.path),
-          });
+          commit(
+            positionalParent,
+            {
+              ...container,
+              children: duplicateChildAt(children, row.path),
+            },
+          );
         },
         { nonMutating: true },
       );
@@ -139,29 +147,33 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
       const existingNames = new Set(children.map((child) => child.name));
       push('add-field', 'Add field', () => {
         const field = nextFieldRow({ path: targetPath, children });
-        commands.setBoxedRowData(field.path, field);
+        commit(field.path, field);
+      });
+      push('add-complex-type', 'Add type', () => {
+        const complexType = nextComplexTypeRow({path: targetPath}, existingNames);
+        commit(complexType.path, complexType);
       });
       push('add-function', 'Add function', () => {
         const fn = nextFunctionRow({ path: targetPath }, existingNames);
-        commands.setBoxedRowData(fn.path, fn);
+        commit(fn.path, fn);
       });
       if (includeOptimisation) {
         push('add-optimisation', 'Add optimisation', () => {
           const optimisation = nextOptimisationRow({ path: targetPath }, existingNames);
-          commands.setBoxedRowData(optimisation.path, optimisation);
+          commit(optimisation.path, optimisation);
         });
       }
       push('add-ruleset', 'Add decision table', () => {
         const ruleset = nextRulesetRow({ path: targetPath }, existingNames);
-        commands.setBoxedRowData(ruleset.path, ruleset);
+        commit(ruleset.path, ruleset);
       });
       push('add-relation', 'Add relation', () => {
         const relation = nextRelationRow({ path: targetPath }, existingNames);
-        commands.setBoxedRowData(relation.path, relation);
+        commit(relation.path, relation);
       });
       push('add-list', 'Add list', () => {
         const list = nextListRow({ path: targetPath }, existingNames);
-        commands.setBoxedRowData(list.path, list);
+        commit(list.path, list);
       });
     };
 
@@ -173,6 +185,10 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
         break;
       }
       case 'context': {
+        push('convert-to-field', 'Convert to field', () => {
+          if ((row.children?.length ?? 0) > 0 && !globalThis.confirm('Discard the container contents?')) return;
+          commit(row.path, convertContainerToField(row));
+        });
         pushContainerAdds(row.path, row.children ?? [], false);
         pushDuplicate();
         pushDelete();
@@ -183,7 +199,7 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
         const children = row.children ?? [];
         push('add-field', 'Add field', () => {
           const field = nextFieldRow({ path: row.path, children }, true);
-          commands.setBoxedRowData(field.path, field);
+          commit(field.path, field);
         });
         pushDuplicate();
         pushDelete();
@@ -192,19 +208,34 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
       }
       case 'field': {
         push('convert-to-context', 'Convert to context', () => {
-          commands.setBoxedRowData(row.path, convertField(row, 'context'));
+          commit(row.path, convertField(row, 'context'));
         });
         push('convert-to-relation', 'Convert to relation', () => {
-          commands.setBoxedRowData(row.path, convertField(row, 'relation'));
+          commit(row.path, convertField(row, 'relation'));
         });
         push('convert-to-list', 'Convert to list', () => {
-          commands.setBoxedRowData(row.path, convertField(row, 'list'));
+          commit(row.path, convertField(row, 'list'));
         });
         pushDuplicate();
-        pushDelete();
+        push('delete', 'Delete', () => {
+          const ownerPath = parentPathOf(row.path);
+          const owner = ownerPath ? service.getBoxedRowData(ownerPath) : undefined;
+          if (ownerPath && owner?.kind === 'function') {
+            const remaining = service
+              .getBoxedRowsData(ownerPath)
+              .filter((child) => child.path !== row.path);
+            commit(ownerPath, {...owner, children: remaining});
+            return;
+          }
+          commands.remove(row.path);
+        }, {danger: true});
         break;
       }
       case 'list': {
+        push('convert-to-field', 'Convert to field', () => {
+          if ((row.children?.length ?? 0) > 0 && !globalThis.confirm('Discard the list items?')) return;
+          commit(row.path, convertContainerToField(row));
+        });
         pushDuplicate();
         pushDelete();
         break;
@@ -212,6 +243,30 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
       case 'list-item':
       case 'relation-item':
       case 'rule': {
+        const table = row as BoxedTableRowData;
+        if (table.conditionsExpression === undefined) {
+          push('switch-rule-form', 'Switch to expression condition', () => {
+            commit(row.path, {
+              ...table,
+              conditions: undefined,
+              conditionsExpression: 'true',
+            } as BoxedTableRowData);
+          });
+        } else {
+          push('switch-rule-form', 'Switch to column conditions', () => {
+            if (
+              table.conditionsExpression?.trim() !== 'true' &&
+              !globalThis.confirm('Discard the authored condition expression?')
+            ) {
+              return;
+            }
+            commit(row.path, {
+              ...table,
+              conditionsExpression: undefined,
+              conditions: (table.conditionColumns ?? []).map(() => ''),
+            } as BoxedTableRowData);
+          });
+        }
         pushDuplicatePositional();
         pushDelete();
         break;
@@ -219,14 +274,18 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
       case 'relation': {
         const table = row as BoxedTableRowData;
         const columns = table.columns ?? [];
+        push('convert-to-field', 'Convert to field', () => {
+          if ((row.children?.length ?? 0) > 0 && !globalThis.confirm('Discard the relation records?')) return;
+          commit(row.path, convertContainerToField(row));
+        });
         push('add-column', 'Add column', () => {
-          commands.setBoxedRowData(row.path, addRelationColumn(table, uniqueName('column', new Set(columns))));
+          commit(row.path, addRelationColumn(table, uniqueName('column', new Set(columns))));
         });
         for (const column of columns) {
           push(
             'delete-column',
             `Delete "${column}" column`,
-            () => commands.setBoxedRowData(row.path, removeRelationColumn(table, column)),
+            () => commit(row.path, removeRelationColumn(table, column)),
             { danger: true },
           );
         }
@@ -237,13 +296,13 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
         const table = row as BoxedTableRowData;
         const parameters = table.parameters ?? [];
         push('add-argument', 'Add argument', () => {
-          commands.setBoxedRowData(row.path, addArgument(table));
+          commit(row.path, addArgument(table));
         });
         for (const parameter of parameters) {
           push(
             'delete-argument',
             `Delete "${parameter.name}" argument`,
-            () => commands.setBoxedRowData(row.path, removeArgument(table, parameter.name)),
+            () => commit(row.path, removeArgument(table, parameter.name)),
             { danger: true },
           );
         }
@@ -274,7 +333,7 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
               readOnly: undefined,
               deletable: undefined,
             };
-            commands.setBoxedRowData(parent, { ...fnRow, children: [...children, field] });
+            commit(parent, { ...fnRow, children: [...children, field] });
           },
           { nonMutating: true },
         );
@@ -285,21 +344,21 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
       case 'ruleset': {
         const table = row as BoxedTableRowData;
         push('add-rule', 'Add rule', () => {
-          commands.setBoxedRowData(row.path, appendRule(table));
+          commit(row.path, appendRule(table));
         });
         push('add-condition-column', 'Add condition column', () => {
           const existing = new Set((table.parameters ?? []).map((parameter) => parameter.name));
-          commands.setBoxedRowData(row.path, addConditionColumn(table, uniqueName('condition', existing)));
+          commit(row.path, addConditionColumn(table, uniqueName('condition', existing)));
         });
         push('add-action-column', 'Add action column', () => {
           const existing = new Set(table.actionColumns ?? []);
-          commands.setBoxedRowData(row.path, addActionColumn(table, uniqueName('action', existing)));
+          commit(row.path, addActionColumn(table, uniqueName('action', existing)));
         });
         for (const parameter of table.parameters ?? []) {
           push(
             'delete-column',
             `Delete "${parameter.name}" column`,
-            () => commands.setBoxedRowData(row.path, removeConditionColumn(table, parameter.name)),
+            () => commit(row.path, removeConditionColumn(table, parameter.name)),
             { danger: true },
           );
         }
@@ -307,7 +366,7 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
           push(
             'delete-column',
             `Delete "${column}" column`,
-            () => commands.setBoxedRowData(row.path, removeActionColumn(table, column)),
+            () => commit(row.path, removeActionColumn(table, column)),
             { danger: true },
           );
         }
@@ -333,15 +392,51 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
           // Unlike a `function`'s argument, an `optimise` parameter must carry a real type
           // annotation (`E331`) — `number` is the least surprising default for what's usually a
           // numeric business input; the user retypes it via the argument header like any other.
-          commands.setBoxedRowData(row.path, addArgument(table, 'number'));
+          commit(row.path, addArgument(table, 'number'));
         });
         for (const parameter of parameters) {
           push(
             'delete-argument',
             `Delete "${parameter.name}" argument`,
-            () => commands.setBoxedRowData(row.path, removeArgument(table, parameter.name)),
+            () => commit(row.path, removeArgument(table, parameter.name)),
             { danger: true },
           );
+        }
+        const optimisationChildren = table.children ?? service.getBoxedRowsData(row.path);
+        const settingNames = new Set(optimisationChildren.map((child) => child.name));
+        if (!settingNames.has('timeLimit')) {
+          push('add-setting', 'Add time limit', () => {
+            commit(row.path, {
+              ...table,
+              children: [
+                ...optimisationChildren,
+                {
+                  kind: 'optimisation-setting',
+                  depth: row.depth + 1,
+                  path: `${row.path}.timeLimit`,
+                  name: 'timeLimit',
+                  value: '1000',
+                },
+              ],
+            });
+          });
+        }
+        if (!settingNames.has('bottlenecks')) {
+          push('add-setting', 'Add bottlenecks', () => {
+            commit(row.path, {
+              ...table,
+              children: [
+                ...optimisationChildren,
+                {
+                  kind: 'optimisation-setting',
+                  depth: row.depth + 1,
+                  path: `${row.path}.bottlenecks`,
+                  name: 'bottlenecks',
+                  value: 'true',
+                },
+              ],
+            });
+          });
         }
         pushDuplicate();
         pushDelete();
@@ -358,7 +453,7 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
           const optimisationRow = service.getBoxedRowData(parent) as BoxedTableRowData | undefined;
           if (!optimisationRow) return;
           const optimisationChildren = service.getBoxedRowsData(parent);
-          commands.setBoxedRowData(
+          commit(
             parent,
             addOptimisationVariable({ ...optimisationRow, children: optimisationChildren }),
           );
@@ -376,13 +471,13 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
         push(
           'switch-objective-direction',
           row.name === 'maximise' ? 'Switch to minimise' : 'Switch to maximise',
-          () => commands.setBoxedRowData(row.path, { ...row, name: next }),
+          () => commit(row.path, { ...row, name: next }),
         );
         break;
       }
       case 'optimisation-constraint-group': {
         push('add-constraint', 'Add constraint', () => {
-          commands.setBoxedRowData(row.path, appendOptimisationConstraint(row));
+          commit(row.path, appendOptimisationConstraint(row));
         });
         break;
       }

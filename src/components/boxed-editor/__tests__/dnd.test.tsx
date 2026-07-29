@@ -285,8 +285,8 @@ describe('BoxedEditor drag and drop', () => {
         // Only the `r` ruleset header and its one `rule` are movable; `hitPolicy` and `default` are
         // fixed `SettingRow`s and never register a handle at all.
         expect(screen.getAllByLabelText('Drag to reorder row')).toHaveLength(2);
-        expect(screen.queryByTestId('row-r.hitPolicy')).toBeNull();
-        expect(screen.queryByTestId('row-r.default')).toBeNull();
+        expect(screen.getByTestId('row-r.hitPolicy').querySelector('[aria-label="Drag to reorder row"]')).toBeNull();
+        expect(screen.getByTestId('row-r.default').querySelector('[aria-label="Drag to reorder row"]')).toBeNull();
     });
 
     it('readOnly keeps handles visible but blocks drag entirely', () => {

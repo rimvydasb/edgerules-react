@@ -24,7 +24,7 @@ export function RulesetDefaultRow({row}: RulesetDefaultRowProps): ReactElement {
     };
 
     return (
-        <SettingRow name={row.name} depth={row.depth} showActions actions={actions}>
+        <SettingRow row={row} name={row.name} depth={row.depth} showActions actions={actions}>
             <Box sx={{display: 'flex', width: '100%', height: '100%'}}>
                 <Box
                     sx={{

@@ -3,9 +3,18 @@ import {alpha} from '@mui/material/styles';
 import RuleIcon from '@mui/icons-material/Rule';
 import {Fragment, type ReactElement} from 'react';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
+import {
+    moveActionColumn,
+    moveConditionColumn,
+    renameActionColumn,
+    renameConditionColumn,
+    retypeConditionColumn,
+} from '../commands/rowFactories';
+import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {useRowActions} from '../hooks/useRowActions';
-import {CELL, ColumnDragHandle, TALL_ROW_HEIGHT, TypeName} from '../primitives';
+import {CELL, TALL_ROW_HEIGHT} from '../primitives';
+import {EditableColumnHeader} from '../primitives/EditableColumnHeader';
 import {GenericRow} from './GenericRow';
 import {NewRow} from './NewRow';
 import {RuleRow} from './RuleRow';
@@ -27,14 +36,20 @@ interface HeaderColumn {
  * (`RuleRow`) line up exactly (same `flex` weights per group).
  */
 function RulesetColumnHeaders({
-    conditions,
-    actions,
+    row,
     showPriority,
 }: {
-    conditions: HeaderColumn[];
-    actions: HeaderColumn[];
+    row: BoxedTableRowData;
     showPriority: boolean;
 }): ReactElement {
+    const conditions: HeaderColumn[] = (row.parameters ?? []).map((parameter) => ({
+        name: parameter.name,
+        type: parameter.type,
+    }));
+    const actions: HeaderColumn[] = (row.actionColumns ?? []).map((name) => ({name}));
+    const commands = useRowCommands();
+    const commit = (next: BoxedTableRowData): string | undefined =>
+        commands.setBoxedRowData(row.path, next, row.path)?.message;
     const conditionWeight = conditions.length || 1;
     const actionWeight = actions.length || 1;
     const priorityWeight = 1;
@@ -105,7 +120,7 @@ function RulesetColumnHeaders({
             </Box>
             <Box sx={{display: 'flex', height: CELL}}>
                 <Box sx={{display: 'flex', flex: conditionWeight, minWidth: 0}}>
-                    {conditions.map((column) => (
+                    {conditions.map((column, index) => (
                         <Box
                             key={column.name}
                             sx={{
@@ -117,10 +132,24 @@ function RulesetColumnHeaders({
                                 '&:last-of-type': {borderRight: 'none'},
                             }}
                         >
-                            <ColumnDragHandle />
-                            <TypeName type={column.type} sx={{px: 1}}>
-                                {column.name}
-                            </TypeName>
+                            <EditableColumnHeader
+                                rowPath={row.path}
+                                name={column.name}
+                                type={column.type}
+                                typeEditable
+                                index={index}
+                                count={conditions.length}
+                                onRename={(name) => {
+                                    if (name !== column.name && conditions.some((item) => item.name === name)) {
+                                        return `A column named "${name}" already exists.`;
+                                    }
+                                    return commit(renameConditionColumn(row, column.name, name));
+                                }}
+                                onRetype={(type) => commit(retypeConditionColumn(row, column.name, type))}
+                                onMove={(to) => {
+                                    commit(moveConditionColumn(row, index, to));
+                                }}
+                            />
                         </Box>
                     ))}
                 </Box>
@@ -132,7 +161,7 @@ function RulesetColumnHeaders({
                         borderLeft: (theme) => `2px solid ${theme.palette.divider}`,
                     }}
                 >
-                    {actions.map((column) => (
+                    {actions.map((column, index) => (
                         <Box
                             key={column.name}
                             sx={{
@@ -144,8 +173,21 @@ function RulesetColumnHeaders({
                                 '&:last-of-type': {borderRight: 'none'},
                             }}
                         >
-                            <ColumnDragHandle />
-                            <TypeName sx={{px: 1}}>{column.name}</TypeName>
+                            <EditableColumnHeader
+                                rowPath={row.path}
+                                name={column.name}
+                                index={index}
+                                count={actions.length}
+                                onRename={(name) => {
+                                    if (name !== column.name && actions.some((item) => item.name === name)) {
+                                        return `A column named "${name}" already exists.`;
+                                    }
+                                    return commit(renameActionColumn(row, column.name, name));
+                                }}
+                                onMove={(to) => {
+                                    commit(moveActionColumn(row, index, to));
+                                }}
+                            />
                         </Box>
                     ))}
                 </Box>
@@ -175,12 +217,6 @@ export function RulesetRow({row}: RulesetRowProps): ReactElement {
     const hitPolicy = (row.children ?? []).find((child) => child.kind === 'ruleset-hit-policy')?.value;
     const showPriority = hitPolicy === 'best-match';
 
-    const conditions: HeaderColumn[] = (row.parameters ?? []).map((parameter) => ({
-        name: parameter.name,
-        type: parameter.type,
-    }));
-    const actions: HeaderColumn[] = (row.actionColumns ?? []).map((name) => ({name}));
-
     return (
         <Fragment>
             <GenericRow
@@ -192,7 +228,7 @@ export function RulesetRow({row}: RulesetRowProps): ReactElement {
                 iconActsAsDragHandle
                 icon={<RuleIcon sx={{fontSize: 19, color: '#fff'}} />}
                 iconBgColor="#6a1b9a"
-                value={<RulesetColumnHeaders conditions={conditions} actions={actions} showPriority={showPriority} />}
+                value={<RulesetColumnHeaders row={row} showPriority={showPriority} />}
                 valueIsInteractive
                 actions={menuActions}
             />

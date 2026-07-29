@@ -3,6 +3,8 @@ import {
   addList,
   appendListItem,
   commitExpression,
+  dragRow,
+  expectLiveModel,
   openBoxedEditorStory,
   renameRow,
   replaceActiveExpression,
@@ -114,6 +116,56 @@ test.describe('Boxed Editor / fields and lists', () => {
     await appendListItem(page, stringListPath, 1, '"quoted value"');
     await expect(valueCell(page, `${stringListPath}[0]`)).toHaveText("''");
     await expect(valueCell(page, `${stringListPath}[1]`)).toHaveText("'quoted value'");
+  });
+
+  test('appends compatible defaults to string, number, and boolean lists', async ({page}) => {
+    await openBoxedEditorStory(page, 'blank-model');
+    for (const [name, seed, expected] of [
+      ['strings', '"seed"', "''"],
+      ['numbers', '7', '0'],
+      ['booleans', 'true', 'false'],
+    ] as const) {
+      const path = await addList(page, name);
+      await appendListItem(page, path, 0, seed);
+      await page.getByTestId(`append-${path}`).click();
+      await expect(valueCell(page, `${path}[1]`)).toHaveText(expected);
+    }
+  });
+
+  test('rejects a mismatched literal in a homogeneous list visibly', async ({page}) => {
+    await openBoxedEditorStory(page, 'collections-list-and-relation');
+    await valueCell(page, 'reviewStages[0]').click();
+    await replaceActiveExpression(page, '123');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('alert').first()).toBeVisible();
+    await expect(page.getByTestId('live-result')).toContainText('Application');
+  });
+
+  test('deletes the last item and keeps the list linkable', async ({page}) => {
+    await openBoxedEditorStory(page, 'blank-model');
+    const path = await addList(page, 'single');
+    await appendListItem(page, path, 0, '"only"');
+    await page.getByTestId(`row-${path}[0]`).getByRole('button', {name: 'Open row actions'}).click();
+    await page.getByRole('menuitem', {name: 'Delete', exact: true}).click();
+    await expect(page.getByTestId(`row-${path}`)).toBeVisible();
+  });
+
+  test('reorders list items and changes execution order', async ({page}) => {
+    await openBoxedEditorStory(page, 'collections-list-and-relation');
+    await dragRow(page, 'reviewStages[1]', 'reviewStages[0]');
+    await expectLiveModel(page, /Underwriting.*Application/s);
+  });
+
+  test('converts a field to a list and back through row actions', async ({page}) => {
+    await openBoxedEditorStory(page, 'blank-model');
+    await page.getByTestId('append-*').click();
+    await page.getByTestId('row-field').getByRole('button', {name: 'Open row actions'}).click();
+    await page.getByRole('menuitem', {name: 'Convert to list', exact: true}).click();
+    await expect(page.getByTestId('row-field')).toBeVisible();
+    await page.getByTestId('row-field').getByRole('button', {name: 'Open row actions'}).click();
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.getByRole('menuitem', {name: 'Convert to field', exact: true}).click();
+    await expect(valueCell(page, 'field')).toHaveText("''");
   });
 
   test('read-only story does not expose mutation controls or expression editing', async ({ page }) => {

@@ -26,7 +26,7 @@ Don't redefine DSL/Portable-format/API contracts — they're owned by `edgerules
 
 EdgeRules WASM, DSL and WASM API might have bugs. Check for the latest version in
 `https://www.npmjs.com/package/@edgerules/web?activeTab=versions` and review `../edgerules-v2/` if necessary. For any
-detected bugs, append `docs/BUG_REPORTS.md` with a new entry describing the bug.
+detected bugs, append `docs/engine-bug-reports.md` with a new entry describing the bug.
 
 ## Coding Standards
 

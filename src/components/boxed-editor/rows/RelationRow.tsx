@@ -1,8 +1,10 @@
 import Box from '@mui/material/Box';
 import {Fragment, type ReactElement} from 'react';
 import type {BoxedTableRowData} from '../boxed-editor-types';
+import {moveRelationColumn, renameRelationColumn} from '../commands/rowFactories';
+import {useRowCommands} from '../commands/useRowCommands';
 import {useRowActions} from '../hooks/useRowActions';
-import {ColumnDragHandle, TypeName} from '../primitives';
+import {EditableColumnHeader} from '../primitives/EditableColumnHeader';
 import {GenericRow} from './GenericRow';
 import {NewRow} from './NewRow';
 import {RowSwitch} from './RowSwitch';
@@ -12,10 +14,14 @@ export interface RelationRowProps {
 }
 
 /** The column-header sub-grid a `relation` header row owns — one cell per entry in `columns`. */
-function RelationColumnHeaders({columns}: {columns: string[]}): ReactElement {
+function RelationColumnHeaders({row}: {row: BoxedTableRowData}): ReactElement {
+    const columns = row.columns ?? [];
+    const commands = useRowCommands();
+    const commit = (next: BoxedTableRowData): string | undefined =>
+        commands.setBoxedRowData(row.path, next, row.path)?.message;
     return (
         <Box sx={{display: 'flex', width: '100%', height: '100%'}}>
-            {columns.map((column) => (
+            {columns.map((column, index) => (
                 <Box
                     key={column}
                     sx={{
@@ -28,8 +34,21 @@ function RelationColumnHeaders({columns}: {columns: string[]}): ReactElement {
                         '&:last-of-type': {borderRight: 'none'},
                     }}
                 >
-                    <ColumnDragHandle />
-                    <TypeName sx={{px: 1}}>{column}</TypeName>
+                    <EditableColumnHeader
+                        rowPath={row.path}
+                        name={column}
+                        index={index}
+                        count={columns.length}
+                        onRename={(name) => {
+                            if (name !== column && columns.includes(name)) {
+                                return `A column named "${name}" already exists.`;
+                            }
+                            return commit(renameRelationColumn(row, column, name));
+                        }}
+                        onMove={(to) => {
+                            commit(moveRelationColumn(row, index, to));
+                        }}
+                    />
                 </Box>
             ))}
         </Box>
@@ -38,7 +57,6 @@ function RelationColumnHeaders({columns}: {columns: string[]}): ReactElement {
 
 /** Header of a homogeneous complex-object collection; its records are `relation-item` rows. */
 export function RelationRow({row}: RelationRowProps): ReactElement {
-    const columns = row.columns ?? [];
     const actions = useRowActions(row);
     return (
         <Fragment>
@@ -47,7 +65,7 @@ export function RelationRow({row}: RelationRowProps): ReactElement {
                 name={row.name}
                 depth={row.depth}
                 strong
-                value={<RelationColumnHeaders columns={columns} />}
+                value={<RelationColumnHeaders row={row} />}
                 valueIsInteractive
                 actions={actions}
             />
