@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { openStory } from '../support/storybook';
 
 test('DecisionTable story renders the grid with re-sugared cells and no CodeMirror mounted', async ({
   page,
 }) => {
-  await page.goto('/iframe.html?id=decision-table-decisiontableeditor--decision-table&viewMode=story');
+  await openStory(page, 'decision-table-decisiontableeditor--decision-table');
 
   const table = page.locator('table.MuiTable-root');
   await expect(table).toBeVisible();
@@ -19,7 +20,7 @@ test('DecisionTable story renders the grid with re-sugared cells and no CodeMirr
 test('double-clicking a cell opens a CodeEditorCell; committing updates the live result', async ({
   page,
 }) => {
-  await page.goto('/iframe.html?id=decision-table-decisiontableeditor--decision-table&viewMode=story');
+  await openStory(page, 'decision-table-decisiontableeditor--decision-table');
 
   const limitCell = page.locator('[role="button"]', { hasText: '1000' }).first();
   await limitCell.dblclick();
@@ -35,7 +36,7 @@ test('double-clicking a cell opens a CodeEditorCell; committing updates the live
 });
 
 test('a rejected edit surfaces the engine error and keeps the model intact', async ({ page }) => {
-  await page.goto('/iframe.html?id=decision-table-decisiontableeditor--decision-table&viewMode=story');
+  await openStory(page, 'decision-table-decisiontableeditor--decision-table');
 
   const ageCell = page.locator('[role="button"]', { hasText: '18..25' }).first();
   await ageCell.dblclick();
@@ -50,7 +51,7 @@ test('a rejected edit surfaces the engine error and keeps the model intact', asy
 });
 
 test('Scorecard story shows the score column and sums edited scores', async ({ page }) => {
-  await page.goto('/iframe.html?id=decision-table-decisiontableeditor--scorecard&viewMode=story');
+  await openStory(page, 'decision-table-decisiontableeditor--scorecard');
 
   await expect(page.locator('table.MuiTable-root')).toContainText('score');
   await expect(page.locator('body')).toContainText('scorecard');
@@ -58,7 +59,7 @@ test('Scorecard story shows the score column and sums edited scores', async ({ p
 });
 
 test('hit policy select switches to best-match and shows the priority column', async ({ page }) => {
-  await page.goto('/iframe.html?id=decision-table-decisiontableeditor--decision-table&viewMode=story');
+  await openStory(page, 'decision-table-decisiontableeditor--decision-table');
 
   await page.getByLabel('Hit policy').click();
   await page.getByRole('option', { name: /best match/i }).click();

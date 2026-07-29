@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openStory } from '../support/storybook';
 
 // Smoke-level only: RTL (ProjectExplorer.test.tsx) already covers behavior in detail against the
 // real engine. This just confirms the built artifact (post-tsup, post-Storybook-build) actually
@@ -7,14 +8,14 @@ import { test, expect } from '@playwright/test';
 // (see the plan's known engine gap).
 
 test('Default story renders the example model tree', async ({ page }) => {
-  await page.goto('/iframe.html?id=project-explorer-projectexplorer--default&viewMode=story');
+  await openStory(page, 'project-explorer-projectexplorer--default');
   await expect(page.getByText('Types', { exact: true })).toBeVisible();
   await expect(page.getByText('Variables', { exact: true })).toBeVisible();
   await expect(page.getByText('nested', { exact: true })).toBeVisible();
 });
 
 test('Expanded story reveals group children after clicking Types/Variables', async ({ page }) => {
-  await page.goto('/iframe.html?id=project-explorer-projectexplorer--expanded&viewMode=story');
+  await openStory(page, 'project-explorer-projectexplorer--expanded');
   await expect(page.getByText('Person', { exact: true })).toBeVisible();
   await expect(page.getByText('PeopleList', { exact: true })).toBeVisible();
   await expect(page.getByText('globalConst', { exact: true })).toBeVisible();
@@ -22,6 +23,6 @@ test('Expanded story reveals group children after clicking Types/Variables', asy
 });
 
 test('WithLinkingError story shows an error badge after expanding the broken context', async ({ page }) => {
-  await page.goto('/iframe.html?id=project-explorer-projectexplorer--with-linking-error&viewMode=story');
+  await openStory(page, 'project-explorer-projectexplorer--with-linking-error');
   await expect(page.getByTestId('icon-ctx')).toBeVisible();
 });

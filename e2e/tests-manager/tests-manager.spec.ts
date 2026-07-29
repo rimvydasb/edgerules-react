@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openStory } from '../support/storybook';
 
-const STORY =
-  '/iframe.html?id=tests-manager-testsmanager--indexed-array-paths&viewMode=story';
+const STORY_ID = 'tests-manager-testsmanager--indexed-array-paths';
 
 async function openPathEditor(page: Page, path: string) {
   const grid = page.getByTestId('tests-grid');
@@ -15,7 +15,7 @@ async function openPathEditor(page: Page, path: string) {
 test('array fields pre-generate their zero-indexed element rows, at every depth', async ({
   page,
 }) => {
-  await page.goto(STORY);
+  await openStory(page, STORY_ID);
 
   await expect(page.getByTestId('row-application.applicant')).toBeVisible();
   await expect(
@@ -29,7 +29,7 @@ test('array fields pre-generate their zero-indexed element rows, at every depth'
 test('a valid path is not marked as an unknown reference when its cell is edited', async ({
   page,
 }) => {
-  await page.goto(STORY);
+  await openStory(page, STORY_ID);
   await openPathEditor(page, 'application.applicant[0].creditLine[0].balance');
 
   // Give the linter a cycle; the path must stay clean — the whole-model language service used to
@@ -41,7 +41,7 @@ test('a valid path is not marked as an unknown reference when its cell is edited
 test('the completion popup lists addressable paths and is not covered by the grid', async ({
   page,
 }) => {
-  await page.goto(STORY);
+  await openStory(page, STORY_ID);
   const editor = await openPathEditor(page, 'application.applicant[0].name');
 
   await editor.click();
@@ -77,7 +77,7 @@ test('the completion popup lists addressable paths and is not covered by the gri
 test('an unknown path is marked on the offending segment only, and can still be committed', async ({
   page,
 }) => {
-  await page.goto(STORY);
+  await openStory(page, STORY_ID);
   const editor = await openPathEditor(page, 'application.applicant[0].name');
 
   await editor.click();
@@ -94,7 +94,7 @@ test('an unknown path is marked on the offending segment only, and can still be 
 });
 
 test('duplicating an indexed row adds the next element below it', async ({ page }) => {
-  await page.goto(STORY);
+  await openStory(page, STORY_ID);
   await expect(page.getByTestId('tests-grid')).toBeVisible();
 
   await page.getByLabel('row menu application.applicant[0].name').click();
