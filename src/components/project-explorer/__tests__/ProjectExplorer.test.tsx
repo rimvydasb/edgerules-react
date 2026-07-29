@@ -130,7 +130,12 @@ describe('ProjectExplorer', () => {
         expect(onOpenFunction).toHaveBeenCalledWith('topFn');
     });
 
-    it('renders an error badge/tooltip and stops expanding once get() fails for a [ctx] node', async () => {
+    it('keeps expanding a [ctx] node that no longer links, rendering its type-free data instead of an error', async () => {
+        // As of the engine's linking-contract rework (edgerules-v2 `doc/LINKING_FIX.md`), `get()`
+        // never throws/returns a `PortableError` for a linking reason anymore — a broken reference
+        // degrades every path to raw, type-free data instead (no error, no `readOnly`/type info).
+        // `.link()` (not exposed through `ProjectExplorerService` today) is the only way to learn
+        // *that*/*why* the model is broken; `get()` alone can no longer tell the tree to stop here.
         const service = MutableDecisionService.fromCode('{ box: { a: 1 b: a + 1 } }');
         const user = userEvent.setup();
         render(<ProjectExplorer service={service} />);
@@ -141,11 +146,9 @@ describe('ProjectExplorer', () => {
 
         await user.click(screen.getByText('box'));
 
-        // Treated as a leaf: no children rendered despite the error.
-        expect(screen.queryByText('b')).not.toBeInTheDocument();
-
-        await user.hover(screen.getByTestId('icon-ctx'));
-        const tooltip = await screen.findByRole('tooltip');
-        expect(tooltip).toHaveTextContent(/unresolved reference/i);
+        // `b` still renders — as an ordinary `[var]` leaf under the "Variables" group — rather than
+        // the tree getting stuck as an errored leaf.
+        await user.click(screen.getByText('Variables'));
+        expect(screen.getByText('b')).toBeInTheDocument();
     });
 });

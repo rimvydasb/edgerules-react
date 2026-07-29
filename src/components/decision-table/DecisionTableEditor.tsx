@@ -95,6 +95,37 @@ export interface DecisionTableService {
      * `@parameters` key and cell-map `when` rows.
      */
     rename?(path: string, newName: string): void | PortableError;
+    /**
+     * Optional: explicit, throwing relink attempt (`MutableDecisionService.link()`). `set()` itself
+     * never rolls back or errors for a linking reason (see `../../../edgerules-v2/doc/LINKING_FIX.md`),
+     * so a cell edit that breaks the ruleset's own linking (e.g. a `when`-cell value of the wrong
+     * type) must be caught and undone here instead — see `setWithLinkCheck` below. When absent, a
+     * link-breaking edit commits without detection, same as `rename`'s optionality above.
+     */
+    link?(): void;
+}
+
+/**
+ * Writes `node` at `path`, then confirms the model still links; a break is treated as a rejection —
+ * `rollback`'s node is written back to `rollback.path` and the linker's `PortableError` is returned
+ * in place of the (already-applied) success node. A no-op when `service.link` isn't provided.
+ */
+function setWithLinkCheck(
+    service: DecisionTableService,
+    path: string,
+    node: PortableNode | PortableRule,
+    rollback?: {path: string; node: PortableNode | PortableRule},
+): PortableNode | PortableError {
+    const result = service.set(path, node);
+    if (isPortableError(result)) return result;
+    if (!service.link) return result;
+    try {
+        service.link();
+        return result;
+    } catch (linkError) {
+        if (rollback) service.set(rollback.path, rollback.node);
+        return linkError as PortableError;
+    }
 }
 
 export interface DecisionTableEditorProps {
@@ -566,11 +597,11 @@ export function DecisionTableEditor({
                 return null;
             }
             const rulePath = `${activePath}.rules[${index}]`;
-            const result = service.set(rulePath, rule);
+            const result = setWithLinkCheck(service, rulePath, rule, {
+                path: rulePath,
+                node: definition['@rules'][index],
+            });
             if (isPortableError(result)) {
-                // Defensive: restore the last good rule before surfacing the error, in case a
-                // rejected set is ever left applied.
-                service.set(rulePath, definition['@rules'][index]);
                 setEditError(result.message);
                 return result.message;
             }
@@ -587,9 +618,8 @@ export function DecisionTableEditor({
             if (!definition) {
                 return null;
             }
-            const result = service.set(activePath, next);
+            const result = setWithLinkCheck(service, activePath, next, {path: activePath, node: definition});
             if (isPortableError(result)) {
-                service.set(activePath, definition);
                 setEditError(result.message);
                 return result.message;
             }
@@ -620,12 +650,14 @@ export function DecisionTableEditor({
                 return null;
             }
             const cellPath = name === SCALAR_OUTPUT ? `${activePath}.default` : `${activePath}.default.${name}`;
-            const result = service.set(cellPath, text.trim());
+            const previous = definition['@default'];
+            const result = setWithLinkCheck(
+                service,
+                cellPath,
+                text.trim(),
+                previous !== undefined ? {path: `${activePath}.default`, node: previous} : undefined,
+            );
             if (isPortableError(result)) {
-                const previous = definition['@default'];
-                if (previous !== undefined) {
-                    service.set(`${activePath}.default`, previous);
-                }
                 setEditError(result.message);
                 return result.message;
             }
@@ -692,9 +724,11 @@ export function DecisionTableEditor({
         }
         const rule = rowToRule(emptyRow(model), model.scorecard);
         const index = definition['@rules'].length;
-        const result = service.set(`${activePath}.rules[${index}]`, rule);
+        const result = setWithLinkCheck(service, `${activePath}.rules[${index}]`, rule, {
+            path: activePath,
+            node: definition,
+        });
         if (isPortableError(result)) {
-            service.set(activePath, definition);
             setEditError(result.message);
             return;
         }

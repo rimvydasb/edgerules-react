@@ -31,6 +31,7 @@ interface MutableDecisionService {
   remove(path: string): void | PortableError;
   rename(path: string, newName: string): void | PortableError;
   toPortable(): PortableRootContext;
+  link(): void;
 }
 
 function readAuthored(
@@ -431,6 +432,37 @@ function complexTypeSiblingRecord(
   return isRecord(current) ? (current as unknown as Record<string, unknown>) : undefined;
 }
 
+/**
+ * Writes `node` at `writePath`, then confirms the model still links — `set()` itself never rolls
+ * back or throws for a linking reason anymore (`LINKING_FIX.md` §3.5), so a write that leaves the
+ * model unlinkable must be caught and undone here instead. Scoped to `setBoxedRowData` only: a
+ * value edit is expected to be self-contained, so an edit that breaks linking is rejected in place,
+ * same as the old (pre-upgrade) engine's implicit set()-rollback behavior. `remove`/`rename`/`move`
+ * deliberately keep no such check (Resolved Decision #12, `phase-08-quality-gate.md`) — those may
+ * legitimately leave a *different* row's reference dangling, and rolling them back would make
+ * renaming/removing anything another row still refers to impossible.
+ */
+function setWithLinkCheck(
+  mutable: MutableDecisionService,
+  writePath: string,
+  writeNode: PortableNode,
+  previousNode: PortableNode | undefined,
+): PortableNode | PortableError {
+  const result = mutable.set(writePath, writeNode);
+  if (isPortableError(result)) return result;
+  try {
+    mutable.link();
+    return result;
+  } catch (linkError) {
+    if (previousNode === undefined) {
+      mutable.remove(writePath);
+    } else {
+      mutable.set(writePath, previousNode);
+    }
+    return linkError as PortableError;
+  }
+}
+
 function duplicateNameError(path: string, name: string): PortableError {
   return {
     '@kind': 'error',
@@ -480,29 +512,40 @@ export function createBoxedEditorService(
               { ...owner, node: updated },
               `${owner.path}.minimise`,
             );
-            return mutable.set(
+            return setWithLinkCheck(
+              mutable,
               owner.path,
               setOptimisationChild(
                 { ...owner, node: updated },
                 `${owner.path}.${row.name}`,
                 denormalize(row),
               ),
+              owner.node,
             );
           }
-          return mutable.set(
+          return setWithLinkCheck(
+            mutable,
             owner.path,
             setOptimisationChild(owner, path, denormalize(row)),
+            owner.node,
           );
         }
 
         const typeOwner = complexTypeOwner(root, path);
         if (typeOwner && typeOwner.path !== path) {
-          return mutable.set(
+          return setWithLinkCheck(
+            mutable,
             typeOwner.path,
             setComplexTypeChild(typeOwner, path, denormalizeTypeField(row)),
+            typeOwner.node,
           );
         }
-        return mutable.set(path, denormalize(row));
+        return setWithLinkCheck(
+          mutable,
+          path,
+          denormalize(row),
+          portableAtPath(root, path),
+        );
       }) as PortableNode | PortableError;
     },
     remove(path) {
@@ -724,6 +767,14 @@ export function createBoxedEditorService(
     },
     toPortable() {
       return mutable.toPortable();
+    },
+    link() {
+      try {
+        mutable.link();
+        return undefined;
+      } catch (error) {
+        return error as PortableError;
+      }
     },
   };
 }

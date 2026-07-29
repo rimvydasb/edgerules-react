@@ -78,4 +78,8 @@ export interface BoxedEditorService {
   subscribe(listener: () => void): Unsubscribe;
   invalidate(path?: string): void;
   toPortable(): PortableRootContext;
+  /**
+   * Explicit, on-demand relink check
+   */
+  link(): PortableError | void;
 }

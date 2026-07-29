@@ -371,11 +371,14 @@ describe('withInputColumnRenamed / withInputColumnTypeChanged / withOutputColumn
   it('a renamed parameter still referenced by an unrewritten boolean-expression row surfaces as an engine error, not silent breakage', () => {
     const { service, definition } = riskDefinition();
     // Rule 3's `when` is the boolean expression `age >= 65 or segment = "premium"` — renaming
-    // `age` doesn't rewrite that identifier (see the function's doc comment), so the engine
-    // reports it as an unresolved reference rather than linking incorrectly.
+    // `age` doesn't rewrite that identifier (see the function's doc comment), so the model no
+    // longer links. `set()` itself never rolls back or errors for a linking reason anymore (it
+    // applies the write and returns the type-free node — see `../../../edgerules-v2/doc/LINKING_FIX.md`);
+    // `.link()` is the call that surfaces the precise diagnosis.
     const renamed = withInputColumnRenamed(definition, 'age', 'years');
     const result = service.set('risk', renamed) as { '@kind'?: string; message?: string };
-    expect(result['@kind']).toBe('error');
+    expect(result['@kind']).toBe('ruleset');
+    expect(() => service.link()).toThrowError(/unresolved reference/i);
   });
 
   it('changes a parameter type and is accepted by the real engine', () => {

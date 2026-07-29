@@ -248,6 +248,41 @@ describe('BoxedEditorService mutations and cache', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it('link() reports undefined for a linking model and the precise PortableError otherwise', () => {
+    const mutable = MutableDecisionService.fromCode('{ a: 1; b: a + 1 }');
+    const service = createBoxedEditorService(mutable);
+
+    expect(service.link()).toBeUndefined();
+
+    mutable.remove('a'); // orphans `b: a + 1` — `remove()` never validates linking (Resolved
+    // Decision #12), so this must succeed uncorrected and only surface on an explicit `link()` call.
+    const error = service.link();
+    expect(isPortableError(error)).toBe(true);
+    expect(error).toMatchObject({ '@kind': 'error', type: 'Execution' });
+    expect((error as { message: string }).message).toMatch(/unresolved reference/i);
+  });
+
+  it('setBoxedRowData rejects and rolls back an edit that breaks the model, unlike remove/rename', () => {
+    const mutable = MutableDecisionService.fromCode('{ amount: 10 }');
+    const service = createBoxedEditorService(mutable);
+
+    const result = service.setBoxedRowData('amount', {
+      kind: 'field',
+      depth: 0,
+      path: 'amount',
+      name: 'amount',
+      value: 'undefinedName + 1',
+    });
+
+    expect(isPortableError(result)).toBe(true);
+    expect((result as { message: string }).message).toMatch(/unresolved reference/i);
+    // The write is rolled back, not merely reported — the model still links and `amount` is
+    // unchanged, unlike a `remove`/`rename` that breaks some other row's reference (Resolved
+    // Decision #12), which is intentionally left uncorrected.
+    expect(mutable.toPortable()).toMatchObject({ amount: 10 });
+    expect(service.link()).toBeUndefined();
+  });
+
   it('delegates rename/remove and public invalidation', () => {
     const mutable = MutableDecisionService.fromCode(
       '{ item: 1; removable: 2 }',

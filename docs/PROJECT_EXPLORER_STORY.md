@@ -109,10 +109,15 @@ Expanding `[types]` and `[vars]` lists their individual entries, each with its o
 
 ### Error Handling
 
-`get(path, filter?)` can return a `PortableError` instead of a node — most commonly a `Linking` error, since a CRUD
-edit can leave the AST dirty and only surface a broken reference or type mismatch the next time the model is
-linked (see `EDGERULES_CRUD_SPEC.md`). When building a node's children, if the underlying `get` call returns a
-`PortableError`:
+`get(path, filter?)` can still return a `PortableError` for `EntryNotFound`/`WrongFieldPath` (the path itself doesn't
+resolve). It no longer does so for a **linking** reason: as of the engine's linking-contract rework
+(`../edgerules-v2/doc/LINKING_FIX.md`), a CRUD edit that leaves the AST dirty degrades every path — not just the
+broken one — to a raw, type-free projection instead (no error, no `readOnly`/inferred-type info, just the authored
+shape); `MutableDecisionService.link()` is the only call that still throws a precise, path-scoped diagnosis, and it
+isn't exposed through `ProjectExplorerService` today. Practically: a `[ctx]` node whose subtree doesn't currently
+link keeps expanding and rendering its (now-untyped) children rather than getting stuck as an errored leaf — there
+is no engine signal left for this component to show an error badge/tooltip on. When building a node's children, if
+the underlying `get` call returns a genuine `PortableError` (a structural path problem, not linking):
 
 - Render the affected node with an error indicator (e.g. an error badge on the icon) instead of failing to render
   the tree.
