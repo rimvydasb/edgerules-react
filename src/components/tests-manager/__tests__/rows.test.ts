@@ -78,7 +78,7 @@ describe('deriveRows — model subject', () => {
   });
 
   // The engine rejects a recursive type at *link* time (`E210: recursive type alias`), but `get()`
-  // no longer errors for a linking reason (edgerules-v2 `doc/LINKING_FIX.md`) — it falls back to
+  // no longer errors for a linking reason (edgerules-v2 `doc/architecture/CRUD_SPEC.md`) — it falls back to
   // the raw, type-free AST projection instead, uniformly for every path. So `deriveRows` still gets
   // a readable (if untyped) schema here, and the existing `seen` guard in `expandTypeRef` (built for
   // the ordinary non-recursive case) is what actually stops the walk at one level.

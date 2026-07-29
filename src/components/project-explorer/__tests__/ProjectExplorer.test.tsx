@@ -131,7 +131,7 @@ describe('ProjectExplorer', () => {
     });
 
     it('keeps expanding a [ctx] node that no longer links, rendering its type-free data instead of an error', async () => {
-        // As of the engine's linking-contract rework (edgerules-v2 `doc/LINKING_FIX.md`), `get()`
+        // As of the engine's linking-contract rework (edgerules-v2 `doc/architecture/CRUD_SPEC.md`), `get()`
         // never throws/returns a `PortableError` for a linking reason anymore — a broken reference
         // degrades every path to raw, type-free data instead (no error, no `readOnly`/type info).
         // `.link()` (not exposed through `ProjectExplorerService` today) is the only way to learn

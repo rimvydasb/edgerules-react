@@ -434,7 +434,7 @@ function complexTypeSiblingRecord(
 
 /**
  * Writes `node` at `writePath`, then confirms the model still links — `set()` itself never rolls
- * back or throws for a linking reason anymore (`LINKING_FIX.md` §3.5), so a write that leaves the
+ * back or throws for a linking reason anymore (`CRUD_SPEC.md` §2, ex-`LINKING_FIX.md` §3.5), so a write that leaves the
  * model unlinkable must be caught and undone here instead. Scoped to `setBoxedRowData` only: a
  * value edit is expected to be self-contained, so an edit that breaks linking is rejected in place,
  * same as the old (pre-upgrade) engine's implicit set()-rollback behavior. `remove`/`rename`/`move`

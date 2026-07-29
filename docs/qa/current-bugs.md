@@ -4,7 +4,8 @@ Every confirmed defect in the Boxed Editor, with a repro, a root cause, a fix lo
 Read [`qa-general-info.md`](qa-general-info.md) first.
 
 **Verification:** entries marked *verified* were reproduced against `@edgerules/node` / `@edgerules/web`
-**`0.0.5-alpha.202607291250`** on **2026-07-29**, with throwaway Node scripts — no React, no mocks. Entries marked
+**`0.0.5-alpha.202607291250`** on **2026-07-29** and re-checked against **`0.0.6-alpha.202607291629`** the same day
+(Bug 1 fixed upstream, Bug 10 ruled by-design engine-side), with throwaway Node scripts — no React, no mocks. Entries marked
 *by inspection* were root-caused from the source only. Re-run the verified repros after any engine upgrade before
 touching the fixes.
 
@@ -15,7 +16,7 @@ Vitest test may accompany one, never replace it.
 
 | #  | Title                                                                     | Severity | Layer  | Fixed in                                   |
 | -- | ------------------------------------------------------------------------- | -------- | ------ | ------------------------------------------ |
-| 1  | Untyped argument corrupts on round-trip                                   | Critical | engine | [Phase 2](improvement-phase-2.md)          |
+| 1  | Untyped argument corrupts on round-trip — **fixed upstream in `0.0.6`**   | Critical | engine | fixed in the engine, `0.0.6-alpha.202607291629` |
 | 2  | No rename for an argument / column                                        | High     | react  | [Phase 4](improvement-phase-4.md)          |
 | 3  | No way to change a column/argument type                                   | High     | react  | [Phase 4](improvement-phase-4.md)          |
 | 4  | Column drag handles are decorative                                        | Medium   | react  | [Phase 4](improvement-phase-4.md)          |
@@ -24,7 +25,7 @@ Vitest test may accompany one, never replace it.
 | 7  | A `complexType` can never be created from the UI                          | High     | react  | [Phase 3](improvement-phase-3.md)          |
 | 8  | `DropdownChip` settings are decorative — hit policy unchangeable          | High     | react  | [Phase 5](improvement-phase-5.md)          |
 | 9  | A rule can never be authored in boolean-expression form                   | Medium   | react  | [Phase 5](improvement-phase-5.md)          |
-| 10 | `rename` never migrates references — silently breaks the model            | Critical | both   | [Phase 6](improvement-phase-6.md)          |
+| 10 | `rename` never migrates references — engine behaviour is by design        | Critical | react  | [Phase 6](improvement-phase-6.md)          |
 | 11 | The link check is model-global, so one broken row freezes every commit    | Critical | react  | [Phase 2](improvement-phase-2.md)          |
 | 12 | Appending a record to a non-string-column relation silently does nothing  | High     | react  | [Phase 3](improvement-phase-3.md)          |
 | 13 | New condition columns are hardcoded `string`                              | High     | react  | [Phase 4](improvement-phase-4.md)          |
@@ -37,12 +38,19 @@ Vitest test may accompany one, never replace it.
 **Severity: Critical.** Root cause behind both `Strange null error` and `Impossible to create more than one function
 argument` from the original report — the same defect observed at two different moments.
 
+> **FIXED UPSTREAM in `0.0.6-alpha.202607291629`** (re-verified 2026-07-29): `toPortable()` now emits JSON `null`
+> for an untyped parameter, so the read-modify-write below round-trips and links. **The defensive workaround
+> described under "Fix" was never shipped and must not be** — `normalize.ts`/`denormalize.ts` already implement the
+> documented `null` contract, and a `'null'`-string branch would now only make a type literally named `null`
+> unreferenceable for no gain. The regression test below is still worth having. Everything after this note is the
+> original `0.0.5-alpha.202607291250` diagnosis, kept for history.
+
 - [x] Root-caused (verified against the real engine)
-- [x] Filed upstream in `docs/BUG_REPORTS.md`
-- [ ] Defensive workaround shipped in edgerules-react
+- [x] Filed upstream (entry deleted from `docs/BUG_REPORTS.md` once the engine fixed it)
+- [x] Fixed upstream in `0.0.6-alpha.202607291629` (no editor-side workaround needed)
 - [ ] Browser regression test added
 
-**Root cause.** `EDGERULES_API_SPEC.md` §"Function Definition" documents a `@parameters` value as a bare type string,
+**Root cause.** `API_SPEC.md` §"Function Definition" documents a `@parameters` value as a bare type string,
 a `PortableTypedValue`, or **`null` for an untyped parameter**. `rowFactories.addArgument` and `denormalize.ts`'s
 `parameters()` both follow that contract. The engine does not round-trip it:
 
@@ -321,9 +329,16 @@ representations are not mechanically convertible.
 
 **Severity: Critical.** *(verified)*
 
+> **Engine side settled in `0.0.6-alpha.202607291629`: by design, not a bug** — the `rename` doc comment now states
+> it. Renaming a `func`/`ruleset`/`loop` **or one of its own parameters** does relink every reference (verified
+> 2026-07-29: cell-map `when` keys, boolean-expression `when` rows and call sites all migrate). Renaming anything
+> else — a plain field, a context key, a `type` — only moves the key, and `link()` is the documented way to detect
+> the fallout. So **option 1 below is off the table** and this is now an editor-side bug: the boxed editor renames
+> arbitrary rows without link-checking. Ship option 3.
+
 - [x] Reproduced against the real engine
-- [x] Filed upstream in `docs/BUG_REPORTS.md`
-- [ ] Decided where the fix belongs (engine vs editor)
+- [x] Filed upstream — ruled by design; see `docs/BUG_REPORTS.md` §"Clarified behaviour — not bugs"
+- [x] Decided where the fix belongs — **editor** (engine behaviour is by design, confirmed upstream)
 - [ ] Fixed
 - [ ] Browser regression test added
 
@@ -347,8 +362,9 @@ innocuous rename can put the model into a state where **no further edit anywhere
 point. `NameCell`-driven renames (every named row) and any future column rename (Bug 2) are both affected.
 
 **Fix — pick one and write it down:**
-1. **Engine (preferred).** `rename` rewrites every reference to the renamed path. Filed upstream; check
-   `../edgerules-v2/tests/wasm/crud.test.ts` for the intended contract first.
+1. ~~**Engine (preferred).** `rename` rewrites every reference to the renamed path.~~ **Rejected upstream** —
+   reference migration is limited to callables and their parameters by design (see the note above); the engine
+   will not rewrite references to a renamed field/context/type.
 2. **Editor.** Scan the portable tree for references to the old path, rewrite them, and commit rename + rewrites as
    one operation, rolling back if the result does not link. Substantial, and duplicates the engine's name resolution.
 3. **Minimum viable, ship regardless of 1/2.** Make `rename` link-check like `setBoxedRowData` does, and surface the

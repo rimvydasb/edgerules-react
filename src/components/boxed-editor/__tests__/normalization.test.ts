@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { MutableDecisionService } from '@edgerules/node/mutable';
 import { isPortableError } from '../../../lib/portable';
+import type { BoxedTableRowData } from '../boxed-editor-types';
+import { addArgument } from '../commands/rowFactories';
 import { createBoxedEditorService } from '../service/createBoxedEditorService';
 import { denormalize } from '../service/denormalize';
 import { normalizeNode } from '../service/normalize';
@@ -294,6 +296,33 @@ describe('BoxedEditorService normalization', () => {
     );
     expect(service.getBoxedRowData('missing')).toBeUndefined();
     expect(service.getBoxedRowsData('missing')).toEqual([]);
+  });
+
+  it('adds untyped function arguments one after another through the real engine', () => {
+    // Regression for `docs/qa/current-bugs.md` Bug 1: an untyped (`null`) `@parameters` value used
+    // to come back out of `toPortable()` as the string `'null'`, so the second `Add argument` —
+    // a whole-row commit built from what the editor just read — re-submitted it as a type name and
+    // the model stopped linking. Fixed in the engine (`0.0.6-alpha.202607291629`); this test is the
+    // read-modify-write cycle the editor actually performs, and must stay green without any
+    // `'null'`-string special-casing in `normalize.ts`/`denormalize.ts`.
+    const mutable = MutableDecisionService.fromCode('{ func f(): "" }');
+    const service = createBoxedEditorService(mutable);
+
+    for (let count = 1; count <= 3; count += 1) {
+      const row = service.getBoxedRowData('f') as BoxedTableRowData;
+      expect(isPortableError(service.setBoxedRowData('f', addArgument(row)))).toBe(false);
+      expect(
+        (service.getBoxedRowData('f') as BoxedTableRowData).parameters,
+      ).toHaveLength(count);
+    }
+
+    expect(
+      (service.getBoxedRowData('f') as BoxedTableRowData).parameters,
+    ).toEqual([{ name: 'arg' }, { name: 'arg2' }, { name: 'arg3' }]);
+    expect(mutable.toPortable().f).toMatchObject({
+      '@parameters': { arg: null, arg2: null, arg3: null },
+    });
+    expect(() => mutable.link()).not.toThrow();
   });
 
   it('materializes CRUD-addressable arrays inside function bodies', () => {

@@ -39,15 +39,21 @@ is a rename button that corrupts models by default.
 
 ### 6.1 Decide where the fix belongs — do this first
 
-- [ ] Read `../edgerules-v2/tests/wasm/crud.test.ts` and `doc/architecture/EDGERULES_CRUD_SPEC.md` to establish the
-      *intended* contract for `rename`. The defect is already filed in `docs/BUG_REPORTS.md`.
-- [ ] Choose and record the decision here:
-  - [ ] **(1) Engine — preferred.** `rename` rewrites every reference to the renamed path; that is what distinguishes
-        a rename from delete-and-recreate. Track the upstream fix; ship (3) in the meantime.
+- [x] Read `../edgerules-v2/tests/wasm/crud.test.ts` and `doc/architecture/CRUD_SPEC.md` to establish the
+      *intended* contract for `rename`. **Settled upstream** (`0.0.6-alpha.202607291629`, see
+      `docs/BUG_REPORTS.md`): the current behaviour is by design. `rename` migrates references only for a
+      `func`/`ruleset`/`loop` and its own declared parameters — verified: call sites, cell-map `when` keys and
+      boolean-expression `when` rows all relink. For a plain field, context key or `type`, only the key moves and
+      `link()` is the documented way to detect the fallout. `remove()` carries the same caveat.
+- [x] Decision recorded: **option (3)** — the engine will not do (1), and (2) duplicates the engine's name resolution
+      for the shrinking set of cases the engine won't relink.
+  - [x] ~~**(1) Engine — preferred.** `rename` rewrites every reference to the renamed path.~~ **Rejected upstream:**
+        full refactoring is explicitly out of scope for the engine; `link()` exists to check the model after any
+        mutation.
   - [ ] **(2) Editor.** Scan the portable tree for references to the old path, rewrite them, and commit the rename
         plus every rewrite as one operation, rolling everything back if the result does not link. Substantial, and it
-        duplicates the engine's own name resolution — take this only if (1) is refused.
-  - [ ] **(3) Minimum viable — ship regardless of 1/2.** Make `rename` link-check like `setBoxedRowData` does and
+        duplicates the engine's own name resolution — not taken; revisit only if (3) proves insufficient in use.
+  - [ ] **(3) Minimum viable — chosen; ship this.** Make `rename` link-check like `setBoxedRowData` does and
         surface the failure through [Phase 2](improvement-phase-2.md)'s channel. "Succeeds silently and freezes the
         editor" is not an acceptable outcome, whatever else is decided.
 

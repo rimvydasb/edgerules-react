@@ -97,7 +97,7 @@ export interface DecisionTableService {
     rename?(path: string, newName: string): void | PortableError;
     /**
      * Optional: explicit, throwing relink attempt (`MutableDecisionService.link()`). `set()` itself
-     * never rolls back or errors for a linking reason (see `../../../edgerules-v2/doc/LINKING_FIX.md`),
+     * never rolls back or errors for a linking reason (see `../../../edgerules-v2/doc/architecture/CRUD_SPEC.md`),
      * so a cell edit that breaks the ruleset's own linking (e.g. a `when`-cell value of the wrong
      * type) must be caught and undone here instead — see `setWithLinkCheck` below. When absent, a
      * link-breaking edit commits without detection, same as `rename`'s optionality above.

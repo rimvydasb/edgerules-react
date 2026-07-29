@@ -19,16 +19,17 @@ channel built here, and Bug 11's global latch will otherwise make unrelated phas
 
 ## Tasks
 
-### 2.1 Bug 1 — untyped argument round-trip guard
+### 2.1 Bug 1 — untyped argument round-trip guard — ~~DROPPED~~, fixed in the engine
 
-- [ ] `service/normalize.ts` → `parametersOf`: `if (parameter === null || parameter === 'null') return { name };`
-- [ ] `service/denormalize.ts` → `parameters()`: guard the same way before the
-      `else if (parameter.required === undefined)` branch, so a parameter whose `type` is exactly `'null'`
-      denormalizes back to JSON `null`, not a type reference.
-- [ ] Comment both with the engine version they work around (`0.0.5-alpha.202607291250`) and a pointer to
-      `docs/BUG_REPORTS.md`, so the upgrade skill deletes them rather than inheriting them forever.
-- [ ] Note the accepted side effect in the comment: a user-defined type literally named `null` becomes
-      unreferenceable.
+The engine fixed the round-trip in `0.0.6-alpha.202607291629` (`toPortable()` now emits JSON `null` for an untyped
+parameter), so **do not ship the `'null'`-string guard described here** — it would only make a user-defined type
+literally named `null` unreferenceable, for nothing. `normalize.ts`/`denormalize.ts` already implement the documented
+`null` contract and need no change.
+
+- [x] ~~`service/normalize.ts` → `parametersOf` guard~~ — not needed
+- [x] ~~`service/denormalize.ts` → `parameters()` guard~~ — not needed
+- [x] Locked in instead by `normalization.test.ts` → "adds untyped function arguments one after another through the
+      real engine": the editor's own read-modify-write cycle, three arguments deep, asserting the model still links.
 
 ### 2.2 Bug 5 — a visible error channel for menu and append actions
 
@@ -91,8 +92,8 @@ Every "should have succeeded" assertion above must check `live-result` or `live-
 
 Allowed, never a substitute for the browser tests above (`src/components/boxed-editor/__tests__/`):
 
-- [ ] `normalization.test.ts` — a parameter whose portable value is the string `'null'` normalizes to an untyped
-      parameter, not a type reference.
+- [x] `normalization.test.ts` — repeated `Add argument` on a function round-trips through the real engine and keeps
+      every untyped parameter (replaces the obsolete `'null'`-string normalization check; see §2.1).
 - [ ] `mutation.test.ts` — an unrelated write still commits after a removal left another row's reference dangling.
 
 ---

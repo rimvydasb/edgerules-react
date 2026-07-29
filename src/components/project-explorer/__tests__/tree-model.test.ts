@@ -23,7 +23,7 @@ describe('classifyFieldNode', () => {
 
   it('classifies a function schema as func', () => {
     // Not part of the declared PortableNode union, but the real engine's default CONTEXT
-    // filter returns this shape for function fields (see EDGERULES_API_SPEC.md).
+    // filter returns this shape for function fields (see API_SPEC.md).
     expect(
       classifyFieldNode({
         '@kind': 'function-schema',
@@ -46,7 +46,7 @@ describe('classifyFieldNode', () => {
 
   it('classifies a ruleset schema as dt', () => {
     // Not part of the declared PortableNode union, but the real engine's default CONTEXT
-    // filter returns this shape for ruleset fields (see EDGERULES_API_SPEC.md).
+    // filter returns this shape for ruleset fields (see API_SPEC.md).
     expect(
       classifyFieldNode({
         '@kind': 'ruleset-schema',

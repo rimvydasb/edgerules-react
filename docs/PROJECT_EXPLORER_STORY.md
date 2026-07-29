@@ -111,7 +111,7 @@ Expanding `[types]` and `[vars]` lists their individual entries, each with its o
 
 `get(path, filter?)` can still return a `PortableError` for `EntryNotFound`/`WrongFieldPath` (the path itself doesn't
 resolve). It no longer does so for a **linking** reason: as of the engine's linking-contract rework
-(`../edgerules-v2/doc/LINKING_FIX.md`), a CRUD edit that leaves the AST dirty degrades every path — not just the
+(`../edgerules-v2/doc/architecture/CRUD_SPEC.md`), a CRUD edit that leaves the AST dirty degrades every path — not just the
 broken one — to a raw, type-free projection instead (no error, no `readOnly`/inferred-type info, just the authored
 shape); `MutableDecisionService.link()` is the only call that still throws a precise, path-scoped diagnosis, and it
 isn't exposed through `ProjectExplorerService` today. Practically: a `[ctx]` node whose subtree doesn't currently

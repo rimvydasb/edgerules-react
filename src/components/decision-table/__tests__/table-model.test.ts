@@ -373,7 +373,7 @@ describe('withInputColumnRenamed / withInputColumnTypeChanged / withOutputColumn
     // Rule 3's `when` is the boolean expression `age >= 65 or segment = "premium"` — renaming
     // `age` doesn't rewrite that identifier (see the function's doc comment), so the model no
     // longer links. `set()` itself never rolls back or errors for a linking reason anymore (it
-    // applies the write and returns the type-free node — see `../../../edgerules-v2/doc/LINKING_FIX.md`);
+    // applies the write and returns the type-free node — see `../../../edgerules-v2/doc/architecture/CRUD_SPEC.md`);
     // `.link()` is the call that surfaces the precise diagnosis.
     const renamed = withInputColumnRenamed(definition, 'age', 'years');
     const result = service.set('risk', renamed) as { '@kind'?: string; message?: string };

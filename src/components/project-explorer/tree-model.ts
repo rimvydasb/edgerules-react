@@ -20,7 +20,7 @@ export function classifyFieldNode(node: PortableNode): FieldKind {
     return 'var';
   }
   // Widened to `string | undefined`: the real engine's default CONTEXT filter returns
-  // `'function-schema'` / `'ruleset-schema'` for function/ruleset fields (see EDGERULES_API_SPEC.md),
+  // `'function-schema'` / `'ruleset-schema'` for function/ruleset fields (see API_SPEC.md),
   // shapes that aren't part of the declared `PortableNode` union — comparing the narrower type
   // directly would make some of the branches below unreachable per the type checker even though
   // they occur at runtime.
@@ -87,7 +87,7 @@ export interface TypeEntry {
 
 /**
  * Lists the entries of a `get(ROOT_FETCH_PATH, 'TYPE_DEFINITIONS')` result (a `PortableContext`
- * whose fields are each a type-definition or typed-value entry — see EDGERULES_API_SPEC.md).
+ * whose fields are each a type-definition or typed-value entry — see API_SPEC.md).
  * Types are global/root-only (story doc: `[types]` renders once, at the root, never per-context).
  */
 export function listTypeEntries(rootTypes: PortableContext): TypeEntry[] {
