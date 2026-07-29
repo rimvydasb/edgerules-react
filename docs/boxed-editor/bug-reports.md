@@ -2,17 +2,19 @@
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 
-This document has two parts:
+This document has three parts:
 
 1. **Confirmed bugs** — root-caused against the actual source (`src/components/boxed-editor/**`) and, where noted,
    verified with a throwaway reproduction against the real engine (`@edgerules/node`, never mocked, per project
    policy). Each entry has concrete repro steps, a root cause, a suggested fix location, and the regression test that
    must exist once it's fixed.
-2. **E2E coverage plan** — the existing suite (`e2e/boxed-editor.spec.ts`, `e2e/decision-table.spec.ts`) only smoke-
-   tests a few golden paths and does not exercise CRUD depth, column/argument maintenance, or failure recovery. This
-   section is the actionable backlog for an industry-grade suite: full CRUD matrices for functions and decision
-   tables, plus one long, realistic "business analyst" workflow that deliberately hits parse/link/execution failures
-   and proves the editor recovers.
+2. **E2E coverage plan** — the previous suite (originally a flat `e2e/boxed-editor.spec.ts` + `e2e/decision-
+   table.spec.ts`, now reorganized per §2.1a below) only smoke-tested a few golden paths and did not exercise CRUD
+   depth, column/argument maintenance, or failure recovery. This section is the actionable backlog for an industry-
+   grade suite: full CRUD matrices for functions and decision tables, plus one long, realistic "business analyst"
+   workflow that deliberately hits parse/link/execution failures and proves the editor recovers.
+3. **File & test-name tracking checklist** — every concrete file this plan requires creating or modifying, and every
+   Playwright test name to be written, as one flat checklist to track completion against.
 
 ---
 
@@ -169,7 +171,7 @@ symptom).
 `commands.remove(...)`) and **discards the returned `PortableError`** — e.g. `add-argument`: `commands.setBoxedRowData(
 row.path, addArgument(table))` with no assignment, no check, no surfaced feedback. Contrast with `ExpressionCell`'s
 value-cell commit path, which keeps the returned error and renders it inline (`role="alert"`, per
-`e2e/boxed-editor.spec.ts`'s existing "reports invalid values" test). A user driving the three-dot menu currently has
+`e2e/boxed-editor/fields-and-lists.spec.ts`'s existing "reports invalid values" test). A user driving the three-dot menu currently has
 **no way to learn a menu action failed** — the row silently doesn't change, with no toast, no alert, nothing in the
 DOM to assert against either.
 
@@ -212,15 +214,77 @@ thing a short, isolated unit test won't catch, but a long, stateful flow will.
 
 ### 2.0 Why the current suite is insufficient
 
-`e2e/boxed-editor.spec.ts` (223 lines) covers: story rendering, root-level field CRUD, one invalid/cancel/recovery
-sequence on a single scalar field, and list append with boundary values. It never touches `function`, `ruleset`, or
-`optimisation` rows at all — the very row kinds every confirmed bug above lives in. `e2e/decision-table.spec.ts`
-exercises the **separate, standalone** `DecisionTableEditor` component (`src/components/decision-table/`), not the
-`ruleset`/`rule` rows rendered *inside* `BoxedEditor` (`RulesetRow.tsx`/`RuleRow.tsx`) — so today there is **zero**
-e2e coverage of decision-table editing as it actually appears inside the Boxed Editor. Nothing exercises: multi-
-argument functions, argument/column rename or type change, column reorder, rule-matrix maintenance (add/duplicate/
-delete rule, add/delete condition or action column), ruleset execution with varied inputs, or recovery from a
+The original `e2e/boxed-editor.spec.ts` (223 lines, now split per §2.1a) covered: story rendering, root-level field
+CRUD, one invalid/cancel/recovery sequence on a single scalar field, and list append with boundary values. It never
+touched `function`, `ruleset`, or `optimisation` rows at all — the very row kinds every confirmed bug above lives in.
+`e2e/decision-table/decision-table.spec.ts` exercises the **separate, standalone** `DecisionTableEditor` component
+(`src/components/decision-table/`), not the `ruleset`/`rule` rows rendered *inside* `BoxedEditor`
+(`RulesetRow.tsx`/`RuleRow.tsx`) — so today there is **zero** e2e coverage of decision-table editing as it actually
+appears inside the Boxed Editor. Nothing exercises: multi-argument functions, argument/column rename or type change,
+column reorder, rule-matrix maintenance (add/duplicate/delete rule, add/delete condition or action column), ruleset
+execution with varied inputs, or recovery from a
 rejected whole-row commit (Bugs 1/5/6 above all live in this gap).
+
+### 2.1a E2E directory organization — done
+
+The old `e2e/` was a flat list of one-spec-per-component files (`boxed-editor.spec.ts`, `code-editor.spec.ts`,
+`code-editor-cell.spec.ts`, `decision-table.spec.ts`, `project-explorer.spec.ts`, `tests-manager.spec.ts`), each
+hand-building `page.goto('/iframe.html?id=…&viewMode=story')` calls independently. Adding four more boxed-editor
+specs (2.2–2.5) on top of that would have made boxed-editor dominate a directory shared with five unrelated
+components. Reorganized as:
+
+```
+e2e/
+  support/
+    storybook.ts          # openStory(page, id), storyIndex(page), storyIdsWithPrefix(page, prefix)
+  boxed-editor/
+    helpers.ts             # openBoxedEditorStory, valueCell, commitExpression, renameRow, replaceActiveExpression,
+                            # appendListItem, addList, chooseRowAction — extracted from the old flat spec
+    rendering.spec.ts      # the "every story renders" smoke test
+    fields-and-lists.spec.ts   # root/context/complex-type field CRUD + list boundary values + read-only
+    functions.spec.ts          # NEW — §2.2
+    decision-tables.spec.ts    # NEW — §2.3
+    relations.spec.ts          # NEW — §2.4
+    business-flow.spec.ts      # NEW — §2.5
+  decision-table/
+    decision-table.spec.ts
+  code-editor/
+    code-editor.spec.ts
+  code-editor-cell/
+    code-editor-cell.spec.ts
+  project-explorer/
+    project-explorer.spec.ts
+  tests-manager/
+    tests-manager.spec.ts
+```
+
+Conventions this establishes (apply to any future e2e addition, boxed-editor or otherwise):
+
+- **One directory per published component**, named exactly like its `src/components/<name>` folder / npm subpath
+  export, so the e2e tree mirrors the package's public surface.
+- **Split by concern, not one mega-file per component** — a component directory holds as many `*.spec.ts` files as it
+  has distinct concerns (boxed-editor: rendering / fields-and-lists / functions / decision-tables / relations /
+  business-flow). A `helpers.ts` alongside them holds component-local shared setup; Playwright's default `testMatch`
+  only picks up `*.spec.ts`/`*.test.ts`, so a `helpers.ts` is never mistaken for a test file and needs no config
+  change.
+- **`e2e/support/` is for cross-component helpers only** (today: the generic Storybook `openStory`/`storyIndex`
+  navigation used by every component). Component-specific helpers stay local to that component's directory, never
+  promoted to `support/` just because a second file in the same component wants them too.
+- **Group with `test.describe('<Component> / <concern>', ...)`** inside every spec file, so reporter output groups
+  sensibly regardless of directory/file layout (`rendering.spec.ts`/`fields-and-lists.spec.ts` already follow this;
+  apply the same to every new file in §2.2–2.5).
+- Directory-scoped runs already work with zero `playwright.config.ts` changes — e.g. `npx playwright test
+  e2e/boxed-editor`. Adding per-directory Playwright `projects` (for tagging/parallel CI shards) is a reasonable
+  future enhancement but not required by this plan.
+
+- [x] Move each existing single-file component spec into its own directory (`decision-table/`, `code-editor/`,
+      `code-editor-cell/`, `project-explorer/`, `tests-manager/`).
+- [x] Extract `e2e/support/storybook.ts` (`openStory`, `storyIndex`, `storyIdsWithPrefix`) and switch every moved spec
+      to use it instead of a hand-built `page.goto('/iframe.html?id=…')` call.
+- [x] Split the old flat `e2e/boxed-editor.spec.ts` into `e2e/boxed-editor/rendering.spec.ts` +
+      `e2e/boxed-editor/fields-and-lists.spec.ts`, extracting shared helpers into `e2e/boxed-editor/helpers.ts`.
+- [x] Verify `npx playwright test --list` still discovers all 28 pre-existing tests post-reorg, and `tsc --noEmit`
+      stays clean.
 
 ### 2.1 Fixtures to add (Storybook stories, real engine, no mocks)
 
@@ -240,7 +304,7 @@ starting points, don't fork the harness pattern.
       **only** fixture 2.5's business-flow spec is allowed to load — see 2.5.0: that spec must construct everything
       itself via `Add …` actions, not start from an already-populated model like the three playgrounds above.
 
-### 2.2 Function CRUD matrix (new e2e spec: `e2e/boxed-editor-functions.spec.ts`)
+### 2.2 Function CRUD matrix (new e2e spec: `e2e/boxed-editor/functions.spec.ts`)
 
 - [ ] Create a function from scratch (`Add function` on model root and inside a nested `context`), verify default
       shape (blank synthesized `result`, zero arguments).
@@ -266,7 +330,7 @@ starting points, don't fork the harness pattern.
 - [ ] Execute the function end-to-end after every structural edit above via the story's `live-result` caption — a
       structural edit that "looks right" in the DOM but breaks linking must fail the test.
 
-### 2.3 Decision table (ruleset) CRUD matrix (new e2e spec: `e2e/boxed-editor-decision-tables.spec.ts`)
+### 2.3 Decision table (ruleset) CRUD matrix (new e2e spec: `e2e/boxed-editor/decision-tables.spec.ts`)
 
 - [ ] Create a decision table from scratch (`Add decision table`), verify the seeded `hitPolicy`/empty `default` per
       `nextRulesetRow`.
@@ -290,8 +354,7 @@ starting points, don't fork the harness pattern.
 - [ ] Execute the table with inputs that hit: the first rule, a later rule, no rule (falls through to `default`), and
       — under `best-match` — a genuine priority tie, via the story's `live-result` caption.
 
-### 2.4 Relation (table-shaped collection) CRUD matrix (extend `e2e/boxed-editor-functions.spec.ts` sibling or a new
-`e2e/boxed-editor-relations.spec.ts`)
+### 2.4 Relation (table-shaped collection) CRUD matrix (new e2e spec: `e2e/boxed-editor/relations.spec.ts`)
 
 - [ ] Add/rename/retype/reorder/delete columns (same four operations as 2.3, on `relation` rather than `ruleset`) —
       write this as a small shared helper module so the same assertions run against both `relation` and `ruleset`
@@ -301,7 +364,7 @@ starting points, don't fork the harness pattern.
 - [ ] Drill down into a record whose cell holds a complex object (per `RelationItemRow`'s `drillDownNames` logic) and
       edit a nested field there.
 
-### 2.5 The long business-workflow flow (new e2e spec: `e2e/boxed-editor-business-flow.spec.ts`)
+### 2.5 The long business-workflow flow (new e2e spec: `e2e/boxed-editor/business-flow.spec.ts`)
 
 One long, single `test()` (or a `test.step`-segmented sequence sharing one page/model, deliberately **not** reset
 between steps) simulating a rules analyst building a real model **from a completely blank starting point, using only
@@ -406,8 +469,165 @@ flow doubles as the full-entity-type regression suite:
       would have caught Bug 1 immediately instead of needing a dedicated root-cause investigation).
 - [ ] Every mutation test that *should* fail asserts the visible error (`role="alert"` or its post-Bug-5-fix
       equivalent) **and** that the model/DOM is otherwise unchanged — never just "no crash."
-- [ ] Reuse the existing helper patterns from `e2e/boxed-editor.spec.ts` (`valueCell`, `commitExpression`,
-      `renameRow`, `replaceActiveExpression`) rather than reinventing them; extend that helper module rather than
-      duplicating it into each new spec file.
+- [ ] Reuse the existing helpers in `e2e/boxed-editor/helpers.ts` (`valueCell`, `commitExpression`, `renameRow`,
+      `replaceActiveExpression`, `chooseRowAction`) rather than reinventing them; extend that module — and
+      `e2e/support/storybook.ts` for anything cross-component — rather than duplicating helpers into each new spec
+      file.
 - [ ] Prefer `data-testid`-scoped locators over text matching wherever the existing convention already provides one
       (`row-${path}`, `append-${path}`), so renames elsewhere in a long flow don't break unrelated assertions.
+
+---
+
+## Part 3 — File & test-name tracking checklist
+
+One flat list to check off against, so progress is trackable at a glance without re-reading Parts 1–2. "Test name" is
+the literal Playwright `test('…')` (or `test.step('…')`) title to write — keep the wording when you write the test
+unless a step turns up a reason to change it, and if you do rename one, update its box here in the same commit so
+this list never drifts from the suite it's tracking.
+
+### 3.1 Files to create or modify
+
+`[x]` = done this session · `[ ]` = still to do. Every path below is the exact file the next agent should touch —
+nothing more, nothing invented. Siblings not relevant to this plan are omitted from the tree (not deleted, just not
+shown).
+
+```
+edgerules-react/
+├── docs/
+│   ├── boxed-editor/
+│   │   └── bug-reports.md                      [x] this document
+│   └── BUG_REPORTS.md                          [ ] append the untyped-parameter round-trip defect (Bug 1)
+├── stories/
+│   └── components/
+│       └── boxed-editor/
+│           └── BoxedEditor.stories.tsx          [ ] add FunctionCrudPlayground, DecisionTableCrudPlayground,
+│                                                    RelationCrudPlayground, BlankModel (§2.1)
+├── src/
+│   └── components/
+│       └── boxed-editor/
+│           ├── service/
+│           │   ├── normalize.ts                 [ ] parametersOf: treat string 'null' as untyped (Bug 1)
+│           │   └── denormalize.ts                [ ] parameters(): same guard before re-emitting a type ref (Bug 1)
+│           ├── menu/
+│           │   └── actions.ts                   [ ] add rename-argument/rename-column action ids (Bug 2)
+│           ├── hooks/
+│           │   └── useRowActions.ts             [ ] wire rename (Bug 2) + edit-type (Bug 3) actions; stop
+│           │                                        discarding PortableError on every mutating action (Bug 5)
+│           ├── primitives/
+│           │   ├── TypeName.tsx                 [ ] make header name/type editable in place (Bugs 2, 3)
+│           │   └── ColumnDragHandle.tsx          [ ] wire real column drag, or replace with Move actions (Bug 4)
+│           └── __tests__/
+│               ├── commands.test.tsx            [ ] +2 tests — see §3.2 "Unit tests"
+│               └── normalization.test.ts        [ ] +1 test — see §3.2 "Unit tests"
+└── e2e/
+    ├── support/
+    │   └── storybook.ts                         [x] openStory, storyIndex, storyIdsWithPrefix
+    ├── boxed-editor/
+    │   ├── helpers.ts                           [x] extracted from the old flat spec
+    │   ├── rendering.spec.ts                    [x] split from the old flat spec — §3.2 has its 1 test
+    │   ├── fields-and-lists.spec.ts             [x] split from the old flat spec — §3.2 has its 4 tests
+    │   ├── functions.spec.ts                    [ ] new — §3.2 "functions.spec.ts" (14 tests)
+    │   ├── decision-tables.spec.ts              [ ] new — §3.2 "decision-tables.spec.ts" (13 tests)
+    │   ├── relations.spec.ts                    [ ] new — §3.2 "relations.spec.ts" (8 tests)
+    │   └── business-flow.spec.ts                [ ] new — §3.2 "business-flow.spec.ts" (1 test, 13 steps)
+    ├── decision-table/
+    │   └── decision-table.spec.ts               [x] moved + updated to use openStory
+    ├── code-editor/
+    │   └── code-editor.spec.ts                  [x] moved + updated to use openStory
+    ├── code-editor-cell/
+    │   └── code-editor-cell.spec.ts             [x] moved + updated to use openStory
+    ├── project-explorer/
+    │   └── project-explorer.spec.ts             [x] moved + updated to use openStory
+    └── tests-manager/
+        └── tests-manager.spec.ts                [x] moved + updated to use openStory
+```
+
+### 3.2 Playwright test names to create
+
+#### `e2e/boxed-editor/functions.spec.ts` — `test.describe('Boxed Editor / functions')`
+
+- [ ] creates a function from scratch at the model root with a blank result and no arguments
+- [ ] creates a function from scratch inside a nested context
+- [ ] adds five arguments one at a time, keeping every previously added argument distinct and present
+- [ ] adds two arguments in a row to a brand-new function and keeps both distinct (Bug 1 regression)
+- [ ] adds two arguments in a row to a nested function and keeps both distinct (Bug 1 regression, non-root depth)
+- [ ] renames each of five arguments and migrates references in the body (Bug 2 regression)
+- [ ] renames a nested function's argument and migrates references in the body (Bug 2 regression, non-root depth)
+- [ ] reorders arguments and keeps positional call-site order in sync (Bug 4 regression)
+- [ ] changes an argument's type across number, string, boolean, date, a complex type, and an array type (Bug 3
+      regression)
+- [ ] deletes an argument the body does not reference
+- [ ] rejects deleting an argument the body does reference, with a visible error and an unchanged signature (Bug 5
+      regression)
+- [ ] converts an inline single-expression body into a multi-statement body and back
+- [ ] duplicates a function with auto-renaming and independent argument/body edits
+- [ ] executes the function correctly after every structural edit in this file
+
+#### `e2e/boxed-editor/decision-tables.spec.ts` — `test.describe('Boxed Editor / decision tables')`
+
+- [ ] creates a decision table from scratch with the seeded hit policy and empty default row
+- [ ] adds condition columns one at a time, growing every existing rule's cells in lock-step
+- [ ] adds action columns one at a time, growing every existing rule's cells in lock-step
+- [ ] renames a condition column and migrates every rule's `when` key together with the header (Bug 2 regression)
+- [ ] renames an action column and migrates every rule's `then` key together with the header (Bug 2 regression)
+- [ ] changes a condition column's type across a numeric range, a comparison, an equality, and a string/enum column
+      (Bug 3 regression)
+- [ ] reorders columns and keeps rule cells aligned with the reordered header (Bug 4 regression)
+- [ ] adds, duplicates, and deletes a rule
+- [ ] reorders rules by drag
+- [ ] switches a rule from cell-map form to boolean-expression form and back
+- [ ] edits the pinned default row's actions and confirms it cannot be deleted or duplicated
+- [ ] switches hit policy to best-match, shows the priority column everywhere, and switches back cleanly
+- [ ] executes the table against inputs that hit the first rule, a later rule, the default fallback, and a priority
+      tie under best-match
+
+#### `e2e/boxed-editor/relations.spec.ts` — `test.describe('Boxed Editor / relations')`
+
+- [ ] adds columns one at a time, growing every existing record's cells in lock-step
+- [ ] renames a column and migrates every record's cell key together with the header (Bug 2 regression)
+- [ ] deletes a column and confirms every record's cell for that column is removed with it
+- [ ] re-authors a column's cell values across the type matrix (number → string → boolean) and confirms the engine's
+      homogeneous-array constraint is enforced consistently across every record (relations have no header-level
+      "type" control to test against, unlike function arguments/ruleset columns — see Bug 3's scope note)
+- [ ] reorders columns and keeps record cells aligned with the reordered header (Bug 4 regression)
+- [ ] adds, duplicates, and deletes a record
+- [ ] appends a record and confirms its cells default per the column-alignment rule
+- [ ] drills down into a record's complex-object cell and edits a nested field there
+
+#### `e2e/boxed-editor/business-flow.spec.ts` — `test.describe('Boxed Editor / business flow')`
+
+- [ ] builds a loan origination and portfolio decisioning model from a blank start, surviving parse/link/argument
+      failures along the way (one long test; each bullet below is that test's `test.step`)
+  - [ ] Step 1 — applicant & application intake
+  - [ ] Step 2 — required documents list
+  - [ ] Step 3 — collateral properties relation
+  - [ ] Step 4 — calculations, first failure (duplicate-argument regression)
+  - [ ] Step 5 — recovery checkpoint: an unrelated `Add relation` still succeeds (Bug 6 regression)
+  - [ ] Step 6 — deliberate parse failure and recovery
+  - [ ] Step 7 — deliberate link failure and recovery
+  - [ ] Step 8 — risk-tiering decision table
+  - [ ] Step 9 — portfolio capital allocation optimisation
+  - [ ] Step 10 — rename under load
+  - [ ] Step 11 — bulk maintenance pass
+  - [ ] Step 12 — read-only handoff
+  - [ ] Step 13 — final execution audit
+
+#### Unit tests (vitest, real `@edgerules/node` engine, no mocks)
+
+**`src/components/boxed-editor/__tests__/commands.test.tsx`:**
+
+- [ ] Add Argument appends two distinct, uniquely-named untyped parameters when clicked twice in a row on a
+      brand-new function (Bug 1 regression)
+- [ ] Add Argument appends two distinct, uniquely-named untyped parameters when clicked twice in a row on a function
+      nested inside a context (Bug 1 regression, non-root depth)
+
+**`src/components/boxed-editor/__tests__/normalization.test.ts`:**
+
+- [ ] a parameter whose portable value round-trips as the string `'null'` normalizes to an untyped parameter, not a
+      type reference (Bug 1 regression)
+
+#### Existing files — no new test names, tracked here only so this checklist is complete
+
+- [x] `e2e/boxed-editor/rendering.spec.ts` — every current Boxed Editor story renders from the Storybook index
+- [x] `e2e/boxed-editor/fields-and-lists.spec.ts` — 4 tests (creates/completes fields; reports invalid values; creates
+      a list; read-only story)
