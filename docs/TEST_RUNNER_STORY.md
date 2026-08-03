@@ -1,5 +1,8 @@
 # Test Runner
 
+> Design record for the `edgerules-testing` repository. It lives here because `edgerules-react` is where the runner
+> originates and its first UI consumer; it moves to the new repository when that repository is created.
+
 ## Summary
 
 The test runner is an isomorphic library that executes EdgeRules test suites against any decision service — the
@@ -28,13 +31,17 @@ Three rules define the design:
 
 ## Published packages
 
-Three packages, released to npm, versioned in lockstep.
+Three npm packages across two repositories. Exact names, one row each — the diagram below labels them with a
+namespace identifier because mermaid's grammar rejects `@` and `/`, so read the mapping from this table.
 
-| Package | Contents | Runtime dependencies | Entry points |
-|---|---|---|---|
-| `@edgerules/testing` | Executor, runners, suite, ports, formatters, codecs | **none** | `.` |
-| `@edgerules/testing-node` | SQLite and filesystem adapters, Node engine, CLI | `@edgerules/testing`, `@edgerules/node` | `.` · bin `edgerules-test` |
-| `edgerules-react` | React components, hooks, browser adapters | `@edgerules/testing`, `@dnd-kit/*` | `.` · `./tests-manager` · `./code-editor` · … |
+| npm package name | Diagram namespace | Repository · directory | Contents | Runtime dependencies | Entry points |
+|---|---|---|---|---|---|
+| `@edgerules/testing` | `edgerules_testing` | `edgerules-testing` · `packages/testing/` | Executor, runners, suite, ports, formatters, codecs | **none** | `.` |
+| `@edgerules/testing-node` | `edgerules_testing_node` | `edgerules-testing` · `packages/testing-node/` | SQLite and filesystem adapters, Node engine, CLI | `@edgerules/testing`, `@edgerules/node` | `.` · bin `edgerules-test` |
+| `edgerules-react` | `edgerules_react` | `edgerules-react` · repo root | React components, hooks, browser adapters | `@edgerules/testing`, `@dnd-kit/*` | `.` · `./tests-manager` · `./code-editor` · … |
+
+`edgerules-testing` is a **new repository** holding the first two packages in an npm workspace, versioned in
+lockstep. `edgerules-react` stays as it is and consumes `@edgerules/testing` as a published dependency.
 
 `@edgerules/portable` is a types-only devDependency and optional peer of all three — nothing imports it at runtime.
 `@edgerules/web` is an optional peer of `edgerules-react`: the host constructs the engine and injects it.
@@ -177,42 +184,54 @@ two outer packages implement its ports and never reference each other.
 `edgerules_react` never constructs a decision service; the host injects one satisfying `MutableDecisionService`.
 `edgerules_testing_node` constructs its own through `NodeDecisionService`, because a CLI has no host to inject one.
 
+Namespace identifiers are diagram labels only — see the Published packages table for the npm name and repository
+each one stands for.
+
+## Why a separate repository
+
+The runner belongs in its own repository, `edgerules-testing`, not in `edgerules-react`.
+
+- **The volatile surface has no React consumer.** `BatchTestRunner`, `DatasetReader`, `ReportWriter`, SQLite and the
+  CLI — where nearly all the new work lands — are never imported by a browser bundle. Only
+  `InteractiveTestRunner` and `TestSuite` face the UI, and they face it through a small, stable API.
+- **The coupling is one publish, not a loop.** `edgerules-react` consumes a published `@edgerules/testing` and
+  rewrites its imports once. There is no ongoing cross-repo edit cycle, because the CLI never changes what the grid
+  consumes.
+- **CI has nothing in common.** A Node version matrix with real SQLite files against Storybook, Playwright and jsdom.
+  Every SQLite commit would otherwise pay for a browser test run.
+- **npm identity.** A CLI installed with `npx` whose repository field reads "react" is wrong, and it keeps
+  `edgerules-react` honestly a React library rather than a grab bag.
+
+`edgerules-react` keeps the browser adapters — `IndexedDbTestSuiteRepository`, `BrowserFileDatasetReader`,
+`DownloadReportWriter` — under `src/adapters/`, alongside the components that use them. Storybook, Playwright and
+stories stay exactly where they are.
+
 ## Repository structure
 
-The repo root is the published React package and the npm workspace root. Storybook, Playwright and stories belong to
-that package and stay at root.
-
 ```
-edgerules-react/
-├── package.json                    # "workspaces": ["packages/*"]
-├── .storybook/
-├── stories/
-├── e2e/
-├── src/
-│   ├── components/                 # TestsManager and every other React surface
-│   └── adapters/                   # IndexedDbTestSuiteRepository, BrowserFileDatasetReader,
-│                                   #   DownloadReportWriter
+edgerules-testing/                   # new repository, npm workspace root, private
+├── package.json                     # "workspaces": ["packages/*"]
 └── packages/
-    ├── testing/                    # @edgerules/testing
+    ├── testing/                     # -> @edgerules/testing
     │   └── src/
-    │       ├── execution/          # TestCaseExecutor
-    │       ├── runners/            # InteractiveTestRunner, BatchTestRunner
-    │       ├── suite/              # TestSuite, MemoryTestSuiteRepository
-    │       ├── model/              # inputs, paths, rows, subjects, values, pathLanguage
-    │       ├── ports/              # TestSuiteRepository, DatasetReader, ReportWriter, ReportFormatter
-    │       ├── codecs/             # CsvCodec, JsonCodec, JUnitFormatter, JsonFormatter, CsvFormatter
+    │       ├── execution/           # TestCaseExecutor
+    │       ├── runners/             # InteractiveTestRunner, BatchTestRunner
+    │       ├── suite/               # TestSuite, MemoryTestSuiteRepository
+    │       ├── model/               # inputs, paths, rows, subjects, values, pathLanguage
+    │       ├── ports/               # TestSuiteRepository, DatasetReader, ReportWriter, ReportFormatter
+    │       ├── codecs/              # CsvCodec, JsonCodec, JUnitFormatter, JsonFormatter, CsvFormatter
     │       └── index.ts
-    └── testing-node/               # @edgerules/testing-node
+    └── testing-node/                # -> @edgerules/testing-node
         └── src/
-            ├── sqlite/             # SqliteTestSuiteRepository, SqliteDatasetReader
-            ├── fs/                 # CsvFileDatasetReader, JsonFileDatasetReader, FileReportWriter
-            ├── engine/             # NodeDecisionService
-            ├── cli/                # TestCli + bin entry
+            ├── sqlite/              # SqliteTestSuiteRepository, SqliteDatasetReader
+            ├── fs/                  # CsvFileDatasetReader, JsonFileDatasetReader, FileReportWriter
+            ├── engine/              # NodeDecisionService
+            ├── cli/                 # TestCli + bin entry
             └── index.ts
 ```
 
-npm links workspace packages into `node_modules`, so Storybook, Vitest and Playwright resolve `@edgerules/testing`
-with no alias configuration.
+Directory names are unscoped (`packages/testing/`); the npm name in each manifest is scoped
+(`@edgerules/testing`). The workspace root is private and never published.
 
 ## Data types
 
@@ -285,6 +304,6 @@ through a formatter).
 |---|---|---|
 | `@edgerules/testing` | vitest `node` | real `@edgerules/node` |
 | `@edgerules/testing-node` | vitest `node` | real `@edgerules/node`, real temp SQLite files |
-| `edgerules-react` | vitest `jsdom` | real `@edgerules/node`, `fake-indexeddb` |
+| `edgerules-react` (other repo) | vitest `jsdom` | real `@edgerules/node`, `fake-indexeddb` |
 
 No mocked decision service anywhere; engine gaps are filed in [`engine-bug-reports.md`](engine-bug-reports.md).
