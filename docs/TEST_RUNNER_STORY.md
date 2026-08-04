@@ -1,21 +1,38 @@
 # Test Runner
 
-> Design record for the `edgerules-testing` repository. It lives here because `edgerules-react` is where the runner
-> originates and its first UI consumer; it moves to the new repository when that repository is created.
+`edgerules-testing` is a separate repository and npm library that contains and exposes TestRunner. 
+
+## General Development Rules 
+
+- TypeScript code is written using the best OOP practices.
+- Each TypeScript class is defined in it's own deticated file, fo example `class TestRunner {...}` is defined in `TestRunner.ts`
+- TypeScript class represents a logical component. 
+- Component class file can alos has definitions of related interfaces, types or enumerations.
+- All methods (internal and external) are defined as a class methods.
+- Common functions are defined in `utils.ts`, common types and interfaces in `types.ts`, common constants or other structures in `constants.ts`.
 
 ## Summary
 
-The test runner is an isomorphic library that executes EdgeRules test suites against any decision service — the
-browser WASM build behind a grid UI, or the Node WASM build behind a CLI over SQLite and filesystem datasets.
+Tets runner is a stand alone component that executes EdgeRules test suites against EdgeRules model or decision service method.
 
-Three rules define the design:
+- Test Suite: contains many test cases and one common EdgeRules method or model name.
+- Test Case: contains input, assertions and verifications. 
+- Executed Test Case: contains assertion keys with match information and output data.
 
-1. **The cut is I/O, not format.** CSV/JSON/JUnit codecs are pure string work and belong to the isomorphic core. Only
-   filesystem and SQLite are Node-bound; they sit behind ports.
-2. **The split is module resolution, not runtime branching.** A `typeof window` guard still puts `node:sqlite` in a
-   bundler's graph. Separate npm packages are the only enforceable boundary.
-3. **The engine is injected, never imported.** Core declares `MutableDecisionService` structurally; both
-   `@edgerules/node/mutable` and `@edgerules/web/mutable` satisfy it. Core imports neither.
+## Test Sources
+
+- json files: each json file is a test case, can be uploaded or read from fs or IndexedDB table.
+- csv file: can contain the whole test suite. CSV file name is model or method to be executed name. Can be uploaded or from fs.
+- SQL file: can contain many test suites (TEST_SUITES) and many test cases (TEST_CASES, test site id) with results (TEST_RESULTS -> test case id)
+
+## Test Execution
+
+- From command line
+- From React components
+
+## Engine
+
+The engine is injected, never imported. Core declares `MutableDecisionService` structurally; both `@edgerules/node/mutable` and `@edgerules/web/mutable` satisfy it.
 
 ## Domain vocabulary
 
