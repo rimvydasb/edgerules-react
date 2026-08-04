@@ -1,87 +1,115 @@
 # EdgeRules Components
 
 This repository defines reusable React components and hooks for building applications that integrate with the EdgeRules
-decision engine. It includes:
+decision engine. Rule evaluation itself is not implemented here — components delegate to the EdgeRules WASM decision
+engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), published from the
+[`edgerules-v2`](../edgerules-v2) repository. It includes:
 
-- EdgeRules Code Editor
-- EdgeRules Boxed Editor
-- EdgeRules Decision Table Editor
-- EdgeRules Flow Editor (ReactFlow-based)
-- EdgeRules Test Runner
-- EdgeRules Types Editor
-- EdgeRules Project Explorer
+- [x] EdgeRules Code Editor (syntax highlighting, engine diagnostics, Ctrl+Space completion, Ctrl+Click / F12
+  go-to-definition, Shift-Alt-F formatting)
+- [x] EdgeRules Code Editor Cell (the same language tooling in a compact cell control for the Boxed and Decision
+  Table editors; commits on Enter/blur, cancels on Escape, analyzes the cell in the scope of its surrounding
+  model via an embed context)
+- [x] EdgeRules Boxed Editor ([spec and story](docs/BOXED_EDITOR_STORY.md), [phase plans](docs/boxed-editor/); a
+  single flat treegrid over every `BoxedRowKind` — fields, collections, `func`/`ruleset`/`optimise` — with inline
+  editing, drag-and-drop, context-menu actions, and optional description/live-test-result overlay columns)
+- [x] [EdgeRules Decision Table Editor](docs/DECISION_TABLE_STORY.md) (DMN-style grid over a `ruleset`:
+  decision tables, boolean-expression rules, and scorecards; statically highlighted display cells
+  with a single CodeEditorCell on the active cell)
+- [ ] EdgeRules Flow Editor (ReactFlow-based)
+  - [ ] InputNode
+  - [ ] FunctionNode
+  - [ ] RulesetNode
+  - [ ] TermsNode
+  - [ ] ChartNode
+  - [ ] OutputNode
+- [x] [EdgeRules Tests Manager](docs/TESTS_MANAGER_SPEC.md) (Inputs/Assertions/Validations grid over a model or any
+  fully typed `func`/`ruleset`/`optimise`/`loop`, backed by the engine-free `test-cases-service` package and the
+  `TestRunner` execution service)
+- [ ] EdgeRules Types Editor
+- [EdgeRules Project Explorer](docs/PROJECT_EXPLORER_STORY.md)
 
-## EdgeRules Project Explorer
+## Other Links
 
-Project explorer is a React component that allows users to view and manage EdgeRules projects. Project Explorer mimics
-well known IDE's project explorers. However, since EdgeRules is basically a "code-first" system, the project explorer is
-not a file system explorer. Instead, it is a view of the EdgeRules Portable Format.
+[EdgeRules Flow Editor GUI](/Users/rimvydasbingelis/Projects/EdgeRules/edgerules-v2/doc/research/MODELER_GUI_RESEARCH.md)
 
-The project explorer allows users to view the structure of the following EdgeRules project components:
+## General Notes
 
-```edgerules
-{
-    type Person: {
-        name: <string>; age: <number>; tags: <string[]>
-    }
-    type PeopleList: <Person[]>
-    globalConst: 42
-    nested: { // sub-context inside global context
-        func deep(): { // function context (as well as that function's top context)
-            subField: 10
-            deepContext: { // sub-context inside function context
-                x: 1
-            }
-            return: subField // function result field
-        }
-    }
-    list: [{a: 1}, {a: 2}] // array of objects
-    risk: firstMatch({ 
-        inputs: { age: 20 }; 
-        rules: [
-           { when: { age: ... >= 18 and ... <= 25 }; then: { level: "high" } }
-        ]; 
-        default: { level: "none" } }
-    )
-}
-```
+- All components are built with React and TypeScript.
+- All components can be rendered in isolation or integrated into a larger application.
+- All components are tested with React Testing Library and Playwright.
 
-Project Explorer display example as a tree view:
+## Technical Stack
+
+- [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web) for browser-side rule parsing, execution and CRUD
+  against the EdgeRules Portable Format; [`@edgerules/portable`](https://www.npmjs.com/package/@edgerules/portable)
+  for the corresponding TypeScript types (`PortableNode`, `PortableError`, `PortableRootContext`).
+- Material UI (MUI) for UI components and theming.
+- ReactFlow for flow-based visual programming.
+- CodeMirror for code editing.
+- MUI X Charts for data visualization.
+- TypeScript, React
+- Vitest and React Testing Library for unit/component testing; Playwright for end-to-end and visual testing.
+- tsup for building the published npm package (dual ESM/CJS output with generated type declarations).
+- Storybook for isolated component development and documentation.
+
+## Project Structure
+
+This repository is published to npm as a single package (`edgerules-react`). Each component is exposed as its own
+subpath export (e.g. `edgerules-react/flow-editor`), so consumers only pull in the peer dependencies of the
+components they actually import — a project that only uses the Code Editor never has to install `reactflow`.
 
 ```text
-.
-├── [types] Types
-├── [vars] Variables
-├── [ctx] nested
-│   └── [func] deep()
-├── [dt] risk()
-
+/
+├── src/
+│   ├── components/                # Reusable React components for EdgeRules
+│   │   ├── boxed-editor/          # Boxed Expressions Editor
+│   │   │   ├── index.ts           # Public exports for this component (its subpath entry point)
+│   │   │   └── *.tsx              # Implementation, co-located unit tests (*.test.tsx)
+│   │   ├── code-editor/           # Code Editor (CodeMirror) + shared EdgeRules language modules (language/)
+│   │   ├── code-editor-cell/      # Compact cell editor sharing the code-editor language modules
+│   │   ├── decision-table/        # Decision Table Editor
+│   │   ├── documentation-service/ # Persistence for path-keyed free-text descriptions (no engine, no GUI) — see
+│   │   │                          #   DOCUMENTATION_SERVICE_STORY.md; shared by boxed-editor, decision-table, etc.
+│   │   ├── flow-editor/           # Flow Editor (ReactFlow-based)
+│   │   ├── project-explorer/      # Project Explorer
+│   │   ├── test-cases-service/    # Persistence for test cases/rows/results (no engine, no GUI) — see
+│   │   │                          #   TESTS_MANAGER_SPEC.md; used by tests-manager, designed for boxed-editor too
+│   │   ├── tests-manager/         # Tests Manager grid + TestRunner (the execution service; see
+│   │   │                          #   Clarification #13 in TESTS_MANAGER_SPEC.md for why the names differ)
+│   │   └── types-editor/          # Types Editor
+│   ├── hooks/                     # Custom React hooks for EdgeRules
+│   ├── lib/                       # Core logic and utilities shared across components
+│   └── index.ts                   # Root barrel re-exporting the full public API
+├── stories/                        # Storybook stories, mirroring the src/components layout
+├── e2e/                            # Playwright end-to-end/visual tests
+├── docs/                           # Design notes and feature specs (e.g. PROJECT_EXPLORER_STORY.md)
+├── dist/                           # Build output (ESM + CJS + .d.ts), git-ignored, published to npm
+├── package.json
+├── tsconfig.json
+├── tsup.config.ts                  # Library build config (multi-entry, one per component)
+├── vitest.config.ts                # Unit test runner (+ React Testing Library)
+├── playwright.config.ts
+└── README.md                       # This file
 ```
 
-### Icons
+Unit tests (React Testing Library) live next to the code they cover as `*.test.tsx`; Playwright specs live under
+`e2e/` since they exercise built, running instances of the components rather than isolated units.
 
-- `[vars]` - Variables context (global or nested)
-- `[ctx]` - Nested context
-- `[func]` - Function context
-- `[dt]` - Decision Table context
+### Package & distribution conventions
 
-| Icon      | Description                          | On Expand           | On Click                                 |
-|-----------|--------------------------------------|---------------------|------------------------------------------|
-| `[vars]`  | Variables context (global or nested) | Lists all variables | Boxed Expressions Editor (all variables) |
-| `[var]`   | Single variable                      | None                | Boxed Expressions Editor (all variables) |
-| `[ctx]`   | Nested context                       | Render sub-tree     | None                                     |
-| `[func]`  | Function context                     | None                | Boxed Expressions Editor                 |
-| `[dt]`    | Decision Table context               | None                | Decision Table Editor                    |
-| `[types]` | Types in the context                 | Lists all types     | EdgeRules Types Editor (all types)       |
-| `[type]`  | Single type                          | None                | EdgeRules Types Editor (all types)       |
-
-### Details
-
-1. **Variables**: The context variables containing constants and derivations for that context e.g. `globalConst` and
-   `list`. The variables section hides all variables in that context.
-2. **Contexts**: The nested contexts within the current context e.g. `nested` and `deepContext`.
-3. **Functions**: The functions defined within the current context e.g. `deep()`.
-
-### Technical Details
-
-- https://mui.com/x/react-tree-view/ will be used to render the tree view.
+- **Entry points**: `package.json` defines an `exports` map with one subpath per component
+  (`edgerules-react/code-editor`, `edgerules-react/flow-editor`, ...) plus a root entry (`edgerules-react`) that
+  re-exports everything for convenience.
+- **Peer dependencies**: `react`, `react-dom`, `@mui/material` and other heavy, component-specific libraries
+  (`reactflow`, `@codemirror/state`/`@codemirror/view`/`@codemirror/lint`, `@mui/x-charts`, `@mui/x-tree-view`) are declared as `peerDependencies`
+  (most marked optional via `peerDependenciesMeta`), never bundled, so consuming apps control their own versions
+  and bundle size.
+- **Build output**: `tsup` builds dual ESM/CJS bundles with generated `.d.ts` files, one per component entry point,
+  enabling tree-shaking. `sideEffects: false` is set in `package.json` (CSS files excluded) so bundlers can drop
+  unused components entirely.
+- **Published files**: only `dist/`, `README.md` and `LICENSE` are included via the `files` field — source,
+  tests, stories and docs are not shipped to npm.
+- **Engine dependency**: `@edgerules/web` (and its `@edgerules/portable` type dependency) is a regular
+  `dependency`, not a peer — component behavior is tied to a specific engine API version, so it should not be
+  left to the consuming app to resolve.

@@ -1,0 +1,41 @@
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: {
+    index: 'src/index.ts',
+    'components/code-editor/index': 'src/components/code-editor/index.ts',
+    'components/code-editor-cell/index':
+      'src/components/code-editor-cell/index.ts',
+    'components/project-explorer/index':
+      'src/components/project-explorer/index.ts',
+    'components/decision-table/index': 'src/components/decision-table/index.ts',
+    'components/boxed-editor/index': 'src/components/boxed-editor/index.ts',
+    'components/test-cases-service/index': 'src/components/test-cases-service/index.ts',
+    'components/documentation-service/index': 'src/components/documentation-service/index.ts',
+    'components/tests-manager/index': 'src/components/tests-manager/index.ts',
+  },
+  format: ['esm', 'cjs'],
+  dts: true,
+  sourcemap: true,
+  clean: true,
+  splitting: false,
+  external: [
+    'react',
+    'react-dom',
+    '@codemirror/autocomplete',
+    '@codemirror/commands',
+    '@codemirror/language',
+    '@codemirror/lint',
+    '@codemirror/state',
+    '@codemirror/view',
+    '@lezer/highlight',
+    '@emotion/react',
+    '@emotion/styled',
+    '@mui/material',
+    '@mui/icons-material',
+    '@mui/x-tree-view',
+    '@dnd-kit/core',
+    '@dnd-kit/sortable',
+    '@dnd-kit/utilities',
+  ],
+});
