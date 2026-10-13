@@ -24,6 +24,38 @@ Benchmark for 5000 grid cells (median ms, production build, headless Chromium):
 | Mantine `TextInput`             | 331   | 183      |
 | Plain `<input>` with CSS        | 59    | 33       |
 
+### Grid Visual Rules
+
+The grids keep the current visual style: colors, fonts, spacing, and the blue header column. The rules below fix the
+defects in [boxed-editor/img.png](boxed-editor/img.png).
+
+| Rule              | Requirement                                                                              |
+|-------------------|------------------------------------------------------------------------------------------|
+| Single border     | Two adjacent cells MUST share one 1px solid border. Nested grids MUST NOT add a second line. |
+| Edge alignment    | Column edges MUST align across rows and nested grids, with zero pixel offset.             |
+| Border color      | All grid borders MUST use one CSS variable, such as `--mantine-color-default-border`.     |
+| Row height        | Rows of the same kind MUST have the same height.                                           |
+| Focus outline     | A focused cell input MUST draw its outline inside the cell, on the cell border box.       |
+| Error popover     | An error popover MUST align to the left edge of its cell and MUST NOT be clipped.        |
+| Header column     | The colored header column MUST touch the grid border, with no gap and no double line.     |
+
+> Clarification: Use `border-collapse: collapse`, or draw only the right and bottom border of each cell. Do not give a
+> nested grid its own outer border.
+
+### Visual Review by the Agent
+
+The developer agent MUST check the result visually, not only with DOM tests.
+
+- **Playwright screenshots:** `e2e/visual/*.spec.ts` captures each Storybook story with `toHaveScreenshot()`.
+- **Agent inspection:** the agent opens each screenshot with the `Read` tool and checks it against `### Grid Visual Rules`.
+- **Zoom check:** the agent captures the boxed editor and decision table at device scale factor 2. Double lines and
+  1px offsets are visible only at this scale.
+- **Interactive check:** the agent MAY use Claude in Chrome on `npm run storybook` for focus and error states.
+
+## Limitations
+
+- Screenshot baselines depend on the OS and the browser version. Baselines MUST come from one environment.
+
 ## Architecture Changes
 
 - `README.md` and `docs/ARCHITECTURE.md` name Mantine as the UI library.
@@ -42,6 +74,7 @@ Benchmark for 5000 grid cells (median ms, production build, headless Chromium):
 | Format    | `npm run format:check`    |
 | Test      | `npm test`                |
 | E2E       | `npm run e2e`             |
+| Visual    | `npx playwright test e2e/visual` |
 | Start     | `npm run storybook`       |
 
 ## Tasks
@@ -68,6 +101,21 @@ Acceptance criteria:
 
 - [ ] `grep -r "@mui\|@emotion" src stories` returns no result
 - [ ] `npm test` passes
+
+**Phase 3: Grid visual quality**
+
+- [ ] Add `e2e/visual` screenshot specs for the boxed editor, decision table, and tests manager stories
+- [ ] Include states: default, focused cell, cell with an error popover, nested grid, and empty `(new item)` row
+- [ ] Capture each grid at device scale factor 1 and 2
+- [ ] Fix every violation of `### Grid Visual Rules`, and keep the current visual style
+- [ ] Inspect each screenshot with the `Read` tool, and list the remaining defects in the PR description
+- [ ] Commit the reviewed screenshots as baselines
+
+Acceptance criteria:
+
+- [ ] `npx playwright test e2e/visual` passes
+- [ ] Screenshot of the error state in the boxed editor shows no defect from [boxed-editor/img.png](boxed-editor/img.png)
+- [ ] At scale factor 2, no screenshot shows a double border or a misaligned column edge
 
 **Phase E2E:**
 
