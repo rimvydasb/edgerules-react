@@ -405,26 +405,26 @@ Acceptance criteria:
 
 **Phase 4: Menus and inline edits**
 
-- [ ] Write the node menu and the argument menu from the Menus table
-- [ ] Write `addArgument`, `moveArgument`, `removeArgument`, `renameResult`, `setNodeName`, `renameField`,
+- [x] Write the node menu and the argument menu from the Menus table
+- [x] Write `addArgument`, `moveArgument`, `removeArgument`, `renameResult`, `setNodeName`, `renameField`,
   `duplicate`, `removeFromFlow`, `deleteField` in the service, with the Reuse table helpers
-- [ ] Write inline result rename and `DescriptionRow` with Add description and Remove description
-- [ ] Add stories with `play` functions: Node menu, Argument menu, Rename result, Edit description
-- [ ] Add tests for the code of this phase
+- [x] Write inline result rename and `DescriptionRow` with Add description and Remove description
+- [x] Add stories with `play` functions: Node menu, Argument menu, Rename result, Edit description
+- [x] Add tests for the code of this phase
 
 Acceptance criteria:
 
-- [ ] `FunctionNodeMenus.test.tsx` passes with these cases:
-    - [ ] Delete argument is disabled for a used parameter.
-    - [ ] Move up is disabled on the first row.
-    - [ ] Add argument below inserts after the row.
-    - [ ] The unnamed `result` has no rename input.
-- [ ] `createFlowEditorService.test.ts` passes with these cases:
-    - [ ] `renameResult` rewrites the wires of every caller.
-    - [ ] `renameResult` reverts on a failed link.
-    - [ ] `removeFromFlow` keeps the field.
-    - [ ] Parameter edits migrate every call site.
-- [ ] `DescriptionRow.test.tsx` passes: an empty commit deletes the description; Escape restores the old text
+- [x] `FunctionNodeMenus.test.tsx` passes with these cases:
+    - [x] Delete argument is disabled for a used parameter.
+    - [x] Move up is disabled on the first row.
+    - [x] Add argument below inserts after the row.
+    - [x] The unnamed `result` has no rename input.
+- [x] `createFlowEditorService.test.ts` passes with these cases:
+    - [x] `renameResult` rewrites the wires of every caller.
+    - [x] `renameResult` reverts on a failed link.
+    - [x] `removeFromFlow` keeps the field.
+    - [x] Parameter edits migrate every call site.
+- [x] `DescriptionRow.test.tsx` passes: an empty commit deletes the description; Escape restores the old text
 
 **Phase E2E**
 

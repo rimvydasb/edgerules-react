@@ -429,3 +429,110 @@
 .node .pinBad {
   --pc: var(--mantine-color-error);
 }
+
+/* ---------------------------------------------------------------- menus and inline edits */
+.kebab,
+.argKebab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-left: 1px solid var(--fn-border);
+  background: var(--fn-muted);
+  color: var(--mantine-color-dimmed);
+  cursor: pointer;
+}
+
+.kebab {
+  flex: 0 0 40px;
+  align-self: stretch;
+  width: 40px;
+}
+
+.argKebab {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  padding: 0;
+  opacity: 0;
+}
+
+.argRow:hover .argKebab,
+.argKebab:focus-visible,
+.argKebab[data-open] {
+  opacity: 1;
+}
+
+.kebab:focus-visible,
+.argKebab:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.kebab[data-open],
+.argKebab[data-open] {
+  background: var(--fn-border);
+  color: var(--mantine-color-text);
+}
+
+.argName {
+  padding-right: 30px;
+}
+
+.resultButton {
+  max-width: 100%;
+  margin-right: -4px;
+  padding: 2px 4px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.resultButton:hover {
+  background: var(--fn-muted);
+}
+
+.resultButton:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+}
+
+.inlineInput {
+  width: 100%;
+  min-width: 0;
+  padding: 1px 5px;
+  border: 1px solid var(--mantine-primary-color-filled);
+  border-radius: 2px;
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  font: inherit;
+  font-style: normal;
+  outline: none;
+}
+
+.inlineInput[aria-invalid='true'] {
+  border-color: var(--mantine-color-error);
+}
+
+.inlineEnd {
+  text-align: right;
+}
+
+.descEditable {
+  cursor: text;
+}
+
+.descEditable:hover {
+  box-shadow: inset 0 0 0 1px var(--fn-border);
+}
+
+.descEditing {
+  padding-inline: 6px;
+}

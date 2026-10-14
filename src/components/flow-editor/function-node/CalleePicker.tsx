@@ -9,6 +9,8 @@ export interface CalleePickerProps {
     callees: CalleeRef[];
     selected?: CalleeRef;
     disabled?: boolean;
+    opened: boolean; // controlled: the node menu opens it through Change callee…
+    onOpenedChange: (opened: boolean) => void;
     onSelect: (method: string) => void;
 }
 
@@ -22,9 +24,18 @@ function signature(callee: CalleeRef): string {
 }
 
 /** The callee chip. Opens a searchable list of the user functions and rulesets of the model. */
-export function CalleePicker({callees, selected, disabled, onSelect}: CalleePickerProps): ReactElement {
+export function CalleePicker({
+    callees,
+    selected,
+    disabled,
+    opened,
+    onOpenedChange,
+    onSelect,
+}: CalleePickerProps): ReactElement {
     const [search, setSearch] = useState('');
     const combobox = useCombobox({
+        opened,
+        onOpenedChange,
         onDropdownClose: () => {
             setSearch('');
             combobox.resetSelectedOption();
@@ -51,7 +62,7 @@ export function CalleePicker({callees, selected, disabled, onSelect}: CalleePick
                     aria-haspopup="listbox"
                     aria-label={selected ? `Callee ${selected.path}` : 'Select callee'}
                     disabled={disabled}
-                    onClick={() => combobox.toggleDropdown()}
+                    onClick={() => onOpenedChange(!opened)}
                 >
                     {selected ? (
                         <>

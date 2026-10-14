@@ -1,7 +1,8 @@
+import {MutableDecisionService} from '@edgerules/node/mutable';
 import {describe, expect, it, vi} from 'vitest';
 import {isPortableError} from '../../../lib/portable';
 import {createFlowEditorService} from '../service/createFlowEditorService';
-import {sampleService} from './sampleModel';
+import {SAMPLE_MODEL, sampleService} from './sampleModel';
 
 function build() {
     const {mutable, portable} = sampleService();
@@ -197,5 +198,224 @@ describe('FlowEditorService.subscribe', () => {
         unsubscribe();
         service.bindArgument('payment', 'amount', 'application.amount');
         expect(listener).toHaveBeenCalledTimes(1);
+    });
+});
+
+const CONSUMERS = `
+  levelOf: decision.level
+  otherDecision: risk(age: applicant.age, income: applicant.income, segment: applicant.segment)
+  otherLevel: otherDecision.level
+`;
+
+function buildWithConsumers(extra = CONSUMERS) {
+    const mutable = MutableDecisionService.fromCode(SAMPLE_MODEL.replace(/\}$/, `${extra}}`));
+    const portable = () => mutable.toPortable() as unknown as Record<string, Record<string, unknown>>;
+    return {mutable, portable, service: createFlowEditorService(mutable)};
+}
+
+const expressionText = (node: unknown) => (node as {expression?: string}).expression ?? node;
+
+describe('FlowEditorService.renameResult', () => {
+    it('rewrites the wires of every caller of a ruleset', () => {
+        const {service, portable, mutable} = buildWithConsumers();
+        expect(service.renameResult('decision', 'level', 'tier')).toBeUndefined();
+        expect(expressionText(portable().levelOf)).toBe('decision.tier');
+        expect(expressionText(portable().otherLevel)).toBe('otherDecision.tier');
+        expect(
+            service
+                .getFunctionNode('decision')
+                .results.map((result) => result.name)
+                .sort(),
+        ).toEqual(['limit', 'tier']);
+        expect(() => mutable.link()).not.toThrow();
+    });
+
+    it('rewrites the wires of every caller of a func', () => {
+        const {service, portable, mutable} = buildWithConsumers(`
+  allowed: eligibility.eligible
+  second: applicantDecision(person: applicant)
+  secondReason: second.reason
+`);
+        expect(service.renameResult('eligibility', 'eligible', 'permitted')).toBeUndefined();
+        expect(expressionText(portable().allowed)).toBe('eligibility.permitted');
+        expect(service.getFunctionNode('second').results.map((result) => result.name)).toEqual(['permitted', 'reason']);
+        expect(() => mutable.link()).not.toThrow();
+    });
+
+    it('reverts on a failed link', () => {
+        // `alias.level` is not a reference the service can find, so the model no longer links.
+        const {service, portable} = buildWithConsumers(`
+  alias: decision
+  aliasLevel: alias.level
+`);
+        const before = JSON.stringify(portable());
+        const result = service.renameResult('decision', 'level', 'tier');
+        expect(isPortableError(result)).toBe(true);
+        expect(JSON.stringify(portable())).toBe(before);
+        expect(service.getFunctionNode('decision').results.map((r) => r.name)).toEqual(['level', 'limit']);
+    });
+
+    it('refuses the unnamed return, a duplicate name and an invalid name', () => {
+        const {service} = build();
+        expect(isPortableError(service.renameResult('payment', 'result', 'total'))).toBe(true);
+        expect(isPortableError(service.renameResult('decision', 'level', 'limit'))).toBe(true);
+        expect(isPortableError(service.renameResult('decision', 'level', '1st'))).toBe(true);
+    });
+});
+
+describe('FlowEditorService.removeFromFlow and deleteField', () => {
+    it('removeFromFlow keeps the field', () => {
+        const {service, portable, mutable} = build();
+        expect(service.removeFromFlow('decision')).toBeUndefined();
+        // The invocation stays in the model without the node annotation.
+        expect(portable().decision).toMatchObject({'@kind': 'invocation', '@method': 'risk'});
+        expect((portable().decision as Record<string, unknown>)['@node']).toBeUndefined();
+        expect(() => mutable.link()).not.toThrow();
+    });
+
+    it('removeFromFlow drops a draft', () => {
+        const {service} = build();
+        const field = service.createDraftNode();
+        expect(service.removeFromFlow(field)).toBeUndefined();
+        expect(service.getFunctionNode(field).callee).toBeUndefined();
+    });
+
+    it('deleteField removes the field', () => {
+        const {service, portable} = build();
+        expect(service.deleteField('score')).toBeUndefined();
+        expect(Object.keys(portable())).not.toContain('score');
+    });
+
+    it('deleteField reverts when another field still reads the node', () => {
+        const {service, portable} = buildWithConsumers();
+        const result = service.deleteField('decision');
+        expect(isPortableError(result)).toBe(true);
+        expect(portable().decision).toMatchObject({'@method': 'risk'});
+    });
+});
+
+describe('FlowEditorService parameter edits', () => {
+    it('adds an argument to a func and migrates every call site', () => {
+        const {service, portable, mutable} = buildWithConsumers(`
+  payment2: monthly(amount: 5)
+`);
+        expect(service.addArgument('payment')).toBeUndefined();
+        const names = service.getFunctionNode('payment').arguments.map((arg) => arg.name);
+        expect(names).toEqual(['amount', 'arg']);
+        for (const field of ['payment', 'payment2']) {
+            expect(Object.keys(portable()[field]['@arguments'] as object)).toEqual(['amount', 'arg']);
+        }
+        expect(() => mutable.link()).not.toThrow();
+    });
+
+    it('adds a string argument to a ruleset', () => {
+        const {service} = build();
+        expect(service.addArgument('decision')).toBeUndefined();
+        const added = service.getFunctionNode('decision').arguments.at(-1);
+        expect(added).toMatchObject({name: 'arg', type: 'string'});
+    });
+
+    it('inserts after the given argument', () => {
+        const {service} = build();
+        service.addArgument('decision', 'age');
+        expect(service.getFunctionNode('decision').arguments.map((arg) => arg.name)).toEqual([
+            'age',
+            'arg',
+            'income',
+            'segment',
+        ]);
+    });
+
+    it('moves an argument and keeps the bindings', () => {
+        const {service} = build();
+        expect(service.moveArgument('decision', 'segment', 'up')).toBeUndefined();
+        const node = service.getFunctionNode('decision');
+        expect(node.arguments.map((arg) => arg.name)).toEqual(['age', 'segment', 'income']);
+        expect(node.arguments[1].binding?.text).toBe('applicant.segment');
+        expect(service.moveArgument('score', 'age', 'down')).toBeUndefined();
+        expect(service.getFunctionNode('score').arguments.map((arg) => arg.name)).toEqual(['income', 'age']);
+    });
+
+    it('does nothing when moving past the first or last row', () => {
+        const {service} = build();
+        expect(service.moveArgument('decision', 'age', 'up')).toBeUndefined();
+        expect(service.getFunctionNode('decision').arguments[0].name).toBe('age');
+    });
+
+    it('refuses to remove an argument the body uses', () => {
+        const {service} = build();
+        expect(isPortableError(service.removeArgument('score', 'age'))).toBe(true);
+        expect(service.getFunctionNode('score').arguments.map((arg) => arg.name)).toEqual(['age', 'income']);
+    });
+
+    it('removes an unused argument and migrates every call site', () => {
+        const {service, portable} = buildWithConsumers(`
+  extra2: monthly(amount: 5)
+`);
+        service.addArgument('payment');
+        expect(service.removeArgument('payment', 'arg')).toBeUndefined();
+        for (const field of ['payment', 'extra2']) {
+            expect(Object.keys(portable()[field]['@arguments'] as object)).toEqual(['amount']);
+        }
+    });
+});
+
+describe('FlowEditorService node edits', () => {
+    it('sets and clears the node name', () => {
+        const {service, portable} = build();
+        expect(service.setNodeName('decision', 'Risk decision')).toBeUndefined();
+        expect(service.getFunctionNode('decision').label).toBe('Risk decision');
+        expect((portable().decision as Record<string, unknown>)['@node-name']).toBe('Risk decision');
+        service.setNodeName('decision', '');
+        expect(service.getFunctionNode('decision').label).toBeUndefined();
+    });
+
+    it('renames a field and the wires that read it', () => {
+        const {service, portable, mutable} = buildWithConsumers();
+        expect(service.renameField('decision', 'riskDecision')).toBeUndefined();
+        expect(portable().riskDecision).toMatchObject({'@method': 'risk'});
+        expect(expressionText(portable().levelOf)).toBe('riskDecision.level');
+        expect(() => mutable.link()).not.toThrow();
+    });
+
+    it('refuses a duplicate or invalid field name', () => {
+        const {service} = build();
+        expect(isPortableError(service.renameField('decision', 'score'))).toBe(true);
+        expect(isPortableError(service.renameField('decision', 'a b'))).toBe(true);
+    });
+
+    it('renames a draft node', () => {
+        const {service} = build();
+        const field = service.createDraftNode();
+        service.setCallee(field, 'risk');
+        expect(service.renameField(field, 'fresh')).toBeUndefined();
+        expect(service.getFunctionNode('fresh').callee?.path).toBe('risk');
+    });
+
+    it('duplicates a node under a unique name', () => {
+        const {service, portable} = build();
+        const copy = service.duplicate('decision');
+        expect(copy).toBe('decision2');
+        expect(portable().decision2).toMatchObject({'@method': 'risk', '@node': 'FunctionNode'});
+        expect(service.getFunctionNode('decision2').arguments[0].binding?.text).toBe('applicant.age');
+    });
+});
+
+describe('FlowEditorService.renameArgument', () => {
+    it('renames a func argument and migrates every call site', () => {
+        const {service, portable} = buildWithConsumers(`
+  payment2: monthly(amount: 5)
+`);
+        service.addArgument('payment');
+        expect(service.renameArgument('payment', 'arg', 'months')).toBeUndefined();
+        for (const field of ['payment', 'payment2']) {
+            expect(Object.keys(portable()[field]['@arguments'] as object)).toEqual(['amount', 'months']);
+        }
+    });
+
+    it('refuses a duplicate or invalid name', () => {
+        const {service} = build();
+        expect(isPortableError(service.renameArgument('decision', 'age', 'income'))).toBe(true);
+        expect(isPortableError(service.renameArgument('decision', 'age', '9x'))).toBe(true);
     });
 });

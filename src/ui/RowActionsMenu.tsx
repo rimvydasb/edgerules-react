@@ -1,5 +1,5 @@
-import {Menu} from '@mantine/core';
-import {Fragment, type ReactElement} from 'react';
+import {Menu, Tooltip} from '@mantine/core';
+import {Fragment, type ReactElement, type ReactNode} from 'react';
 import type {Icon} from '@tabler/icons-react';
 
 export interface RowMenuItem {
@@ -8,12 +8,19 @@ export interface RowMenuItem {
     icon?: Icon;
     danger?: boolean;
     onSelect: () => void;
+    /** Label of the group this item starts; consecutive items share a group until the next label. */
+    group?: ReactNode;
+    /** The item is shown but cannot run; `reason` explains why in a tooltip. */
+    disabled?: boolean;
+    reason?: string;
 }
 
 export interface RowActionsMenuProps {
     items: RowMenuItem[];
     /** The trigger element (a `RowActionsButton`); the menu opens beneath it, right-aligned. */
     children: ReactElement;
+    /** Muted text under the last item. */
+    footer?: ReactNode;
 }
 
 // A trailing run of danger actions (e.g. per-instance deletes followed by the row's own delete)
@@ -26,7 +33,7 @@ function trailingDangerStart(items: RowMenuItem[]): number {
 }
 
 /** The three-dot menu opened by every row's `RowActionsButton` — items come from `useRowActions`. */
-export function RowActionsMenu({items, children}: RowActionsMenuProps): ReactElement {
+export function RowActionsMenu({items, children, footer}: RowActionsMenuProps): ReactElement {
     const dangerStart = trailingDangerStart(items);
     return (
         <Menu position="bottom-end" width={220} withinPortal>
@@ -34,16 +41,33 @@ export function RowActionsMenu({items, children}: RowActionsMenuProps): ReactEle
             <Menu.Dropdown>
                 {items.map((item, index) => (
                     <Fragment key={`${item.id}-${index}`}>
+                        {item.group !== undefined && <Menu.Label>{item.group}</Menu.Label>}
                         {index === dangerStart && dangerStart > 0 && <Menu.Divider />}
-                        <Menu.Item
-                            color={item.danger ? 'red' : undefined}
-                            leftSection={item.icon ? <item.icon size={16} /> : undefined}
-                            onClick={item.onSelect}
+                        <Tooltip
+                            label={item.reason}
+                            disabled={!item.disabled || !item.reason}
+                            position="left"
+                            withinPortal
                         >
-                            {item.label}
-                        </Menu.Item>
+                            <div>
+                                <Menu.Item
+                                    color={item.danger ? 'red' : undefined}
+                                    leftSection={item.icon ? <item.icon size={16} /> : undefined}
+                                    disabled={item.disabled}
+                                    onClick={item.onSelect}
+                                >
+                                    {item.label}
+                                </Menu.Item>
+                            </div>
+                        </Tooltip>
                     </Fragment>
                 ))}
+                {footer && (
+                    <>
+                        <Menu.Divider />
+                        <Menu.Label>{footer}</Menu.Label>
+                    </>
+                )}
             </Menu.Dropdown>
         </Menu>
     );

@@ -1,44 +1,6 @@
-import {MutableDecisionService} from '@edgerules/node/mutable';
-import {ReactFlow, ReactFlowProvider} from '@xyflow/react';
-import {fireEvent, render, screen, waitFor, within} from '@testing-library/react';
+import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {describe, expect, it} from 'vitest';
-import {createDocumentationService} from '../../documentation-service';
-import {FlowEditorProvider} from '../FlowEditorProvider';
-import {FunctionNode} from '../function-node/FunctionNode';
-import {createFlowEditorService} from '../service/createFlowEditorService';
-import {SAMPLE_MODEL} from './sampleModel';
-
-const nodeTypes = {functionNode: FunctionNode};
-
-function renderNode(field: string, options: {model?: string; draft?: boolean} = {}) {
-    const mutable = MutableDecisionService.fromCode(options.model ?? SAMPLE_MODEL);
-    const service = createFlowEditorService(mutable);
-    const documentation = createDocumentationService(`fn-${Math.random()}`);
-    const nodeField = options.draft ? service.createDraftNode() : field;
-    render(
-        <ReactFlowProvider>
-            <FlowEditorProvider service={service} documentation={documentation}>
-                <div style={{width: 800, height: 600}}>
-                    <ReactFlow
-                        nodes={[
-                            {
-                                id: nodeField,
-                                type: 'functionNode',
-                                position: {x: 0, y: 0},
-                                data: {field: nodeField},
-                                width: 400,
-                                height: 300,
-                            },
-                        ]}
-                        edges={[]}
-                        nodeTypes={nodeTypes}
-                    />
-                </div>
-            </FlowEditorProvider>
-        </ReactFlowProvider>,
-    );
-    return {service, documentation, mutable, field: nodeField};
-}
+import {renderNode} from './renderNode';
 
 describe('FunctionNode', () => {
     it('reads ARGUMENTS and RESULTS in the plural and ARGUMENT and RESULT in the singular', () => {

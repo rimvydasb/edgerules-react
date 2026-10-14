@@ -64,5 +64,15 @@ export interface FlowEditorService {
     setCallee(field: string, method: string): PortableError | void; // keeps bindings with same name and type
     bindArgument(field: string, parameter: string, sourcePath: string): PortableError | void; // link-checked
     unbindArgument(field: string, parameter: string): void; // turns the node into a draft
+    setNodeName(field: string, name: string): PortableError | void; // '@node-name' only; '' clears it
+    renameField(field: string, newName: string): PortableError | void; // rewrites wires; the caller moves the description
+    duplicate(field: string): string | PortableError; // returns the new field name
+    removeFromFlow(field: string): PortableError | void; // a write without `@node`; the field stays
+    deleteField(field: string): PortableError | void; // remove(field), link-checked
+    addArgument(field: string, after?: string): PortableError | void; // after = undefined appends
+    moveArgument(field: string, parameter: string, direction: 'up' | 'down'): PortableError | void;
+    renameArgument(field: string, from: string, to: string): PortableError | void; // names a new argument; migrates call sites
+    removeArgument(field: string, parameter: string): PortableError | void; // refused when the body uses it
+    renameResult(field: string, from: string, to: string): PortableError | void; // link-checked, reverted on failure
     subscribe(listener: () => void): Unsubscribe; // fires after every committed change
 }

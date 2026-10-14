@@ -2,6 +2,7 @@ import '@xyflow/react/dist/style.css';
 import {useCallback, useEffect, useMemo, useState, type ReactElement} from 'react';
 import {Box, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
+import {expect, userEvent, within} from 'storybook/test';
 import {
     Handle,
     Position,
@@ -118,13 +119,21 @@ function Canvas({
     field,
     wired = false,
     partial = false,
+    description,
 }: {
     field: string | null;
     wired?: boolean;
     partial?: boolean;
+    description?: string;
 }): ReactElement {
     const {service, mutable, field: nodeField} = useMemo(() => build(field, partial), [field, partial]);
-    const documentation = useMemo(() => createDocumentationService(`flow-story-${Math.random()}`), []);
+    const documentation = useMemo(() => {
+        const service = createDocumentationService(`flow-story-${Math.random()}`);
+        if (description) service.setDescription(nodeField, description);
+        return service;
+        // The description only seeds the service.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const [edges, setEdges] = useState<Edge[]>(() => {
         if (!wired) return [];
         const model = service.getFunctionNode(nodeField);
@@ -239,3 +248,49 @@ export const RecordArgument: Story = {args: {field: 'eligibility'}};
 export const Draft: Story = {args: {field: null, partial: true}};
 export const NoCallee: Story = {args: {field: null}};
 export const Wired: Story = {args: {field: 'decision', wired: true}};
+
+const DESCRIPTION = 'Assess the applicant risk band from age, income and segment';
+
+// Menus render in a portal, so the play functions query the whole document.
+const screen = () => within(document.body);
+// xyflow hides a node until it is measured, so the first lookup waits longer than the default.
+const SLOW = {timeout: 8000};
+
+export const NodeMenu: Story = {
+    args: {field: 'decision', description: DESCRIPTION},
+    play: async () => {
+        await userEvent.click(await screen().findByRole('button', {name: 'Node actions'}, SLOW));
+        await expect(await screen().findByRole('menuitem', {name: 'Duplicate'})).toBeVisible();
+    },
+};
+
+export const ArgumentMenu: Story = {
+    args: {field: 'decision'},
+    play: async () => {
+        await userEvent.click(await screen().findByRole('button', {name: 'Actions for argument segment'}, SLOW));
+        await expect(await screen().findByRole('menuitem', {name: 'Move down'})).toHaveAttribute(
+            'data-disabled',
+            'true',
+        );
+    },
+};
+
+export const RenameResult: Story = {
+    args: {field: 'decision'},
+    play: async () => {
+        await userEvent.click(await screen().findByRole('button', {name: 'level'}, SLOW));
+        const input = await screen().findByLabelText('Rename result level');
+        await userEvent.clear(input);
+        await userEvent.type(input, 'tier');
+    },
+};
+
+export const EditDescription: Story = {
+    args: {field: 'decision', description: DESCRIPTION},
+    play: async () => {
+        await userEvent.click(await screen().findByText(DESCRIPTION, {}, SLOW));
+        const input = await screen().findByLabelText('Description of decision');
+        await userEvent.clear(input);
+        await userEvent.type(input, 'Decide the risk band');
+    },
+};

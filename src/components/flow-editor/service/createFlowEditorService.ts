@@ -2,9 +2,22 @@ import type {PortableError, PortableNode, PortableRootContext} from '@edgerules/
 import {listCallables, type CallableSource} from '../../../lib/callables';
 import {setWithLinkCheck, type LinkCheckService} from '../../../lib/linkCheck';
 import {isPortableError} from '../../../lib/portable';
-import {uniqueName} from '../../boxed-editor/commands/rowFactories';
-import type {SignatureParameter} from '../../boxed-editor/boxed-editor-types';
-import {isRecord, portableAtPath, typeText} from '../../boxed-editor/service/portable-utils';
+import {
+    addArgument as addFunctionArgument,
+    addConditionColumn,
+    moveArgument as moveFunctionArgument,
+    moveConditionColumn,
+    removeArgument as removeFunctionArgument,
+    removeConditionColumn,
+    renameArgument as renameFunctionArgument,
+    renameConditionColumn,
+    renameActionColumn,
+    uniqueName,
+} from '../../boxed-editor/commands/rowFactories';
+import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor/boxed-editor-types';
+import {createBoxedEditorService} from '../../boxed-editor/service/createBoxedEditorService';
+import {denormalize} from '../../boxed-editor/service/denormalize';
+import {isRecord, parentPath, portableAtPath, typeText} from '../../boxed-editor/service/portable-utils';
 import type {CalleeRef, FlowEditorService, FunctionNodeModel, NodeArgument, NodeResult} from '../flow-editor-types';
 
 type GetFilter = 'FIELDS' | 'ALL' | 'EXTERNAL_DEFINITIONS';
@@ -27,6 +40,7 @@ interface CalleeSchema {
     results: NodeResult[];
 }
 
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const PATH_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*(\[\d+\]|\.[A-Za-z_][A-Za-z0-9_]*)*$/;
 
 function parametersOf(schema: unknown): SignatureParameter[] {
@@ -85,6 +99,7 @@ function argumentTexts(node: Record<string, unknown>): Record<string, string> {
 }
 
 export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorService {
+    const boxed = createBoxedEditorService(engine as never);
     const drafts = new Map<string, InvocationState>();
     const errors = new Map<string, {parameter: string; message: string}>();
     const listeners = new Set<() => void>();
@@ -189,6 +204,29 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         drafts.delete(field);
     };
 
+    // The cached row has no children; a ruleset needs its rules to be written back whole.
+    const fullRow = (path: string): BoxedTableRowData | undefined => {
+        const row = boxed.getBoxedRowData(path) as BoxedTableRowData | undefined;
+        return row && {...row, children: boxed.getBoxedRowsData(path)};
+    };
+
+    // Edits the callee definition through the Boxed Editor service, which migrates every call site.
+    const editCallee = (
+        field: string,
+        edit: (row: BoxedTableRowData, callee: CalleeRef) => BoxedTableRowData | undefined,
+    ): PortableError | void => {
+        const callee = calleeOf(stateOf(field)?.method);
+        if (!callee) return noCallee(field);
+        boxed.invalidate(callee.path);
+        const row = fullRow(callee.path);
+        if (!row) return failure(`'${callee.path}' does not exist`);
+        const next = edit(row, callee);
+        if (!next) return;
+        const result = boxed.setBoxedRowData(callee.path, next);
+        if (isPortableError(result)) return result;
+        notify();
+    };
+
     return {
         listCallees: () => calleeSchemas().map((schema) => schema.ref),
 
@@ -265,6 +303,184 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             notify();
         },
 
+        setNodeName(field, name) {
+            const state = stateOf(field);
+            if (!state) return failure(`node '${field}' does not exist`);
+            const label = name.trim() === '' ? undefined : name.trim();
+            const error = commit(field, {...state, label});
+            if (error) return error;
+            notify();
+        },
+
+        renameField(field, newName) {
+            if (!IDENTIFIER.test(newName)) return failure(`'${newName}' is not a valid field name`);
+            const parent = parentPath(field);
+            const siblings =
+                parent && parent !== '*'
+                    ? portableAtPath(engine.toPortable() as PortableNode, parent)
+                    : engine.toPortable();
+            if (newName === field.split('.').at(-1)) return;
+            if ((isRecord(siblings) && newName in siblings) || drafts.has(newName)) {
+                return failure(`'${newName}' already exists`, 'DuplicateName');
+            }
+            const draft = drafts.get(field);
+            if (draft && !committedAt(field)) {
+                drafts.delete(field);
+                drafts.set(newName, draft);
+            } else {
+                boxed.invalidate(field);
+                const error = boxed.rename(field, newName);
+                if (error) return error;
+                const moved = drafts.get(field);
+                if (moved) {
+                    drafts.delete(field);
+                    drafts.set(newName, moved);
+                }
+                if (errors.has(field)) {
+                    errors.set(newName, errors.get(field)!);
+                    errors.delete(field);
+                }
+            }
+            notify();
+        },
+
+        duplicate(field) {
+            const state = stateOf(field);
+            if (!state) return failure(`node '${field}' does not exist`);
+            const parent = parentPath(field);
+            const siblings =
+                parent && parent !== '*'
+                    ? portableAtPath(engine.toPortable() as PortableNode, parent)
+                    : engine.toPortable();
+            const names = new Set([...(isRecord(siblings) ? Object.keys(siblings) : []), ...drafts.keys()]);
+            const base = field.split('.').at(-1)!;
+            const name = uniqueName(base, names);
+            const copy = parent && parent !== '*' ? `${parent}.${name}` : name;
+            const error = commit(copy, {...state, args: {...state.args}});
+            if (error) return error;
+            notify();
+            return copy;
+        },
+
+        removeFromFlow(field) {
+            const committed = committedAt(field);
+            drafts.delete(field);
+            errors.delete(field);
+            if (committed) {
+                // `remove('<field>.@FunctionNode')` answers 'entry not found' on this engine version; a plain
+                // write without the node metadata keeps the invocation and drops the annotation.
+                const {'@node': _node, '@node-name': _label, ...invocation} = committed;
+                const result = engine.set(field, invocation as unknown as PortableNode);
+                if (isPortableError(result)) return result;
+            }
+            notify();
+        },
+
+        deleteField(field) {
+            const draftOnly = drafts.has(field) && !committedAt(field);
+            drafts.delete(field);
+            errors.delete(field);
+            if (draftOnly) {
+                notify();
+                return;
+            }
+            const previous = committedAt(field) as PortableNode | undefined;
+            const result = engine.remove(field);
+            if (isPortableError(result)) return result;
+            try {
+                engine.link();
+            } catch (linkError) {
+                if (previous) engine.set(field, previous);
+                return linkError as PortableError;
+            }
+            notify();
+        },
+
+        addArgument(field, after) {
+            return editCallee(field, (row, callee) => {
+                const names = new Set(callee.parameters.map((parameter) => parameter.name));
+                const name = uniqueName('arg', names);
+                const last = callee.parameters.length;
+                const target = after === undefined ? last : callee.parameters.findIndex((p) => p.name === after) + 1;
+                if (callee.kind === 'ruleset') {
+                    const added = addConditionColumn(row, name);
+                    return target === last ? added : moveConditionColumn(added, last, target);
+                }
+                const added = addFunctionArgument(row, 'number');
+                return target === last ? added : moveFunctionArgument(added, last, target);
+            });
+        },
+
+        moveArgument(field, parameter, direction) {
+            return editCallee(field, (row, callee) => {
+                const from = callee.parameters.findIndex((candidate) => candidate.name === parameter);
+                const to = direction === 'up' ? from - 1 : from + 1;
+                if (from < 0 || to < 0 || to >= callee.parameters.length) return undefined;
+                return callee.kind === 'ruleset'
+                    ? moveConditionColumn(row, from, to)
+                    : moveFunctionArgument(row, from, to);
+            });
+        },
+
+        renameArgument(field, from, to) {
+            if (from === to) return;
+            if (!IDENTIFIER.test(to)) return failure(`'${to}' is not a valid argument name`);
+            const existing = calleeOf(stateOf(field)?.method)?.parameters ?? [];
+            if (existing.some((parameter) => parameter.name === to)) {
+                return failure(`'${to}' already exists`, 'DuplicateName');
+            }
+            return editCallee(field, (row, callee) =>
+                callee.kind === 'ruleset'
+                    ? renameConditionColumn(row, from, to)
+                    : renameFunctionArgument(row, from, to),
+            );
+        },
+
+        removeArgument(field, parameter) {
+            return editCallee(field, (row, callee) =>
+                callee.kind === 'ruleset'
+                    ? removeConditionColumn(row, parameter)
+                    : removeFunctionArgument(row, parameter),
+            );
+        },
+
+        renameResult(field, from, to) {
+            const state = stateOf(field);
+            const callee = calleeOf(state?.method);
+            if (!callee) return noCallee(field);
+            const results = calleeSchemas().find((schema) => schema.ref.path === callee.path)?.results ?? [];
+            const result = results.find((candidate) => candidate.name === from);
+            if (!result?.renamable) return failure(`'${from}' cannot be renamed`);
+            if (from === to) return;
+            if (!IDENTIFIER.test(to)) return failure(`'${to}' is not a valid result name`);
+            if (results.some((candidate) => candidate.name === to))
+                return failure(`'${to}' already exists`, 'DuplicateName');
+            if (callee.kind === 'function') {
+                // The Boxed Editor rename rewrites the references of every caller and reverts on a failed link.
+                boxed.invalidate(callee.path);
+                const error = boxed.rename(`${callee.path}.${from}`, to);
+                if (error) return error;
+                notify();
+                return;
+            }
+            const previous = engine.toPortable();
+            const callers = invocationFields(previous, callee.path);
+            boxed.invalidate(callee.path);
+            const row = fullRow(callee.path);
+            if (!row) return failure(`'${callee.path}' does not exist`);
+            const renamed = replaceAt(previous, callee.path, denormalize(renameActionColumn(row, from, to)));
+            const migrated = rewriteResultReferences(renamed, callers, from, to) as PortableRootContext;
+            const written = setWithLinkCheck(
+                engine,
+                '*',
+                migrated as unknown as PortableNode,
+                previous as unknown as PortableNode,
+            );
+            if (isPortableError(written)) return written;
+            boxed.invalidate();
+            notify();
+        },
+
         subscribe(listener) {
             listeners.add(listener);
             return () => {
@@ -284,4 +500,48 @@ function unknownCallee(method: string): PortableError {
 
 function noCallee(field: string): PortableError {
     return {'@kind': 'error', type: 'Execution', message: `node '${field}' has no callee`} as PortableError;
+}
+
+function failure(message: string, type = 'Execution'): PortableError {
+    return {'@kind': 'error', type, message} as PortableError;
+}
+
+function escapeRegExp(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Rewrites `<caller>.<from>` to `<caller>.<to>` in every expression text of the model.
+function rewriteResultReferences(node: unknown, callers: string[], from: string, to: string): unknown {
+    if (typeof node === 'string') {
+        let text = node;
+        for (const caller of callers) {
+            text = text.replace(
+                new RegExp(`(?<![\\w.])${escapeRegExp(caller)}\\.${escapeRegExp(from)}\\b`, 'g'),
+                `${caller}.${to}`,
+            );
+        }
+        return text;
+    }
+    if (Array.isArray(node)) return node.map((child) => rewriteResultReferences(child, callers, from, to));
+    if (!isRecord(node)) return node;
+    return Object.fromEntries(
+        Object.entries(node).map(([key, child]) => [key, rewriteResultReferences(child, callers, from, to)]),
+    );
+}
+
+function invocationFields(node: unknown, method: string, path = ''): string[] {
+    if (!isRecord(node)) return [];
+    if (isInvocation(node)) return node['@method'] === method && path ? [path] : [];
+    return Object.entries(node).flatMap(([key, child]) =>
+        key.startsWith('@') ? [] : invocationFields(child, method, path ? `${path}.${key}` : key),
+    );
+}
+
+function replaceAt(root: PortableRootContext, path: string, value: PortableNode): PortableRootContext {
+    const next = structuredClone(root) as unknown as Record<string, unknown>;
+    const keys = path.split('.');
+    let current = next;
+    for (const key of keys.slice(0, -1)) current = current[key] as Record<string, unknown>;
+    current[keys.at(-1)!] = value;
+    return next as unknown as PortableRootContext;
 }
