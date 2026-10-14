@@ -12,16 +12,7 @@ import {useRowDrop} from '../dnd/useRowDrop';
 import {RowActionsMenu, type RowMenuItem} from '../menu/RowActionsMenu';
 import {cx} from '../../../ui/cx';
 import * as classes from '../boxedEditor.module.css';
-import {
-    Cell,
-    Drag,
-    RowActionsButton,
-    RowLine,
-    ROW_HEIGHT,
-    TALL_ROW_HEIGHT,
-    TallIconHandle,
-    TypeName,
-} from '../primitives';
+import {Cell, Drag, RowActionsButton, ROW_HEIGHT, TALL_ROW_HEIGHT, TallIconHandle, TypeName} from '../primitives';
 
 // `Row` is the generic leaf row every `BoxedRowKind` in this phase (and most of the rest)
 // reduces to once laid out — only `kind`-driven display flags change between them (which the
@@ -179,10 +170,10 @@ export function GenericRow({
             )}
             {showActions && actions.length > 0 ? (
                 <RowActionsMenu items={actions}>
-                    <RowActionsButton tall={tall} />
+                    <RowActionsButton />
                 </RowActionsMenu>
             ) : (
-                <div aria-hidden="true" className={classes.actionsFiller} style={{height}} />
+                <div aria-hidden="true" className={classes.actionsFiller} />
             )}
             {showDescription && <Cell column="description">{row && <DescriptionCell path={row.path} />}</Cell>}
             {showTestResultsColumn && <Cell column="test-results">{row && <TestResultCell path={row.path} />}</Cell>}
@@ -201,7 +192,6 @@ export function GenericRow({
                     </Alert>
                 </div>
             )}
-            <RowLine />
         </div>
     );
 }

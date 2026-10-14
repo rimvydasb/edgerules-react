@@ -10,7 +10,6 @@ import {RowActionsMenu, type RowMenuItem} from '../menu/RowActionsMenu';
 import {Cell} from './Cell';
 import {CELL} from './layout';
 import {RowActionsButton} from './RowActionsButton';
-import {RowLine} from './RowLine';
 
 export interface SettingRowProps {
     row?: BoxedRowData;
@@ -92,7 +91,6 @@ export function SettingRow({
                     </Alert>
                 </div>
             )}
-            <RowLine />
         </div>
     );
 }

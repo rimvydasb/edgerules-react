@@ -40,6 +40,8 @@ defects in [boxed-editor/img.png](boxed-editor/img.png).
 | Header column     | The colored header column MUST touch the grid border, with no gap and no double line.     |
 | Step grid         | Every column width and row height MUST be a whole multiple of `GRID_STEP` (40px), nested sub-columns included. |
 | Line width        | Every grid line MUST be 1px. Groups MUST be told apart by tint, not by a thicker line.    |
+| Line drawing      | Every line MUST be a CSS border with exactly one owner box. A line MUST NOT be a filled box: browsers snap borders to device pixels, not filled boxes. |
+| Block boundary    | Every row that opens a nested level (`isBlock` in `primitives/layout.ts`) MUST close its group with one double line, drawn inside the last row. No other line MAY be double. |
 | Code coloring     | A display cell that holds DSL text MUST render it with `HighlightedCode`.                 |
 
 > Clarification: Use `border-collapse: collapse`, or draw only the right and bottom border of each cell. Do not give a

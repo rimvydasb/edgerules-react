@@ -1,4 +1,4 @@
-import {Fragment, type ReactElement} from 'react';
+import type {ReactElement} from 'react';
 import type {BoxedTableRowData} from '../boxed-editor-types';
 import {moveRelationColumn, renameRelationColumn} from '../commands/rowFactories';
 import {useRowCommands} from '../commands/useRowCommands';
@@ -50,7 +50,7 @@ function RelationColumnHeaders({row}: {row: BoxedTableRowData}): ReactElement {
 export function RelationRow({row}: RelationRowProps): ReactElement {
     const actions = useRowActions(row);
     return (
-        <Fragment>
+        <>
             <GenericRow
                 row={row}
                 name={row.name}
@@ -64,6 +64,6 @@ export function RelationRow({row}: RelationRowProps): ReactElement {
                 <RowSwitch key={child.path} row={child} />
             ))}
             <NewRow row={row} />
-        </Fragment>
+        </>
     );
 }

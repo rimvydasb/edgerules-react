@@ -1,3 +1,5 @@
+export type { BlockProps } from './Block';
+export { Block } from './Block';
 export type { Argument, ArgumentHeadersProps } from './ArgumentHeaders';
 export { ArgumentHeaders } from './ArgumentHeaders';
 export type { CellProps } from './Cell';
@@ -18,13 +20,13 @@ export {
   TEST_RESULTS_COLUMN_WIDTH,
   VALUE_COLUMN_WIDTH,
   gridTemplateColumns,
+  isBlock,
   rulesetTracks,
   splitUnits,
   sum,
 } from './layout';
 export type { RowActionsButtonProps } from './RowActionsButton';
 export { RowActionsButton } from './RowActionsButton';
-export { RowLine } from './RowLine';
 export type { SettingRowProps } from './SettingRow';
 export { SettingRow } from './SettingRow';
 export type { SubGridProps, TrackProps } from './SubGrid';

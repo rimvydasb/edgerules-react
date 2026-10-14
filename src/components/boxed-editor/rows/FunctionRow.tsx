@@ -31,7 +31,7 @@ export function FunctionRow({row}: FunctionRowProps): ReactElement {
     };
 
     return (
-        <Fragment>
+        <>
             <GenericRow
                 row={row}
                 name={row.name}
@@ -62,7 +62,7 @@ export function FunctionRow({row}: FunctionRowProps): ReactElement {
                     <NewRow row={row} />
                 </Fragment>
             )}
-        </Fragment>
+        </>
     );
 }
 

@@ -5,7 +5,7 @@
 // all vertical lines fall on `k * CELL - 1` and all horizontal lines on `k * CELL - 1`: borders of
 // different rows can never be offset from each other.
 
-import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
+import type {BoxedRowData, BoxedRowKind, BoxedTableRowData} from '../boxed-editor-types';
 import {GRID_STEP} from '../../../ui/grid';
 
 export const CELL = GRID_STEP;
@@ -92,6 +92,27 @@ export function rulesetTracks(row: BoxedTableRowData, valueUnits: number, showPr
     actions: shared.slice(counts.conditions),
     priority,
   };
+}
+
+/**
+ * Row kinds that open a nested level: the row, its child rows, and its `(new …)` placeholder form
+ * one block, closed by a double line (`primitives/Block.tsx`). Every other row is a single element
+ * inside a block. Add a new container kind here and it is separated like the others.
+ */
+const BLOCK_KINDS = new Set<BoxedRowKind>([
+  'context',
+  'complexType',
+  'list',
+  'relation',
+  'function',
+  'ruleset',
+  'optimisation',
+  'optimisation-variable-group',
+  'optimisation-constraint-group',
+]);
+
+export function isBlock(row: BoxedRowData): boolean {
+  return BLOCK_KINDS.has(row.kind);
 }
 
 /** Steps the value column needs so no nested sub-column is narrower than {@link MIN_SUB_COLUMN_UNITS}. */

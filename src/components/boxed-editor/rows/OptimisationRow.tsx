@@ -1,11 +1,11 @@
 import {IconChartLine} from '@tabler/icons-react';
-import {Fragment, type ReactElement} from 'react';
+import type {ReactElement} from 'react';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
 import {moveArgument, renameArgument, retypeArgument} from '../commands/rowFactories';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {useRowActions} from '../hooks/useRowActions';
-import {ArgumentHeaders} from '../primitives';
+import {ArgumentHeaders, Block} from '../primitives';
 import {GenericRow} from './GenericRow';
 import {OptimisationConstraintGroupRow} from './OptimisationConstraintGroupRow';
 import {OptimisationObjectiveRow} from './OptimisationObjectiveRow';
@@ -31,7 +31,7 @@ export function OptimisationRow({row}: OptimisationRowProps): ReactElement {
         commands.setBoxedRowData(row.path, next, row.path)?.message;
 
     return (
-        <Fragment>
+        <>
             <GenericRow
                 row={row}
                 name={row.name}
@@ -61,7 +61,7 @@ export function OptimisationRow({row}: OptimisationRowProps): ReactElement {
                 actions={actions}
             />
             {expanded && row.children?.map((child) => renderChild(child))}
-        </Fragment>
+        </>
     );
 }
 
@@ -70,11 +70,19 @@ function renderChild(child: BoxedRowData): ReactElement | null {
         case 'optimisation-setting':
             return <OptimisationSettingRow key={child.path} row={child} />;
         case 'optimisation-variable-group':
-            return <OptimisationVariableGroupRow key={child.path} row={child} />;
+            return (
+                <Block key={child.path} row={child}>
+                    <OptimisationVariableGroupRow row={child} />
+                </Block>
+            );
         case 'optimisation-objective':
             return <OptimisationObjectiveRow key={child.path} row={child} />;
         case 'optimisation-constraint-group':
-            return <OptimisationConstraintGroupRow key={child.path} row={child} />;
+            return (
+                <Block key={child.path} row={child}>
+                    <OptimisationConstraintGroupRow row={child} />
+                </Block>
+            );
         default:
             return null;
     }

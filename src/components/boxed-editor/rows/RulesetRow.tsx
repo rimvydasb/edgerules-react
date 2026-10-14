@@ -1,5 +1,5 @@
 import {IconListCheck} from '@tabler/icons-react';
-import {Fragment, type ReactElement} from 'react';
+import type {ReactElement} from 'react';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
 import {
     moveActionColumn,
@@ -127,7 +127,7 @@ export function RulesetRow({row}: RulesetRowProps): ReactElement {
     const tracks = rulesetTracks(row, valueUnits, showPriority);
 
     return (
-        <Fragment>
+        <>
             <GenericRow
                 row={row}
                 name={row.name}
@@ -143,7 +143,7 @@ export function RulesetRow({row}: RulesetRowProps): ReactElement {
             />
             {expanded && row.children?.map((child) => renderChild(child, tracks))}
             <NewRow row={row} />
-        </Fragment>
+        </>
     );
 }
 
