@@ -4,7 +4,7 @@ import {useState, type KeyboardEvent, type ReactElement} from 'react';
 import * as classes from '../boxedEditor.module.css';
 import {TypeName} from './TypeName';
 
-const COLUMN_TYPES = ['string', 'number', 'integer', 'boolean', 'date', 'time', 'datetime', 'duration'];
+const COLUMN_TYPES = ['string', 'number', 'boolean', 'date', 'time', 'datetime', 'duration', 'period'];
 
 export interface EditableColumnHeaderProps {
     rowPath: string;

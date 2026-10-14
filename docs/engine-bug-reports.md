@@ -63,6 +63,56 @@ implemented and wired per spec, but blocked end-to-end on this engine gap.
 
 ---
 
+## Built-in function signatures are only exposed as lossy completion `detail` strings
+
+Found on `0.0.6-alpha.202607291629`. The only API that lists built-in functions is the static
+`MutableDecisionService.completions(code, pos)`: options with `type: 'function'` carry the signature as a free-text
+`detail` string. There is no structured built-in catalog. The `detail` string loses information a GUI needs:
+
+1. **No parameter names.** `round | (number, number) -> number` — the Flow Editor `FunctionNode` cannot label its
+   input pins and falls back to `#1`, `#2`.
+2. **Overloads collapse to one signature.** `substring` has a 2-argument and a 3-argument form
+   (`doc/reference`), but completions report only `(string, number, number) -> string`. The GUI cannot tell that the
+   third argument is optional.
+3. **Variadic functions look unary.** `coalesce | (any) -> any`.
+4. **User callables report no return type.** `monthly | (amount: number)` — no `-> …` part.
+
+```ts
+const doc = '{\n  x: \n}';
+MutableDecisionService.completions(doc, doc.indexOf('x: ') + 3).options
+  .filter((o) => o.type === 'function')
+  .map((o) => `${o.label} | ${o.detail}`);
+// [..., 'round | (number, number) -> number', 'substring | (string, number, number) -> string',
+//  'coalesce | (any) -> any', ...]
+```
+
+Expected behavior: a structured built-in catalog, for example `get('*', 'BUILTIN_DEFINITIONS')` or a static
+`builtins()`, returning `PortableFunctionSchema`-shaped entries with named `@parameters`, per-parameter
+optional/variadic markers (or one entry per overload), and `@return`. User callables are already covered by
+`get('*', 'ALL')` + `get('*', 'EXTERNAL_DEFINITIONS')`.
+
+---
+
+## Argument type-mismatch link error names an internal node id, not the argument
+
+Found on `0.0.6-alpha.202607291629`. A named argument of the wrong type fails linking with a message that names
+an internal node id. The message does not say which call or which argument is wrong. A missing argument, by
+contrast, gets a clear message (`E113: function 'risk' call is missing required argument 'segment'`).
+
+```ts
+// ruleset risk(age: number, income: number, segment: string)
+// d: risk(age: applicant.age, income: applicant.income, segment: applicant.income)
+await service.execute('*');
+// execution error: linker error: type mismatch in node NodeId(10): expected string, found number
+```
+
+Expected behavior: an error code and a message in the E113 style, for example
+`function 'risk' argument 'segment' expects string, found number`, ideally with the field path (`d`). The Flow
+Editor `FunctionNode` and the Boxed Editor both need to attach the error to one argument row. Today they can only
+do that by assuming the row the user just edited caused it.
+
+---
+
 ## Clarified behaviour — not bugs
 
 ### `rename()` migrates references only for callables — by design

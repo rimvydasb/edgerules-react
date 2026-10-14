@@ -44,7 +44,9 @@ export function indexedPath(parent: string, index: number): string {
 
 export function pathDepth(path: string): number {
   if (path === '*') return 0;
-  return (path.match(/\./g) ?? []).length;
+  // Each `.` and each `[n]` index is one nesting level, so list/relation items sit one block
+  // right of their owner.
+  return (path.match(/\.|\[/g) ?? []).length;
 }
 
 export function parentPath(path: string): string | undefined {

@@ -1,0 +1,56 @@
+{
+  "applicants": [
+    {
+      "reference": "LOAN-001",
+      "applicant": "Ada L.",
+      "amount": 320000
+    },
+    {
+      "reference": "LOAN-002",
+      "applicant": "Grace H.",
+      "amount": 0
+    }
+  ],
+  "offices": [
+    {
+      "asdasd": "",
+      "id": 1,
+      "column2": "",
+      "address": {
+        "city": "Vilnius",
+        "zip": "01001"
+      }
+    },
+    {
+      "asdasd": "",
+      "id": 2,
+      "column2": "",
+      "address": {
+        "city": "Kaunas",
+        "zip": "44001"
+      }
+    }
+  ],
+  "reviewStages": [
+    "Application",
+    "Underwriting",
+    "Credit review",
+    "Closing"
+  ]
+}
+
+{
+  "@kind": "context",
+  "reviewStages": {
+    "@kind": "expression",
+    "expression": "[\"Application\", \"Underwriting\", \"Credit review\", \"Closing\"]"
+  },
+  "applicants": {
+    "@kind": "expression",
+    "expression": "[{ reference: \"LOAN-001\"; applicant: \"Ada L.\"; amount: 320000 }, { reference: \"LOAN-002\"; applicant: \"Grace H.\"; amount: 0 }]"
+  },
+  "offices": {
+    "@kind": "expression",
+    "expression": "[{ asdasd: \"\"; id: 1; column2: \"\"; address: { city: \"Vilnius\"; zip: \"01001\" } }, { asdasd: \"\"; id: 2; column2: \"\"; address: { city: \"Kaunas\"; zip: \"44001\" } }]"
+  }
+}

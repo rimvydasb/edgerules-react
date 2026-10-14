@@ -167,6 +167,14 @@ test.describe('Boxed Editor / drag and drop', () => {
         await expectLiveModel(page, /Underwriting.*Application/s);
     });
 
+    test('indents list items one block deeper than the list', async ({page}) => {
+        await openBoxedEditorStory(page, 'collections-list-and-relation');
+        const indents = (path: string) => page.getByTestId(`row-${path}`).locator('[aria-hidden="true"]').evaluateAll(
+            (nodes) => nodes.filter((node) => getComputedStyle(node).width === '40px').length,
+        );
+        expect(await indents('reviewStages[0]')).toBe((await indents('reviewStages')) + 1);
+    });
+
     test('reorders fields within a context', async ({page}) => {
         await openBoxedEditorStory(page, 'collections-list-and-relation');
         await dragRow(page, 'offices[0].address.zip', 'offices[0].address.city');
