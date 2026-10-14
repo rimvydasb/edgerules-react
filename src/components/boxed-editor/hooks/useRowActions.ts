@@ -30,7 +30,7 @@ import { useBoxedEditorContext } from '../context/BoxedEditorContext';
 import { useBoxedEditorUi } from '../context/BoxedEditorUiContext';
 import type { RowActionId } from '../menu/actions';
 import { rowActionIcons } from '../menu/actions';
-import type { RowMenuItem } from '../menu/RowActionsMenu';
+import type { RowMenuItem } from '../../../ui/RowActionsMenu';
 import { parentPath as parentPathOf } from '../service/portable-utils';
 
 interface ActionDraft {

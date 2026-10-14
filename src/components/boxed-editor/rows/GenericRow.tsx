@@ -9,7 +9,7 @@ import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import type {BoxedRowData, BoxedRowKind} from '../boxed-editor-types';
 import {useRowDrag} from '../dnd/useRowDrag';
 import {useRowDrop} from '../dnd/useRowDrop';
-import {RowActionsMenu, type RowMenuItem} from '../menu/RowActionsMenu';
+import {RowActionsMenu, type RowMenuItem} from '../../../ui/RowActionsMenu';
 import {cx} from '../../../ui/cx';
 import * as classes from '../boxedEditor.module.css';
 import {Cell, Drag, RowActionsButton, ROW_HEIGHT, TALL_ROW_HEIGHT, TallIconHandle, TypeName} from '../primitives';

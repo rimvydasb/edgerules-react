@@ -51,7 +51,7 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 - CodeMirror for code editing.
 - TypeScript, React
 - Vitest and React Testing Library for unit/component testing; Playwright for end-to-end and visual testing.
-- tsup for building the published npm package (dual ESM/CJS output with generated type declarations).
+- tsdown for building the published npm package (dual ESM/CJS output with generated type declarations).
 - Storybook for isolated component development and documentation.
 
 ## Project Structure
@@ -88,7 +88,7 @@ components they actually import — a project that only uses the Code Editor nev
 ├── dist/                           # Build output (ESM + CJS + .d.ts), git-ignored, published to npm
 ├── package.json
 ├── tsconfig.json
-├── tsup.config.ts                  # Library build config (multi-entry, one per component)
+├── tsdown.config.ts                 # Library build config (multi-entry, one per component)
 ├── vitest.config.ts                # Unit test runner (+ React Testing Library)
 ├── playwright.config.ts
 └── README.md                       # This file
@@ -108,7 +108,7 @@ Unit tests (React Testing Library) live next to the code they cover as `*.test.t
   and bundle size. Wrap the app in Mantine's `MantineProvider` and import `@mantine/core/styles.css` once; the
   library's own CSS Modules are injected at runtime, so no stylesheet of ours needs importing.
   Components take `className`/`style` (not `sx`) for host styling.
-- **Build output**: `tsup` builds dual ESM/CJS bundles with generated `.d.ts` files, one per component entry point,
+- **Build output**: `tsdown` builds dual ESM/CJS bundles with generated `.d.ts` files, one per component entry point,
   enabling tree-shaking. `sideEffects: false` is set in `package.json` (CSS files excluded) so bundlers can drop
   unused components entirely.
 - **Published files**: only `dist/`, `README.md` and `LICENSE` are included via the `files` field — source,

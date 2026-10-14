@@ -25,7 +25,7 @@ Benchmark for 5000 grid cells (median ms, production build, headless Chromium):
   Mantine CSS variables so themes apply.
 - A cell MUST NOT use a UI library component. A library component MAY sit in a cell only as an overlay.
 - Drop `@mui/*` and `@emotion/*` peer dependencies. Public `sx` props become `style`.
-- The build bundles CSS Modules into the JS and injects them at runtime (`tsup.config.ts`), so consumers import
+- The build bundles CSS Modules into the JS and injects them at runtime (`tsdown.config.ts`), so consumers import
   only `@mantine/core/styles.css`.
 
 ### Consequences

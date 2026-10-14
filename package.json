@@ -100,10 +100,20 @@
         "types": "./dist/components/tests-manager/index.d.cts",
         "default": "./dist/components/tests-manager/index.cjs"
       }
+    },
+    "./flow-editor": {
+      "import": {
+        "types": "./dist/components/flow-editor/index.d.ts",
+        "default": "./dist/components/flow-editor/index.js"
+      },
+      "require": {
+        "types": "./dist/components/flow-editor/index.d.cts",
+        "default": "./dist/components/flow-editor/index.cjs"
+      }
     }
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsdown",
     "format": "prettier --write \"src/**/*.tsx\" \"stories/**/*.tsx\"",
     "format:check": "prettier --check \"src/**/*.tsx\" \"stories/**/*.tsx\"",
     "typecheck": "tsc --noEmit",
@@ -124,6 +134,7 @@
     "@mantine/core": "^9.0.0",
     "@mantine/hooks": "^9.0.0",
     "@tabler/icons-react": "^3.0.0",
+    "@xyflow/react": "^12.0.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
   },
@@ -150,6 +161,9 @@
       "optional": true
     },
     "@tabler/icons-react": {
+      "optional": true
+    },
+    "@xyflow/react": {
       "optional": true
     }
   },
@@ -180,6 +194,7 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@xyflow/react": "^12.12.0",
     "esbuild": "0.28.1",
     "fake-indexeddb": "^6.2.5",
     "highs": "^1.15.3",
@@ -189,14 +204,9 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "storybook": "^10.6.2",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.23.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.4"
-  },
-  "overrides": {
-    "tsup": {
-      "esbuild": "0.28.1"
-    }
   }
 }

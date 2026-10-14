@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { openStory } from '../support/storybook';
 
 // Smoke-level only: RTL (ProjectExplorer.test.tsx) already covers behavior in detail against the
-// real engine. This just confirms the built artifact (post-tsup, post-Storybook-build) actually
+// real engine. This just confirms the built artifact (post-tsdown, post-Storybook-build) actually
 // renders in a real browser, driving the same fixture-backed stories as the single source of
 // truth — no live-engine story exists here since the real engine can't yet produce a `[dt]` node
 // (see the plan's known engine gap).

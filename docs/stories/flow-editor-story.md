@@ -351,18 +351,18 @@ sequenceDiagram
 
 **Phase 1: Package setup and shared code**
 
-- [ ] Ensure the project compiles and existing tests pass
-- [ ] Add `@xyflow/react` as an optional peer dependency and a dev dependency
-- [ ] Add the `flow-editor` subpath to `package.json` `exports` and to the `tsup.config.ts` `entry`
-- [ ] Move `RowActionsMenu` to `src/ui/RowActionsMenu.tsx`; update Boxed Editor imports
-- [ ] Move the callable walk to `src/lib/callables.ts` as `listCallables()`; `listTestSubjects` calls it
-- [ ] Move `setWithLinkCheck` to `src/lib/linkCheck.ts`; Boxed Editor imports it
-- [ ] Add tests for the code of this phase
+- [x] Ensure the project compiles and existing tests pass
+- [x] Add `@xyflow/react` as an optional peer dependency and a dev dependency
+- [x] Add the `flow-editor` subpath to `package.json` `exports` and to the `tsdown.config.ts` `entry`
+- [x] Move `RowActionsMenu` to `src/ui/RowActionsMenu.tsx`; update Boxed Editor imports
+- [x] Move the callable walk to `src/lib/callables.ts` as `listCallables()`; `listTestSubjects` calls it
+- [x] Move `setWithLinkCheck` to `src/lib/linkCheck.ts`; Boxed Editor imports it
+- [x] Add tests for the code of this phase
 
 Acceptance criteria:
 
-- [ ] `npm test` passes, including `callables.test.ts` and the existing tests-manager and boxed-editor suites
-- [ ] `npm run build` emits `dist/components/flow-editor/index.js`
+- [x] `npm test` passes, including `callables.test.ts` and the existing tests-manager and boxed-editor suites
+- [x] `npm run build` emits `dist/components/flow-editor/index.js`
 
 **Phase 2: Service and layout**
 
