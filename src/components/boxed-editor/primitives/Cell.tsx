@@ -7,6 +7,8 @@ export interface CellProps {
     children?: ReactNode;
     column?: BoxedColumn;
     style?: CSSProperties;
+    /** No padding — the cell hosts a `SubGrid` whose lines must sit on the sheet's step lines. */
+    flush?: boolean;
 }
 
 const columnClass: Record<BoxedColumn, string | undefined> = {
@@ -15,9 +17,13 @@ const columnClass: Record<BoxedColumn, string | undefined> = {
     'test-results': classes.cellTestResults,
 };
 
-export function Cell({children, column = 'value', style}: CellProps): ReactElement {
+export function Cell({children, column = 'value', style, flush = false}: CellProps): ReactElement {
     return (
-        <div data-column={column} className={cx(classes.cell, columnClass[column])} style={style}>
+        <div
+            data-column={column}
+            className={cx(classes.cell, columnClass[column], flush && classes.cellFlush)}
+            style={style}
+        >
             {children}
         </div>
     );

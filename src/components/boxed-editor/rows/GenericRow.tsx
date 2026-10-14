@@ -5,6 +5,7 @@ import {NameCell} from '../cells/NameCell';
 import {TestResultCell} from '../cells/TestResultCell';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import type {BoxedRowData, BoxedRowKind} from '../boxed-editor-types';
 import {useRowDrag} from '../dnd/useRowDrag';
 import {useRowDrop} from '../dnd/useRowDrop';
@@ -14,7 +15,6 @@ import * as classes from '../boxedEditor.module.css';
 import {
     Cell,
     Drag,
-    gridTemplateColumns,
     RowActionsButton,
     RowLine,
     ROW_HEIGHT,
@@ -66,6 +66,9 @@ export interface GenericRowProps {
     /** Skips the ellipsis-text wrapper around `value` — pass true when `value` renders its own
      * layout (e.g. `ExpressionCell`, which swaps between static text and a full-width editor). */
     valueIsInteractive?: boolean;
+    /** `value` is a nested sub-grid (`SubGrid`): the value cell drops its padding so the
+     * sub-grid's own column lines sit on the sheet's step lines. Implies `valueIsInteractive`. */
+    valueIsSubGrid?: boolean;
     /** `false` suppresses the three-dot menu button — the trailing `NewRow` placeholder has no
      * actions of its own; an empty `ActionsColumn`-width cell fills the gap instead. */
     showActions?: boolean;
@@ -93,16 +96,15 @@ export function GenericRow({
     placeholder = false,
     tall = false,
     valueIsInteractive = false,
+    valueIsSubGrid = false,
     showActions = true,
     actions = [],
     onActivate,
 }: GenericRowProps): ReactElement {
-    const {showDescription, showTestResults, showType, testCasesService} = useBoxedEditorContext();
+    const {showType} = useBoxedEditorContext();
+    const {template, showDescription, showTestResults: showTestResultsColumn} = useBoxedLayout();
     const {rowErrors} = useBoxedEditorUi();
     const rowError = row ? rowErrors.get(row.path) : undefined;
-    // The `TestResultsColumn` is hidden entirely (not just emptied) when no `testCasesService` is
-    // provided — unlike `showDescription`, which always shows the column (empty + read-only).
-    const showTestResultsColumn = showTestResults && testCasesService !== undefined;
     const height = tall ? TALL_ROW_HEIGHT : ROW_HEIGHT;
     const drag = useRowDrag(row);
     const drop = useRowDrop(row);
@@ -130,10 +132,7 @@ export function GenericRow({
                 drop.isOver && (drop.canDrop ? classes.dropOk : classes.dropBad),
             )}
             style={{
-                gridTemplateColumns: gridTemplateColumns({
-                    showDescription,
-                    showTestResults: showTestResultsColumn,
-                }),
+                gridTemplateColumns: template,
                 height,
             }}
         >
@@ -170,8 +169,8 @@ export function GenericRow({
                 </TypeName>
             </div>
             {!occupiesNameAndValue && (
-                <Cell>
-                    {valueIsInteractive ? (
+                <Cell flush={valueIsSubGrid}>
+                    {valueIsInteractive || valueIsSubGrid ? (
                         value
                     ) : (
                         <span className={cx(classes.ellipsis, placeholder && classes.placeholder)}>{value}</span>

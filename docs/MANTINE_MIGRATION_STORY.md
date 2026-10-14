@@ -38,9 +38,19 @@ defects in [boxed-editor/img.png](boxed-editor/img.png).
 | Focus outline     | A focused cell input MUST draw its outline inside the cell, on the cell border box.       |
 | Error popover     | An error popover MUST align to the left edge of its cell and MUST NOT be clipped.        |
 | Header column     | The colored header column MUST touch the grid border, with no gap and no double line.     |
+| Step grid         | Every column width and row height MUST be a whole multiple of `GRID_STEP` (40px), nested sub-columns included. |
+| Line width        | Every grid line MUST be 1px. Groups MUST be told apart by tint, not by a thicker line.    |
+| Code coloring     | A display cell that holds DSL text MUST render it with `HighlightedCode`.                 |
 
 > Clarification: Use `border-collapse: collapse`, or draw only the right and bottom border of each cell. Do not give a
 > nested grid its own outer border.
+
+> Clarification: The grids are a ruled sheet like squared paper. In the Boxed Editor each cell draws its 1px line
+> on its own last pixel, so every line falls on `k * 40 - 1`. A nested sub-grid (`primitives/SubGrid.tsx`) sits in a
+> flush value cell and gets whole-step track widths from one shared plan (`primitives/layout.ts`); a ruleset's
+> header, rule, and default rows all use the same `RulesetTracks`. The value column widens in whole steps when a
+> sub-grid needs more room. The Decision Table uses `GridTable` `columnUnits`. A cell whose text wraps grows taller
+> than one step; its lines stay aligned because the table shares borders.
 
 ### Visual Review by the Agent
 

@@ -1,10 +1,11 @@
 /*
- * Boxed Editor layout. The whole tree is a strict 40px cell unit (see primitives/layout.ts).
+ * Boxed Editor layout: a square-ruled sheet with a strict 40px step (see primitives/layout.ts).
  *
- * Border model (docs/MANTINE_MIGRATION_STORY.md, "Grid Visual Rules"): every cell draws only its RIGHT
- * border; every row draws only a single 1px line at its BOTTOM (`.rowLine`). The grid frame draws the
- * outer left/top/right/bottom edge once. Nested structures (argument headers, rule cells) draw
- * dividers between their own cells and never add an outer frame.
+ * Border model (docs/MANTINE_MIGRATION_STORY.md, "Grid Visual Rules"): every line is 1px. Every cell —
+ * top-level or a nested `.track` — draws only its RIGHT border on its own last pixel; every row draws a
+ * single line on its last pixel (`.rowLine`); a tall header's upper line draws its line on its last
+ * pixel (`.subGridDivided`). Widths and heights are whole steps, so every line lands on a step line.
+ * The grid frame draws the outer left/top edge once.
  */
 .root {
   --bx-border: var(--mantine-color-default-border);
@@ -77,8 +78,8 @@
 
 .indent {
   width: 40px;
-  height: 40px;
   flex-shrink: 0;
+  align-self: stretch;
   border-right: 1px solid var(--bx-border);
 }
 
@@ -195,6 +196,7 @@
 
 .editableText {
   display: block;
+  line-height: 1.4;
   width: 100%;
   min-width: 0;
   overflow: hidden;
@@ -252,45 +254,45 @@
   font-size: 0.75rem;
 }
 
-/* ---------------------------------------------------------------- nested (header / rule) layouts */
-.stack {
+/* ---------------------------------------------------------------- nested sub-grids (primitives/SubGrid.tsx) */
+/* A value cell hosting a sub-grid: no padding, so tracks start on the cell's own step line. */
+.cellFlush {
+  padding-inline: 0;
+  align-items: stretch;
+}
+
+.subGridStack {
   display: flex;
   flex-direction: column;
   width: 100%;
-}
-
-.tall {
   height: 80px;
 }
 
-.line {
+.subGrid {
   display: flex;
+  width: 100%;
   height: 40px;
-  width: 100%;
+  flex-shrink: 0;
 }
 
-.fill {
-  display: flex;
-  width: 100%;
-  height: 100%;
+.subGridDivided {
+  border-bottom: 1px solid var(--bx-border);
 }
 
-.group {
-  display: flex;
-  min-width: 0;
-}
-
-/* One cell inside a header/rule group: shares its right border with the next sibling. */
-.groupCell {
+/* Whole-step nested column; `flex-basis` is set inline to `units * 40px`. */
+.track {
   display: flex;
   align-items: center;
-  flex: 1;
+  flex-grow: 0;
+  flex-shrink: 0;
   min-width: 0;
-  height: 100%;
+  overflow: hidden;
   border-right: 1px solid var(--bx-border);
 }
 
-.groupCell:last-child {
+/* The host cell already draws the line on its last pixel — the last track ends there instead. */
+.track:last-child {
+  flex: 1 1 0;
   border-right: none;
 }
 
@@ -298,16 +300,7 @@
   padding-inline: 8px;
 }
 
-/* Sub-group separated from the previous group by one heavier divider. */
-.groupLeft {
-  border-left: 2px solid var(--bx-border);
-}
-
 .bandLabel {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  padding-inline: 8px;
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -315,25 +308,15 @@
   color: var(--mantine-color-dimmed);
 }
 
-.bandRule {
-  border-right: 1px solid var(--bx-border);
-}
-
 .bandActions {
-  color: var(--mantine-color-green-8);
   background-color: color-mix(in srgb, var(--mantine-color-green-6) 8%, transparent);
 }
 
-.bandBottom {
-  border-bottom: 1px solid var(--bx-border);
+.bandActionsLabel {
+  color: var(--mantine-color-green-8);
 }
 
 .otherwise {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  padding-inline: 8px;
   font-style: italic;
   color: var(--mantine-color-dimmed);
 }

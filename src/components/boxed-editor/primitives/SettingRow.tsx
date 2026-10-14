@@ -2,13 +2,13 @@ import {Alert} from '@mantine/core';
 import {IconSettings} from '@tabler/icons-react';
 import type {ReactElement, ReactNode} from 'react';
 import {cx} from '../../../ui/cx';
-import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import type {BoxedRowData} from '../boxed-editor-types';
 import * as classes from '../boxedEditor.module.css';
 import {RowActionsMenu, type RowMenuItem} from '../menu/RowActionsMenu';
 import {Cell} from './Cell';
-import {CELL, gridTemplateColumns} from './layout';
+import {CELL} from './layout';
 import {RowActionsButton} from './RowActionsButton';
 import {RowLine} from './RowLine';
 
@@ -23,6 +23,8 @@ export interface SettingRowProps {
     /** Whether this fixed setting has any menu actions (e.g. `optimisation-variable-group`'s
      * "Add variable"). Plain settings like `hitPolicy` render no button — see Phase 5's registry. */
     showActions?: boolean;
+    /** `children` is a nested sub-grid (`SubGrid`) — the value cell drops its padding. */
+    subGrid?: boolean;
     /** This row's own menu items (`useRowActions`). No button renders when empty. */
     actions?: RowMenuItem[];
 }
@@ -41,9 +43,10 @@ export function SettingRow({
     result,
     occupiesNameAndValue = false,
     showActions = false,
+    subGrid = false,
     actions = [],
 }: SettingRowProps): ReactElement {
-    const {showDescription, showTestResults} = useBoxedEditorContext();
+    const {template, showDescription, showTestResults} = useBoxedLayout();
     const {rowErrors} = useBoxedEditorUi();
     const rowError = row ? rowErrors.get(row.path) : undefined;
 
@@ -51,7 +54,7 @@ export function SettingRow({
         <div
             data-testid={row ? `row-${row.path}` : undefined}
             className={classes.row}
-            style={{gridTemplateColumns: gridTemplateColumns({showDescription, showTestResults}), height: CELL}}
+            style={{gridTemplateColumns: template, height: CELL}}
         >
             <div className={cx(classes.nameColumn, occupiesNameAndValue && classes.span2)}>
                 {Array.from({length: depth}, (_, index) => (
@@ -64,7 +67,7 @@ export function SettingRow({
                     {name}
                 </span>
             </div>
-            {!occupiesNameAndValue && <Cell>{children}</Cell>}
+            {!occupiesNameAndValue && <Cell flush={subGrid}>{children}</Cell>}
             {showActions && actions.length > 0 ? (
                 <RowActionsMenu items={actions}>
                     <RowActionsButton />

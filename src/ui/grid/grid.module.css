@@ -3,7 +3,8 @@
  * docs/MANTINE_MIGRATION_STORY.md): a Mantine/MUI input per cell is 5-20x slower to mount and rerender.
  *
  * Border rules: one `border-collapse: collapse` table, so two adjacent cells share a single 1px line;
- * every border uses the same variable so themes change it in one place.
+ * every border uses the same variable so themes change it in one place. With `columnUnits` the table
+ * sits on the same 40px step grid as the Boxed Editor (`GRID_STEP`).
  */
 .table {
   --grid-border: var(--mantine-color-default-border);
@@ -20,6 +21,15 @@
   vertical-align: middle;
   text-align: left;
   background-clip: padding-box;
+}
+
+/* Step-grid layout (`columnUnits`): fixed whole-step columns, rows at least one 40px step tall. */
+.stepped {
+  table-layout: fixed;
+}
+
+.stepped .cell {
+  height: 40px;
 }
 
 th.cell {

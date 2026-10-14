@@ -27,7 +27,7 @@ import {Toast} from '../../ui/Toast';
 import * as classes from './decisionTable.module.css';
 import {CodeEditorCell} from '../code-editor-cell/CodeEditorCell';
 import type {CodeEditorService} from '../code-editor/language/service';
-import {highlightEdgeRules} from '../code-editor/language/highlight';
+import {HighlightedCode} from '../code-editor-cell/HighlightedCode';
 import {
     HIT_POLICIES,
     SCALAR_OUTPUT,
@@ -155,26 +155,14 @@ function cellKey(id: CellId): string {
     }
 }
 
-const NOOP_LANGUAGE_SERVICE: CodeEditorService = {diagnostics: () => []};
+/** Column widths in grid steps (`GRID_STEP` = 40px). */
+const ROW_NUMBER_UNITS = 1;
+const INPUT_COLUMN_UNITS = 5;
+const OUTPUT_COLUMN_UNITS = 4;
+const PRIORITY_COLUMN_UNITS = 2;
+const ANNOTATION_COLUMN_UNITS = 4;
 
-/** Display-only rendering of a cell's DSL text as statically highlighted spans. */
-function HighlightedText({text}: {text: string}): ReactElement {
-    const spans = useMemo(() => highlightEdgeRules(text), [text]);
-    return (
-        <>
-            {spans.map((span, index) =>
-                span.className ? (
-                    // eslint-disable-next-line react/no-array-index-key
-                    <span key={index} className={span.className}>
-                        {span.text}
-                    </span>
-                ) : (
-                    span.text
-                ),
-            )}
-        </>
-    );
-}
+const NOOP_LANGUAGE_SERVICE: CodeEditorService = {diagnostics: () => []};
 
 interface DisplayCellProps {
     text: string;
@@ -259,7 +247,7 @@ function DisplayCell({
                     plain ? (
                         text
                     ) : (
-                        <HighlightedText text={text} />
+                        <HighlightedCode code={text} />
                     )
                 ) : (
                     <span className={classes.empty}>{emptyLabel}</span>
@@ -781,6 +769,15 @@ export function DecisionTableEditor({
     const showPriority = model.hitPolicy === 'best-match';
     const priorityColumns = showPriority ? 1 : 0;
     const totalColumns = 1 + model.inputs.length + model.outputs.length + priorityColumns + 1 + (readOnly ? 0 : 1);
+    // Whole-step column widths (see `GRID_STEP`), in the same order as the header row's cells.
+    const columnUnits = [
+        ROW_NUMBER_UNITS,
+        ...model.inputs.map(() => INPUT_COLUMN_UNITS),
+        ...model.outputs.map(() => OUTPUT_COLUMN_UNITS),
+        ...(showPriority ? [PRIORITY_COLUMN_UNITS] : []),
+        ANNOTATION_COLUMN_UNITS,
+        ...(readOnly ? [] : [ROW_NUMBER_UNITS]),
+    ];
     const editingKey = editing ? cellKey(editing) : null;
     const duplicatePrioritySet = showPriority ? duplicatePriorities(model.rows) : new Set<number>();
 
@@ -1466,7 +1463,7 @@ export function DecisionTableEditor({
             ) : null}
 
             <div className={classes.scroll}>
-                <GridTable aria-label={`${rulesetName} decision table`}>
+                <GridTable aria-label={`${rulesetName} decision table`} columnUnits={columnUnits}>
                     <GridHead>
                         <GridRow>
                             <GridCell header borderless />

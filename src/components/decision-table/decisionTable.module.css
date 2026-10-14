@@ -3,18 +3,6 @@
   min-width: 0;
 }
 
-/* Static token colours for display cells, mirroring the CodeMirror highlight theme. */
-.root :global(.tok-keyword) { color: light-dark(#7b1fa2, #c792ea); }
-.root :global(.tok-atom) { color: light-dark(#e65100, #d19a66); }
-.root :global(.tok-bool) { color: light-dark(#0b7285, #56b6c2); }
-.root :global(.tok-number) { color: light-dark(#098658, #b5cea8); }
-.root :global(.tok-string) { color: light-dark(#a31515, #ce9178); }
-.root :global(.tok-typeName) { color: light-dark(#267f99, #4ec9b0); }
-.root :global(.tok-propertyName) { color: light-dark(#001080, #9cdcfe); }
-.root :global(.tok-variableName) { color: light-dark(#0070c1, #9cdcfe); }
-.root :global(.tok-function) { color: light-dark(#795e26, #dcdcaa); }
-.root :global(.tok-self) { color: light-dark(#0000ff, #569cd6); }
-
 .header {
   display: flex;
   align-items: center;

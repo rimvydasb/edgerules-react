@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState, type ReactElement} from 'react';
 import type {PortableError, PortableNode, PortableRootContext} from '@edgerules/portable';
 import {CodeEditorCell, type CodeEditorEmbedContext} from '../../code-editor-cell';
+import {HighlightedCode} from '../../code-editor-cell/HighlightedCode';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
@@ -187,7 +188,7 @@ export function ExpressionCell({row, onCommit}: ExpressionCellProps): ReactEleme
                 }}
                 className={cx(classes.editableText, editable && classes.editableTextActive)}
             >
-                {row.value}
+                {row.value ? <HighlightedCode code={row.value} /> : null}
             </span>
         );
     }

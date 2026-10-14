@@ -5,8 +5,8 @@ import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useRowActions} from '../hooks/useRowActions';
 import {childPath, parentPath, pathDepth} from '../service/portable-utils';
-import {cx} from '../../../ui/cx';
-import * as classes from '../boxedEditor.module.css';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
+import {splitUnits, SubGrid, Track} from '../primitives';
 import {GenericRow} from './GenericRow';
 import {RowSwitch} from './RowSwitch';
 
@@ -23,14 +23,15 @@ function RelationCells({row}: {row: BoxedTableRowData}): ReactElement {
     const commands = useRowCommands();
     const columns = row.columns ?? [];
     const cells = row.cells ?? [];
+    const units = splitUnits(columns.length, useBoxedLayout().valueUnits);
     const drillDownNames = new Set((row.children ?? []).map((child) => child.name));
 
     return (
-        <div className={classes.fill}>
+        <SubGrid>
             {columns.map((column, index) => {
                 const cellPath = childPath(row.path, column);
                 return (
-                    <div key={column} className={cx(classes.groupCell, classes.pad)}>
+                    <Track key={column} units={units[index]}>
                         {drillDownNames.has(column) ? null : (
                             <ExpressionCell
                                 row={{
@@ -64,10 +65,10 @@ function RelationCells({row}: {row: BoxedTableRowData}): ReactElement {
                                 }}
                             />
                         )}
-                    </div>
+                    </Track>
                 );
             })}
-        </div>
+        </SubGrid>
     );
 }
 
@@ -84,7 +85,7 @@ export function RelationItemRow({row}: RelationItemRowProps): ReactElement {
                 name={row.name}
                 depth={row.depth}
                 value={<RelationCells row={row} />}
-                valueIsInteractive
+                valueIsSubGrid
                 actions={actions}
             />
             {row.children?.map((child) => (

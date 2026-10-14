@@ -7,7 +7,7 @@ export type { DropdownChipProps } from './DropdownChip';
 export { DropdownChip } from './DropdownChip';
 export type { DragProps } from './Drag';
 export { Drag } from './Drag';
-export type { BoxedColumn, ColumnVisibility } from './layout';
+export type { BoxedColumn, ColumnVisibility, RulesetTracks } from './layout';
 export {
   ACTIONS_COLUMN_WIDTH,
   CELL,
@@ -18,12 +18,17 @@ export {
   TEST_RESULTS_COLUMN_WIDTH,
   VALUE_COLUMN_WIDTH,
   gridTemplateColumns,
+  rulesetTracks,
+  splitUnits,
+  sum,
 } from './layout';
 export type { RowActionsButtonProps } from './RowActionsButton';
 export { RowActionsButton } from './RowActionsButton';
 export { RowLine } from './RowLine';
 export type { SettingRowProps } from './SettingRow';
 export { SettingRow } from './SettingRow';
+export type { SubGridProps, TrackProps } from './SubGrid';
+export { SubGrid, SubGridStack, Track } from './SubGrid';
 export type { TallIconHandleProps } from './TallIconHandle';
 export { TallIconHandle } from './TallIconHandle';
 export type { TypeNameProps } from './TypeName';

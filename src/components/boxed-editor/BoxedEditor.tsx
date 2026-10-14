@@ -6,6 +6,7 @@ import {useRowCommands} from './commands/useRowCommands';
 import {BoxedEditorProvider} from './context/BoxedEditorContext';
 import {BoxedEditorTestProvider} from './context/BoxedEditorTestContext';
 import {BoxedEditorUiProvider} from './context/BoxedEditorUiContext';
+import {BoxedLayoutProvider} from './context/BoxedLayoutContext';
 import {useBoxedEditorUi} from './context/BoxedEditorUiContext';
 import {isValidDrop, type DragPayload, type DropTargetPayload} from './dnd/dropRules';
 import * as classes from './boxedEditor.module.css';
@@ -57,13 +58,15 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
                 </Alert>
             )}
             <div role="treegrid" className={classes.grid}>
-                <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-                    {showHeader && rootRow.kind === 'model' && <ModelHeaderRow row={rootRow} />}
-                    {rows.map((row) => (
-                        <RowSwitch key={row.path} row={row} />
-                    ))}
-                    <NewRow row={{...rootRow, children: rows}} />
-                </DndContext>
+                <BoxedLayoutProvider rows={rows}>
+                    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+                        {showHeader && rootRow.kind === 'model' && <ModelHeaderRow row={rootRow} />}
+                        {rows.map((row) => (
+                            <RowSwitch key={row.path} row={row} />
+                        ))}
+                        <NewRow row={{...rootRow, children: rows}} />
+                    </DndContext>
+                </BoxedLayoutProvider>
             </div>
         </>
     );

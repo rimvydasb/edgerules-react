@@ -3,17 +3,22 @@ import type {BoxedTableRowData} from '../boxed-editor-types';
 import {ExpressionCell} from '../cells/ExpressionCell';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useRowActions} from '../hooks/useRowActions';
-import {SettingRow} from '../primitives';
-import {cx} from '../../../ui/cx';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
+import {rulesetTracks, SettingRow, SubGrid, sum, Track, type RulesetTracks} from '../primitives';
 import * as classes from '../boxedEditor.module.css';
 import {childPath} from '../service/portable-utils';
 
 export interface RulesetDefaultRowProps {
     row: BoxedTableRowData;
+    /** The owning ruleset's column plan — "otherwise" spans the condition tracks. */
+    tracks?: RulesetTracks;
 }
 
 /** Singleton fallback row shown when no rule matches — fixed, not draggable, not duplicable. */
-export function RulesetDefaultRow({row}: RulesetDefaultRowProps): ReactElement {
+export function RulesetDefaultRow({row, tracks: ownerTracks}: RulesetDefaultRowProps): ReactElement {
+    // Rendered outside its ruleset (e.g. `RowSwitch`), the row plans its own tracks.
+    const {valueUnits} = useBoxedLayout();
+    const tracks = ownerTracks ?? rulesetTracks(row, valueUnits, false);
     const commands = useRowCommands();
     const actions = useRowActions(row);
     const actionColumns = row.actionColumns ?? [];
@@ -25,15 +30,13 @@ export function RulesetDefaultRow({row}: RulesetDefaultRowProps): ReactElement {
     };
 
     return (
-        <SettingRow row={row} name={row.name} depth={row.depth} showActions actions={actions}>
-            <div className={classes.fill}>
-                <div className={classes.otherwise}>otherwise</div>
+        <SettingRow row={row} name={row.name} depth={row.depth} showActions actions={actions} subGrid>
+            <SubGrid>
+                <Track units={sum(tracks.conditions)} className={classes.otherwise}>
+                    otherwise
+                </Track>
                 {actionColumns.map((column, index) => (
-                    <div
-                        key={column}
-                        className={cx(classes.groupCell, classes.pad, classes.groupLeft)}
-                        style={index === 0 ? undefined : {borderLeftWidth: 1}}
-                    >
+                    <Track key={column} units={tracks.actions[index] ?? 0}>
                         <ExpressionCell
                             row={{
                                 kind: 'field',
@@ -44,9 +47,10 @@ export function RulesetDefaultRow({row}: RulesetDefaultRowProps): ReactElement {
                             }}
                             onCommit={(value) => commitAction(index, value)}
                         />
-                    </div>
+                    </Track>
                 ))}
-            </div>
+                {tracks.priority !== undefined && <Track units={tracks.priority} aria-hidden />}
+            </SubGrid>
         </SettingRow>
     );
 }

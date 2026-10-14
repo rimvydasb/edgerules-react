@@ -5,15 +5,16 @@ import {ExpressionCell} from '../cells/ExpressionCell';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useRowActions} from '../hooks/useRowActions';
 import {childPath} from '../service/portable-utils';
-import {cx} from '../../../ui/cx';
-import * as classes from '../boxedEditor.module.css';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
+import {rulesetTracks, SubGrid, sum, Track, type RulesetTracks} from '../primitives';
 import {GenericRow} from './GenericRow';
 
 export interface RuleRowProps {
     row: BoxedTableRowData;
-    /** Whether the owning ruleset's `hitPolicy` is `"best-match"` — the only policy under which
-     * `priority` is authored (required there, rejected elsewhere per `RULESETS_REFERENCE.md`). */
-    showPriority?: boolean;
+    /** The owning ruleset's column plan. `tracks.priority` is set only under `"best-match"` — the
+     * only policy under which `priority` is authored (required there, rejected elsewhere per
+     * `RULESETS_REFERENCE.md`). */
+    tracks?: RulesetTracks;
 }
 
 /**
@@ -21,12 +22,10 @@ export interface RuleRowProps {
  * *whole* `rule` row (Section 7) rather than a synthetic per-cell leaf path — `denormalize`'s
  * `ruleNode` already implements "blank condition cell omits the key" (= "any") on that rewrite.
  */
-function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: boolean}): ReactElement {
+function RuleCells({row, tracks}: {row: BoxedTableRowData; tracks: RulesetTracks}): ReactElement {
     const commands = useRowCommands();
     const conditionColumns = row.conditionColumns ?? [];
     const actionColumns = row.actionColumns ?? [];
-    const conditionWeight = conditionColumns.length || 1;
-    const actionWeight = actionColumns.length || 1;
     const hasExpression = row.conditionsExpression !== undefined;
 
     const commitConditionCell = (index: number, value: string): PortableError | undefined => {
@@ -58,9 +57,9 @@ function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: b
     };
 
     return (
-        <div className={classes.fill}>
+        <SubGrid>
             {hasExpression ? (
-                <div className={cx(classes.groupCell, classes.pad)} style={{flex: conditionWeight}}>
+                <Track units={sum(tracks.conditions)}>
                     <ExpressionCell
                         row={{
                             kind: 'field',
@@ -71,11 +70,12 @@ function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: b
                         }}
                         onCommit={commitConditionsExpression}
                     />
-                </div>
+                </Track>
             ) : (
-                <div className={classes.group} style={{flex: conditionWeight}}>
+                <>
+                    {conditionColumns.length === 0 && <Track units={tracks.conditions[0]} aria-hidden />}
                     {conditionColumns.map((column, index) => (
-                        <div key={column} className={cx(classes.groupCell, classes.pad)}>
+                        <Track key={column} units={tracks.conditions[index] ?? 0}>
                             <ExpressionCell
                                 row={{
                                     kind: 'field',
@@ -86,28 +86,27 @@ function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: b
                                 }}
                                 onCommit={(value) => commitConditionCell(index, value)}
                             />
-                        </div>
+                        </Track>
                     ))}
-                </div>
+                </>
             )}
-            <div className={cx(classes.group, classes.groupLeft)} style={{flex: actionWeight}}>
-                {actionColumns.map((column, index) => (
-                    <div key={column} className={cx(classes.groupCell, classes.pad)}>
-                        <ExpressionCell
-                            row={{
-                                kind: 'field',
-                                depth: row.depth,
-                                path: childPath(row.path, `then.${column}`),
-                                name: column,
-                                value: row.actions?.[index] ?? '',
-                            }}
-                            onCommit={(value) => commitActionCell(index, value)}
-                        />
-                    </div>
-                ))}
-            </div>
-            {showPriority && (
-                <div className={cx(classes.groupCell, classes.pad, classes.groupLeft)}>
+            {actionColumns.length === 0 && <Track units={tracks.actions[0]} aria-hidden />}
+            {actionColumns.map((column, index) => (
+                <Track key={column} units={tracks.actions[index] ?? 0}>
+                    <ExpressionCell
+                        row={{
+                            kind: 'field',
+                            depth: row.depth,
+                            path: childPath(row.path, `then.${column}`),
+                            name: column,
+                            value: row.actions?.[index] ?? '',
+                        }}
+                        onCommit={(value) => commitActionCell(index, value)}
+                    />
+                </Track>
+            ))}
+            {tracks.priority !== undefined && (
+                <Track units={tracks.priority}>
                     <ExpressionCell
                         row={{
                             kind: 'field',
@@ -118,22 +117,25 @@ function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: b
                         }}
                         onCommit={commitPriority}
                     />
-                </div>
+                </Track>
             )}
-        </div>
+        </SubGrid>
     );
 }
 
 /** One row of a decision table's rule matrix — draggable, `Duplicate`/`Delete` menu actions. */
-export function RuleRow({row, showPriority = false}: RuleRowProps): ReactElement {
+export function RuleRow({row, tracks: ownerTracks}: RuleRowProps): ReactElement {
+    // Rendered outside its ruleset (e.g. `RowSwitch`), the row plans its own tracks.
+    const {valueUnits} = useBoxedLayout();
+    const tracks = ownerTracks ?? rulesetTracks(row, valueUnits, row.priority !== undefined);
     const actions = useRowActions(row);
     return (
         <GenericRow
             row={row}
             name={row.name}
             depth={row.depth}
-            value={<RuleCells row={row} showPriority={showPriority} />}
-            valueIsInteractive
+            value={<RuleCells row={row} tracks={tracks} />}
+            valueIsSubGrid
             actions={actions}
         />
     );

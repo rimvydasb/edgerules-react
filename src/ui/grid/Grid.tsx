@@ -9,12 +9,44 @@ import {
 import {cx} from '../cx';
 import * as classes from './grid.module.css';
 
+/**
+ * Grid step in px — the side of one square of the ruled sheet. Shared by every grid in the library
+ * (this table and the Boxed Editor treegrid), so their lines sit on the same rhythm.
+ */
+export const GRID_STEP = 40;
+
+export interface GridTableProps extends TableHTMLAttributes<HTMLTableElement> {
+    /**
+     * Column widths in grid steps. When set, the table is laid out on the step grid: fixed column
+     * widths of `units * GRID_STEP`, and every row at least one step tall.
+     */
+    columnUnits?: number[];
+}
+
 /** `<table>` with collapsed borders — adjacent cells share one 1px line. */
-export const GridTable = forwardRef<HTMLTableElement, TableHTMLAttributes<HTMLTableElement>>(function GridTable(
-    {className, ...rest},
+export const GridTable = forwardRef<HTMLTableElement, GridTableProps>(function GridTable(
+    {columnUnits, className, style, children, ...rest},
     ref,
 ) {
-    return <table ref={ref} className={cx(classes.table, className)} {...rest} />;
+    if (!columnUnits) {
+        return (
+            <table ref={ref} className={cx(classes.table, className)} style={style} {...rest}>
+                {children}
+            </table>
+        );
+    }
+    const width = columnUnits.reduce((total, units) => total + units, 0) * GRID_STEP;
+    return (
+        <table ref={ref} className={cx(classes.table, classes.stepped, className)} style={{width, ...style}} {...rest}>
+            <colgroup>
+                {columnUnits.map((units, index) => (
+                    // eslint-disable-next-line react/no-array-index-key
+                    <col key={index} style={{width: units * GRID_STEP}} />
+                ))}
+            </colgroup>
+            {children}
+        </table>
+    );
 });
 
 export const GridHead = (props: HTMLAttributes<HTMLTableSectionElement>) => <thead {...props} />;

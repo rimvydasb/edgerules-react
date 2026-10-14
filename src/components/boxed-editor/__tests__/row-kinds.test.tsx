@@ -22,6 +22,7 @@ import {RuleRow} from '../rows/RuleRow';
 import {RulesetDefaultRow} from '../rows/RulesetDefaultRow';
 import {RulesetHitPolicyRow} from '../rows/RulesetHitPolicyRow';
 import {createBoxedEditorService} from '../service/createBoxedEditorService';
+import {byCode, notCode} from './queries';
 
 const languageService = MutableDecisionService;
 
@@ -185,7 +186,7 @@ describe('row kinds: relation', () => {
 
         expect(screen.getByText('people')).toBeInTheDocument();
         expect(screen.getByText('name')).toBeInTheDocument();
-        expect(screen.getByText('age')).toBeInTheDocument();
+        expect(screen.getByText('age', notCode)).toBeInTheDocument();
         expect(screen.getByText("'Ada'")).toBeInTheDocument();
         expect(screen.getByText('32')).toBeInTheDocument();
 
@@ -326,7 +327,7 @@ describe('row kinds: computed array', () => {
 
         render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
-        expect(screen.getByText(row.value!)).toBeInTheDocument();
+        expect(screen.getByText(byCode(row.value!))).toBeInTheDocument();
         expect(screen.queryByText('Item 1')).not.toBeInTheDocument();
     });
 });
@@ -343,11 +344,11 @@ describe('row kinds: function', () => {
         );
 
         expect(screen.getByText('monthly')).toBeInTheDocument();
-        expect(screen.getByText('amount')).toBeInTheDocument();
+        expect(screen.getByText('amount', notCode)).toBeInTheDocument();
         expect(screen.getByText('result')).toBeInTheDocument();
-        expect(screen.getByText('amount / 12')).toBeInTheDocument();
+        expect(screen.getByText(byCode('amount / 12'))).toBeInTheDocument();
 
-        await user.click(screen.getByText('amount / 12'));
+        await user.click(screen.getByText(byCode('amount / 12')));
         await user.click(queryEditable(container));
         replaceDoc(container, 'amount / 24');
         await user.keyboard('{Enter}');
@@ -382,8 +383,8 @@ describe('row kinds: function', () => {
 
         render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
-        expect(screen.getByText('doubled')).toBeInTheDocument();
-        expect(screen.getByText('x * 2')).toBeInTheDocument();
+        expect(screen.getByText('doubled', notCode)).toBeInTheDocument();
+        expect(screen.getByText(byCode('x * 2'))).toBeInTheDocument();
         expect(screen.getByText('total')).toBeInTheDocument();
     });
 
@@ -394,7 +395,7 @@ describe('row kinds: function', () => {
         render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
         expect(screen.getByText('nested')).toBeInTheDocument();
-        expect(screen.getByText('x + 1')).toBeInTheDocument();
+        expect(screen.getByText(byCode('x + 1'))).toBeInTheDocument();
     });
 
     it('renders the synthesized result as a non-draggable row', () => {
@@ -404,7 +405,7 @@ describe('row kinds: function', () => {
 
         renderRow(service, <FunctionResultRow row={row} />);
 
-        expect(screen.getByText('amount / 12')).toBeInTheDocument();
+        expect(screen.getByText(byCode('amount / 12'))).toBeInTheDocument();
         expect(screen.queryByLabelText(DRAG_HANDLE_LABEL)).not.toBeInTheDocument();
     });
 });
@@ -428,17 +429,17 @@ describe('row kinds: ruleset', () => {
         render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
         expect(screen.getByText('risk')).toBeInTheDocument();
-        expect(screen.getByText('age')).toBeInTheDocument();
-        expect(screen.getByText('income')).toBeInTheDocument();
+        expect(screen.getByText('age', notCode)).toBeInTheDocument();
+        expect(screen.getByText('income', notCode)).toBeInTheDocument();
         expect(screen.getByText('level')).toBeInTheDocument();
         expect(screen.getByText('limit')).toBeInTheDocument();
         expect(screen.getByText('hitPolicy')).toBeInTheDocument();
         expect(screen.getByText('first-match')).toBeInTheDocument();
         // Cell-map form: one cell per condition column.
-        expect(screen.getByText('18..25')).toBeInTheDocument();
-        expect(screen.getByText('< 30000')).toBeInTheDocument();
+        expect(screen.getByText(byCode('18..25'))).toBeInTheDocument();
+        expect(screen.getByText(byCode('< 30000'))).toBeInTheDocument();
         // Boolean-expression form: one spanning cell.
-        expect(screen.getByText('age >= 26 and age <= 64')).toBeInTheDocument();
+        expect(screen.getByText(byCode('age >= 26 and age <= 64'))).toBeInTheDocument();
         expect(screen.getByText('otherwise')).toBeInTheDocument();
     });
 
@@ -452,7 +453,7 @@ describe('row kinds: ruleset', () => {
             <BoxedEditor service={service} path="*" languageService={languageService} onChange={onChange} />,
         );
 
-        await user.click(screen.getByText('18..25'));
+        await user.click(screen.getByText(byCode('18..25')));
         await user.click(queryEditable(container));
         replaceDoc(container, '');
         await user.keyboard('{Enter}');
@@ -473,7 +474,7 @@ describe('row kinds: ruleset', () => {
             <BoxedEditor service={service} path="*" languageService={languageService} onChange={onChange} />,
         );
 
-        await user.click(screen.getByText('age >= 26 and age <= 64'));
+        await user.click(screen.getByText(byCode('age >= 26 and age <= 64')));
         await user.click(queryEditable(container));
         replaceDoc(container, 'age >= 30');
         await user.keyboard('{Enter}');
@@ -614,18 +615,18 @@ describe('row kinds: optimisation', () => {
         render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
         expect(screen.getByText('factory')).toBeInTheDocument();
-        expect(screen.getByText('workers')).toBeInTheDocument();
+        expect(screen.getByText('workers', notCode)).toBeInTheDocument();
         expect(screen.getByText('using')).toBeInTheDocument();
         expect(screen.getByText('highs')).toBeInTheDocument();
         expect(screen.getByText('bottlenecks')).toBeInTheDocument();
-        expect(screen.getByText('true')).toBeInTheDocument();
+        expect(screen.getByText('true', notCode)).toBeInTheDocument();
         expect(screen.getByText('variables')).toBeInTheDocument();
-        expect(screen.getByText('chairs')).toBeInTheDocument();
+        expect(screen.getByText('chairs', notCode)).toBeInTheDocument();
         expect(screen.getByText('maximise')).toBeInTheDocument();
-        expect(screen.getByText('15 * chairs')).toBeInTheDocument();
+        expect(screen.getByText(byCode('15 * chairs'))).toBeInTheDocument();
         expect(screen.getByText('constraints')).toBeInTheDocument();
         expect(screen.getByText('capacity')).toBeInTheDocument();
-        expect(screen.getByText('chairs <= workers')).toBeInTheDocument();
+        expect(screen.getByText(byCode('chairs <= workers'))).toBeInTheDocument();
         expect(screen.getByText('timeLimit')).toBeInTheDocument();
         expect(screen.getByText('1000')).toBeInTheDocument();
     });

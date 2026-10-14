@@ -57,7 +57,7 @@ export function OptimisationRow({row}: OptimisationRowProps): ReactElement {
                         }}
                     />
                 }
-                valueIsInteractive
+                valueIsSubGrid
                 actions={actions}
             />
             {expanded && row.children?.map((child) => renderChild(child))}

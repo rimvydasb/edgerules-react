@@ -53,7 +53,7 @@ export function FunctionRow({row}: FunctionRowProps): ReactElement {
                         }}
                     />
                 }
-                valueIsInteractive
+                valueIsSubGrid
                 actions={actions}
             />
             {expanded && (
