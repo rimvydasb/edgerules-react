@@ -6,10 +6,11 @@ import {FlowEditorProvider} from '../FlowEditorProvider';
 import type {DocumentationService} from '../../documentation-service';
 import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
 import {FunctionNode} from '../function-node/FunctionNode';
+import {InputNode} from '../input-node/InputNode';
 import {createFlowEditorService, type FlowEditorEngine} from '../service/createFlowEditorService';
 import {SAMPLE_MODEL} from './sampleModel';
 
-const nodeTypes = {functionNode: FunctionNode};
+const nodeTypes = {functionNode: FunctionNode, inputNode: InputNode};
 
 export interface RenderedNode {
     service: FlowEditorService;
@@ -23,6 +24,7 @@ export function renderNode(
     options: {
         model?: string;
         draft?: boolean;
+        input?: boolean; // render an InputNode; the record at `field` is annotated first
         readOnly?: boolean;
         onOpenNode?: (target: FlowEditorOpenTarget) => void;
     } = {},
@@ -30,6 +32,7 @@ export function renderNode(
     const mutable = MutableDecisionService.fromCode(options.model ?? SAMPLE_MODEL);
     const service = createFlowEditorService(mutable);
     const documentation = createDocumentationService(`fn-${Math.random()}`);
+    if (options.input) service.addInputNode(field);
     const nodeField = options.draft ? service.createDraftNode() : field;
     render(
         <ReactFlowProvider>
@@ -44,7 +47,7 @@ export function renderNode(
                         nodes={[
                             {
                                 id: nodeField,
-                                type: 'functionNode',
+                                type: options.input ? 'inputNode' : 'functionNode',
                                 position: {x: 0, y: 0},
                                 data: {field: nodeField},
                                 width: 400,

@@ -1,5 +1,5 @@
 import {createContext, useContext, useEffect, useMemo, useState, type ReactElement} from 'react';
-import type {FlowEditorProviderProps, FlowEditorService, FunctionNodeModel} from './flow-editor-types';
+import type {FlowEditorProviderProps, FlowEditorService, FunctionNodeModel, InputNodeModel} from './flow-editor-types';
 
 type FlowEditorContextValue = Omit<FlowEditorProviderProps, 'children'>;
 
@@ -21,11 +21,21 @@ export function useFlowEditor(): FlowEditorContextValue {
     return context;
 }
 
-/** The node model of one field; reads again after every committed change of the service. */
-export function useFunctionNodeModel(service: FlowEditorService, field: string): FunctionNodeModel {
+// Reads again after every committed change of the service.
+function useServiceRead<T>(service: FlowEditorService, field: string, read: () => T): T {
     const [version, setVersion] = useState(0);
     useEffect(() => service.subscribe(() => setVersion((current) => current + 1)), [service]);
     // `version` is the cache key: the service builds a new model object on every read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    return useMemo(() => service.getFunctionNode(field), [service, field, version]);
+    return useMemo(read, [service, field, version]);
+}
+
+/** The node model of one field; reads again after every committed change of the service. */
+export function useFunctionNodeModel(service: FlowEditorService, field: string): FunctionNodeModel {
+    return useServiceRead(service, field, () => service.getFunctionNode(field));
+}
+
+/** The input node model of one field; reads again after every committed change of the service. */
+export function useInputNodeModel(service: FlowEditorService, field: string): InputNodeModel {
+    return useServiceRead(service, field, () => service.getInputNode(field));
 }

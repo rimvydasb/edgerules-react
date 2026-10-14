@@ -18,7 +18,15 @@ import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor/box
 import {createBoxedEditorService} from '../../boxed-editor/service/createBoxedEditorService';
 import {denormalize} from '../../boxed-editor/service/denormalize';
 import {isRecord, parentPath, portableAtPath, typeText} from '../../boxed-editor/service/portable-utils';
-import type {CalleeRef, FlowEditorService, FunctionNodeModel, NodeArgument, NodeResult} from '../flow-editor-types';
+import type {
+    CalleeRef,
+    FlowEditorService,
+    FunctionNodeModel,
+    InputField,
+    InputNodeModel,
+    NodeArgument,
+    NodeResult,
+} from '../flow-editor-types';
 
 type GetFilter = 'FIELDS' | 'ALL' | 'EXTERNAL_DEFINITIONS';
 
@@ -146,6 +154,38 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
     const committedAt = (field: string): Record<string, unknown> | undefined => {
         const node = portableAtPath(engine.toPortable() as PortableNode, field);
         return isInvocation(node) ? node : undefined;
+    };
+
+    // The record at `field` when it is annotated `@node: 'InputNode'`.
+    const inputAt = (field: string): Record<string, unknown> | undefined => {
+        const node = portableAtPath(engine.toPortable() as PortableNode, field);
+        return isRecord(node) && node['@kind'] === 'context' && node['@node'] === 'InputNode' ? node : undefined;
+    };
+
+    // Rewrites the fields of an input record in one link-checked write; the annotations stay.
+    const editInput = (
+        field: string,
+        edit: (entries: [string, unknown][]) => [string, unknown][] | undefined,
+    ): PortableError | void => {
+        const input = inputAt(field);
+        if (!input) return failure(`node '${field}' does not exist`);
+        const entries = Object.entries(input).filter(([key]) => !key.startsWith('@'));
+        const next = edit(entries);
+        if (!next) return;
+        const meta = Object.entries(input).filter(([key]) => key.startsWith('@'));
+        const record = Object.fromEntries([...meta, ...next]) as unknown as PortableNode;
+        const result = setWithLinkCheck(engine, field, record, input as unknown as PortableNode);
+        if (isPortableError(result)) return result;
+        notify();
+    };
+
+    const siblingNames = (field: string): Set<string> => {
+        const parent = parentPath(field);
+        const siblings =
+            parent && parent !== '*'
+                ? portableAtPath(engine.toPortable() as PortableNode, parent)
+                : engine.toPortable();
+        return new Set([...(isRecord(siblings) ? Object.keys(siblings) : []), ...drafts.keys()]);
     };
 
     const stateOf = (field: string): InvocationState | undefined => {
@@ -304,6 +344,16 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         },
 
         setNodeName(field, name) {
+            const input = inputAt(field);
+            if (input) {
+                const {'@node-name': _label, ...rest} = input;
+                const label = name.trim();
+                const next = (label === '' ? rest : {...rest, '@node-name': label}) as unknown as PortableNode;
+                const result = setWithLinkCheck(engine, field, next, input as unknown as PortableNode);
+                if (isPortableError(result)) return result;
+                notify();
+                return;
+            }
             const state = stateOf(field);
             if (!state) return failure(`node '${field}' does not exist`);
             const label = name.trim() === '' ? undefined : name.trim();
@@ -345,6 +395,22 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         },
 
         duplicate(field) {
+            const input = inputAt(field);
+            if (input) {
+                const base = field.split('.').at(-1)!;
+                const parent = parentPath(field);
+                const name = uniqueName(base, siblingNames(field));
+                const copy = parent && parent !== '*' ? `${parent}.${name}` : name;
+                const result = setWithLinkCheck(
+                    engine,
+                    copy,
+                    structuredClone(input) as unknown as PortableNode,
+                    undefined,
+                );
+                if (isPortableError(result)) return result;
+                notify();
+                return copy;
+            }
             const state = stateOf(field);
             if (!state) return failure(`node '${field}' does not exist`);
             const parent = parentPath(field);
@@ -363,6 +429,14 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         },
 
         removeFromFlow(field) {
+            if (inputAt(field)) {
+                // `set` keeps the annotations of a record when it gets none; the annotation named after the
+                // node type is removed with both `@node` and `@node-name`.
+                const result = engine.remove(`${field}.@InputNode`);
+                if (isPortableError(result)) return result;
+                notify();
+                return;
+            }
             const committed = committedAt(field);
             drafts.delete(field);
             errors.delete(field);
@@ -384,7 +458,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
                 notify();
                 return;
             }
-            const previous = committedAt(field) as PortableNode | undefined;
+            const previous = (committedAt(field) ?? inputAt(field)) as PortableNode | undefined;
             const result = engine.remove(field);
             if (isPortableError(result)) return result;
             try {
@@ -481,6 +555,101 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             notify();
         },
 
+        getInputNode(field): InputNodeModel {
+            const input = inputAt(field);
+            if (!input) return {field, fields: []};
+            ensureLinked();
+            const schema = engine.get(field, 'FIELDS');
+            const fields: InputField[] = isRecord(schema)
+                ? Object.entries(schema)
+                      .filter(([name]) => !name.startsWith('@'))
+                      .map(([name, type]) => ({
+                          name,
+                          type: typeText(type) ?? 'object',
+                          used: readsField(engine.toPortable(), field, name),
+                      }))
+                : [];
+            const label = input['@node-name'];
+            return {field, label: typeof label === 'string' ? label : undefined, fields};
+        },
+
+        listInputCandidates() {
+            const candidates: string[] = [];
+            const walk = (node: unknown, path: string) => {
+                if (!isRecord(node)) return;
+                for (const [key, child] of Object.entries(node)) {
+                    if (key.startsWith('@') || !isRecord(child) || child['@kind'] !== 'context') continue;
+                    const childPath = path ? `${path}.${key}` : key;
+                    if (child['@node'] === undefined) candidates.push(childPath);
+                    walk(child, childPath);
+                }
+            };
+            walk(engine.toPortable(), '');
+            return candidates;
+        },
+
+        addInputNode(field) {
+            const node = portableAtPath(engine.toPortable() as PortableNode, field);
+            if (!isRecord(node) || node['@kind'] !== 'context') return failure(`'${field}' is not a record`);
+            const result = setWithLinkCheck(
+                engine,
+                field,
+                {...node, '@node': 'InputNode'} as unknown as PortableNode,
+                node as unknown as PortableNode,
+            );
+            if (isPortableError(result)) return result;
+            notify();
+        },
+
+        addInputField(field, after) {
+            return editInput(field, (entries) => {
+                const name = uniqueName('field', new Set(entries.map(([key]) => key)));
+                const at = after === undefined ? entries.length : entries.findIndex(([key]) => key === after) + 1;
+                return [...entries.slice(0, at), [name, 0], ...entries.slice(at)];
+            });
+        },
+
+        moveInputField(field, name, direction) {
+            return editInput(field, (entries) => {
+                const from = entries.findIndex(([key]) => key === name);
+                const to = direction === 'up' ? from - 1 : from + 1;
+                if (from < 0 || to < 0 || to >= entries.length) return undefined;
+                const next = [...entries];
+                [next[from], next[to]] = [next[to], next[from]];
+                return next;
+            });
+        },
+
+        removeInputField(field, name) {
+            return editInput(field, (entries) => entries.filter(([key]) => key !== name));
+        },
+
+        renameInputField(field, from, to) {
+            if (from === to) return;
+            const input = inputAt(field);
+            if (!input) return failure(`node '${field}' does not exist`);
+            if (!IDENTIFIER.test(to)) return failure(`'${to}' is not a valid field name`);
+            const record = portableAtPath(engine.toPortable() as PortableNode, field);
+            if (!isRecord(record) || !(from in record)) return failure(`'${from}' does not exist`);
+            if (to in record) return failure(`'${to}' already exists`, 'DuplicateName');
+            // Path-based: only `<field>.<from>` references change. The Boxed Editor rename rewrites every identifier
+            // named `from` in the model, which would also rename same-named callee parameters and call-site arguments.
+            const previous = engine.toPortable();
+            const renamed = Object.fromEntries(
+                Object.entries(record).map(([key, value]) => [key === from ? to : key, value]),
+            );
+            const next = rewriteResultReferences(
+                replaceAt(previous, field, renamed as unknown as PortableNode),
+                [field],
+                from,
+                to,
+            ) as PortableRootContext;
+            const written = writeChangedEntries(engine, next, previous);
+            if (isPortableError(written)) return written;
+            boxed.invalidate();
+            notify();
+        },
+
         subscribe(listener) {
             listeners.add(listener);
             return () => {
@@ -488,6 +657,12 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             };
         },
     };
+}
+
+// True when an expression anywhere in the model reads `<field>.<name>`.
+function readsField(root: unknown, field: string, name: string): boolean {
+    const pattern = new RegExp(`(?<![\\w.])${escapeRegExp(`${field}.${name}`)}\\b`);
+    return pattern.test(JSON.stringify(root));
 }
 
 function unknownCallee(method: string): PortableError {
@@ -535,6 +710,33 @@ function invocationFields(node: unknown, method: string, path = ''): string[] {
     return Object.entries(node).flatMap(([key, child]) =>
         key.startsWith('@') ? [] : invocationFields(child, method, path ? `${path}.${key}` : key),
     );
+}
+
+// Writes only the top-level entries that differ, then links; a failed link restores them. `set('*')` is avoided
+// because it drops the root metadata and rejects a root optimisation (docs/engine-bug-reports.md).
+function writeChangedEntries(
+    engine: FlowEditorEngine,
+    next: PortableRootContext,
+    previous: PortableRootContext,
+): PortableError | void {
+    const before = previous as unknown as Record<string, unknown>;
+    const after = next as unknown as Record<string, unknown>;
+    const changed = Object.keys(after).filter(
+        (key) => !key.startsWith('@') && JSON.stringify(after[key]) !== JSON.stringify(before[key]),
+    );
+    for (const key of changed) {
+        const result = engine.set(key, after[key] as PortableNode);
+        if (isPortableError(result)) {
+            for (const restore of changed) engine.set(restore, before[restore] as PortableNode);
+            return result;
+        }
+    }
+    try {
+        engine.link();
+    } catch (linkError) {
+        for (const restore of changed) engine.set(restore, before[restore] as PortableNode);
+        return linkError as PortableError;
+    }
 }
 
 function replaceAt(root: PortableRootContext, path: string, value: PortableNode): PortableRootContext {

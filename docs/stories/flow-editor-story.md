@@ -328,7 +328,7 @@ sequenceDiagram
 ## Out of Scope
 
 - The Flow Editor canvas component, node positions and their persistence (`FlowMetadataStore`).
-- InputNode, OutputNode and the other node kinds. Stories use story-local stub nodes for wire sources and output values.
+- OutputNode and the other node kinds. Stories use story-local stub nodes for output values.
 - `optimise` and `loop` callees.
 - Editing argument values without a wire. View as code covers it.
 
@@ -444,3 +444,120 @@ Acceptance criteria:
 
 - [ ] Every command in `## Verification` passes
 - [ ] Storybook starts with `npm run storybook` and shows the FunctionNode stories
+
+# Flow Editor: InputNode
+
+## Summary
+
+`InputNode` is the source node of the Flow Editor. It renders one model field annotated `@InputNode` whose value is a
+record (`@kind: 'context'`). The node shows structure only: the field name and one output pin per field of the record.
+Wires from these pins feed the argument pins of a `FunctionNode`. Output nodes, not the InputNode, show values.
+
+The proposal does not draw the InputNode. It is built from the FunctionNode parts: same 40px sheet, same header, band,
+pins, menu and inline edits. The tile uses the input color `#ed6c02`.
+
+## Technical Breakdown
+
+| File                                                                | Responsibility                                          |
+|---------------------------------------------------------------------|---------------------------------------------------------|
+| `src/components/flow-editor/input-node/InputNode.tsx`               | The `@xyflow/react` custom node component               |
+| `src/components/flow-editor/function-node/nodeMenus.tsx`            | `inputNodeMenuItems`, next to the FunctionNode menus    |
+| `src/components/flow-editor/service/createFlowEditorService.ts`     | InputNode reads and writes                              |
+| `src/components/flow-editor/__tests__/InputNode.test.tsx`           | RTL tests against the real `@edgerules/node` engine     |
+| `stories/components/flow-editor/InputNode.stories.tsx`              | Storybook stories against the real `@edgerules/web` engine |
+
+### Component API
+
+```typescript
+interface InputNodeData {
+    field: string; // model field path of the input record, for example 'applicant'
+}
+
+interface InputField {
+    name: string;
+    type: string; // 'number', 'string[]', 'object' for a nested record
+    used: boolean; // an expression elsewhere in the model reads `<field>.<name>`; Delete field is disabled
+}
+
+interface InputNodeModel {
+    field: string;
+    label?: string; // '@node-name'
+    fields: InputField[]; // one output pin per field of the record
+}
+
+// Added to FlowEditorService
+getInputNode(field: string): InputNodeModel; // no fields when the record is not an InputNode
+listInputCandidates(): string[]; // record fields that are not yet an InputNode
+addInputNode(field: string): PortableError | void; // writes '@node: InputNode', link-checked
+addInputField(field: string, after?: string): PortableError | void; // appends a number field; after = undefined appends
+moveInputField(field: string, name: string, direction: 'up' | 'down'): PortableError | void;
+removeInputField(field: string, name: string): PortableError | void; // link-checked, reverted when something reads it
+renameInputField(field: string, from: string, to: string): PortableError | void; // rewrites `<field>.<from>` only, link-checked
+```
+
+`setNodeName`, `renameField`, `duplicate`, `removeFromFlow` and `deleteField` act on an InputNode when `field` is one.
+
+### Node anatomy
+
+| Part            | Source              | Behavior                                                                   |
+|-----------------|---------------------|----------------------------------------------------------------------------|
+| Kind tile       | -                   | Orange, input icon                                                         |
+| Header line 1   | `label`, `field`    | Bold label, mono field name, node menu ⋮                                   |
+| Header line 2   | `fields`            | INPUT label, `{ age, income }` summary, whole-record pin `out:*`           |
+| Description row | `DocumentationService` | Same as the FunctionNode                                                |
+| Field band      | `fields.length`     | Reads FIELD or FIELDS                                                      |
+| Field row       | `InputField`        | Right-aligned name; click to rename; field menu ⋮ on the left; pin `out:<name>`; no values |
+
+- **Handle ids:** `out:<field>` and `out:*`. There are no input handles.
+- **Source path:** `<nodeId>.<field>`, or `<nodeId>` for `out:*`.
+- **Pins:** same type colors and shapes as the FunctionNode output pins.
+
+### Menu
+
+| Group  | Item                                      | Service call                                    |
+|--------|-------------------------------------------|-------------------------------------------------|
+| This node | Rename node                            | `setNodeName`                                   |
+| This node | Rename field                           | `renameField`                                   |
+| This node | Duplicate                              | `duplicate`                                     |
+| This node | Add description, Remove description    | `documentation.setDescription`                  |
+| Record | Add field                                 | `addInputField(field)`, then the name opens for editing |
+| Record | Open in boxed editor                      | `onOpenNode({ path: field, kind: 'boxed-editor' })` |
+| Record | View as code                              | `onOpenNode({ path: field, kind: 'code-editor' })` |
+| Remove | Remove from flow                          | `removeFromFlow`                                |
+| Remove | Delete (red)                              | `deleteField`                                   |
+
+### Clarifications
+
+- Engine facts verified on `@edgerules/node` `0.0.6-alpha.202607291629`:
+    - `set` on a record that already has annotations keeps them when the new node has none. `removeFromFlow` therefore
+      calls `remove('<field>.@InputNode')`, which removes `@node` and `@node-name`.
+    - A plain value such as `amount: 5` takes no annotation, and `set` rejects `@kind: 'value'`. An InputNode is a
+      record only.
+    - `get(field, 'FIELDS')` on a record returns the typed fields with `readOnly: true`.
+- The field menu is the FunctionNode argument menu for a record field: Move up, Move down, Add field below,
+  Delete field (disabled with the reason when `used`). The footer reads "Changes `<field>`". The dots are always
+  visible, on the left of the row, with no box.
+- A new field is a `number` with value `0`. Each edit rewrites the whole record in one link-checked write that keeps
+  `@node` and `@node-name`; the engine keeps the key order, so Move up and Move down reorder the rows.
+- `renameInputField` rewrites `<field>.<from>` in every expression and renames the key. It does **not** use the Boxed
+  Editor `rename`: that rewrites every identifier named `from` in the whole model, so renaming `applicant.age` also
+  renamed the `age` parameter of `risk` and every call-site argument. The write goes through the changed top-level
+  entries and `link()`, not `set('*')`, which drops the root metadata. A bare sibling reference such as `b: a + 1`
+  inside the record is not rewritten; linking fails and the rename is reverted with the engine message.
+- Pin positions: xyflow measures the handles of a node only on mount and resize. Reordering, adding or renaming
+  rows keeps the node size, so the wires stayed at the old pin positions (age appeared wired to income). Both node
+  components call `useSyncPins(id, key)` (`updateNodeInternals`) when the ordered handle ids or the width change.
+- Dragging a wire from an InputNode is out of this story. Wires are written by the target FunctionNode (`bindArgument`).
+
+## Tasks
+
+- [x] Add `InputNodeData`, `InputField`, `InputNodeModel` and the four service methods
+- [x] Write `InputNode` and `inputNodeMenuItems`; export `InputNode` from `edgerules-react/flow-editor`
+- [x] Add tests: `InputNode.test.tsx` and the `InputNode service` block in `createFlowEditorService.test.ts`
+- [x] Add the Storybook stories: Default, SingleField, Wired, NodeMenu, RenameField
+- [x] Update `README.md` and `docs/ARCHITECTURE.md`
+- [ ] Manual: `npm run storybook`, the InputNode stories in light and dark themes
+- [x] Field menu: Move up, Move down, Add field below, Delete field; Add field in the node menu
+- [x] Fix: wires follow their pins after Move up, Move down, add, delete and rename (`useSyncPins`, both nodes)
+- [x] Fix: field rename is path-based
+- [x] E2E tests for the InputNode in `e2e/flow-editor/input-node.spec.ts`

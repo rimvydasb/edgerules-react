@@ -10,6 +10,7 @@ import {DescriptionRow} from './DescriptionRow';
 import {KIND_COLOR, KindIcon} from './KindIcon';
 import {InlineInput} from './InlineInput';
 import {Pin} from './Pin';
+import {useSyncPins} from './useSyncPins';
 import {argumentMenuFooter, argumentMenuItems, nodeMenuItems} from './nodeMenus';
 import {computeFunctionNodeLayout} from './layout';
 import {FONTS, measureText} from './measure';
@@ -79,10 +80,19 @@ type Editing =
 const NO_DESCRIPTIONS = {subscribe: () => () => {}, getDescription: () => undefined};
 
 /** The EdgeRules FunctionNode: structure only. Wires show where argument values come from. */
-export function FunctionNode({data, selected}: NodeProps<FunctionNodeType>): ReactElement {
+export function FunctionNode({id, data, selected}: NodeProps<FunctionNodeType>): ReactElement {
     const {service, documentation, readOnly = false, onOpenNode} = useFlowEditor();
     const model = useFunctionNodeModel(service, data.field);
     const layout = useNodeLayout(model);
+    useSyncPins(
+        id,
+        [
+            layout.width,
+            model.callee?.path,
+            model.arguments.map((argument) => argument.name).join(','),
+            model.results.map((result) => result.name).join(','),
+        ].join('|'),
+    );
     const [editing, setEditing] = useState<Editing | null>(null);
     const [pickerOpened, setPickerOpened] = useState(false);
     const description = useSyncExternalStore((documentation ?? NO_DESCRIPTIONS).subscribe, () =>

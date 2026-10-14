@@ -16,7 +16,13 @@ import {
 } from '@tabler/icons-react';
 import type {ReactNode} from 'react';
 import type {RowMenuItem} from '../../../ui/RowActionsMenu';
-import type {FlowEditorOpenTarget, FunctionNodeModel, NodeArgument} from '../flow-editor-types';
+import type {
+    FlowEditorOpenTarget,
+    FunctionNodeModel,
+    InputField,
+    InputNodeModel,
+    NodeArgument,
+} from '../flow-editor-types';
 
 function callers(count: number): string {
     return `${count} ${count === 1 ? 'caller' : 'callers'}`;
@@ -178,6 +184,136 @@ export function argumentMenuFooter(model: FunctionNodeModel): ReactNode {
     return (
         <>
             Changes <code>{model.callee?.path}</code> for {callers(model.callers)}
+        </>
+    );
+}
+
+export interface InputNodeMenuContext {
+    field: string;
+    hasDescription: boolean;
+    canDescribe: boolean; // a documentation service is present
+    readOnly: boolean;
+    onOpenNode?: (target: FlowEditorOpenTarget) => void;
+    onRenameNode: () => void;
+    onRenameField: () => void;
+    onDuplicate: () => void;
+    onAddDescription: () => void;
+    onRemoveDescription: () => void;
+    onAddField: () => void;
+    onRemoveFromFlow: () => void;
+    onDelete: () => void;
+}
+
+/** The InputNode menu: the "This node" and "Remove" groups of the node menu, plus the host routes. */
+export function inputNodeMenuItems(context: InputNodeMenuContext): RowMenuItem[] {
+    const {readOnly, onOpenNode, field} = context;
+    const items: RowMenuItem[] = [];
+
+    if (!readOnly) {
+        items.push(
+            {
+                id: 'rename-node',
+                label: 'Rename node',
+                icon: IconTag,
+                onSelect: context.onRenameNode,
+                group: 'This node',
+            },
+            {id: 'rename-field', label: 'Rename field', icon: IconPencil, onSelect: context.onRenameField},
+            {id: 'duplicate', label: 'Duplicate', icon: IconCopy, onSelect: context.onDuplicate},
+        );
+        if (context.canDescribe) {
+            items.push(
+                context.hasDescription
+                    ? {
+                          id: 'remove-description',
+                          label: 'Remove description',
+                          icon: IconNoteOff,
+                          onSelect: context.onRemoveDescription,
+                      }
+                    : {
+                          id: 'add-description',
+                          label: 'Add description',
+                          icon: IconNote,
+                          onSelect: context.onAddDescription,
+                      },
+            );
+        }
+    }
+
+    const recordItems: RowMenuItem[] = [];
+    if (!readOnly) {
+        recordItems.push({id: 'add-field', label: 'Add field', icon: IconPlus, onSelect: context.onAddField});
+    }
+    if (onOpenNode) {
+        recordItems.push(
+            {
+                id: 'open-editor',
+                label: 'Open in boxed editor',
+                icon: IconExternalLink,
+                onSelect: () => onOpenNode({path: field, kind: 'boxed-editor'}),
+            },
+            {
+                id: 'view-code',
+                label: 'View as code',
+                icon: IconCode,
+                onSelect: () => onOpenNode({path: field, kind: 'code-editor'}),
+            },
+        );
+    }
+    if (recordItems.length > 0) items.push({...recordItems[0], group: 'Record'}, ...recordItems.slice(1));
+
+    if (!readOnly) {
+        items.push(
+            {
+                id: 'remove-from-flow',
+                label: 'Remove from flow',
+                icon: IconEyeOff,
+                onSelect: context.onRemoveFromFlow,
+                group: 'Remove',
+            },
+            {id: 'delete', label: 'Delete', icon: IconTrash, danger: true, onSelect: context.onDelete},
+        );
+    }
+    return items;
+}
+
+export interface InputFieldMenuContext {
+    model: InputNodeModel;
+    item: InputField;
+    onMove: (direction: 'up' | 'down') => void;
+    onAddBelow: () => void;
+    onDelete: () => void;
+}
+
+/** The field menu of an InputNode: the argument menu of the FunctionNode, for a record field. */
+export function inputFieldMenuItems({model, item, onMove, onAddBelow, onDelete}: InputFieldMenuContext): RowMenuItem[] {
+    const index = model.fields.findIndex((candidate) => candidate.name === item.name);
+    return [
+        {id: 'move-up', label: 'Move up', icon: IconArrowUp, disabled: index === 0, onSelect: () => onMove('up')},
+        {
+            id: 'move-down',
+            label: 'Move down',
+            icon: IconArrowDown,
+            disabled: index === model.fields.length - 1,
+            onSelect: () => onMove('down'),
+        },
+        {id: 'add-below', label: 'Add field below', icon: IconPlus, onSelect: onAddBelow},
+        {
+            id: 'delete-field',
+            label: 'Delete field',
+            icon: IconTrash,
+            danger: true,
+            disabled: item.used,
+            reason: item.used ? `Read as ${model.field}.${item.name}` : undefined,
+            onSelect: onDelete,
+        },
+    ];
+}
+
+export function inputFieldMenuFooter(model: InputNodeModel): ReactNode {
+    return (
+        <>
+            Changes <code>{model.field}</code>
         </>
     );
 }
