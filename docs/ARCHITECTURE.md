@@ -21,7 +21,7 @@ flowchart TB
     Boxed["BoxedEditor<br/>&lt;&lt;implemented&gt;&gt;"]
     Decision["DecisionTableEditor<br/>&lt;&lt;implemented&gt;&gt;"]
     Tests["TestsManager<br/>&lt;&lt;implemented&gt;&gt;"]
-    Flow["FlowEditor<br/>&lt;&lt;planned&gt;&gt;<br/>React Flow based"]
+    Flow["FlowEditor<br/>&lt;&lt;partial&gt;&gt;<br/>FunctionNode only"]
     Types["TypesEditor<br/>&lt;&lt;planned&gt;&gt;"]
   end
 
@@ -98,7 +98,7 @@ flowchart TB
 | `DecisionTableEditor` | `src/components/decision-table`; package root and `edgerules-react/decision-table`     | DMN-style ruleset table editor backed by `get`/`set` operations.                                                                                         | Renders one `CodeEditorCell` for the active DSL cell and uses shared static highlighting.                   |
 | `TestsManager`        | `src/components/tests-manager`; `edgerules-react/tests-manager`                        | Test-case grid, subject selection, persistence and execution orchestration.                                                                              | Renders `CodeEditorCell` for editable path cells.                                                           |
 | `ProjectExplorer`     | `src/components/project-explorer`; package root and `edgerules-react/project-explorer` | Lazily loaded tree navigation for contexts, variables, functions, decision tables and types.                                                             | None. It reports navigation intent through callbacks instead of importing editors.                          |
-| `FlowEditor`          | Not present and not exported.                                                          | Planned React Flow-based visual editor for input, function, ruleset, terms, chart and output nodes.                                                      | No source dependency can be asserted until it is implemented.                                               |
+| `FlowEditor`          | `src/components/flow-editor`; `edgerules-react/flow-editor`                            | React Flow-based visual editor. `FunctionNode` is implemented: it shows one `@FunctionNode` invocation with a pin per argument and result, a callee picker, menus and inline edits over a `FlowEditorService`. Input, ruleset, terms, chart and output nodes are planned. | Uses the shared `RowActionsMenu`, `listCallables`, `setWithLinkCheck`, `BoxedEditorService` helpers and `DocumentationService`. |
 | `TypesEditor`         | Not present and not exported.                                                          | Planned editor for EdgeRules type definitions.                                                                                                           | No source dependency can be asserted until it is implemented.                                               |
 | `Shell`               | Not present and not exported.                                                          | Planned application integration layer that owns workspace layout, active-editor routing, shared engine/service instances and navigation callback wiring. | Composes the public components; it belongs to a host application unless later added as a library component. |
 

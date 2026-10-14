@@ -248,6 +248,8 @@ export const RecordArgument: Story = {args: {field: 'eligibility'}};
 export const Draft: Story = {args: {field: null, partial: true}};
 export const NoCallee: Story = {args: {field: null}};
 export const Wired: Story = {args: {field: 'decision', wired: true}};
+/** A draft next to the stub source: wire the two open arguments to complete it. */
+export const WiredDraft: Story = {args: {field: null, partial: true, wired: true}};
 
 const DESCRIPTION = 'Assess the applicant risk band from age, income and segment';
 

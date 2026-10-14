@@ -32,3 +32,24 @@ Benchmark for 5000 grid cells (median ms, production build, headless Chromium):
 
 - Hosts MUST render a `MantineProvider`.
 - Screenshot baselines in `e2e/visual` depend on OS and browser build; create them in one environment.
+
+## ADR-002: A FunctionNode with an unbound required argument stays an editor draft
+
+**Status:** accepted.
+
+### Context
+
+The engine rejects the whole model with `E113` when one invocation misses a required argument. No field of the model
+evaluates until the argument is bound.
+
+### Decision
+
+- `FlowEditorService` keeps a node with an unbound required argument in memory only. `getFunctionNode` returns the
+  draft over the committed field, and the node shows a "draft" badge.
+- The service writes the invocation, with `@node: 'FunctionNode'`, when the last required argument is bound.
+- Every write is link-checked. A failed link reverts the write and sets `error.parameter` on the node.
+
+### Consequences
+
+- A draft is lost when the editor closes. The model never contains an invalid invocation.
+- Hosts MUST NOT assume that every node on the canvas exists in the model.

@@ -428,16 +428,16 @@ Acceptance criteria:
 
 **Phase E2E**
 
-- [ ] Add E2E tests for the user flows of this story in `e2e/flow-editor/function-node.spec.ts`
+- [x] Add E2E tests for the user flows of this story in `e2e/flow-editor/function-node.spec.ts`
 
 Acceptance criteria:
 
-- [ ] `npm run e2e` passes, including pick a callee, wire an argument, rename a result, add and remove a description
+- [x] `npm run e2e` passes, including pick a callee, wire an argument, rename a result, add and remove a description
 
 **Phase X**
 
-- [ ] Update `docs/ARCHITECTURE.md` and `docs/architecture-adr.md` with `## Architecture Changes`
-- [ ] Update `README.md`: check the FunctionNode box and link this story
+- [x] Update `docs/ARCHITECTURE.md` and `docs/architecture-adr.md` with `## Architecture Changes`
+- [x] Update `README.md`: check the FunctionNode box and link this story
 - [ ] Review the implementation against this story, the proposal and the project conventions
 
 Acceptance criteria:

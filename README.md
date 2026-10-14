@@ -18,7 +18,7 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
   with a single CodeEditorCell on the active cell)
 - [ ] EdgeRules Flow Editor (ReactFlow-based)
   - [ ] InputNode
-  - [ ] FunctionNode
+  - [x] FunctionNode ([spec and story](docs/stories/flow-editor-story.md))
   - [ ] RulesetNode
   - [ ] TermsNode
   - [ ] ChartNode
