@@ -366,21 +366,21 @@ Acceptance criteria:
 
 **Phase 2: Service and layout**
 
-- [ ] Write `flow-editor-types.ts` with the Component API types
-- [ ] Write `createFlowEditorService`: `listCallees`, `getFunctionNode`, `createDraftNode`, `setCallee`, `bindArgument`,
+- [x] Write `flow-editor-types.ts` with the Component API types
+- [x] Write `createFlowEditorService`: `listCallees`, `getFunctionNode`, `createDraftNode`, `setCallee`, `bindArgument`,
   `unbindArgument`, draft map, `subscribe`
-- [ ] Write `computeFunctionNodeLayout` in `layout.ts`
-- [ ] Add tests for the code of this phase, against `MutableDecisionService.fromCode` from `@edgerules/node/mutable`,
+- [x] Write `computeFunctionNodeLayout` in `layout.ts`
+- [x] Add tests for the code of this phase, against `MutableDecisionService.fromCode` from `@edgerules/node/mutable`,
   with the sample model from the proposal
 
 Acceptance criteria:
 
-- [ ] `createFlowEditorService.test.ts` passes with these cases:
-    - [ ] The service does not write a draft.
-    - [ ] The last required binding writes the invocation with `@node`.
-    - [ ] A mistyped binding is reverted and sets `error.parameter`.
-    - [ ] `setCallee` keeps bindings with the same name and type.
-- [ ] `layout.test.ts` passes: step rounding, 2 to 4 step limits, header-wins distribution, no argument track for zero
+- [x] `createFlowEditorService.test.ts` passes with these cases:
+    - [x] The service does not write a draft.
+    - [x] The last required binding writes the invocation with `@node`.
+    - [x] A mistyped binding is reverted and sets `error.parameter`.
+    - [x] `setCallee` keeps bindings with the same name and type.
+- [x] `layout.test.ts` passes: step rounding, 2 to 4 step limits, header-wins distribution, no argument track for zero
   parameters
 
 **Phase 3: FunctionNode rendering**
