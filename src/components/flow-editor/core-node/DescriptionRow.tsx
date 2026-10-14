@@ -1,16 +1,8 @@
 import type {ReactElement} from 'react';
 import {useDescription} from '../../documentation-service';
-import type {DocumentationService} from '../../documentation-service';
 import {InlineInput} from './InlineInput';
-import styles from './functionNode.module.css';
-
-export interface DescriptionRowProps {
-    documentation: DocumentationService;
-    field: string;
-    editing: boolean;
-    readOnly?: boolean;
-    onEditingChange: (editing: boolean) => void;
-}
+import type {DescriptionRowProps} from './types';
+import styles from './coreNode.module.css';
 
 /** The node description under the header. Full node width; it never changes the node width. */
 export function DescriptionRow({

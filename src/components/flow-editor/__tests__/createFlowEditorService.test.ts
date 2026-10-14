@@ -2,7 +2,7 @@ import {MutableDecisionService} from '@edgerules/node/mutable';
 import {describe, expect, it, vi} from 'vitest';
 import {isPortableError} from '../../../lib/portable';
 import {createFlowEditorService} from '../service/createFlowEditorService';
-import {SAMPLE_MODEL, sampleService} from './sampleModel';
+import {SAMPLE_MODEL, sampleService} from '../testing/sampleModel';
 
 function build() {
     const {mutable, portable} = sampleService();

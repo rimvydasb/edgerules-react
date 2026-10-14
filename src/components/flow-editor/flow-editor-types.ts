@@ -1,8 +1,10 @@
 import type {PortableError} from '@edgerules/portable';
 import type {ReactNode} from 'react';
 import type {BoxedEditorTargetKind} from '../boxed-editor/BoxedEditorProps';
-import type {SignatureParameter, Unsubscribe} from '../boxed-editor/boxed-editor-types';
+import type {Unsubscribe} from '../boxed-editor/boxed-editor-types';
 import type {DocumentationService} from '../documentation-service';
+import type {CalleeRef, FunctionNodeModel} from './function-node/types';
+import type {InputNodeModel} from './input-node/types';
 
 export type {Unsubscribe};
 
@@ -18,60 +20,6 @@ export interface FlowEditorProviderProps {
 export interface FlowEditorOpenTarget {
     path: string; // callee path ('risk') or node field path ('decision')
     kind: BoxedEditorTargetKind | 'tests';
-}
-
-/** ReactFlow node data; the node id is the field path. */
-// A type alias, not an interface: xyflow requires node data to be assignable to Record<string, unknown>.
-export type FunctionNodeData = {
-    field: string; // model field path of the invocation, for example 'decision'
-};
-
-/** ReactFlow node data of an InputNode; the node id is the field path. */
-export type InputNodeData = {
-    field: string; // model field path of the input record, for example 'applicant'
-};
-
-export interface CalleeRef {
-    path: string; // dotted callee path, for example 'risk' or 'group.nested'
-    kind: 'function' | 'ruleset';
-    parameters: SignatureParameter[]; // from get(path, 'FIELDS')
-    returnLabel: string; // 'number' or '{ level, limit }'
-}
-
-export interface NodeArgument {
-    name: string;
-    type: string; // 'number', 'string', 'Applicant', 'number[]'
-    binding?: {kind: 'path' | 'value'; text: string}; // 'path' draws a wire; 'value' is a literal or expression
-    used: boolean; // the callee body references it; Delete argument is disabled
-}
-
-export interface NodeResult {
-    name: string; // field name, or 'result' for an unnamed return
-    type: string;
-    renamable: boolean; // false for the unnamed return of a func
-}
-
-export interface FunctionNodeModel {
-    field: string; // model field path
-    label?: string; // '@node-name'
-    callee?: CalleeRef; // undefined while no callee is picked
-    arguments: NodeArgument[]; // one per callee parameter, in signature order
-    results: NodeResult[]; // record fields, or one unnamed 'result'
-    draft: boolean; // true while a required argument is unbound; the draft is not in the model
-    callers: number; // invocations of the callee in the whole model
-    error?: {parameter: string; message: string}; // last rejected bindArgument
-}
-
-export interface InputField {
-    name: string;
-    type: string; // 'number', 'string[]', 'object' for a nested record
-    used: boolean; // an expression elsewhere in the model reads it; Delete field is disabled
-}
-
-export interface InputNodeModel {
-    field: string; // model field path
-    label?: string; // '@node-name'
-    fields: InputField[]; // one output pin per field of the record
 }
 
 export interface FlowEditorService {

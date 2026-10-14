@@ -1,15 +1,6 @@
 import {useEffect, useRef, useState, type KeyboardEvent, type ReactElement} from 'react';
-import styles from './functionNode.module.css';
-
-export interface InlineInputProps {
-    value: string;
-    ariaLabel: string;
-    placeholder?: string;
-    align?: 'start' | 'end';
-    /** Returns an error text to keep the input open, or nothing when the commit succeeded. */
-    onCommit: (text: string) => string | void;
-    onCancel: () => void;
-}
+import type {InlineInputProps} from './types';
+import styles from './coreNode.module.css';
 
 /** A single-line edit: Enter or click away commits, Escape cancels. A rejected commit keeps the input open. */
 export function InlineInput({

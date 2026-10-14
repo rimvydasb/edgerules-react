@@ -1,17 +1,8 @@
 import {Handle, Position, useNodeConnections} from '@xyflow/react';
 import type {ReactElement} from 'react';
 import {isListType, typeKind} from './typeKind';
-import styles from './functionNode.module.css';
-
-export interface PinProps {
-    id: string; // handle id: 'in:<parameter>', 'out:<result>' or 'out:*'
-    side: 'in' | 'out';
-    type: string; // 'number', 'Applicant', 'number[]'
-    bound?: 'path' | 'value'; // input only: how the argument is bound
-    bad?: boolean; // red ring: no binding, or the last binding was rejected
-    title: string;
-    forceRecord?: boolean; // the whole-result pin is always a square
-}
+import type {PinProps} from './types';
+import styles from './coreNode.module.css';
 
 /** One xyflow handle styled as a pin: color is the type, shape is the structure, fill is the connection state. */
 export function Pin({id, side, type, bound, bad, title, forceRecord}: PinProps): ReactElement {

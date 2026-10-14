@@ -1,7 +1,7 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {describe, expect, it, vi} from 'vitest';
-import type {FlowEditorOpenTarget} from '../flow-editor-types';
-import {renderNode} from './renderNode';
+import type {FlowEditorOpenTarget} from '../../flow-editor-types';
+import {renderNode} from '../../testing/renderNode';
 
 async function openArgumentMenu(name: string) {
     fireEvent.click(screen.getByRole('button', {name: `Actions for argument ${name}`}));

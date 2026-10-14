@@ -1,4 +1,4 @@
-export type TypeKind = 'number' | 'string' | 'boolean' | 'date' | 'record' | 'any';
+import type {TypeKind} from './types';
 
 const DATE_TYPES = new Set(['date', 'time', 'datetime', 'duration', 'period']);
 

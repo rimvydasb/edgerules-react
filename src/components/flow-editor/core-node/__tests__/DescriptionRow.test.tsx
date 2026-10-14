@@ -1,8 +1,8 @@
 import {fireEvent, render, screen} from '@testing-library/react';
 import {useState} from 'react';
 import {describe, expect, it} from 'vitest';
-import {createDocumentationService} from '../../documentation-service';
-import {DescriptionRow} from '../function-node/DescriptionRow';
+import {createDocumentationService} from '../../../documentation-service';
+import {DescriptionRow} from '../DescriptionRow';
 
 function setup(initial?: string) {
     const documentation = createDocumentationService(`desc-${Math.random()}`);

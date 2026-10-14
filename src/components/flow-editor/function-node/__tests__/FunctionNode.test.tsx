@@ -1,6 +1,6 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {describe, expect, it} from 'vitest';
-import {renderNode} from './renderNode';
+import {renderNode} from '../../testing/renderNode';
 
 describe('FunctionNode', () => {
     it('reads ARGUMENTS and RESULTS in the plural and ARGUMENT and RESULT in the singular', () => {
@@ -23,7 +23,7 @@ describe('FunctionNode', () => {
         renderNode('decision');
         const node = screen.getByTestId('function-node-decision');
         expect(within(node).getByRole('button', {name: 'Callee risk'})).toBeInTheDocument();
-        expect(node.querySelector('[class~="retType"]')).toHaveTextContent('→ { level, limit }');
+        expect(node.querySelector('[class~="summaryText"]')).toHaveTextContent('→ { level, limit }');
         for (const name of ['age', 'income', 'segment', 'level', 'limit']) {
             expect(within(node).getByText(name)).toBeInTheDocument();
         }

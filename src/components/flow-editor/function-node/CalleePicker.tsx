@@ -1,20 +1,11 @@
 import {Combobox, useCombobox} from '@mantine/core';
 import {IconChevronDown, IconSearch} from '@tabler/icons-react';
 import {useState, type ReactElement} from 'react';
-import type {CalleeRef} from '../flow-editor-types';
 import {KindIcon} from './KindIcon';
+import type {CalleeKind, CalleePickerProps, CalleeRef} from './types';
 import styles from './functionNode.module.css';
 
-export interface CalleePickerProps {
-    callees: CalleeRef[];
-    selected?: CalleeRef;
-    disabled?: boolean;
-    opened: boolean; // controlled: the node menu opens it through Change callee…
-    onOpenedChange: (opened: boolean) => void;
-    onSelect: (method: string) => void;
-}
-
-const GROUPS: {kind: CalleeRef['kind']; label: string}[] = [
+const GROUPS: {kind: CalleeKind; label: string}[] = [
     {kind: 'function', label: 'Functions'},
     {kind: 'ruleset', label: 'Rulesets'},
 ];

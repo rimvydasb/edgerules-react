@@ -1,7 +1,7 @@
 import {fireEvent, screen, waitFor} from '@testing-library/react';
 import {describe, expect, it, vi} from 'vitest';
-import type {FlowEditorOpenTarget} from '../flow-editor-types';
-import {renderNode} from './renderNode';
+import type {FlowEditorOpenTarget} from '../../flow-editor-types';
+import {renderNode} from '../../testing/renderNode';
 
 const renderInput = (options: Parameters<typeof renderNode>[1] = {}) =>
     renderNode('applicant', {...options, input: true});

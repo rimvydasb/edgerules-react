@@ -18,15 +18,9 @@ import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor/box
 import {createBoxedEditorService} from '../../boxed-editor/service/createBoxedEditorService';
 import {denormalize} from '../../boxed-editor/service/denormalize';
 import {isRecord, parentPath, portableAtPath, typeText} from '../../boxed-editor/service/portable-utils';
-import type {
-    CalleeRef,
-    FlowEditorService,
-    FunctionNodeModel,
-    InputField,
-    InputNodeModel,
-    NodeArgument,
-    NodeResult,
-} from '../flow-editor-types';
+import type {FlowEditorService} from '../flow-editor-types';
+import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
+import type {InputField, InputNodeModel} from '../input-node/types';
 
 type GetFilter = 'FIELDS' | 'ALL' | 'EXTERNAL_DEFINITIONS';
 

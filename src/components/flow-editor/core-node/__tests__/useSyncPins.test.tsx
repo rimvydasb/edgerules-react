@@ -1,6 +1,6 @@
 import {fireEvent, screen, waitFor} from '@testing-library/react';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {renderNode} from './renderNode';
+import {renderNode} from '../../testing/renderNode';
 
 // xyflow measures pin positions in a browser; jsdom has no layout. The spy records when a node is told to measure.
 const updateNodeInternals = vi.fn();

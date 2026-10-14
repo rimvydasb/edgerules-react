@@ -29,12 +29,15 @@ tasks.
 | `src/components/flow-editor/FlowEditorProvider.tsx`           | React context for the service, documentation service and host callbacks    |
 | `src/components/flow-editor/flow-editor-types.ts`             | Public and internal types (see Component API)                              |
 | `src/components/flow-editor/service/createFlowEditorService.ts` | Engine-backed reads, writes, drafts and link checks for flow nodes        |
+| `src/components/flow-editor/core-node/`                       | Parts every node kind shares: `NodeFrame` (header, title edits, node menu, description), `Track*` body rows, `Pin`, `InlineInput`, `EditableName`, `DescriptionRow`, core menus, `computeTrackLayout`, hooks, `coreNode.module.css` |
+| `src/components/flow-editor/function-node/types.ts`           | FunctionNode types: data, model, callee, arguments, results, menu contexts |
 | `src/components/flow-editor/function-node/FunctionNode.tsx`   | The `@xyflow/react` custom node component                                  |
-| `src/components/flow-editor/function-node/layout.ts`          | Pure track-width computation in 40px steps                                 |
+| `src/components/flow-editor/function-node/layout.ts`          | Header widths of the calls line; delegates to `computeTrackLayout`         |
 | `src/components/flow-editor/function-node/CalleePicker.tsx`   | Searchable callee list (Mantine `Combobox`)                                |
-| `src/components/flow-editor/function-node/DescriptionRow.tsx` | Description display and inline edit                                        |
-| `src/components/flow-editor/function-node/functionNode.module.css` | Node styles                                                           |
-| `src/components/flow-editor/__tests__/`                       | Vitest + RTL tests against the real `@edgerules/node` engine               |
+| `src/components/flow-editor/function-node/functionNodeMenus.tsx` | Node menu and argument menu                                             |
+| `src/components/flow-editor/function-node/functionNode.module.css` | Callee chip, picker and draft badge styles                            |
+| `src/components/flow-editor/function-node/__tests__/`         | Vitest + RTL tests against the real `@edgerules/node` engine               |
+| `src/components/flow-editor/testing/`                         | Shared test helpers: `renderNode`, sample model                            |
 | `stories/components/flow-editor/FunctionNode.stories.tsx`     | Storybook stories against the real `@edgerules/web` engine                 |
 | `e2e/flow-editor/function-node.spec.ts`                       | Playwright tests against the built Storybook                               |
 
@@ -193,23 +196,25 @@ properties in `functionNode.module.css` with light and dark values from the Mant
 
 ### Sizing
 
-`layout.ts` exports a pure function. Text measurement is injected, so tests run without a canvas.
+`core-node/layout.ts` exports a pure function that every node kind uses. Text measurement is injected, so tests
+run without a canvas. `function-node/layout.ts` measures the header and the names and maps arguments to the input
+track and results to the output track.
 
 ```typescript
-interface FunctionNodeLayoutInput {
-    titleWidth: number; // measured width of label plus field name plus badge
-    calleeLineWidth: number; // measured width of the CALLS label, chip and return type
-    argumentNameWidths: number[]; // measured widths of argument names
-    resultNameWidths: number[]; // measured widths of result names
+interface TrackLayoutInput {
+    titleWidth: number; // measured width of the first header line
+    summaryWidth: number; // measured width of the second header line
+    inputNameWidths: number[]; // measured widths of the left track names; empty for no left track
+    outputNameWidths: number[]; // measured widths of the right track names
 }
 
-interface FunctionNodeLayout {
-    argumentTrack: number; // px, 0 when there are no arguments
-    resultTrack: number; // px
-    width: number; // px, argumentTrack + resultTrack
+interface TrackLayout {
+    inputTrack: number; // px, 0 when there is no left track
+    outputTrack: number; // px
+    width: number; // px, inputTrack + outputTrack
 }
 
-declare function computeFunctionNodeLayout(input: FunctionNodeLayoutInput): FunctionNodeLayout;
+declare function computeTrackLayout(input: TrackLayoutInput): TrackLayout;
 ```
 
 - Each track is its widest name plus padding, rounded up to whole 40px steps, from 2 to 4 steps.
@@ -460,10 +465,12 @@ pins, menu and inline edits. The tile uses the input color `#ed6c02`.
 
 | File                                                                | Responsibility                                          |
 |---------------------------------------------------------------------|---------------------------------------------------------|
+| `src/components/flow-editor/input-node/types.ts`                    | InputNode types: data, model, fields, menu contexts     |
 | `src/components/flow-editor/input-node/InputNode.tsx`               | The `@xyflow/react` custom node component               |
-| `src/components/flow-editor/function-node/nodeMenus.tsx`            | `inputNodeMenuItems`, next to the FunctionNode menus    |
+| `src/components/flow-editor/input-node/inputNodeMenus.tsx`          | Node menu and field menu                                |
+| `src/components/flow-editor/input-node/layout.ts`                   | Record summary; delegates to `computeTrackLayout`       |
 | `src/components/flow-editor/service/createFlowEditorService.ts`     | InputNode reads and writes                              |
-| `src/components/flow-editor/__tests__/InputNode.test.tsx`           | RTL tests against the real `@edgerules/node` engine     |
+| `src/components/flow-editor/input-node/__tests__/`                  | RTL tests against the real `@edgerules/node` engine     |
 | `stories/components/flow-editor/InputNode.stories.tsx`              | Storybook stories against the real `@edgerules/web` engine |
 
 ### Component API
