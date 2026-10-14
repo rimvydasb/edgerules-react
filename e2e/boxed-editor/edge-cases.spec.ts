@@ -210,6 +210,7 @@ test.describe('Boxed Editor / modes', () => {
             await page.getByTestId(`row-${path}`).getByRole('button', {name: 'Open row actions'}).click();
             await expect(page.getByRole('menuitem', {name: 'View as code'})).toBeVisible();
             await page.keyboard.press('Escape');
+            await expect(page.getByRole('menuitem', {name: 'View as code'})).toHaveCount(0);
         }
     });
     test('collapses and expands a ruleset', async ({page}) => {

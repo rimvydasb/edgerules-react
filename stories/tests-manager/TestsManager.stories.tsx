@@ -1,8 +1,6 @@
 import {useState, type ReactElement} from 'react';
+import {Box, Button, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
 import {init, MutableDecisionService} from '@edgerules/web/mutable';
 import {TestsManager} from '../../src/components/tests-manager';
 import type {DocumentationService} from '../../src/components/tests-manager';
@@ -142,11 +140,11 @@ export const Workbook: Story = {
             modelName: string;
         };
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     Type values into Inputs, then use a row&apos;s three-dots menu to &quot;Move to Assertions&quot; and
                     edit the expected value to see the mismatch highlight.
-                </Typography>
+                </Text>
                 <TestsManager service={service} modelName={modelName} />
             </Box>
         );
@@ -166,12 +164,12 @@ export const DecisionServiceEntryPoints: Story = {
             modelName: string;
         };
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     The subject drop-down lists the model, a root <code>func</code>, a <code>ruleset</code>, a nested{' '}
                     <code>library.eligibility</code>, and a <code>loop</code>. <code>untypedExample</code> is declared
                     but has an untyped parameter, so it never appears as a subject.
-                </Typography>
+                </Text>
                 <TestsManager service={service} modelName={modelName} subjectId="isEligible" />
             </Box>
         );
@@ -199,12 +197,12 @@ export const OptimiseWithSolver: Story = {
             modelName: string;
         };
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     Solver registered by this story&apos;s own loader (EdgeRules ships none). Enter <code>workers</code>
                     /<code>sticks</code>/<code>plates</code> to see the result record: status, objective, the decision
                     variables, and <code>bottlenecks.*</code>.
-                </Typography>
+                </Text>
                 <TestsManager service={service} modelName={modelName} subjectId="factoryProduction" />
             </Box>
         );
@@ -224,10 +222,10 @@ export const OptimiseWithoutSolver: Story = {
             modelName: string;
         };
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     No solver registered — the pre-flight banner appears instead of a per-cell failure.
-                </Typography>
+                </Text>
                 <TestsManager service={service} modelName={modelName} subjectId="factoryProduction" />
             </Box>
         );
@@ -247,11 +245,11 @@ export const ColumnPaging: Story = {
             modelName: string;
         };
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     <code>pageSize=3</code>. Use &quot;Add test case&quot; a few times to see the Path and Description
                     columns stay frozen while test-case columns page.
-                </Typography>
+                </Text>
                 <TestsManager service={service} modelName={modelName} pageSize={3} />
             </Box>
         );
@@ -272,17 +270,19 @@ export const SharedDocumentationService: Story = {
         };
         const [documentationService] = useState(createMockDocumentationService);
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     Two <code>TestsManager</code> instances over the same model, sharing one{' '}
                     <code>DocumentationService</code> instance — edit a Description cell in either and watch it appear
                     in the other.
-                </Typography>
-                <Typography variant="subtitle2">Instance A</Typography>
+                </Text>
+                <Text size="sm" fw={600}>
+                    Instance A
+                </Text>
                 <TestsManager service={service} modelName={modelName} documentationService={documentationService} />
-                <Typography variant="subtitle2" sx={{mt: 2}}>
+                <Text size="sm" fw={600} mt="md">
                     Instance B
-                </Typography>
+                </Text>
                 <TestsManager service={service} modelName={modelName} documentationService={documentationService} />
             </Box>
         );
@@ -293,15 +293,17 @@ function LiveModelHarness({service, modelName}: {service: MutableDecisionService
     const [revision, setRevision] = useState(0);
 
     return (
-        <Box sx={{maxWidth: 1100}}>
-            <Typography variant="body2" sx={{mb: 1}}>
+        <Box maw={1100}>
+            <Text size="sm" mb="xs">
                 &quot;Add bonus field&quot; edits the model directly through the engine and bumps <code>revision</code>{' '}
                 — every case re-runs and the new field appears in Validations. &quot;Remove bonus field&quot; then hides
                 its row again.
-            </Typography>
+            </Text>
             <Button
-                size="small"
-                sx={{mr: 1, mb: 1}}
+                size="compact-sm"
+                variant="subtle"
+                mr="xs"
+                mb="xs"
                 onClick={() => {
                     service.set('bonus', {'@kind': 'expression', expression: '5'});
                     setRevision((r) => r + 1);
@@ -310,8 +312,9 @@ function LiveModelHarness({service, modelName}: {service: MutableDecisionService
                 Add bonus field
             </Button>
             <Button
-                size="small"
-                sx={{mb: 1}}
+                size="compact-sm"
+                variant="subtle"
+                mb="xs"
                 onClick={() => {
                     service.remove('bonus');
                     setRevision((r) => r + 1);
@@ -353,13 +356,13 @@ export const IndexedArrayPaths: Story = {
             modelName: string;
         };
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     Every array is pre-generated down to its element <code>[0]</code>, at any depth (
                     <code>application.applicant[0].creditLine[0].balance</code>
                     ). Use a row&apos;s three-dots menu to <strong>Duplicate</strong> it into the next element, and
                     click a Path cell to retype it — an unknown path turns red as you type.
-                </Typography>
+                </Text>
                 <TestsManager service={service} modelName={modelName} />
             </Box>
         );
@@ -379,7 +382,7 @@ export const ReadOnly: Story = {
             modelName: string;
         };
         return (
-            <Box sx={{maxWidth: 1100}}>
+            <Box maw={1100}>
                 <TestsManager service={service} modelName={modelName} readOnly />
             </Box>
         );

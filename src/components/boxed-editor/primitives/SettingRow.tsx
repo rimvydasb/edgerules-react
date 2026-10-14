@@ -1,14 +1,14 @@
-import Box from '@mui/material/Box';
-import Alert from '@mui/material/Alert';
-import SettingsIcon from '@mui/icons-material/Settings';
+import {Alert} from '@mantine/core';
+import {IconSettings} from '@tabler/icons-react';
 import type {ReactElement, ReactNode} from 'react';
+import {cx} from '../../../ui/cx';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import type {BoxedRowData} from '../boxed-editor-types';
+import * as classes from '../boxedEditor.module.css';
 import {RowActionsMenu, type RowMenuItem} from '../menu/RowActionsMenu';
-import {useRowMenu} from '../menu/useRowMenu';
 import {Cell} from './Cell';
-import {ACTIONS_COLUMN_WIDTH, CELL, gridTemplateColumns} from './layout';
+import {CELL, gridTemplateColumns} from './layout';
 import {RowActionsButton} from './RowActionsButton';
 import {RowLine} from './RowLine';
 
@@ -46,107 +46,50 @@ export function SettingRow({
     const {showDescription, showTestResults} = useBoxedEditorContext();
     const {rowErrors} = useBoxedEditorUi();
     const rowError = row ? rowErrors.get(row.path) : undefined;
-    const menu = useRowMenu();
 
     return (
-        <Box
+        <div
             data-testid={row ? `row-${row.path}` : undefined}
-            sx={{
-                position: 'relative',
-                display: 'grid',
-                gridTemplateColumns: gridTemplateColumns({showDescription, showTestResults}),
-                height: CELL,
-                bgcolor: 'background.paper',
-            }}
+            className={classes.row}
+            style={{gridTemplateColumns: gridTemplateColumns({showDescription, showTestResults}), height: CELL}}
         >
-            <Box
-                sx={{
-                    display: 'flex',
-                    minWidth: 0,
-                    alignItems: 'center',
-                    borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                    bgcolor: 'action.hover',
-                    gridColumn: occupiesNameAndValue ? 'span 2' : undefined,
-                }}
-            >
+            <div className={cx(classes.nameColumn, occupiesNameAndValue && classes.span2)}>
                 {Array.from({length: depth}, (_, index) => (
-                    <Box
-                        key={index}
-                        sx={{
-                            width: CELL,
-                            height: CELL,
-                            flexShrink: 0,
-                            borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                        }}
-                    />
+                    <div key={index} className={classes.indent} />
                 ))}
-                <Box
-                    aria-hidden="true"
-                    sx={{
-                        display: 'flex',
-                        width: CELL,
-                        height: CELL,
-                        flexShrink: 0,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                    }}
-                >
-                    <SettingsIcon sx={{fontSize: 18, color: 'text.secondary'}} />
-                </Box>
-                <Box
-                    component="span"
-                    sx={{
-                        px: 1,
-                        fontWeight: 600,
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                    }}
-                >
+                <div aria-hidden="true" className={classes.settingIcon}>
+                    <IconSettings size={18} />
+                </div>
+                <span className={cx(classes.ellipsis, classes.strong)} style={{paddingInline: 8}}>
                     {name}
-                </Box>
-            </Box>
+                </span>
+            </div>
             {!occupiesNameAndValue && <Cell>{children}</Cell>}
             {showActions && actions.length > 0 ? (
-                <>
-                    <RowActionsButton onClick={menu.open} />
-                    <RowActionsMenu items={actions} anchorEl={menu.anchorEl} onClose={menu.close} />
-                </>
+                <RowActionsMenu items={actions}>
+                    <RowActionsButton />
+                </RowActionsMenu>
             ) : (
-                <Box
-                    sx={{
-                        width: ACTIONS_COLUMN_WIDTH,
-                        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                        bgcolor: 'action.hover',
-                    }}
-                />
+                <div className={classes.actionsFiller} />
             )}
             {showDescription && <Cell column="description">{description}</Cell>}
             {showTestResults && <Cell column="test-results">{result}</Cell>}
             {rowError && (
-                <Alert
-                    severity="error"
-                    role="alert"
-                    data-testid={`row-error-${row?.path}`}
-                    sx={{
-                        position: 'absolute',
-                        insetInlineEnd: 4,
-                        bottom: 2,
-                        zIndex: 3,
-                        py: 0,
-                        px: 0.75,
-                        maxWidth: '60%',
-                        '& .MuiAlert-message': {py: 0, fontSize: '0.75rem'},
-                        '& .MuiAlert-icon': {py: 0, mr: 0.5},
-                    }}
-                >
-                    {rowError.path ? `${rowError.path}: ` : ''}
-                    {rowError.message}
-                </Alert>
+                <div className={classes.rowError}>
+                    <Alert
+                        color="red"
+                        variant="light"
+                        role="alert"
+                        data-testid={`row-error-${row?.path}`}
+                        py={0}
+                        px="xs"
+                    >
+                        {rowError.path ? `${rowError.path}: ` : ''}
+                        {rowError.message}
+                    </Alert>
+                </div>
             )}
             <RowLine />
-        </Box>
+        </div>
     );
 }

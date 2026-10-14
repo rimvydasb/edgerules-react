@@ -1,10 +1,10 @@
-import Box from '@mui/material/Box';
 import {Fragment, type ReactElement} from 'react';
 import type {BoxedTableRowData} from '../boxed-editor-types';
 import {moveRelationColumn, renameRelationColumn} from '../commands/rowFactories';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useRowActions} from '../hooks/useRowActions';
 import {EditableColumnHeader} from '../primitives/EditableColumnHeader';
+import * as classes from '../boxedEditor.module.css';
 import {GenericRow} from './GenericRow';
 import {NewRow} from './NewRow';
 import {RowSwitch} from './RowSwitch';
@@ -20,20 +20,9 @@ function RelationColumnHeaders({row}: {row: BoxedTableRowData}): ReactElement {
     const commit = (next: BoxedTableRowData): string | undefined =>
         commands.setBoxedRowData(row.path, next, row.path)?.message;
     return (
-        <Box sx={{display: 'flex', width: '100%', height: '100%'}}>
+        <div className={classes.fill}>
             {columns.map((column, index) => (
-                <Box
-                    key={column}
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flex: 1,
-                        minWidth: 0,
-                        height: '100%',
-                        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                        '&:last-of-type': {borderRight: 'none'},
-                    }}
-                >
+                <div key={column} className={classes.groupCell}>
                     <EditableColumnHeader
                         rowPath={row.path}
                         name={column}
@@ -49,9 +38,9 @@ function RelationColumnHeaders({row}: {row: BoxedTableRowData}): ReactElement {
                             commit(moveRelationColumn(row, index, to));
                         }}
                     />
-                </Box>
+                </div>
             ))}
-        </Box>
+        </div>
     );
 }
 

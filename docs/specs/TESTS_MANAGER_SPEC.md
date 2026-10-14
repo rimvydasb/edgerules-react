@@ -492,7 +492,7 @@ src/components/tests-manager/
 │  └─ gridStyle.ts / wrapping.ts     — shared cell borders, fill-cell styling, 40px row-height stepping
 ├─ menu/
 │  ├─ actions.tsx                    — test-case column and row action registries
-│  └─ TestsMenu.tsx                  — shared MUI menu for both three-dots buttons
+│  └─ TestsMenu.tsx                  — shared Mantine menu for both three-dots buttons
 ├─ dnd/
 │  ├─ useRowDrag.ts                  — within-section row reordering
 │  └─ useColumnDrag.ts               — test-case column reordering, resolved against the unpaged case list

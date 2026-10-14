@@ -1,4 +1,4 @@
-import MultilineChartIcon from '@mui/icons-material/MultilineChart';
+import {IconChartLine} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
 import {moveArgument, renameArgument, retypeArgument} from '../commands/rowFactories';
@@ -39,7 +39,7 @@ export function OptimisationRow({row}: OptimisationRowProps): ReactElement {
                 tall
                 strong
                 iconActsAsDragHandle
-                icon={<MultilineChartIcon sx={{fontSize: 19, color: '#fff'}} />}
+                icon={<IconChartLine size={19} color="#fff" />}
                 iconBgColor="#1e88e5"
                 value={
                     <ArgumentHeaders

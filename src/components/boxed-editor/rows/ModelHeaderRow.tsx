@@ -1,4 +1,4 @@
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import {IconSitemap} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
 import type {BoxedRowData} from '../boxed-editor-types';
 import {useRowActions} from '../hooks/useRowActions';
@@ -22,7 +22,7 @@ export function ModelHeaderRow({row}: ModelHeaderRowProps): ReactElement {
                 occupiesNameAndValue
                 strong
                 showDragHandle={false}
-                icon={<AccountTreeIcon sx={{fontSize: 20, color: '#fff'}} />}
+                icon={<IconSitemap size={20} color="#fff" />}
                 iconBgColor="#17191c"
                 actions={actions}
             />

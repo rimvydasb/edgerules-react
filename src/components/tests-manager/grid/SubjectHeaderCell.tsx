@@ -1,5 +1,4 @@
-import MenuItem from '@mui/material/MenuItem';
-import Select, {type SelectChangeEvent} from '@mui/material/Select';
+import {Select} from '@mantine/core';
 import type {ReactElement} from 'react';
 import type {TestSubject, TestSubjectId} from '../tests-manager-types';
 
@@ -17,19 +16,19 @@ export function SubjectHeaderCell({
 }): ReactElement {
     return (
         <Select
-            size="small"
-            variant="standard"
+            size="xs"
+            variant="unstyled"
+            allowDeselect={false}
+            checkIconPosition="right"
             value={value}
             disabled={readOnly}
-            onChange={(event: SelectChangeEvent) => onChange(event.target.value)}
-            inputProps={{'aria-label': 'Test subject'}}
-            sx={{minWidth: 160}}
-        >
-            {subjects.map((subject) => (
-                <MenuItem key={subject.id} value={subject.id}>
-                    {subject.name}
-                </MenuItem>
-            ))}
-        </Select>
+            data={subjects.map((subject) => ({value: subject.id, label: subject.name}))}
+            onChange={(next) => {
+                if (next !== null) onChange(next);
+            }}
+            aria-label="Test subject"
+            comboboxProps={{withinPortal: true}}
+            styles={{input: {minWidth: 120}}}
+        />
     );
 }

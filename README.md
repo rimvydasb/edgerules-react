@@ -44,10 +44,11 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 - [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web) for browser-side rule parsing, execution and CRUD
   against the EdgeRules Portable Format; [`@edgerules/portable`](https://www.npmjs.com/package/@edgerules/portable)
   for the corresponding TypeScript types (`PortableNode`, `PortableError`, `PortableRootContext`).
-- Material UI (MUI) for UI components and theming.
+- [Mantine](https://mantine.dev) (`@mantine/core`, `@mantine/hooks`) for dialogs, menus, tooltips, selects, alerts,
+  buttons and the Project Explorer tree; [Tabler Icons](https://tabler.io/icons) (`@tabler/icons-react`) for icons.
+  Grid rows and cells are plain elements styled with CSS Modules (see `docs/architecture-adr.md`).
 - ReactFlow for flow-based visual programming.
 - CodeMirror for code editing.
-- MUI X Charts for data visualization.
 - TypeScript, React
 - Vitest and React Testing Library for unit/component testing; Playwright for end-to-end and visual testing.
 - tsup for building the published npm package (dual ESM/CJS output with generated type declarations).
@@ -101,10 +102,12 @@ Unit tests (React Testing Library) live next to the code they cover as `*.test.t
 - **Entry points**: `package.json` defines an `exports` map with one subpath per component
   (`edgerules-react/code-editor`, `edgerules-react/flow-editor`, ...) plus a root entry (`edgerules-react`) that
   re-exports everything for convenience.
-- **Peer dependencies**: `react`, `react-dom`, `@mui/material` and other heavy, component-specific libraries
-  (`reactflow`, `@codemirror/state`/`@codemirror/view`/`@codemirror/lint`, `@mui/x-charts`, `@mui/x-tree-view`) are declared as `peerDependencies`
+- **Peer dependencies**: `react`, `react-dom`, `@mantine/core`, `@mantine/hooks` and other heavy, component-specific libraries
+  (`reactflow`, `@codemirror/state`/`@codemirror/view`/`@codemirror/lint`, `@tabler/icons-react`) are declared as `peerDependencies`
   (most marked optional via `peerDependenciesMeta`), never bundled, so consuming apps control their own versions
-  and bundle size.
+  and bundle size. Wrap the app in Mantine's `MantineProvider` and import `@mantine/core/styles.css` once; the
+  library's own CSS Modules are injected at runtime, so no stylesheet of ours needs importing.
+  Components take `className`/`style` (not `sx`) for host styling.
 - **Build output**: `tsup` builds dual ESM/CJS bundles with generated `.d.ts` files, one per component entry point,
   enabling tree-shaking. `sideEffects: false` is set in `package.json` (CSS files excluded) so bundlers can drop
   unused components entirely.

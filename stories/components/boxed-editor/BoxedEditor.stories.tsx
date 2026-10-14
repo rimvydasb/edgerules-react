@@ -1,7 +1,6 @@
 import {useEffect, useMemo, useState, type ReactElement} from 'react';
+import {Box, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import highsLoader from 'highs';
 import highsWasmUrl from 'highs/runtime?url';
 import {
@@ -75,7 +74,7 @@ function EditableHarness({
     const payment = service.getBoxedRowData('payment')?.value ?? '(not in this model)';
 
     return (
-        <Box sx={{width: 'fit-content'}}>
+        <Box w="fit-content">
             <BoxedEditor
                 service={service}
                 path={path}
@@ -83,12 +82,12 @@ function EditableHarness({
                 readOnly={readOnly}
                 onChange={() => setChangeCount((current) => current + 1)}
             />
-            <Typography variant="caption" data-testid="live-payment" sx={{display: 'block', mt: 1}}>
+            <Text size="xs" data-testid="live-payment" mt="xs">
                 payment (committed): {payment}
-            </Typography>
-            <Typography variant="caption" data-testid="boxed-change-count" sx={{display: 'block'}}>
+            </Text>
+            <Text size="xs" data-testid="boxed-change-count">
                 Changes: {changeCount}
-            </Typography>
+            </Text>
         </Box>
     );
 }
@@ -155,7 +154,7 @@ function ExecutingHarness({
     }, [mutable, method, input, revision]);
 
     return (
-        <Box sx={{width: 'fit-content'}}>
+        <Box w="fit-content">
             {allowReadOnlyToggle && (
                 <button
                     type="button"
@@ -173,15 +172,15 @@ function ExecutingHarness({
                 readOnly={viewerReadOnly}
                 onChange={() => setRevision((current) => current + 1)}
             />
-            <Typography variant="caption" data-testid="live-result" sx={{display: 'block', mt: 1}}>
+            <Text size="xs" data-testid="live-result" mt="xs">
                 {result}
-            </Typography>
-            <Typography variant="caption" data-testid="live-model" sx={{display: 'block'}}>
+            </Text>
+            <Text size="xs" data-testid="live-model">
                 {JSON.stringify(service.toPortable())}
-            </Typography>
-            <Typography variant="caption" data-testid="boxed-change-count" sx={{display: 'block'}}>
+            </Text>
+            <Text size="xs" data-testid="boxed-change-count">
                 Changes: {revision}
-            </Typography>
+            </Text>
         </Box>
     );
 }
@@ -672,15 +671,15 @@ function RenameOverlayHarness({
                 testSubjectId="*"
                 onChange={() => setRevision((value) => value + 1)}
             />
-            <Typography data-testid="overlay-descriptions">
+            <Text size="xs" data-testid="overlay-descriptions">
                 {paths.map((path) => `${path}:${documentationService.getDescription(path) ?? ''}`).join('|')}
-            </Typography>
-            <Typography data-testid="overlay-test-cell">
-                {paths
-                    .map((path) => `${path}:${testCasesService.getCell(testCaseId, path, 'input') ?? ''}`)
-                    .join('|')}
-            </Typography>
-            <Typography data-testid="live-model">{JSON.stringify(service.toPortable())}</Typography>
+            </Text>
+            <Text size="xs" data-testid="overlay-test-cell">
+                {paths.map((path) => `${path}:${testCasesService.getCell(testCaseId, path, 'input') ?? ''}`).join('|')}
+            </Text>
+            <Text size="xs" data-testid="live-model">
+                {JSON.stringify(service.toPortable())}
+            </Text>
             <span hidden>{revision}</span>
         </Box>
     );
@@ -705,9 +704,7 @@ export const RenameOverlayPlayground: Story = {
     render: (_args, {loaded}) => (
         <RenameOverlayHarness
             service={loaded.service as BoxedEditorService}
-            documentationService={
-                loaded.documentationService as ReturnType<typeof createDocumentationService>
-            }
+            documentationService={loaded.documentationService as ReturnType<typeof createDocumentationService>}
             testCasesService={loaded.testCasesService as ReturnType<typeof createTestCasesService>}
             testCaseId={loaded.testCaseId as string}
         />

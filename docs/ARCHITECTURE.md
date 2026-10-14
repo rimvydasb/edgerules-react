@@ -104,6 +104,14 @@ flowchart TB
 
 ## Dependency rules
 
+### UI library
+
+Mantine provides the overlay and form components (dialogs, menus, tooltips, selects, alerts, notifications, buttons)
+and the Project Explorer tree; Tabler provides icons. Repeated grid rows and cells in the Decision Table, Tests
+Manager and Boxed Editor are plain elements styled with CSS Modules that read Mantine CSS variables
+(`--mantine-color-*`). A cell MUST NOT use a UI library component; a library component MAY sit in a cell only as an
+overlay (menu, tooltip, error popover). Shared primitives live in `src/ui/`. See `docs/architecture-adr.md`.
+
 ### Shell owns cross-editor navigation
 
 Major editors remain independently renderable. `ProjectExplorer` exposes `onOpenVariables`, `onOpenFunction`,

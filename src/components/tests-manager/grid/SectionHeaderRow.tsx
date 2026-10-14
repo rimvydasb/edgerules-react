@@ -1,9 +1,9 @@
-import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
 import type {ReactElement} from 'react';
 import type {TestCase, TestCasesService, TestRow, TestSectionId} from '../../test-cases-service';
 import {useForceUpdateOn} from '../hooks/useForceUpdate';
-import {CELL_BORDER_SX} from './gridStyle';
+import {cx} from '../../../ui/cx';
+import {GridCell, GridRow} from '../../../ui/grid';
+import * as classes from './testsGrid.module.css';
 import {matches} from '../model/values';
 
 const SECTION_LABELS: Record<TestSectionId, string> = {
@@ -57,45 +57,31 @@ export function SectionHeaderRow({
     useForceUpdateOn(testCasesService.subscribe);
 
     return (
-        <TableRow sx={{backgroundColor: 'action.hover'}} data-testid={`section-${sectionId}`}>
-            <TableCell
-                colSpan={4}
-                sx={{
-                    ...CELL_BORDER_SX,
-                    fontWeight: 600,
-                    position: 'sticky',
-                    left: 0,
-                    backgroundColor: 'action.hover',
-                    zIndex: 1,
-                }}
-            >
+        <GridRow className={classes.section} data-testid={`section-${sectionId}`}>
+            <GridCell colSpan={4} className={cx(classes.section, classes.sectionSticky)}>
                 {SECTION_LABELS[sectionId]}
-            </TableCell>
+            </GridCell>
             {visibleCases.map((testCase) => {
                 const summary =
                     sectionId === 'assertions'
                         ? assertionSummary(testCasesService, rows, testCase.id, revision)
                         : undefined;
                 return (
-                    <TableCell
+                    <GridCell
                         key={testCase.id}
                         align="center"
-                        sx={CELL_BORDER_SX}
+                        className={classes.section}
                         data-testid={sectionId === 'assertions' ? `assertion-summary-${testCase.id}` : undefined}
                     >
                         {summary ? (
-                            <span
-                                style={{
-                                    color: summary.allPass ? 'green' : 'red',
-                                    fontWeight: 600,
-                                }}
-                            >
+                            <span className={summary.allPass ? classes.pass : classes.fail}>
                                 {summary.label} {summary.allPass ? '✓' : '✗'}
                             </span>
                         ) : null}
-                    </TableCell>
+                    </GridCell>
                 );
             })}
-        </TableRow>
+            <GridCell className={classes.section} />
+        </GridRow>
     );
 }

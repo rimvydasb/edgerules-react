@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement} from 'react';
 import {createTestCasesService} from '../test-cases-service';
 import {TestsManagerProvider} from './context/TestsManagerContext';
@@ -24,7 +23,7 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
         autoRun = true,
         onRunComplete,
         className,
-        sx,
+        style,
     } = props;
 
     const [uncontrolledSubjectId, setUncontrolledSubjectId] = useState<TestSubjectId>('*');
@@ -103,7 +102,7 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
     };
 
     return (
-        <Box className={className} sx={sx} data-testid="tests-manager">
+        <div className={className} style={style} data-testid="tests-manager">
             <TestsManagerProvider
                 value={{
                     service,
@@ -121,6 +120,6 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
                     <TestsGrid onSubjectChange={handleSubjectChange} />
                 </TestsManagerUiProvider>
             </TestsManagerProvider>
-        </Box>
+        </div>
     );
 }

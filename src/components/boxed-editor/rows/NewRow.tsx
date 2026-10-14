@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import {useDndContext, useDroppable} from '@dnd-kit/core';
 import type {ReactElement} from 'react';
 import type {BoxedRowData, BoxedRowKind, BoxedTableRowData} from '../boxed-editor-types';
@@ -15,6 +14,8 @@ import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {isValidDrop, type DragPayload} from '../dnd/dropRules';
 import {buildContainerDropPayload} from '../dnd/useRowDrop';
 import {indexedPath, parentPath, pathDepth} from '../service/portable-utils';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
 import {GenericRow} from './GenericRow';
 
 interface NewRowConfig {
@@ -84,11 +85,7 @@ export function NewRow({row}: NewRowProps): ReactElement | null {
                 if (row.kind === 'function') {
                     // An inline function's `result` is synthetic and `<fn>.field` is not directly
                     // addressable. Rewrite the whole function to promote its body to a context.
-                    commands.setBoxedRowData(
-                        row.path,
-                        {...row, children: [...(row.children ?? []), field]},
-                        row.path,
-                    );
+                    commands.setBoxedRowData(row.path, {...row, children: [...(row.children ?? []), field]}, row.path);
                 } else {
                     commands.setBoxedRowData(field.path, field, row.path);
                 }
@@ -149,15 +146,10 @@ export function NewRow({row}: NewRowProps): ReactElement | null {
     }
 
     return (
-        <Box
+        <div
             ref={setNodeRef}
             data-testid={`append-${row.path}`}
-            sx={{
-                outline: isOver
-                    ? (theme) => `2px solid ${canDrop ? theme.palette.success.main : theme.palette.error.main}`
-                    : 'none',
-                outlineOffset: '-2px',
-            }}
+            className={cx(isOver && (canDrop ? classes.dropOk : classes.dropBad))}
         >
             <GenericRow
                 name={config.label}
@@ -167,6 +159,6 @@ export function NewRow({row}: NewRowProps): ReactElement | null {
                 showActions={false}
                 onActivate={onActivate}
             />
-        </Box>
+        </div>
     );
 }

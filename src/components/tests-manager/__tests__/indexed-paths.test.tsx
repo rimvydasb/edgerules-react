@@ -115,11 +115,13 @@ describe('TestsManager — editing a path', () => {
         await user.click(screen.getByLabelText('path application.applicant[0].name'));
         await retypePath('path-editor-application.applicant[0].name', 'application.applicant[0].nope');
 
-        const editor = screen.getByTestId('path-editor-application.applicant[0].name').firstElementChild as HTMLElement;
-        await waitFor(() => expect(editor.className).toMatch(/MuiBox/));
-        // The error colour is applied through `sx`, so assert on the computed style rather than a class.
-        await waitFor(() => expect(getComputedStyle(editor).borderColor).not.toBe(''));
-        expect(getComputedStyle(editor).borderColor).toContain('211, 47, 47');
+        // The error state is exposed as an attribute; the colour itself comes from a CSS module.
+        await waitFor(() =>
+            expect(screen.getByTestId('path-editor-application.applicant[0].name')).toHaveAttribute(
+                'data-invalid',
+                'true',
+            ),
+        );
     });
 
     it('leaves the row untouched when the retyped path collides with another row', async () => {
@@ -210,9 +212,7 @@ describe('TestsManager — editing a path', () => {
         rerender(<TestsManager service={service} modelName={modelName} revision={2} />);
 
         await waitFor(() =>
-            expect(getComputedStyle(screen.getByLabelText('path application.applicant[1].name')).color).toContain(
-                '211, 47, 47',
-            ),
+            expect(screen.getByLabelText('path application.applicant[1].name')).toHaveAttribute('data-invalid', 'true'),
         );
     });
 });

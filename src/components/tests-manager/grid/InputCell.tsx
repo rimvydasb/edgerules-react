@@ -1,9 +1,8 @@
-import TextField from '@mui/material/TextField';
 import {useState, type KeyboardEvent, type ReactElement} from 'react';
 import type {TestRow} from '../../test-cases-service';
+import {CellInput} from '../../../ui/grid';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {useCell} from '../hooks/useCell';
-import {FILL_CELL_SX} from './gridStyle';
 import {CellParseError, parseCell} from '../model/values';
 
 // Editable, type-directed parsing. Committing an edit (blur or Enter) persists it and — when
@@ -32,20 +31,16 @@ export function InputCell({testCaseId, row}: {testCaseId: string; row: TestRow})
     };
 
     return (
-        <TextField
-            variant="standard"
-            size="small"
-            fullWidth
+        <CellInput
             value={value}
             disabled={readOnly}
-            error={invalid}
-            slotProps={{htmlInput: {'aria-label': `input ${row.path}`}}}
+            aria-label={`input ${row.path}`}
+            aria-invalid={invalid || undefined}
             onChange={(event) => setDraft(event.target.value)}
             onBlur={commit}
             onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
                 if (event.key === 'Enter') event.currentTarget.blur();
             }}
-            sx={FILL_CELL_SX}
         />
     );
 }

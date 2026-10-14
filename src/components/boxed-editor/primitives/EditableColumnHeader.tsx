@@ -1,9 +1,7 @@
-import ArrowLeftIcon from '@mui/icons-material/ArrowLeft';
-import ArrowRightIcon from '@mui/icons-material/ArrowRight';
-import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-import TextField from '@mui/material/TextField';
+import {ActionIcon} from '@mantine/core';
+import {IconChevronLeft, IconChevronRight} from '@tabler/icons-react';
 import {useState, type KeyboardEvent, type ReactElement} from 'react';
+import * as classes from '../boxedEditor.module.css';
 import {TypeName} from './TypeName';
 
 export interface EditableColumnHeaderProps {
@@ -60,87 +58,66 @@ export function EditableColumnHeader({
         if (event.key === 'Enter') commit();
         if (event.key === 'Escape') setEditing(null);
     };
+    const editor = (label: string): ReactElement => (
+        <>
+            <input
+                autoFocus
+                className={classes.headerInput}
+                value={draft}
+                aria-invalid={Boolean(error)}
+                aria-label={label}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={keyDown}
+                onBlur={commit}
+            />
+            {error ? <span className={classes.fieldError}>{error}</span> : null}
+        </>
+    );
 
     return (
-        <Box
-            data-testid={`column-${rowPath}-${name}`}
-            sx={{display: 'flex', alignItems: 'center', minWidth: 0, width: '100%', position: 'relative'}}
-        >
-            <Box sx={{display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, px: 0.5}}>
+        <div data-testid={`column-${rowPath}-${name}`} className={classes.columnHeader}>
+            <div className={classes.columnHeaderBody}>
                 {editing === 'name' ? (
-                    <TextField
-                        autoFocus
-                        size="small"
-                        value={draft}
-                        error={Boolean(error)}
-                        helperText={error}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={keyDown}
-                        onBlur={commit}
-                        slotProps={{htmlInput: {'aria-label': `Rename ${name}`}}}
-                    />
+                    editor(`Rename ${name}`)
                 ) : (
-                    <Box component="button" type="button" onClick={() => begin('name')} sx={buttonSx}>
+                    <button type="button" onClick={() => begin('name')} className={classes.textButton}>
                         <TypeName type={type}>{name}</TypeName>
-                    </Box>
+                    </button>
                 )}
                 {typeEditable &&
                     (editing === 'type' ? (
-                        <TextField
-                            autoFocus
-                            size="small"
-                            value={draft}
-                            error={Boolean(error)}
-                            helperText={error}
-                            onChange={(event) => setDraft(event.target.value)}
-                            onKeyDown={keyDown}
-                            onBlur={commit}
-                            slotProps={{htmlInput: {'aria-label': `Change type of ${name}`}}}
-                        />
+                        editor(`Change type of ${name}`)
                     ) : (
-                        <Box
-                            component="button"
+                        <button
                             type="button"
                             aria-label={`Edit type ${name}`}
                             onClick={() => begin('type')}
-                            sx={typeButtonSx}
+                            className={classes.typeButton}
                         >
                             {type ?? 'any'}
-                        </Box>
+                        </button>
                     ))}
-            </Box>
-            <IconButton
-                size="small"
+            </div>
+            <ActionIcon
+                size="sm"
+                variant="subtle"
+                color="gray"
                 aria-label={`Move ${name} left`}
                 disabled={index === 0}
                 onClick={() => onMove(index - 1)}
             >
-                <ArrowLeftIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-                size="small"
+                <IconChevronLeft size={16} />
+            </ActionIcon>
+            <ActionIcon
+                size="sm"
+                variant="subtle"
+                color="gray"
                 aria-label={`Move ${name} right`}
                 disabled={index === count - 1}
                 onClick={() => onMove(index + 1)}
             >
-                <ArrowRightIcon fontSize="small" />
-            </IconButton>
-        </Box>
+                <IconChevronRight size={16} />
+            </ActionIcon>
+        </div>
     );
 }
-
-const buttonSx = {
-    p: 0,
-    border: 0,
-    bgcolor: 'transparent',
-    color: 'inherit',
-    textAlign: 'left',
-    cursor: 'text',
-    minWidth: 0,
-};
-
-const typeButtonSx = {
-    ...buttonSx,
-    color: 'text.secondary',
-    fontSize: '0.6875rem',
-};

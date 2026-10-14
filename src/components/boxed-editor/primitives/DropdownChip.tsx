@@ -1,9 +1,7 @@
-import Box from '@mui/material/Box';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import {useState, type KeyboardEvent, type MouseEvent} from 'react';
-import type {ReactElement, ReactNode} from 'react';
+import {Menu} from '@mantine/core';
+import {IconCaretDownFilled} from '@tabler/icons-react';
+import {useState, type ReactElement, type ReactNode} from 'react';
+import * as classes from '../boxedEditor.module.css';
 
 export interface DropdownChipProps {
     children: ReactNode;
@@ -18,64 +16,38 @@ export interface DropdownChipProps {
  * dropdown in the real editor. Introduced now for the shared primitive set; first consumed by
  * `ruleset-hit-policy` / `optimisation-setting` rows in Phase 4.
  */
-export function DropdownChip({
-    children,
-    iconColor,
-    options,
-    onChange,
-    ariaLabel,
-}: DropdownChipProps): ReactElement {
-    const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-    const open = (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>): void => {
-        setAnchor(event.currentTarget);
-    };
+export function DropdownChip({children, iconColor, options, onChange, ariaLabel}: DropdownChipProps): ReactElement {
+    const [opened, setOpened] = useState(false);
     return (
-        <>
-            <Box
-                component="button"
-                type="button"
-                aria-label={ariaLabel}
-                aria-haspopup="menu"
-                aria-expanded={Boolean(anchor)}
-                onClick={open}
-                onKeyDown={(event) => {
-                    if (event.key === 'ArrowDown') {
-                        event.preventDefault();
-                        open(event);
-                    }
-                }}
-                sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    border: 0,
-                    color: 'inherit',
-                    bgcolor: 'transparent',
-                    cursor: 'pointer',
-                    borderRadius: 1,
-                    py: 0.25,
-                    pl: 1,
-                    pr: 0.5,
-                    fontSize: '0.75rem',
-                }}
-            >
-                {children}
-                <ArrowDropDownIcon sx={{fontSize: 18, color: iconColor}} />
-            </Box>
-            <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
+        <Menu opened={opened} onChange={setOpened} position="bottom-start" withinPortal>
+            <Menu.Target>
+                <button
+                    type="button"
+                    aria-label={ariaLabel}
+                    aria-haspopup="menu"
+                    className={classes.chip}
+                    onKeyDown={(event) => {
+                        if (event.key === 'ArrowDown') {
+                            event.preventDefault();
+                            setOpened(true);
+                        }
+                    }}
+                >
+                    {children}
+                    <IconCaretDownFilled size={12} color={iconColor} />
+                </button>
+            </Menu.Target>
+            <Menu.Dropdown>
                 {options.map((option) => (
-                    <MenuItem
+                    <Menu.Item
                         key={option}
-                        selected={option === children}
-                        onClick={() => {
-                            setAnchor(null);
-                            onChange(option);
-                        }}
+                        data-selected={option === children || undefined}
+                        onClick={() => onChange(option)}
                     >
                         {option}
-                    </MenuItem>
+                    </Menu.Item>
                 ))}
-            </Menu>
-        </>
+            </Menu.Dropdown>
+        </Menu>
     );
 }

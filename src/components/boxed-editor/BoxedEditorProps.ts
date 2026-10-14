@@ -1,4 +1,4 @@
-import type { SxProps, Theme } from '@mui/material/styles';
+import type { CSSProperties } from 'react';
 import type { PortableRootContext } from '@edgerules/portable';
 import type { CodeEditorService } from '../code-editor';
 import type { DocumentationService } from '../documentation-service';
@@ -64,5 +64,5 @@ export interface BoxedEditorProps {
   // Initial global expand state only — each row keeps its own state after first render. Default true.
   expanded?: boolean;
   className?: string;
-  sx?: SxProps<Theme>;
+  style?: CSSProperties;
 }

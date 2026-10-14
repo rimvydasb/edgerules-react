@@ -1,7 +1,6 @@
 import {useEffect, useState, type ReactElement} from 'react';
+import {Box, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import {init, MutableDecisionService} from '@edgerules/web/mutable';
 import {DecisionTableEditor} from '../../../src/components/decision-table';
 import {
@@ -47,7 +46,7 @@ function EditorHarness({
     }, [service, resultPath, version]);
 
     return (
-        <Box sx={{maxWidth: 980}}>
+        <Box maw={980}>
             <DecisionTableEditor
                 service={service}
                 path={path}
@@ -55,9 +54,9 @@ function EditorHarness({
                 readOnly={readOnly}
                 onChange={() => setVersion((current) => current + 1)}
             />
-            <Typography variant="caption" data-testid="live-result" sx={{display: 'block', mt: 1}}>
+            <Text size="xs" data-testid="live-result" mt="xs">
                 {resultPath}: {result}
-            </Typography>
+            </Text>
         </Box>
     );
 }

@@ -127,4 +127,4 @@ the underlying `get` call returns a genuine `PortableError` (a structural path p
 
 ### Technical Details
 
-- https://mui.com/x/react-tree-view/ will be used to render the tree view.
+- Mantine `Tree` (https://mantine.dev/core/tree/) is used to render the tree view.

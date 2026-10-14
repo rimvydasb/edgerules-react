@@ -25,28 +25,25 @@ export function RulesetHitPolicyRow({row}: RulesetHitPolicyRowProps): ReactEleme
                     const ruleset = service.getBoxedRowData(rulesetPath) as BoxedTableRowData | undefined;
                     if (!ruleset) return;
                     let priority = 0;
-                    let children = service
-                        .getBoxedRowsData(rulesetPath)
-                        .map((child) => {
-                            if (child.kind === 'ruleset-hit-policy') return {...child, value};
-                            if (child.kind === 'rule') {
-                                priority += 1;
-                                return {
-                                    ...child,
-                                    priority:
-                                        value === 'best-match'
-                                            ? ((child as BoxedTableRowData).priority ?? priority)
-                                            : undefined,
-                                };
-                            }
-                            return child;
-                        });
+                    let children = service.getBoxedRowsData(rulesetPath).map((child) => {
+                        if (child.kind === 'ruleset-hit-policy') return {...child, value};
+                        if (child.kind === 'rule') {
+                            priority += 1;
+                            return {
+                                ...child,
+                                priority:
+                                    value === 'best-match'
+                                        ? ((child as BoxedTableRowData).priority ?? priority)
+                                        : undefined,
+                            };
+                        }
+                        return child;
+                    });
                     if (value === 'collect-matches') {
                         children = children.filter((child) => child.kind !== 'ruleset-default');
                     } else if (!children.some((child) => child.kind === 'ruleset-default')) {
-                        const reference = [...children]
-                            .reverse()
-                            .find((child) => child.kind === 'rule') as BoxedTableRowData | undefined;
+                        const reference = [...children].reverse().find((child) => child.kind === 'rule') as
+                            BoxedTableRowData | undefined;
                         children.push({
                             kind: 'ruleset-default',
                             depth: row.depth,

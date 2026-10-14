@@ -1,8 +1,8 @@
-import Box from '@mui/material/Box';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import {IconGripVertical} from '@tabler/icons-react';
 import type {DraggableAttributes, DraggableSyntheticListeners} from '@dnd-kit/core';
 import type {ReactElement} from 'react';
-import {CELL} from './layout';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
 
 export interface DragProps {
     dragRef?: (element: HTMLElement | null) => void;
@@ -16,26 +16,14 @@ export interface DragProps {
 /** The 6-dot expression-row drag handle — draggable rows wire it via `useRowDrag` (Phase 6). */
 export function Drag({dragRef, dragListeners, dragAttributes, draggable = false}: DragProps): ReactElement {
     return (
-        <Box
+        <div
             ref={dragRef}
             aria-label="Drag to reorder row"
             {...dragListeners}
             {...dragAttributes}
-            sx={{
-                display: 'flex',
-                width: CELL,
-                height: CELL,
-                flexShrink: 0,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                bgcolor: 'action.hover',
-                cursor: draggable ? 'grab' : undefined,
-                touchAction: draggable ? 'none' : undefined,
-                '&:active': draggable ? {cursor: 'grabbing'} : undefined,
-            }}
+            className={cx(classes.handle, classes.dragCell, draggable && classes.draggable)}
         >
-            <DragIndicatorIcon sx={{fontSize: 19, color: 'text.secondary'}} />
-        </Box>
+            <IconGripVertical size={19} />
+        </div>
     );
 }

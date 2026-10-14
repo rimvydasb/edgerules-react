@@ -1,5 +1,4 @@
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
+import {Alert} from '@mantine/core';
 import {DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent} from '@dnd-kit/core';
 import type {ReactElement} from 'react';
 import type {BoxedEditorProps} from './BoxedEditorProps';
@@ -9,6 +8,8 @@ import {BoxedEditorTestProvider} from './context/BoxedEditorTestContext';
 import {BoxedEditorUiProvider} from './context/BoxedEditorUiContext';
 import {useBoxedEditorUi} from './context/BoxedEditorUiContext';
 import {isValidDrop, type DragPayload, type DropTargetPayload} from './dnd/dropRules';
+import * as classes from './boxedEditor.module.css';
+import {cx} from '../../ui/cx';
 import {useBoxedEditorService} from './hooks/useBoxedEditorService';
 import {useBoxedRows} from './hooks/useBoxedRows';
 import {ModelHeaderRow} from './rows/ModelHeaderRow';
@@ -29,7 +30,11 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
     const sensors = useSensors(useSensor(PointerSensor, {activationConstraint: {distance: 6}}));
 
     if (rootRow === undefined) {
-        return <Alert severity="error">Cannot load &quot;{path}&quot; — the path does not exist in this model.</Alert>;
+        return (
+            <Alert color="red" variant="light">
+                Cannot load &quot;{path}&quot; — the path does not exist in this model.
+            </Alert>
+        );
     }
 
     // The single pure predicate (`dropRules.isValidDrop`) gates the drop the same way it gates each
@@ -46,21 +51,12 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
     return (
         <>
             {modelError && (
-                <Alert severity="error" role="alert" data-testid="model-error" sx={{mb: 1}}>
+                <Alert color="red" variant="light" role="alert" data-testid="model-error" mb="xs">
                     {modelError.path ? `${modelError.path}: ` : ''}
                     {modelError.message}
                 </Alert>
             )}
-            <Box
-                role="treegrid"
-                sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    width: 'fit-content',
-                    border: (theme) => `1px solid ${theme.palette.divider}`,
-                    bgcolor: 'background.paper',
-                }}
-            >
+            <div role="treegrid" className={classes.grid}>
                 <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
                     {showHeader && rootRow.kind === 'model' && <ModelHeaderRow row={rootRow} />}
                     {rows.map((row) => (
@@ -68,7 +64,7 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
                     ))}
                     <NewRow row={{...rootRow, children: rows}} />
                 </DndContext>
-            </Box>
+            </div>
         </>
     );
 }
@@ -99,11 +95,11 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
         showType = true,
         expanded = true,
         className,
-        sx,
+        style,
     } = props;
 
     return (
-        <Box className={className} sx={sx}>
+        <div className={cx(classes.root, className)} style={style}>
             <BoxedEditorProvider
                 service={service}
                 readOnly={readOnly}
@@ -126,6 +122,6 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
                     </BoxedEditorUiProvider>
                 </BoxedEditorTestProvider>
             </BoxedEditorProvider>
-        </Box>
+        </div>
     );
 }

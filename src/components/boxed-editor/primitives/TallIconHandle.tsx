@@ -1,14 +1,13 @@
-import Box from '@mui/material/Box';
-import type {SxProps, Theme} from '@mui/material/styles';
 import type {DraggableAttributes, DraggableSyntheticListeners} from '@dnd-kit/core';
-import type {ReactElement, ReactNode} from 'react';
-import {CELL} from './layout';
+import type {CSSProperties, ReactElement, ReactNode} from 'react';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
 
 export interface TallIconHandleProps {
     children: ReactNode;
     /** Set when the icon itself is the row's drag handle (e.g. `complexType`). */
     ariaLabel?: string;
-    sx?: SxProps<Theme>;
+    style?: CSSProperties;
     dragRef?: (element: HTMLElement | null) => void;
     dragListeners?: DraggableSyntheticListeners;
     dragAttributes?: DraggableAttributes;
@@ -20,33 +19,22 @@ export interface TallIconHandleProps {
 export function TallIconHandle({
     children,
     ariaLabel,
-    sx,
+    style,
     dragRef,
     dragListeners,
     dragAttributes,
     draggable = false,
 }: TallIconHandleProps): ReactElement {
     return (
-        <Box
+        <div
             ref={dragRef}
             aria-label={ariaLabel}
             {...dragListeners}
             {...dragAttributes}
-            sx={{
-                display: 'flex',
-                width: CELL,
-                flexShrink: 0,
-                alignItems: 'center',
-                justifyContent: 'center',
-                alignSelf: 'stretch',
-                borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                cursor: draggable ? 'grab' : undefined,
-                touchAction: draggable ? 'none' : undefined,
-                '&:active': draggable ? {cursor: 'grabbing'} : undefined,
-                ...sx,
-            }}
+            className={cx(classes.handle, draggable && classes.draggable)}
+            style={style}
         >
             {children}
-        </Box>
+        </div>
     );
 }

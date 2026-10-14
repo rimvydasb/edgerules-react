@@ -28,3 +28,23 @@ Range.prototype.getClientRects = () => {
   rects.item = (index: number) => rects[index] ?? null;
   return rects as unknown as DOMRectList;
 };
+
+// Mantine reads these browser APIs, which jsdom does not implement.
+window.matchMedia ??= ((query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addListener: () => {},
+  removeListener: () => {},
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  dispatchEvent: () => false,
+})) as typeof window.matchMedia;
+
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+globalThis.ResizeObserver ??= ResizeObserverStub;
+Element.prototype.scrollIntoView ??= () => {};

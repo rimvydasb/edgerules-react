@@ -1,34 +1,25 @@
-import ListItemIcon from '@mui/material/ListItemIcon';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
+import {Menu} from '@mantine/core';
 import type {ReactElement} from 'react';
 import type {TestsMenuAction} from './actions';
 
-// Shared MUI menu for both the test-case column's and a row's three-dots buttons.
-export function TestsMenu({
-    anchorEl,
-    onClose,
-    actions,
-}: {
-    anchorEl: HTMLElement | null;
-    onClose: () => void;
-    actions: TestsMenuAction[];
-}): ReactElement {
+// Shared menu for both the test-case column's and a row's three-dots buttons. `children` is the
+// trigger element; the dropdown opens next to it and closes after an action runs.
+export function TestsMenu({actions, children}: {actions: TestsMenuAction[]; children: ReactElement}): ReactElement {
     return (
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={onClose}>
-            {actions.map((action) => (
-                <MenuItem
-                    key={action.label}
-                    disabled={action.disabled}
-                    onClick={() => {
-                        action.onSelect();
-                        onClose();
-                    }}
-                >
-                    {action.icon && <ListItemIcon>{action.icon}</ListItemIcon>}
-                    {action.label}
-                </MenuItem>
-            ))}
+        <Menu position="bottom-start" withinPortal>
+            <Menu.Target>{children}</Menu.Target>
+            <Menu.Dropdown>
+                {actions.map((action) => (
+                    <Menu.Item
+                        key={action.label}
+                        disabled={action.disabled}
+                        leftSection={action.icon}
+                        onClick={action.onSelect}
+                    >
+                        {action.label}
+                    </Menu.Item>
+                ))}
+            </Menu.Dropdown>
         </Menu>
     );
 }

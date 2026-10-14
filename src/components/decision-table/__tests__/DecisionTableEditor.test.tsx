@@ -69,7 +69,7 @@ describe('DecisionTableEditor rendering', () => {
 
     it('shows the hit policy and statically highlighted cells without mounting CodeMirror', () => {
         const {container} = renderRisk();
-        expect(screen.getByLabelText('Hit policy')).toBeDefined();
+        expect(screen.getByRole('combobox', {name: 'Hit policy'})).toBeDefined();
         expect(container.querySelector('.tok-number')).not.toBeNull();
         expect(container.querySelector('.cm-editor')).toBeNull();
     });
@@ -247,7 +247,7 @@ describe('DecisionTableEditor editing', () => {
         const user = userEvent.setup();
         const {service} = renderRisk();
 
-        await user.click(screen.getByLabelText('Hit policy'));
+        await user.click(screen.getByRole('combobox', {name: 'Hit policy'}));
         await user.click(screen.getByRole('option', {name: /best match/i}));
 
         await waitFor(() => {
@@ -464,7 +464,7 @@ describe('DecisionTableEditor bug fixes (docs/boxed-editor/bugs-in-decision-tabl
         const user = userEvent.setup();
         const {service} = renderRisk();
 
-        await user.click(screen.getByLabelText('Hit policy'));
+        await user.click(screen.getByRole('combobox', {name: 'Hit policy'}));
         await user.click(screen.getByRole('option', {name: /collect matches/i}));
         // Dropping the default under collect-matches is unavoidable (the engine forbids it there);
         // confirm the destructive change.
@@ -473,7 +473,7 @@ describe('DecisionTableEditor bug fixes (docs/boxed-editor/bugs-in-decision-tabl
             expect((service.get('risk.*') as {'@default'?: unknown})['@default']).toBeUndefined();
         });
 
-        await user.click(screen.getByLabelText('Hit policy'));
+        await user.click(screen.getByRole('combobox', {name: 'Hit policy'}));
         await user.click(screen.getByRole('option', {name: /first match/i}));
         await waitFor(() => {
             expect((service.get('risk.*') as {'@default'?: {level?: string}})['@default']?.level).toBe("'none'");
@@ -591,7 +591,7 @@ describe('DecisionTableEditor bug fixes (docs/boxed-editor/bugs-in-decision-tabl
         await user.click(screen.getByRole('menuitem', {name: /change type/i}));
         // The name field is locked — only the type is editable here.
         expect(screen.getByLabelText('Parameter name')).toHaveProperty('disabled', true);
-        await user.click(screen.getByLabelText('Column type'));
+        await user.click(screen.getByRole('combobox', {name: 'Column type'}));
         await user.click(screen.getByRole('option', {name: 'boolean'}));
         await user.click(screen.getByRole('button', {name: 'OK'}));
 
@@ -608,7 +608,7 @@ describe('DecisionTableEditor bug fixes (docs/boxed-editor/bugs-in-decision-tabl
         await user.click(screen.getByLabelText('table menu'));
         await user.click(screen.getByRole('menuitem', {name: /add output column/i}));
         await user.type(screen.getByLabelText('Output field name'), 'approved');
-        await user.click(screen.getByLabelText('Column type'));
+        await user.click(screen.getByRole('combobox', {name: 'Column type'}));
         await user.click(screen.getByRole('option', {name: 'boolean'}));
         await user.click(screen.getByRole('button', {name: 'OK'}));
 
@@ -647,13 +647,13 @@ describe('DecisionTableEditor bug fixes (docs/boxed-editor/bugs-in-decision-tabl
         renderRisk();
 
         await user.click(screen.getByLabelText('rule 1 menu'));
-        expect(screen.getByRole('menuitem', {name: /move up/i})).toHaveAttribute('aria-disabled', 'true');
-        expect(screen.getByRole('menuitem', {name: /move down/i})).not.toHaveAttribute('aria-disabled', 'true');
+        expect(screen.getByRole('menuitem', {name: /move up/i})).toBeDisabled();
+        expect(screen.getByRole('menuitem', {name: /move down/i})).toBeEnabled();
         await user.keyboard('{Escape}');
 
         await user.click(screen.getByLabelText('rule 3 menu'));
-        expect(screen.getByRole('menuitem', {name: /move down/i})).toHaveAttribute('aria-disabled', 'true');
-        expect(screen.getByRole('menuitem', {name: /move up/i})).not.toHaveAttribute('aria-disabled', 'true');
+        expect(screen.getByRole('menuitem', {name: /move down/i})).toBeDisabled();
+        expect(screen.getByRole('menuitem', {name: /move up/i})).toBeEnabled();
     });
 
     it('DT-026: an empty annotation cell shows a discoverable affordance instead of a blank area', () => {

@@ -6,7 +6,7 @@ test('DecisionTable story renders the grid with re-sugared cells and no CodeMirr
 }) => {
   await openStory(page, 'decision-table-decisiontableeditor--decision-table');
 
-  const table = page.locator('table.MuiTable-root');
+  const table = page.locator('table[aria-label$="decision table"]');
   await expect(table).toBeVisible();
   await expect(table).toContainText('18..25');
   await expect(table).toContainText('< 30000');
@@ -53,7 +53,7 @@ test('a rejected edit surfaces the engine error and keeps the model intact', asy
 test('Scorecard story shows the score column and sums edited scores', async ({ page }) => {
   await openStory(page, 'decision-table-decisiontableeditor--scorecard');
 
-  await expect(page.locator('table.MuiTable-root')).toContainText('score');
+  await expect(page.locator('table[aria-label$="decision table"]')).toContainText('score');
   await expect(page.locator('body')).toContainText('scorecard');
   await expect(page.getByTestId('live-result')).toContainText('total: 30');
 });
@@ -61,8 +61,8 @@ test('Scorecard story shows the score column and sums edited scores', async ({ p
 test('hit policy select switches to best-match and shows the priority column', async ({ page }) => {
   await openStory(page, 'decision-table-decisiontableeditor--decision-table');
 
-  await page.getByLabel('Hit policy').click();
+  await page.getByRole('combobox', { name: 'Hit policy' }).click();
   await page.getByRole('option', { name: /best match/i }).click();
 
-  await expect(page.locator('table.MuiTable-root')).toContainText('priority');
+  await expect(page.locator('table[aria-label$="decision table"]')).toContainText('priority');
 });

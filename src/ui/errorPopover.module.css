@@ -1,0 +1,15 @@
+.anchor {
+  position: relative;
+  width: 100%;
+}
+
+.error {
+  max-width: 360px;
+  padding: 4px 8px;
+  background-color: var(--mantine-color-error);
+  border-color: var(--mantine-color-error);
+  color: var(--mantine-color-white);
+  font-size: 0.75rem;
+  /* Keep editor popups (completions) usable: this is a hint, not an interaction target. */
+  pointer-events: none;
+}

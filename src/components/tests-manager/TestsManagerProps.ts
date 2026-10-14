@@ -1,4 +1,4 @@
-import type { SxProps, Theme } from '@mui/material/styles';
+import type { CSSProperties } from 'react';
 import type { TestResultSet } from '../test-cases-service';
 import type { DocumentationService } from './context/TestsManagerContext';
 import type { MutableDecisionService, TestSubjectId } from './tests-manager-types';
@@ -25,5 +25,5 @@ export interface TestsManagerProps {
   // Fired after each completed run, successful or failed.
   onRunComplete?: (set: TestResultSet) => void;
   className?: string;
-  sx?: SxProps<Theme>;
+  style?: CSSProperties;
 }

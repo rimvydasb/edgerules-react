@@ -1,22 +1,19 @@
-import Divider from '@mui/material/Divider';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
+import {Menu} from '@mantine/core';
 import {Fragment, type ReactElement} from 'react';
-import type {SvgIconComponent} from '@mui/icons-material';
+import type {Icon} from '@tabler/icons-react';
 
 export interface RowMenuItem {
     id: string;
     label: string;
-    icon?: SvgIconComponent;
+    icon?: Icon;
     danger?: boolean;
     onSelect: () => void;
 }
 
 export interface RowActionsMenuProps {
     items: RowMenuItem[];
-    anchorEl: HTMLElement | null;
-    onClose: () => void;
+    /** The trigger element (a `RowActionsButton`); the menu opens beneath it, right-aligned. */
+    children: ReactElement;
 }
 
 // A trailing run of danger actions (e.g. per-instance deletes followed by the row's own delete)
@@ -29,39 +26,25 @@ function trailingDangerStart(items: RowMenuItem[]): number {
 }
 
 /** The three-dot menu opened by every row's `RowActionsButton` — items come from `useRowActions`. */
-export function RowActionsMenu({items, anchorEl, onClose}: RowActionsMenuProps): ReactElement {
+export function RowActionsMenu({items, children}: RowActionsMenuProps): ReactElement {
     const dangerStart = trailingDangerStart(items);
     return (
-        <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={onClose}
-            anchorOrigin={{vertical: 'bottom', horizontal: 'right'}}
-            transformOrigin={{vertical: 'top', horizontal: 'right'}}
-            slotProps={{paper: {sx: {minWidth: 220}}}}
-        >
-            {items.map((item, index) => (
-                <Fragment key={`${item.id}-${index}`}>
-                    {index === dangerStart && dangerStart > 0 && <Divider sx={{my: 0.5}} />}
-                    <MenuItem
-                        onClick={() => {
-                            onClose();
-                            item.onSelect();
-                        }}
-                        sx={{fontSize: 13, color: item.danger ? 'error.main' : undefined}}
-                    >
-                        <ListItemIcon sx={{minWidth: 28}}>
-                            {item.icon && (
-                                <item.icon
-                                    fontSize="small"
-                                    sx={{color: item.danger ? 'error.main' : 'text.secondary'}}
-                                />
-                            )}
-                        </ListItemIcon>
-                        {item.label}
-                    </MenuItem>
-                </Fragment>
-            ))}
+        <Menu position="bottom-end" width={220} withinPortal>
+            <Menu.Target>{children}</Menu.Target>
+            <Menu.Dropdown>
+                {items.map((item, index) => (
+                    <Fragment key={`${item.id}-${index}`}>
+                        {index === dangerStart && dangerStart > 0 && <Menu.Divider />}
+                        <Menu.Item
+                            color={item.danger ? 'red' : undefined}
+                            leftSection={item.icon ? <item.icon size={16} /> : undefined}
+                            onClick={item.onSelect}
+                        >
+                            {item.label}
+                        </Menu.Item>
+                    </Fragment>
+                ))}
+            </Menu.Dropdown>
         </Menu>
     );
 }

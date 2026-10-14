@@ -1,11 +1,11 @@
-import {useEffect, useRef, type ReactElement} from 'react';
-import Box from '@mui/material/Box';
-import type {SxProps, Theme} from '@mui/material/styles';
+import {useEffect, useRef, type CSSProperties, type ReactElement} from 'react';
 import {EditorState} from '@codemirror/state';
 import {forceLinting} from '@codemirror/lint';
 import {EditorView} from '@codemirror/view';
 import {edgeRulesExtensions} from './language/extensions';
 import type {CodeEditorService} from './language/service';
+import {cx} from '../../ui/cx';
+import * as classes from './codeEditor.module.css';
 
 export type {CodeEditorDiagnostic, CodeEditorDiagnosticsService, CodeEditorService} from './language/service';
 
@@ -20,7 +20,7 @@ export interface CodeEditorProps {
     service: CodeEditorService;
     readOnly?: boolean;
     className?: string;
-    sx?: SxProps<Theme>;
+    style?: CSSProperties;
 }
 
 /**
@@ -28,7 +28,14 @@ export interface CodeEditorProps {
  * engine-backed diagnostics and completions (Ctrl+Space), Ctrl+Click / F12 go-to-definition,
  * and Shift-Alt-F document formatting.
  */
-export function CodeEditor({value, onChange, service, readOnly = false, className, sx}: CodeEditorProps): ReactElement {
+export function CodeEditor({
+    value,
+    onChange,
+    service,
+    readOnly = false,
+    className,
+    style,
+}: CodeEditorProps): ReactElement {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const viewRef = useRef<EditorView | null>(null);
     const serviceRef = useRef(service);
@@ -104,24 +111,8 @@ export function CodeEditor({value, onChange, service, readOnly = false, classNam
     }, [value]);
 
     return (
-        <Box
-            className={className}
-            sx={{
-                border: (theme) => `1px solid ${theme.palette.divider}`,
-                borderRadius: 1,
-                overflow: 'hidden',
-                '& .cm-editor': {
-                    minHeight: 180,
-                    fontFamily: 'monospace',
-                    fontSize: '0.9rem',
-                },
-                '& .cm-scroller': {
-                    minHeight: 180,
-                },
-                ...sx,
-            }}
-        >
+        <div className={cx(classes.root, className)} style={style}>
             <div ref={hostRef} />
-        </Box>
+        </div>
     );
 }

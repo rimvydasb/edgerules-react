@@ -1,4 +1,4 @@
-import ClassIcon from '@mui/icons-material/Class';
+import {IconBox} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
 import type {BoxedRowData} from '../boxed-editor-types';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
@@ -26,7 +26,7 @@ export function ComplexTypeRow({row}: ComplexTypeRowProps): ReactElement {
                 occupiesNameAndValue
                 strong
                 iconActsAsDragHandle
-                icon={<ClassIcon sx={{fontSize: 19, color: '#fff'}} />}
+                icon={<IconBox size={19} color="#fff" />}
                 iconBgColor="#ed6c02"
                 actions={actions}
             />

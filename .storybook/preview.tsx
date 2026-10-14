@@ -1,15 +1,13 @@
-import type { Preview } from '@storybook/react-vite';
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
-
-const theme = createTheme();
+import '@mantine/core/styles.css';
+import type {Preview} from '@storybook/react-vite';
+import {MantineProvider} from '@mantine/core';
 
 const preview: Preview = {
   decorators: [
     (Story) => (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+      <MantineProvider>
         <Story />
-      </ThemeProvider>
+      </MantineProvider>
     ),
   ],
 };

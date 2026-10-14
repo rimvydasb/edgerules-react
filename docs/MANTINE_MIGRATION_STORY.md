@@ -81,57 +81,57 @@ The developer agent MUST check the result visually, not only with DOM tests.
 
 **Phase 1: Grid cells**
 
-- [ ] Ensure project compiles and existing tests are passing
-- [ ] Add plain cell primitives with CSS modules for Decision Table and Tests Manager grids
-- [ ] Replace MUI `Table*`, `TextField`, and `InputBase` in grid cells with the cell primitives
-- [ ] Add tests for the code of this phase
+- [x] Ensure project compiles and existing tests are passing
+- [x] Add plain cell primitives with CSS modules for Decision Table and Tests Manager grids
+- [x] Replace MUI `Table*`, `TextField`, and `InputBase` in grid cells with the cell primitives
+- [x] Add tests for the code of this phase
 
 Acceptance criteria:
 
-- [ ] `npm test` passes, including `DecisionTableEditor.test.tsx` and `TestsManager.test.tsx`
+- [x] `npm test` passes, including `DecisionTableEditor.test.tsx` and `TestsManager.test.tsx`
 
 **Phase 2: Mantine components**
 
-- [ ] Replace the remaining MUI components and icons with Mantine and Tabler
-- [ ] Replace `@mui/x-tree-view` with Mantine `Tree` in `ProjectExplorer`
-- [ ] Update `peerDependencies` and Storybook decorators with `MantineProvider`
-- [ ] Add tests for the code of this phase
+- [x] Replace the remaining MUI components and icons with Mantine and Tabler
+- [x] Replace `@mui/x-tree-view` with Mantine `Tree` in `ProjectExplorer`
+- [x] Update `peerDependencies` and Storybook decorators with `MantineProvider`
+- [x] Add tests for the code of this phase
 
 Acceptance criteria:
 
-- [ ] `grep -r "@mui\|@emotion" src stories` returns no result
-- [ ] `npm test` passes
+- [x] `grep -r "@mui\|@emotion" src stories` returns no result
+- [x] `npm test` passes
 
 **Phase 3: Grid visual quality**
 
-- [ ] Add `e2e/visual` screenshot specs for the boxed editor, decision table, and tests manager stories
-- [ ] Include states: default, focused cell, cell with an error popover, nested grid, and empty `(new item)` row
-- [ ] Capture each grid at device scale factor 1 and 2
-- [ ] Fix every violation of `### Grid Visual Rules`, and keep the current visual style
-- [ ] Inspect each screenshot with the `Read` tool, and list the remaining defects in the PR description
-- [ ] Commit the reviewed screenshots as baselines
+- [x] Add `e2e/visual` screenshot specs for the boxed editor, decision table, and tests manager stories
+- [x] Include states: default, focused cell, cell with an error popover, nested grid, and empty `(new item)` row
+- [x] Capture each grid at device scale factor 1 and 2
+- [x] Fix every violation of `### Grid Visual Rules`, and keep the current visual style
+- [x] Inspect each screenshot with the `Read` tool, and list the remaining defects in the PR description
+- [x] Commit the reviewed screenshots as baselines
 
 Acceptance criteria:
 
-- [ ] `npx playwright test e2e/visual` passes
-- [ ] Screenshot of the error state in the boxed editor shows no defect from [boxed-editor/img.png](boxed-editor/img.png)
-- [ ] At scale factor 2, no screenshot shows a double border or a misaligned column edge
+- [x] `npx playwright test e2e/visual` passes
+- [x] Screenshot of the error state in the boxed editor shows no defect from [boxed-editor/img.png](boxed-editor/img.png)
+- [x] At scale factor 2, no screenshot shows a double border or a misaligned column edge
 
 **Phase E2E:**
 
-- [ ] Update E2E tests for changed selectors
+- [x] Update E2E tests for changed selectors
 
 Acceptance criteria:
 
-- [ ] `npm run e2e` passes
+- [x] `npm run e2e` passes
 
 **Phase X:**
 
-- [ ] Update `README.md` and `docs/ARCHITECTURE.md` with the changes from `## Architecture Changes`
-- [ ] Add the decision to `docs/architecture-adr.md`
-- [ ] Review the implementation against this story and the project conventions
+- [x] Update `README.md` and `docs/ARCHITECTURE.md` with the changes from `## Architecture Changes`
+- [x] Add the decision to `docs/architecture-adr.md`
+- [x] Review the implementation against this story and the project conventions
 
 Acceptance criteria:
 
-- [ ] Every command in `## Verification` passes
-- [ ] Storybook starts with `npm run storybook`
+- [ ] Every command in `## Verification` passes (`npm run build` still fails in the `.d.ts` step: TypeScript 7 vs `rollup-plugin-dts`, same on the commit before this migration)
+- [x] Storybook starts with `npm run storybook`

@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import {useEffect, useMemo, useState, type ReactElement} from 'react';
 import type {PortableError, PortableNode, PortableRootContext} from '@edgerules/portable';
 import {CodeEditorCell, type CodeEditorEmbedContext} from '../../code-editor-cell';
@@ -7,6 +6,9 @@ import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {authoredEntries, childPath, formatPortableValue, indexedPath, isRecord} from '../service/portable-utils';
 import type {BoxedRowData} from '../boxed-editor-types';
+import {cx} from '../../../ui/cx';
+import {ErrorPopover} from '../../../ui/ErrorPopover';
+import * as classes from '../boxedEditor.module.css';
 
 const ACTIVE_CELL_MARKER = '__boxed_editor_active_cell__';
 
@@ -173,8 +175,7 @@ export function ExpressionCell({row, onCommit}: ExpressionCellProps): ReactEleme
 
     if (!active || !languageService) {
         return (
-            <Box
-                component="span"
+            <span
                 tabIndex={editable ? 0 : undefined}
                 onClick={activate}
                 onKeyDown={(event) => {
@@ -184,25 +185,15 @@ export function ExpressionCell({row, onCommit}: ExpressionCellProps): ReactEleme
                         activate();
                     }
                 }}
-                sx={{
-                    display: 'block',
-                    width: '100%',
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    minHeight: '1em',
-                    '&:empty::before': {content: '"\\00a0"'},
-                    cursor: editable ? 'text' : 'default',
-                }}
+                className={cx(classes.editableText, editable && classes.editableTextActive)}
             >
                 {row.value}
-            </Box>
+            </span>
         );
     }
 
     return (
-        <Box sx={{position: 'relative', width: '100%'}}>
+        <ErrorPopover message={error}>
             <CodeEditorCell
                 value={draft}
                 onChange={(value) => {
@@ -215,28 +206,6 @@ export function ExpressionCell({row, onCommit}: ExpressionCellProps): ReactEleme
                 embedContext={embedContext}
                 autoFocus
             />
-            {error && (
-                <Box
-                    role="alert"
-                    sx={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        zIndex: 1300,
-                        mt: 0.5,
-                        px: 1,
-                        py: 0.5,
-                        maxWidth: 360,
-                        borderRadius: 0.5,
-                        bgcolor: 'error.main',
-                        color: 'error.contrastText',
-                        fontSize: '0.75rem',
-                        boxShadow: 2,
-                    }}
-                >
-                    {error}
-                </Box>
-            )}
-        </Box>
+        </ErrorPopover>
     );
 }

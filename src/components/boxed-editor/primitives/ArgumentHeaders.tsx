@@ -1,7 +1,7 @@
-import Box from '@mui/material/Box';
 import type {ReactElement} from 'react';
+import * as classes from '../boxedEditor.module.css';
 import {EditableColumnHeader} from './EditableColumnHeader';
-import {CELL, TALL_ROW_HEIGHT} from './layout';
+import {cx} from '../../../ui/cx';
 
 export interface Argument {
     name: string;
@@ -29,36 +29,11 @@ export function ArgumentHeaders({
     onMove,
 }: ArgumentHeadersProps): ReactElement {
     return (
-        <Box sx={{display: 'flex', flexDirection: 'column', width: '100%', height: TALL_ROW_HEIGHT}}>
-            <Box
-                sx={{
-                    display: 'flex',
-                    height: CELL,
-                    alignItems: 'center',
-                    px: 1,
-                    borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-                    fontSize: '0.6875rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    color: 'text.secondary',
-                }}
-            >
-                arguments
-            </Box>
-            <Box sx={{display: 'flex', height: CELL}}>
+        <div className={cx(classes.stack, classes.tall)}>
+            <div className={cx(classes.line, classes.bandLabel, classes.bandBottom)}>arguments</div>
+            <div className={classes.line}>
                 {args.map((argument, index) => (
-                    <Box
-                        key={argument.name}
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flex: 1,
-                            minWidth: 0,
-                            borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                            '&:last-of-type': {borderRight: 'none'},
-                        }}
-                    >
+                    <div key={argument.name} className={classes.groupCell}>
                         <EditableColumnHeader
                             rowPath={rowPath}
                             name={argument.name}
@@ -70,9 +45,9 @@ export function ArgumentHeaders({
                             onRetype={(type) => onRetype(argument.name, type)}
                             onMove={(to) => onMove(index, to)}
                         />
-                    </Box>
+                    </div>
                 ))}
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 }

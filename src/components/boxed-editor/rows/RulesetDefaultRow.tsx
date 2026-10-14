@@ -1,10 +1,11 @@
-import Box from '@mui/material/Box';
 import type {ReactElement} from 'react';
 import type {BoxedTableRowData} from '../boxed-editor-types';
 import {ExpressionCell} from '../cells/ExpressionCell';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useRowActions} from '../hooks/useRowActions';
 import {SettingRow} from '../primitives';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
 import {childPath} from '../service/portable-utils';
 
 export interface RulesetDefaultRowProps {
@@ -25,31 +26,13 @@ export function RulesetDefaultRow({row}: RulesetDefaultRowProps): ReactElement {
 
     return (
         <SettingRow row={row} name={row.name} depth={row.depth} showActions actions={actions}>
-            <Box sx={{display: 'flex', width: '100%', height: '100%'}}>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flex: 1,
-                        minWidth: 0,
-                        px: 1,
-                        fontStyle: 'italic',
-                        color: 'text.disabled',
-                    }}
-                >
-                    otherwise
-                </Box>
+            <div className={classes.fill}>
+                <div className={classes.otherwise}>otherwise</div>
                 {actionColumns.map((column, index) => (
-                    <Box
+                    <div
                         key={column}
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flex: 1,
-                            minWidth: 0,
-                            px: 1,
-                            borderLeft: (theme) => `${index === 0 ? 2 : 1}px solid ${theme.palette.divider}`,
-                        }}
+                        className={cx(classes.groupCell, classes.pad, classes.groupLeft)}
+                        style={index === 0 ? undefined : {borderLeftWidth: 1}}
                     >
                         <ExpressionCell
                             row={{
@@ -61,9 +44,9 @@ export function RulesetDefaultRow({row}: RulesetDefaultRowProps): ReactElement {
                             }}
                             onCommit={(value) => commitAction(index, value)}
                         />
-                    </Box>
+                    </div>
                 ))}
-            </Box>
+            </div>
         </SettingRow>
     );
 }

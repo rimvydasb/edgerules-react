@@ -263,7 +263,7 @@ describe('test-results: rendering', () => {
         );
 
         const value = await screen.findByText('999');
-        expect(value).toHaveStyle({fontStyle: 'italic'});
+        expect(value).toHaveAttribute('data-stale', 'true');
 
         testCasesService.dispose();
     });

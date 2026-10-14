@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import type {ReactElement} from 'react';
 import type {PortableError} from '@edgerules/portable';
 import type {BoxedTableRowData} from '../boxed-editor-types';
@@ -6,6 +5,8 @@ import {ExpressionCell} from '../cells/ExpressionCell';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useRowActions} from '../hooks/useRowActions';
 import {childPath} from '../service/portable-utils';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
 import {GenericRow} from './GenericRow';
 
 export interface RuleRowProps {
@@ -57,18 +58,9 @@ function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: b
     };
 
     return (
-        <Box sx={{display: 'flex', width: '100%', height: '100%'}}>
+        <div className={classes.fill}>
             {hasExpression ? (
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flex: conditionWeight,
-                        minWidth: 0,
-                        px: 1,
-                        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                    }}
-                >
+                <div className={cx(classes.groupCell, classes.pad)} style={{flex: conditionWeight}}>
                     <ExpressionCell
                         row={{
                             kind: 'field',
@@ -79,22 +71,11 @@ function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: b
                         }}
                         onCommit={commitConditionsExpression}
                     />
-                </Box>
+                </div>
             ) : (
-                <Box sx={{display: 'flex', flex: conditionWeight, minWidth: 0}}>
+                <div className={classes.group} style={{flex: conditionWeight}}>
                     {conditionColumns.map((column, index) => (
-                        <Box
-                            key={column}
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                flex: 1,
-                                minWidth: 0,
-                                px: 1,
-                                borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                                '&:last-of-type': {borderRight: 'none'},
-                            }}
-                        >
+                        <div key={column} className={cx(classes.groupCell, classes.pad)}>
                             <ExpressionCell
                                 row={{
                                     kind: 'field',
@@ -105,31 +86,13 @@ function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: b
                                 }}
                                 onCommit={(value) => commitConditionCell(index, value)}
                             />
-                        </Box>
+                        </div>
                     ))}
-                </Box>
+                </div>
             )}
-            <Box
-                sx={{
-                    display: 'flex',
-                    flex: actionWeight,
-                    minWidth: 0,
-                    borderLeft: (theme) => `2px solid ${theme.palette.divider}`,
-                }}
-            >
+            <div className={cx(classes.group, classes.groupLeft)} style={{flex: actionWeight}}>
                 {actionColumns.map((column, index) => (
-                    <Box
-                        key={column}
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flex: 1,
-                            minWidth: 0,
-                            px: 1,
-                            borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                            '&:last-of-type': {borderRight: 'none'},
-                        }}
-                    >
+                    <div key={column} className={cx(classes.groupCell, classes.pad)}>
                         <ExpressionCell
                             row={{
                                 kind: 'field',
@@ -140,20 +103,11 @@ function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: b
                             }}
                             onCommit={(value) => commitActionCell(index, value)}
                         />
-                    </Box>
+                    </div>
                 ))}
-            </Box>
+            </div>
             {showPriority && (
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flex: 1,
-                        minWidth: 0,
-                        px: 1,
-                        borderLeft: (theme) => `2px solid ${theme.palette.divider}`,
-                    }}
-                >
+                <div className={cx(classes.groupCell, classes.pad, classes.groupLeft)}>
                     <ExpressionCell
                         row={{
                             kind: 'field',
@@ -164,9 +118,9 @@ function RuleCells({row, showPriority}: {row: BoxedTableRowData; showPriority: b
                         }}
                         onCommit={commitPriority}
                     />
-                </Box>
+                </div>
             )}
-        </Box>
+        </div>
     );
 }
 

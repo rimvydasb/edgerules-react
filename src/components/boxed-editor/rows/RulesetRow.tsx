@@ -1,6 +1,4 @@
-import Box from '@mui/material/Box';
-import {alpha} from '@mui/material/styles';
-import RuleIcon from '@mui/icons-material/Rule';
+import {IconListCheck} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
 import {
@@ -13,7 +11,8 @@ import {
 import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {useRowActions} from '../hooks/useRowActions';
-import {CELL, TALL_ROW_HEIGHT} from '../primitives';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
 import {EditableColumnHeader} from '../primitives/EditableColumnHeader';
 import {GenericRow} from './GenericRow';
 import {NewRow} from './NewRow';
@@ -35,13 +34,7 @@ interface HeaderColumn {
  * label row, then one cell per condition and action column, proportioned so the data rows below
  * (`RuleRow`) line up exactly (same `flex` weights per group).
  */
-function RulesetColumnHeaders({
-    row,
-    showPriority,
-}: {
-    row: BoxedTableRowData;
-    showPriority: boolean;
-}): ReactElement {
+function RulesetColumnHeaders({row, showPriority}: {row: BoxedTableRowData; showPriority: boolean}): ReactElement {
     const conditions: HeaderColumn[] = (row.parameters ?? []).map((parameter) => ({
         name: parameter.name,
         type: parameter.type,
@@ -55,83 +48,27 @@ function RulesetColumnHeaders({
     const priorityWeight = 1;
 
     return (
-        <Box sx={{display: 'flex', flexDirection: 'column', width: '100%', height: TALL_ROW_HEIGHT}}>
-            <Box
-                sx={{
-                    display: 'flex',
-                    height: CELL,
-                    borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-                }}
-            >
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flex: conditionWeight,
-                        minWidth: 0,
-                        px: 1,
-                        fontSize: '0.6875rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                        color: 'text.secondary',
-                        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                    }}
-                >
+        <div className={cx(classes.stack, classes.tall)}>
+            <div className={cx(classes.line, classes.bandBottom)}>
+                <div className={cx(classes.bandLabel, classes.bandRule)} style={{flex: conditionWeight}}>
                     conditions
-                </Box>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flex: actionWeight,
-                        minWidth: 0,
-                        px: 1,
-                        fontSize: '0.6875rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                        color: 'success.dark',
-                        bgcolor: (theme) =>
-                            alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.12 : 0.08),
-                        borderRight: showPriority ? (theme) => `1px solid ${theme.palette.divider}` : 'none',
-                    }}
+                </div>
+                <div
+                    className={cx(classes.bandLabel, classes.bandActions, showPriority && classes.bandRule)}
+                    style={{flex: actionWeight}}
                 >
                     actions
-                </Box>
+                </div>
                 {showPriority && (
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flex: priorityWeight,
-                            minWidth: 0,
-                            px: 1,
-                            fontSize: '0.6875rem',
-                            fontWeight: 600,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                            color: 'text.secondary',
-                        }}
-                    >
+                    <div className={classes.bandLabel} style={{flex: priorityWeight}}>
                         priority
-                    </Box>
+                    </div>
                 )}
-            </Box>
-            <Box sx={{display: 'flex', height: CELL}}>
-                <Box sx={{display: 'flex', flex: conditionWeight, minWidth: 0}}>
+            </div>
+            <div className={classes.line}>
+                <div className={classes.group} style={{flex: conditionWeight}}>
                     {conditions.map((column, index) => (
-                        <Box
-                            key={column.name}
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                flex: 1,
-                                minWidth: 0,
-                                borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                                '&:last-of-type': {borderRight: 'none'},
-                            }}
-                        >
+                        <div key={column.name} className={classes.groupCell}>
                             <EditableColumnHeader
                                 rowPath={row.path}
                                 name={column.name}
@@ -150,29 +87,12 @@ function RulesetColumnHeaders({
                                     commit(moveConditionColumn(row, index, to));
                                 }}
                             />
-                        </Box>
+                        </div>
                     ))}
-                </Box>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flex: actionWeight,
-                        minWidth: 0,
-                        borderLeft: (theme) => `2px solid ${theme.palette.divider}`,
-                    }}
-                >
+                </div>
+                <div className={cx(classes.group, classes.groupLeft)} style={{flex: actionWeight}}>
                     {actions.map((column, index) => (
-                        <Box
-                            key={column.name}
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                flex: 1,
-                                minWidth: 0,
-                                borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                                '&:last-of-type': {borderRight: 'none'},
-                            }}
-                        >
+                        <div key={column.name} className={classes.groupCell}>
                             <EditableColumnHeader
                                 rowPath={row.path}
                                 name={column.name}
@@ -188,24 +108,18 @@ function RulesetColumnHeaders({
                                     commit(moveActionColumn(row, index, to));
                                 }}
                             />
-                        </Box>
+                        </div>
                     ))}
-                </Box>
+                </div>
                 {showPriority && (
-                    <Box
+                    <div
                         aria-hidden="true"
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flex: priorityWeight,
-                            minWidth: 0,
-                            px: 1,
-                            borderLeft: (theme) => `2px solid ${theme.palette.divider}`,
-                        }}
+                        className={cx(classes.group, classes.groupLeft)}
+                        style={{flex: priorityWeight}}
                     />
                 )}
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 }
 
@@ -226,7 +140,7 @@ export function RulesetRow({row}: RulesetRowProps): ReactElement {
                 tall
                 strong
                 iconActsAsDragHandle
-                icon={<RuleIcon sx={{fontSize: 19, color: '#fff'}} />}
+                icon={<IconListCheck size={19} color="#fff" />}
                 iconBgColor="#6a1b9a"
                 value={<RulesetColumnHeaders row={row} showPriority={showPriority} />}
                 valueIsInteractive

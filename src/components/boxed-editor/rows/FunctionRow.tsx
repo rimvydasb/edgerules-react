@@ -1,4 +1,4 @@
-import FunctionsIcon from '@mui/icons-material/Functions';
+import {IconMathFunction} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
 import {moveArgument, renameArgument, retypeArgument} from '../commands/rowFactories';
@@ -40,7 +40,7 @@ export function FunctionRow({row}: FunctionRowProps): ReactElement {
                 tall
                 strong
                 iconActsAsDragHandle
-                icon={<FunctionsIcon sx={{fontSize: 19, color: '#fff'}} />}
+                icon={<IconMathFunction size={19} color="#fff" />}
                 iconBgColor="#1976d2"
                 value={
                     <ArgumentHeaders

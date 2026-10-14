@@ -14,7 +14,14 @@ export function OptimisationConstraintGroupRow({row}: OptimisationConstraintGrou
     const actions = useRowActions(row);
     return (
         <Fragment>
-            <SettingRow row={row} name={row.name} depth={row.depth} occupiesNameAndValue showActions actions={actions} />
+            <SettingRow
+                row={row}
+                name={row.name}
+                depth={row.depth}
+                occupiesNameAndValue
+                showActions
+                actions={actions}
+            />
             {row.children?.map((child) => (
                 <OptimisationConstraintRow key={child.path} row={child} />
             ))}

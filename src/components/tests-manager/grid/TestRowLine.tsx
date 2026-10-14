@@ -1,20 +1,18 @@
-import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
-import Tooltip from '@mui/material/Tooltip';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import {Tooltip} from '@mantine/core';
+import {IconAlertTriangle, IconDotsVertical, IconGripVertical} from '@tabler/icons-react';
 import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
-import {type CSSProperties, type ReactElement, useState, useSyncExternalStore} from 'react';
+import {type CSSProperties, type ReactElement, useSyncExternalStore} from 'react';
 import {qualifyPath, type TestCase, type TestRow} from '../../test-cases-service';
+import {cx} from '../../../ui/cx';
+import {GridCell, GridRow} from '../../../ui/grid';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {rowActionsFor} from '../menu/actions';
 import {TestsMenu} from '../menu/TestsMenu';
 import {AssertionCell} from './AssertionCell';
-import {CELL_BORDER_SX, DELETED_ROW_BG} from './gridStyle';
 import {InputCell} from './InputCell';
 import {PathCell} from './PathCell';
+import * as classes from './testsGrid.module.css';
 import {ValidationCell} from './ValidationCell';
 import {DESCRIPTION_COLUMN_WIDTH, ICON_CELL_WIDTH, rowHeightForText, TEST_CASE_COLUMN_WIDTH} from './wrapping';
 
@@ -41,7 +39,6 @@ export function TestRowLine({
     knownPaths: ReadonlySet<string>;
 }): ReactElement {
     const {testCasesService, documentationService, subject, readOnly} = useTestsManagerContext();
-    const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
     const sortable = useSortable({id: row.path, disabled: readOnly});
     const deleted = !row.present;
 
@@ -63,115 +60,58 @@ export function TestRowLine({
 
     const menuActions = rowActionsFor(row, testCasesService);
     const hasMenuActions = menuActions.length > 0;
+    const sticky = cx(classes.sticky, deleted && classes.deleted);
+    const iconCell: CSSProperties = {width: ICON_CELL_WIDTH, maxWidth: ICON_CELL_WIDTH};
 
     return (
-        <TableRow ref={sortable.setNodeRef} style={style} data-testid={`row-${row.path || '(result)'}`}>
-            <TableCell
-                sx={{
-                    ...CELL_BORDER_SX,
-                    position: 'sticky',
-                    left: 0,
-                    zIndex: 1,
-                    backgroundColor: deleted ? DELETED_ROW_BG : 'background.paper',
-                    width: ICON_CELL_WIDTH,
-                    maxWidth: ICON_CELL_WIDTH,
-                    padding: 0,
-                }}
-            >
+        <GridRow ref={sortable.setNodeRef} style={style} data-testid={`row-${row.path || '(result)'}`}>
+            <GridCell fill className={sticky} style={{...iconCell, left: 0}}>
                 {!readOnly && (
                     <span
                         aria-label={`drag ${row.path}`}
                         {...sortable.attributes}
                         {...sortable.listeners}
-                        style={{
-                            cursor: 'grab',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: ICON_CELL_WIDTH,
-                            height: ICON_CELL_WIDTH,
-                        }}
+                        className={cx(classes.iconBox, classes.drag)}
                     >
-                        <DragIndicatorIcon fontSize="small" />
+                        <IconGripVertical size={16} />
                     </span>
                 )}
-            </TableCell>
-            <TableCell
-                sx={{
-                    ...CELL_BORDER_SX,
-                    position: 'sticky',
-                    left: ICON_CELL_WIDTH,
-                    zIndex: 1,
-                    backgroundColor: deleted ? DELETED_ROW_BG : 'background.paper',
-                    whiteSpace: 'nowrap',
-                    width: pathColumnWidth,
-                }}
-            >
+            </GridCell>
+            <GridCell className={sticky} style={{left: ICON_CELL_WIDTH, width: pathColumnWidth, whiteSpace: 'nowrap'}}>
                 <PathCell row={row} columnWidth={pathColumnWidth} knownPaths={knownPaths} />
                 {deleted && (
-                    <Tooltip title={DELETED_ROW_TOOLTIP}>
-                        <WarningAmberIcon
+                    <Tooltip label={DELETED_ROW_TOOLTIP} withinPortal>
+                        <IconAlertTriangle
                             aria-label={`deleted ${row.path}`}
-                            color="error"
-                            fontSize="small"
-                            sx={{verticalAlign: 'middle', marginLeft: 0.5}}
+                            size={16}
+                            className={classes.deletedIcon}
                         />
                     </Tooltip>
                 )}
-            </TableCell>
-            <TableCell
-                sx={{
-                    ...CELL_BORDER_SX,
-                    position: 'sticky',
-                    left: ICON_CELL_WIDTH + pathColumnWidth,
-                    zIndex: 1,
-                    backgroundColor: deleted ? DELETED_ROW_BG : 'background.paper',
-                    width: ICON_CELL_WIDTH,
-                    maxWidth: ICON_CELL_WIDTH,
-                    padding: 0,
-                }}
-            >
+            </GridCell>
+            <GridCell fill className={sticky} style={{...iconCell, left: ICON_CELL_WIDTH + pathColumnWidth}}>
                 {!readOnly && (
-                    <span
-                        style={{
-                            width: ICON_CELL_WIDTH,
-                            height: ICON_CELL_WIDTH,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <button
-                            type="button"
-                            aria-label={`row menu ${row.path}`}
-                            disabled={!hasMenuActions}
-                            onClick={(event) => setMenuAnchor(event.currentTarget)}
-                            style={{
-                                border: 'none',
-                                background: 'transparent',
-                                cursor: hasMenuActions ? 'pointer' : 'default',
-                                opacity: hasMenuActions ? 1 : 0.3,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <MoreVertIcon fontSize="small" />
-                        </button>
+                    <span className={classes.iconBox}>
+                        <TestsMenu actions={menuActions}>
+                            <button
+                                type="button"
+                                aria-label={`row menu ${row.path}`}
+                                disabled={!hasMenuActions}
+                                className={classes.iconButton}
+                            >
+                                <IconDotsVertical size={16} />
+                            </button>
+                        </TestsMenu>
                     </span>
                 )}
-                <TestsMenu anchorEl={menuAnchor} onClose={() => setMenuAnchor(null)} actions={menuActions} />
-            </TableCell>
-            <TableCell
-                sx={{
-                    ...CELL_BORDER_SX,
-                    position: 'sticky',
+            </GridCell>
+            <GridCell
+                fill
+                className={sticky}
+                style={{
                     left: ICON_CELL_WIDTH + pathColumnWidth + ICON_CELL_WIDTH,
-                    zIndex: 1,
-                    backgroundColor: deleted ? DELETED_ROW_BG : 'background.paper',
                     width: DESCRIPTION_COLUMN_WIDTH,
                     maxWidth: DESCRIPTION_COLUMN_WIDTH,
-                    padding: 0,
                 }}
             >
                 {documentationService ? (
@@ -179,47 +119,24 @@ export function TestRowLine({
                         aria-label={`description ${row.path}`}
                         value={description}
                         disabled={readOnly}
+                        className={classes.description}
                         onChange={(event) => documentationService.setDescription(qualifiedPath, event.target.value)}
-                        style={{
-                            position: 'absolute',
-                            inset: 0,
-                            border: 'none',
-                            outline: 'none',
-                            resize: 'none',
-                            boxSizing: 'border-box',
-                            padding: '8px',
-                            background: 'transparent',
-                            font: 'inherit',
-                        }}
                     />
                 ) : null}
-            </TableCell>
+            </GridCell>
             {visibleCases.map((testCase) => (
-                <TableCell
+                <GridCell
                     key={testCase.id}
-                    sx={{
-                        ...CELL_BORDER_SX,
-                        position: 'relative',
-                        width: TEST_CASE_COLUMN_WIDTH,
-                        maxWidth: TEST_CASE_COLUMN_WIDTH,
-                        padding: 0,
-                        backgroundColor: deleted ? DELETED_ROW_BG : undefined,
-                    }}
+                    fill
+                    className={cx(deleted && classes.deleted)}
+                    style={{width: TEST_CASE_COLUMN_WIDTH, maxWidth: TEST_CASE_COLUMN_WIDTH}}
                 >
                     {row.section === 'inputs' && <InputCell testCaseId={testCase.id} row={row} />}
                     {row.section === 'assertions' && <AssertionCell testCaseId={testCase.id} row={row} />}
                     {row.section === 'validations' && <ValidationCell testCaseId={testCase.id} row={row} />}
-                </TableCell>
+                </GridCell>
             ))}
-            <TableCell
-                sx={{
-                    ...CELL_BORDER_SX,
-                    width: ICON_CELL_WIDTH,
-                    maxWidth: ICON_CELL_WIDTH,
-                    padding: 0,
-                    backgroundColor: deleted ? DELETED_ROW_BG : undefined,
-                }}
-            />
-        </TableRow>
+            <GridCell fill className={cx(deleted && classes.deleted)} style={iconCell} />
+        </GridRow>
     );
 }
