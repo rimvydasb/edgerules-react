@@ -247,7 +247,8 @@ test.describe('Boxed Editor / business flow', () => {
             await chooseRowAction(page, 'riskTier', 'Delete "ltv" column');
             await renameHeader(page, 'riskTier', addedCondition!, 'regionScore');
             await retypeHeader(page, 'riskTier', 'regionScore', 'number');
-            await page.getByTestId('column-riskTier-regionScore').getByLabel('Move regionScore left').click();
+            await page.getByTestId('column-riskTier-regionScore').getByLabel('Column actions regionScore').click();
+            await page.getByRole('menuitem', {name: 'Move left'}).click();
             await chooseRowAction(page, '*', 'Add field');
             await renameRow(page, 'field', 'riskResult');
             await commitExpression(page, 'riskResult', 'riskTier(age: 20, income: 25000, regionScore: 0.9)');

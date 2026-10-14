@@ -137,6 +137,6 @@ test.describe('Boxed Editor / column headers', () => {
     test('offers no drag affordance where column reorder is unsupported', async ({page}) => {
         await openBoxedEditorStory(page, 'function-crud-playground');
         await expect(page.getByLabel('Drag to reorder column')).toHaveCount(0);
-        await expect(page.getByLabel('Move amount right')).toBeVisible();
+        await expect(page.getByLabel('Column actions amount')).toBeVisible();
     });
 });

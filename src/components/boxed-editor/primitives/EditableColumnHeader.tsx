@@ -1,8 +1,10 @@
-import {ActionIcon} from '@mantine/core';
-import {IconChevronLeft, IconChevronRight} from '@tabler/icons-react';
+import {ActionIcon, Menu} from '@mantine/core';
+import {IconArrowLeft, IconArrowRight, IconDotsVertical} from '@tabler/icons-react';
 import {useState, type KeyboardEvent, type ReactElement} from 'react';
 import * as classes from '../boxedEditor.module.css';
 import {TypeName} from './TypeName';
+
+const COLUMN_TYPES = ['string', 'number', 'integer', 'boolean', 'date', 'time', 'datetime', 'duration'];
 
 export interface EditableColumnHeaderProps {
     rowPath: string;
@@ -18,8 +20,8 @@ export interface EditableColumnHeaderProps {
 
 /**
  * Shared header editing surface. A click edits the name; clicking the visible type edits the type.
- * Reorder uses explicit buttons because keyboard-accessible controls are preferable to a mouse-only
- * drag affordance and make positional argument changes deliberate.
+ * Reorder and type conversion live in a per-header context menu, which keeps positional changes
+ * deliberate and keyboard-accessible.
  */
 export function EditableColumnHeader({
     rowPath,
@@ -98,26 +100,46 @@ export function EditableColumnHeader({
                         </button>
                     ))}
             </div>
-            <ActionIcon
-                size="sm"
-                variant="subtle"
-                color="gray"
-                aria-label={`Move ${name} left`}
-                disabled={index === 0}
-                onClick={() => onMove(index - 1)}
-            >
-                <IconChevronLeft size={16} />
-            </ActionIcon>
-            <ActionIcon
-                size="sm"
-                variant="subtle"
-                color="gray"
-                aria-label={`Move ${name} right`}
-                disabled={index === count - 1}
-                onClick={() => onMove(index + 1)}
-            >
-                <IconChevronRight size={16} />
-            </ActionIcon>
+            <Menu position="bottom-end" width={180} withinPortal>
+                <Menu.Target>
+                    <ActionIcon size="sm" variant="subtle" color="gray" aria-label={`Column actions ${name}`}>
+                        <IconDotsVertical size={16} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        leftSection={<IconArrowLeft size={16} />}
+                        disabled={index === 0}
+                        onClick={() => onMove(index - 1)}
+                    >
+                        Move left
+                    </Menu.Item>
+                    <Menu.Item
+                        leftSection={<IconArrowRight size={16} />}
+                        disabled={index === count - 1}
+                        onClick={() => onMove(index + 1)}
+                    >
+                        Move right
+                    </Menu.Item>
+                    {typeEditable && onRetype && (
+                        <>
+                            <Menu.Divider />
+                            {COLUMN_TYPES.map((target) => (
+                                <Menu.Item
+                                    key={target}
+                                    disabled={type === target}
+                                    onClick={() => {
+                                        const nextError = onRetype(target);
+                                        if (nextError) setError(nextError);
+                                    }}
+                                >
+                                    to {target}
+                                </Menu.Item>
+                            ))}
+                        </>
+                    )}
+                </Menu.Dropdown>
+            </Menu>
         </div>
     );
 }
