@@ -47,5 +47,5 @@ export function computeFunctionNodeLayout(input: FunctionNodeLayoutInput): Funct
 
     const argumentTrack = argumentSteps * STEP;
     const resultTrack = resultSteps * STEP;
-    return { argumentTrack, resultTrack, width: argumentTrack + resultTrack };
+    return {argumentTrack, resultTrack, width: argumentTrack + resultTrack};
 }

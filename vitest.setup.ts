@@ -48,3 +48,6 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver ??= ResizeObserverStub;
 Element.prototype.scrollIntoView ??= () => {};
+
+// jsdom has no canvas; text measurement falls back to a character-count estimate.
+HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext;

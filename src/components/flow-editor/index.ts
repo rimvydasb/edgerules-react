@@ -1,4 +1,6 @@
-export { createFlowEditorService } from './service/createFlowEditorService';
+export {createFlowEditorService} from './service/createFlowEditorService';
+export {FlowEditorProvider} from './FlowEditorProvider';
+export {FunctionNode} from './function-node/FunctionNode';
 export type {
     CalleeRef,
     FlowEditorOpenTarget,

@@ -1,0 +1,431 @@
+/*
+ * FunctionNode drawing model — the Boxed Editor's ruled sheet: a 40px step, 1px lines that each have one
+ * owner (a row owns its bottom line, the frame owns the top and left edges), Mantine colors.
+ */
+.node {
+  /* Type colors, light values from the Mantine palette. */
+  --fn-border: var(--mantine-color-default-border);
+  --fn-muted: var(--mantine-color-default-hover);
+  --fn-t-number: var(--mantine-color-blue-7);
+  --fn-t-string: var(--mantine-color-green-8);
+  --fn-t-boolean: var(--mantine-color-orange-7);
+  --fn-t-date: var(--mantine-color-cyan-8);
+  --fn-t-record: var(--mantine-color-gray-7);
+  --fn-t-any: var(--mantine-color-gray-5);
+
+  position: relative;
+  box-sizing: content-box;
+  border: 1px solid var(--fn-border);
+  border-bottom: 0;
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  font-size: 14px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.05),
+    0 4px 14px rgb(0 0 0 / 0.06);
+}
+
+:global([data-mantine-color-scheme='dark']) .node {
+  --fn-t-number: var(--mantine-color-blue-4);
+  --fn-t-string: var(--mantine-color-green-4);
+  --fn-t-boolean: var(--mantine-color-orange-4);
+  --fn-t-date: var(--mantine-color-cyan-4);
+  --fn-t-record: var(--mantine-color-gray-5);
+  --fn-t-any: var(--mantine-color-dark-3);
+}
+
+.node,
+.node * {
+  box-sizing: border-box;
+}
+
+.selected {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------- rows */
+.row {
+  position: relative;
+  display: flex;
+  height: 40px;
+  border-bottom: 1px solid var(--fn-border);
+}
+
+.tall {
+  height: 80px;
+}
+
+.tile {
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--fn-border);
+  color: #fff;
+}
+
+.headStack {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.headLine {
+  position: relative;
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  min-width: 0;
+}
+
+.headLine + .headLine {
+  border-top: 1px solid var(--fn-border);
+}
+
+.headFirst {
+  background: var(--fn-muted);
+}
+
+.title {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding-inline: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.titleText {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.fieldName {
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 12px;
+}
+
+.draftBadge {
+  padding: 0 5px;
+  border: 1px dashed var(--mantine-color-dimmed);
+  border-radius: 3px;
+  color: var(--mantine-color-dimmed);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.callsLabel {
+  padding-left: 10px;
+  color: var(--mantine-color-dimmed);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.retType {
+  min-width: 0;
+  margin-left: auto;
+  padding-right: 18px;
+  overflow: hidden;
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- callee chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  margin-left: 8px;
+  padding: 3px 6px;
+  border: 1px solid var(--fn-border);
+  border-radius: 4px;
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--mantine-color-dimmed);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
+}
+
+.chip:disabled {
+  cursor: default;
+}
+
+.chipEmpty {
+  border-style: dashed;
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.chipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--mantine-color-dimmed);
+}
+
+.kindDot,
+.pickDot {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  color: #fff;
+}
+
+.kindDot {
+  width: 14px;
+  height: 14px;
+}
+
+.pickDot {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------- picker */
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sig {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ret {
+  color: var(--mantine-color-dimmed);
+}
+
+.check {
+  margin-left: auto;
+  color: var(--mantine-primary-color-filled);
+}
+
+.pickerFoot {
+  color: var(--mantine-color-dimmed);
+  font-size: 11.5px;
+}
+
+/* ---------------------------------------------------------------- description */
+.descRow {
+  align-items: center;
+  padding-inline: 10px;
+  background: color-mix(in srgb, var(--mantine-color-yellow-6) 6%, var(--mantine-color-body));
+  color: var(--mantine-color-dimmed);
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 16px;
+}
+
+.descText {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ---------------------------------------------------------------- bands and rows */
+.half {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.half + .half {
+  border-left: 1px solid var(--fn-border);
+}
+
+.band {
+  align-items: center;
+  padding-inline: 10px;
+  background: var(--fn-muted);
+  color: var(--mantine-color-dimmed);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bandResult {
+  background: color-mix(in srgb, var(--mantine-color-green-6) 8%, transparent);
+  color: var(--mantine-color-green-8);
+}
+
+:global([data-mantine-color-scheme='dark']) .bandResult {
+  color: var(--mantine-color-green-4);
+}
+
+.pname {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding-inline: 10px;
+  background: var(--mantine-color-body);
+}
+
+.resultName {
+  justify-content: flex-end;
+}
+
+.nameText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.required {
+  margin-left: 2px;
+  color: var(--mantine-color-error);
+}
+
+.locked {
+  color: var(--mantine-color-dimmed);
+  font-style: italic;
+}
+
+.filler {
+  flex: 1;
+  background: repeating-linear-gradient(135deg, transparent 0 6px, var(--fn-muted) 6px 7px);
+}
+
+.rowError {
+  z-index: 1;
+  outline: 2px solid var(--mantine-color-error);
+  outline-offset: -2px;
+}
+
+.errorMessage {
+  position: absolute;
+  right: 6px;
+  bottom: 2px;
+  left: 6px;
+  overflow: hidden;
+  color: var(--mantine-color-error);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.emptyBody {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--fn-border);
+  color: var(--mantine-color-dimmed);
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------- pins (xyflow handles) */
+.pin {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 12px;
+  height: 12px;
+  min-width: 0;
+  min-height: 0;
+  margin-top: -6px;
+  transform: none;
+  border: 2px solid var(--pc, var(--fn-t-any));
+  border-radius: 50%;
+  background: var(--mantine-color-body);
+}
+
+/* A pin sits on the frame line: two classes beat the xyflow handle defaults. */
+.node .pinIn {
+  right: auto;
+  left: -7px;
+}
+
+.node .pinOut {
+  right: -7px;
+  left: auto;
+}
+
+.pin[data-type='number'] {
+  --pc: var(--fn-t-number);
+}
+
+.pin[data-type='string'] {
+  --pc: var(--fn-t-string);
+}
+
+.pin[data-type='boolean'] {
+  --pc: var(--fn-t-boolean);
+}
+
+.pin[data-type='date'] {
+  --pc: var(--fn-t-date);
+}
+
+.pin[data-type='record'] {
+  --pc: var(--fn-t-record);
+}
+
+.pinConnected {
+  background: var(--pc, var(--fn-t-any));
+}
+
+.pinRecord {
+  border-radius: 2px;
+}
+
+.pinList {
+  box-shadow:
+    0 0 0 2px var(--mantine-color-body),
+    0 0 0 3.5px var(--pc, var(--fn-t-any));
+}
+
+.pinValue {
+  border-style: dotted;
+}
+
+.node .pinBad {
+  --pc: var(--mantine-color-error);
+}

@@ -1,6 +1,6 @@
-import { MutableDecisionService } from '@edgerules/node/mutable';
-import type { PortableNode } from '@edgerules/portable';
-import type { FlowEditorEngine } from '../service/createFlowEditorService';
+import {MutableDecisionService} from '@edgerules/node/mutable';
+import type {PortableNode} from '@edgerules/portable';
+import type {FlowEditorEngine} from '../service/createFlowEditorService';
 
 // The sample model of the FunctionNode design proposal, with the engine's own syntax.
 export const SAMPLE_MODEL = `{
@@ -30,5 +30,5 @@ export function sampleService(): {
 } {
     const mutable = MutableDecisionService.fromCode(SAMPLE_MODEL);
     const portable = () => mutable.toPortable() as unknown as Record<string, PortableNode>;
-    return { mutable, portable };
+    return {mutable, portable};
 }

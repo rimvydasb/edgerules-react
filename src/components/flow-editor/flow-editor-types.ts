@@ -1,10 +1,10 @@
-import type { PortableError } from '@edgerules/portable';
-import type { ReactNode } from 'react';
-import type { BoxedEditorTargetKind } from '../boxed-editor/BoxedEditorProps';
-import type { SignatureParameter, Unsubscribe } from '../boxed-editor/boxed-editor-types';
-import type { DocumentationService } from '../documentation-service';
+import type {PortableError} from '@edgerules/portable';
+import type {ReactNode} from 'react';
+import type {BoxedEditorTargetKind} from '../boxed-editor/BoxedEditorProps';
+import type {SignatureParameter, Unsubscribe} from '../boxed-editor/boxed-editor-types';
+import type {DocumentationService} from '../documentation-service';
 
-export type { Unsubscribe };
+export type {Unsubscribe};
 
 export interface FlowEditorProviderProps {
     service: FlowEditorService; // engine-backed node service from createFlowEditorService()
@@ -21,9 +21,10 @@ export interface FlowEditorOpenTarget {
 }
 
 /** ReactFlow node data; the node id is the field path. */
-export interface FunctionNodeData {
+// A type alias, not an interface: xyflow requires node data to be assignable to Record<string, unknown>.
+export type FunctionNodeData = {
     field: string; // model field path of the invocation, for example 'decision'
-}
+};
 
 export interface CalleeRef {
     path: string; // dotted callee path, for example 'risk' or 'group.nested'
@@ -35,7 +36,7 @@ export interface CalleeRef {
 export interface NodeArgument {
     name: string;
     type: string; // 'number', 'string', 'Applicant', 'number[]'
-    binding?: { kind: 'path' | 'value'; text: string }; // 'path' draws a wire; 'value' is a literal or expression
+    binding?: {kind: 'path' | 'value'; text: string}; // 'path' draws a wire; 'value' is a literal or expression
     used: boolean; // the callee body references it; Delete argument is disabled
 }
 
@@ -53,7 +54,7 @@ export interface FunctionNodeModel {
     results: NodeResult[]; // record fields, or one unnamed 'result'
     draft: boolean; // true while a required argument is unbound; the draft is not in the model
     callers: number; // invocations of the callee in the whole model
-    error?: { parameter: string; message: string }; // last rejected bindArgument
+    error?: {parameter: string; message: string}; // last rejected bindArgument
 }
 
 export interface FlowEditorService {

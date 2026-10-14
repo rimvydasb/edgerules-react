@@ -385,22 +385,22 @@ Acceptance criteria:
 
 **Phase 3: FunctionNode rendering**
 
-- [ ] Write `FlowEditorProvider` and `FunctionNode` with header, bands, rows, pins and handles from the proposal
-- [ ] Write `functionNode.module.css` with Mantine variables, type color tokens, light and dark values
-- [ ] Write `CalleePicker` with search and Functions / Rulesets groups
-- [ ] Add the Storybook stories:
-    - [ ] Default (`risk`), Unnamed return (`monthly`), Record argument (`applicantDecision`)
-    - [ ] Draft, No callee
-    - [ ] Wired: story-local stub source and output nodes. The output value comes from `execute`.
-- [ ] Add tests for the code of this phase (RTL inside `ReactFlowProvider`)
+- [x] Write `FlowEditorProvider` and `FunctionNode` with header, bands, rows, pins and handles from the proposal
+- [x] Write `functionNode.module.css` with Mantine variables, type color tokens, light and dark values
+- [x] Write `CalleePicker` with search and Functions / Rulesets groups
+- [x] Add the Storybook stories:
+    - [x] Default (`risk`), Unnamed return (`monthly`), Record argument (`applicantDecision`)
+    - [x] Draft, No callee
+    - [x] Wired: story-local stub source and output nodes. The output value comes from `execute`.
+- [x] Add tests for the code of this phase (RTL inside `ReactFlowProvider`)
 
 Acceptance criteria:
 
-- [ ] `FunctionNode.test.tsx` passes with these cases:
-    - [ ] Band labels are singular or plural.
-    - [ ] No binding text and no value text renders.
-    - [ ] The draft badge shows for an unbound argument.
-    - [ ] The picker lists only user callables.
+- [x] `FunctionNode.test.tsx` passes with these cases:
+    - [x] Band labels are singular or plural.
+    - [x] No binding text and no value text renders.
+    - [x] The draft badge shows for an unbound argument.
+    - [x] The picker lists only user callables.
 - [ ] Manual: `npm run storybook`, each FunctionNode story matches the proposal in light and dark themes
 
 **Phase 4: Menus and inline edits**

@@ -1,11 +1,11 @@
-import type { PortableError, PortableNode, PortableRootContext } from '@edgerules/portable';
-import { listCallables, type CallableSource } from '../../../lib/callables';
-import { setWithLinkCheck, type LinkCheckService } from '../../../lib/linkCheck';
-import { isPortableError } from '../../../lib/portable';
-import { uniqueName } from '../../boxed-editor/commands/rowFactories';
-import type { SignatureParameter } from '../../boxed-editor/boxed-editor-types';
-import { isRecord, portableAtPath, typeText } from '../../boxed-editor/service/portable-utils';
-import type { CalleeRef, FlowEditorService, FunctionNodeModel, NodeArgument, NodeResult } from '../flow-editor-types';
+import type {PortableError, PortableNode, PortableRootContext} from '@edgerules/portable';
+import {listCallables, type CallableSource} from '../../../lib/callables';
+import {setWithLinkCheck, type LinkCheckService} from '../../../lib/linkCheck';
+import {isPortableError} from '../../../lib/portable';
+import {uniqueName} from '../../boxed-editor/commands/rowFactories';
+import type {SignatureParameter} from '../../boxed-editor/boxed-editor-types';
+import {isRecord, portableAtPath, typeText} from '../../boxed-editor/service/portable-utils';
+import type {CalleeRef, FlowEditorService, FunctionNodeModel, NodeArgument, NodeResult} from '../flow-editor-types';
 
 type GetFilter = 'FIELDS' | 'ALL' | 'EXTERNAL_DEFINITIONS';
 
@@ -42,9 +42,9 @@ function resultsOf(schema: unknown, kind: CalleeRef['kind']): NodeResult[] {
     if (isRecord(ret) && ret['@kind'] === 'type-definition') {
         return Object.entries(ret)
             .filter(([name]) => !name.startsWith('@'))
-            .map(([name, type]) => ({ name, type: typeText(type) ?? 'any', renamable: true }));
+            .map(([name, type]) => ({name, type: typeText(type) ?? 'any', renamable: true}));
     }
-    return [{ name: 'result', type: typeText(ret) ?? 'any', renamable: kind === 'ruleset' }];
+    return [{name: 'result', type: typeText(ret) ?? 'any', renamable: kind === 'ruleset'}];
 }
 
 function returnLabelOf(results: NodeResult[], schema: unknown): string {
@@ -69,7 +69,7 @@ function countInvocations(node: unknown, method: string): number {
 
 function bindingOf(text: string | undefined): NodeArgument['binding'] {
     if (text === undefined) return undefined;
-    return { kind: PATH_PATTERN.test(text.trim()) ? 'path' : 'value', text };
+    return {kind: PATH_PATTERN.test(text.trim()) ? 'path' : 'value', text};
 }
 
 function argumentTexts(node: Record<string, unknown>): Record<string, string> {
@@ -86,7 +86,7 @@ function argumentTexts(node: Record<string, unknown>): Record<string, string> {
 
 export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorService {
     const drafts = new Map<string, InvocationState>();
-    const errors = new Map<string, { parameter: string; message: string }>();
+    const errors = new Map<string, {parameter: string; message: string}>();
     const listeners = new Set<() => void>();
 
     const notify = () => {
@@ -102,7 +102,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         }
     };
 
-    const readSchema = (ref: { path: string; kind: CalleeRef['kind'] }): CalleeSchema | undefined => {
+    const readSchema = (ref: {path: string; kind: CalleeRef['kind']}): CalleeSchema | undefined => {
         const schema = engine.get(ref.path, 'FIELDS');
         if (isPortableError(schema)) return undefined;
         const results = resultsOf(schema, ref.kind);
@@ -122,7 +122,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         const schemas: CalleeSchema[] = [];
         for (const callable of listCallables(engine)) {
             if (callable.kind !== 'function' && callable.kind !== 'ruleset') continue;
-            const schema = readSchema({ path: callable.path, kind: callable.kind });
+            const schema = readSchema({path: callable.path, kind: callable.kind});
             if (schema) schemas.push(schema);
         }
         return schemas;
@@ -149,7 +149,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         // The linked `ALL` view is a schema without the body; the authored definition has it.
         const definition = portableAtPath(engine.toPortable() as PortableNode, calleePath);
         if (!isRecord(definition)) return false;
-        const { '@parameters': _parameters, ...rest } = definition;
+        const {'@parameters': _parameters, ...rest} = definition;
         return new RegExp(`\\b${parameter}\\b`).test(JSON.stringify(rest));
     };
 
@@ -169,7 +169,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             '@method': callee.path,
             '@arguments': args,
             '@node': 'FunctionNode',
-            ...(state.label === undefined ? {} : { '@node-name': state.label }),
+            ...(state.label === undefined ? {} : {'@node-name': state.label}),
         } as unknown as PortableNode;
     };
 
@@ -219,7 +219,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         createDraftNode() {
             const existing = new Set([...Object.keys(engine.toPortable()), ...drafts.keys()]);
             const field = uniqueName('node', existing);
-            drafts.set(field, { args: {} });
+            drafts.set(field, {args: {}});
             notify();
             return field;
         },
@@ -236,7 +236,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
                 if (old && old.type === parameter.type && text !== undefined) kept[parameter.name] = text;
             }
             errors.delete(field);
-            const error = commit(field, { method, label: previous?.label, args: kept });
+            const error = commit(field, {method, label: previous?.label, args: kept});
             if (error) return error;
             notify();
         },
@@ -246,9 +246,9 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             const callee = calleeOf(state?.method);
             if (!state || !callee) return noCallee(field);
             errors.delete(field);
-            const error = commit(field, { ...state, args: { ...state.args, [parameter]: sourcePath } });
+            const error = commit(field, {...state, args: {...state.args, [parameter]: sourcePath}});
             if (error) {
-                errors.set(field, { parameter, message: error.message });
+                errors.set(field, {parameter, message: error.message});
                 notify();
                 return error;
             }
@@ -258,10 +258,10 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         unbindArgument(field, parameter) {
             const state = stateOf(field);
             if (!state) return;
-            const { [parameter]: _removed, ...args } = state.args;
+            const {[parameter]: _removed, ...args} = state.args;
             errors.delete(field);
             // A required argument leaves the node a draft; the committed field stays in the model.
-            commit(field, { ...state, args });
+            commit(field, {...state, args});
             notify();
         },
 
@@ -283,5 +283,5 @@ function unknownCallee(method: string): PortableError {
 }
 
 function noCallee(field: string): PortableError {
-    return { '@kind': 'error', type: 'Execution', message: `node '${field}' has no callee` } as PortableError;
+    return {'@kind': 'error', type: 'Execution', message: `node '${field}' has no callee`} as PortableError;
 }
