@@ -98,7 +98,7 @@ function Canvas({
 }
 
 const meta: Meta<typeof Canvas> = {
-    title: 'Components/Flow Editor/InputNode',
+    title: 'Flow Editor/InputNode',
     component: Canvas,
     parameters: {layout: 'fullscreen'},
     loaders: [
