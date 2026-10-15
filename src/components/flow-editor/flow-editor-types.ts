@@ -23,7 +23,14 @@ export interface FlowEditorOpenTarget {
     kind: BoxedEditorTargetKind | 'tests';
 }
 
+/** One model field that the canvas draws as a node; the node id is the field path. */
+export interface FlowNodeRef {
+    field: string;
+    kind: 'function' | 'input';
+}
+
 export interface FlowEditorService {
+    listNodes(): FlowNodeRef[]; // '@node' annotated fields in model order, then the drafts
     listCallees(): CalleeRef[]; // user func and ruleset entries with only typed parameters
     getFunctionNode(field: string): FunctionNodeModel; // committed invocation plus any draft overlay
     createDraftNode(): string; // new field name from uniqueName('node', …); no callee, nothing written
@@ -43,6 +50,7 @@ export interface FlowEditorService {
     getInputNode(field: string): InputNodeModel; // the record annotated @InputNode; no fields when it does not exist
     listInputCandidates(): string[]; // record fields of the model that are not yet an InputNode
     addInputNode(field: string): PortableError | void; // annotates an existing record with '@node: InputNode'
+    createInputNode(): string | PortableError; // a new '@InputNode' record 'input…' with one number field
     addInputField(field: string, after?: string): PortableError | void; // appends a number field; after = undefined appends
     moveInputField(field: string, name: string, direction: 'up' | 'down'): PortableError | void;
     removeInputField(field: string, name: string): PortableError | void; // link-checked, reverted when something reads it

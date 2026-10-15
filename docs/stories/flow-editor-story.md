@@ -568,3 +568,96 @@ renameInputField(field: string, from: string, to: string): PortableError | void;
 - [x] Fix: wires follow their pins after Move up, Move down, add, delete and rename (`useSyncPins`, both nodes)
 - [x] Fix: field rename is path-based
 - [x] E2E tests for the InputNode in `e2e/flow-editor/input-node.spec.ts`
+
+# Flow Editor: Canvas
+
+## Summary
+
+`FlowEditor` is the canvas component of the Flow Editor. It renders every flow node of the model on an `@xyflow/react`
+canvas and has a node palette on the left. A drag from the palette, a click, or Enter on a palette item adds a node.
+
+Nodes and wires come from the model. Positions and output nodes are presentation data (`flow.json`). The editor
+reports them through `onLayoutChange` and reads them once from `defaultLayout`.
+
+## Technical Breakdown
+
+| File                                                        | Responsibility                                                         |
+|-------------------------------------------------------------|------------------------------------------------------------------------|
+| `src/components/flow-editor/editor/FlowEditor.tsx`          | The canvas: node reconciliation, placement, wiring, deletion, controls |
+| `src/components/flow-editor/editor/NodePalette.tsx`         | The left side menu: groups, search, collapse to a rail, drag and click |
+| `src/components/flow-editor/editor/paletteItems.ts`         | Palette items from the service; search filter                          |
+| `src/components/flow-editor/editor/graph.ts`                | Pure: binding to wire, column layout, free spot                        |
+| `src/components/flow-editor/editor/types.ts`                | `FlowEditorProps`, `FlowLayout`, `FlowOutput`, palette types           |
+| `src/components/flow-editor/editor/flowEditor.module.css`   | Palette, canvas, wire colors, empty state; light and dark values       |
+| `stories/components/flow-editor/FlowEditor.stories.tsx`     | Default, Empty, ReadOnly, LayoutChanges, AddFromPalette                |
+| `e2e/flow-editor/flow-editor.spec.ts`                       | Playwright tests against the built Storybook                           |
+
+### Component API
+
+```typescript
+interface FlowEditorProps {
+    service: FlowEditorService;
+    documentation?: DocumentationService;
+    readOnly?: boolean; // hides the palette and disables wiring and removal; nodes still move
+    onOpenNode?: (target: FlowEditorOpenTarget) => void;
+    defaultLayout?: FlowLayout; // read on mount only
+    onLayoutChange?: (layout: FlowLayout) => void; // after a move, an add, a removal or a rewired output
+}
+
+interface FlowLayout {
+    positions: Record<string, XYPosition>; // node id -> top-left canvas position
+    outputs: FlowOutput[]; // output nodes exist on the canvas only
+}
+
+interface FlowOutput {
+    id: string; // 'output', 'output2'
+    label?: string;
+    source?: {node: string; handle: string}; // the result pin wired into the output
+}
+
+// Added to FlowEditorService
+listNodes(): FlowNodeRef[]; // '@node' annotated fields in model order, then the drafts
+createInputNode(): string | PortableError; // a new '@InputNode' record 'input…' with field 'value: 0'
+```
+
+`FlowEditor` renders its own `ReactFlowProvider` and `FlowEditorProvider`. The host imports
+`@xyflow/react/dist/style.css` and sizes the parent; the editor fills it.
+
+### Palette
+
+| Group                | Item                         | Action                                                        |
+|----------------------|------------------------------|---------------------------------------------------------------|
+| Inputs               | New input                    | `createInputNode()`                                           |
+| Inputs               | One per `listInputCandidates()` | `addInputNode(record)`; the item leaves the palette         |
+| Functions & rulesets | Function call                | `createDraftNode()`; the callee is picked on the node         |
+| Functions & rulesets | One per `listCallees()`      | `createDraftNode()`, then `setCallee(field, path)`            |
+| Outputs              | Output                       | A canvas-only output node                                     |
+
+- A dropped node has its top-left corner at the drop point. A clicked node goes in the middle of the view, below any
+  node in the way. The new node is selected.
+- Search matches every word against the title, the signature and the group name.
+- The collapsed palette is a 48px rail with the three generic items.
+
+### Canvas
+
+- **Wires:** one per path-bound argument whose source is a node on the canvas (`resolveSource`). `applicant.age` →
+  `out:age`; a whole node → `out:result` for an unnamed return, else `out:*`. Deeper paths have no wire. The wire
+  color is the argument type color.
+- **Connect:** into a FunctionNode calls `bindArgument`; into an output sets `FlowOutput.source`.
+- **Delete / Backspace:** a model node calls `removeFromFlow`; an output is removed; a selected wire calls
+  `unbindArgument` or clears the output source. Wires of a removed node go with it, and the bindings stay.
+- **Layout:** the nodes of the flow as it loads go into columns by data flow (inputs, functions after their latest
+  source, outputs after their source), then again once xyflow has measured them. Saved positions win. A renamed field
+  keeps its position and its outputs. "Arrange nodes" in the controls runs the column layout on demand.
+- **Controls:** zoom in, zoom out, fit view, arrange nodes; a pannable, zoomable minimap; 20px dot grid with snapping.
+- **Empty flow:** a hint panel; the view does not auto-fit, so a dropped node stays where it was dropped.
+
+## Tasks
+
+- [x] `listNodes` and `createInputNode` in the service, with tests
+- [x] `FlowEditor`, `NodePalette`, `graph.ts`, `paletteItems.ts`; export `FlowEditor`, `FlowEditorProps`, `FlowLayout`,
+  `FlowOutput`, `FlowNodeRef`
+- [x] Unit tests: `graph.test.ts`, `paletteItems.test.ts`, `FlowEditor.test.tsx`
+- [x] Stories: Default, Empty, ReadOnly, LayoutChanges, AddFromPalette
+- [x] E2E: `e2e/flow-editor/flow-editor.spec.ts`
+- [ ] Manual: the FlowEditor stories in light and dark themes

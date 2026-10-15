@@ -1,9 +1,11 @@
 export {createFlowEditorService} from './service/createFlowEditorService';
+export {FlowEditor} from './editor/FlowEditor';
 export {FlowEditorProvider} from './FlowEditorProvider';
 export {FunctionNode} from './function-node/FunctionNode';
 export {InputNode} from './input-node/InputNode';
 export {OutputNode} from './output-node/OutputNode';
-export type {FlowEditorOpenTarget, FlowEditorProviderProps, FlowEditorService} from './flow-editor-types';
+export type {FlowEditorProps, FlowLayout, FlowOutput} from './editor/types';
+export type {FlowEditorOpenTarget, FlowEditorProviderProps, FlowEditorService, FlowNodeRef} from './flow-editor-types';
 export type {CalleeRef, FunctionNodeData, FunctionNodeModel, NodeArgument, NodeResult} from './function-node/types';
 export type {InputField, InputNodeData, InputNodeModel} from './input-node/types';
 export type {OutputNodeData, OutputReading} from './output-node/types';

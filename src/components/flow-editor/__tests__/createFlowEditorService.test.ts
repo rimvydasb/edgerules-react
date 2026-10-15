@@ -583,3 +583,37 @@ describe('InputNode service', () => {
         expect(mutable.toPortable()).not.toHaveProperty('spare');
     });
 });
+
+describe('FlowEditorService flow nodes', () => {
+    it('lists annotated fields in model order, then the drafts', () => {
+        const {service} = build();
+        expect(service.listNodes()).toEqual([]);
+        service.addInputNode('applicant');
+        service.setCallee('decision', 'risk'); // writes @node: FunctionNode
+        const draft = service.createDraftNode();
+        expect(service.listNodes()).toEqual([
+            {field: 'applicant', kind: 'input'},
+            {field: 'decision', kind: 'function'},
+            {field: draft, kind: 'function'},
+        ]);
+    });
+
+    it('drops a node that is removed from the flow', () => {
+        const {service} = build();
+        service.addInputNode('applicant');
+        service.removeFromFlow('applicant');
+        expect(service.listNodes()).toEqual([]);
+    });
+
+    it('creates a new input record with one number field and notifies', () => {
+        const {service, portable} = build();
+        const listener = vi.fn();
+        service.subscribe(listener);
+        const field = service.createInputNode();
+        expect(field).toBe('input');
+        expect(portable().input).toMatchObject({'@kind': 'context', '@node': 'InputNode', value: 0});
+        expect(service.getInputNode('input').fields).toEqual([{name: 'value', type: 'number', used: false}]);
+        expect(service.createInputNode()).toBe('input2');
+        expect(listener).toHaveBeenCalledTimes(2);
+    });
+});

@@ -18,7 +18,7 @@ import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor/box
 import {createBoxedEditorService} from '../../boxed-editor/service/createBoxedEditorService';
 import {denormalize} from '../../boxed-editor/service/denormalize';
 import {isRecord, parentPath, portableAtPath, typeText} from '../../boxed-editor/service/portable-utils';
-import type {FlowEditorService} from '../flow-editor-types';
+import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
 import type {InputField, InputNodeModel} from '../input-node/types';
 
@@ -263,6 +263,29 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
     };
 
     return {
+        listNodes(): FlowNodeRef[] {
+            const nodes: FlowNodeRef[] = [];
+            const walk = (node: unknown, path: string) => {
+                if (!isRecord(node)) return;
+                for (const [key, child] of Object.entries(node)) {
+                    if (key.startsWith('@') || !isRecord(child)) continue;
+                    const childPath = path ? `${path}.${key}` : key;
+                    if (isInvocation(child)) {
+                        if (child['@node'] === 'FunctionNode') nodes.push({field: childPath, kind: 'function'});
+                    } else if (child['@kind'] === 'context') {
+                        if (child['@node'] === 'InputNode') nodes.push({field: childPath, kind: 'input'});
+                        else walk(child, childPath);
+                    }
+                }
+            };
+            walk(engine.toPortable(), '');
+            const listed = new Set(nodes.map((node) => node.field));
+            for (const field of drafts.keys()) {
+                if (!listed.has(field)) nodes.push({field, kind: 'function'});
+            }
+            return nodes;
+        },
+
         listCallees: () => calleeSchemas().map((schema) => schema.ref),
 
         getFunctionNode(field): FunctionNodeModel {
@@ -594,6 +617,15 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             );
             if (isPortableError(result)) return result;
             notify();
+        },
+
+        createInputNode() {
+            const field = uniqueName('input', siblingNames('input'));
+            const record = {'@kind': 'context', '@node': 'InputNode', value: 0} as unknown as PortableNode;
+            const result = setWithLinkCheck(engine, field, record, undefined);
+            if (isPortableError(result)) return result;
+            notify();
+            return field;
         },
 
         addInputField(field, after) {

@@ -17,6 +17,8 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
   decision tables, boolean-expression rules, and scorecards; statically highlighted display cells
   with a single CodeEditorCell on the active cell)
 - [ ] EdgeRules Flow Editor (ReactFlow-based)
+  - [x] FlowEditor canvas ([spec](docs/stories/flow-editor-story.md#flow-editor-canvas)): node palette with drag or click
+    to add, wires from the model, automatic layout, zoom, minimap. The host imports `@xyflow/react/dist/style.css`.
   - [x] InputNode ([spec](docs/stories/flow-editor-story.md#inputnode))
   - [x] FunctionNode ([spec and story](docs/stories/flow-editor-story.md))
   - [x] OutputNode (shows the engine value of the wired result; no model writes)
