@@ -28,6 +28,7 @@ type GetFilter = 'FIELDS' | 'ALL' | 'EXTERNAL_DEFINITIONS';
 export interface FlowEditorEngine extends CallableSource, LinkCheckService {
     get(path: string, filter?: GetFilter): PortableNode | PortableError;
     toPortable(): PortableRootContext;
+    execute(method: string, input?: Record<string, unknown>): Promise<unknown>;
 }
 
 // The invocation as the node edits it. Arguments are expression texts, as in the Portable format.
@@ -644,6 +645,30 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             notify();
         },
 
+        async readOutput(source) {
+            const keys = source.split('.');
+            let firstError: string | undefined;
+            // The engine executes a field, not a path into its result: take the longest executable prefix, then walk.
+            for (let length = keys.length; length > 0; length -= 1) {
+                let value: unknown;
+                try {
+                    value = await engine.execute(keys.slice(0, length).join('.'));
+                } catch (error) {
+                    firstError ??=
+                        error instanceof Error
+                            ? error.message
+                            : String((error as {message?: string})?.message ?? error);
+                    continue;
+                }
+                for (const key of keys.slice(length)) {
+                    value = isRecord(value) ? value[key] : undefined;
+                }
+                if (value === undefined) return {error: `no ${source}`};
+                return {value, type: valueType(value)};
+            }
+            return {error: firstError ?? `no ${source}`};
+        },
+
         subscribe(listener) {
             listeners.add(listener);
             return () => {
@@ -651,6 +676,12 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             };
         },
     };
+}
+
+function valueType(value: unknown): string {
+    if (Array.isArray(value)) return `${value.length ? valueType(value[0]) : 'any'}[]`;
+    if (value === null) return 'any';
+    return typeof value === 'object' ? 'object' : typeof value;
 }
 
 // True when an expression anywhere in the model reads `<field>.<name>`.

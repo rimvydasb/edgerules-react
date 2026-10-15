@@ -5,6 +5,7 @@ import type {Unsubscribe} from '../boxed-editor/boxed-editor-types';
 import type {DocumentationService} from '../documentation-service';
 import type {CalleeRef, FunctionNodeModel} from './function-node/types';
 import type {InputNodeModel} from './input-node/types';
+import type {OutputReading} from './output-node/types';
 
 export type {Unsubscribe};
 
@@ -46,5 +47,6 @@ export interface FlowEditorService {
     moveInputField(field: string, name: string, direction: 'up' | 'down'): PortableError | void;
     removeInputField(field: string, name: string): PortableError | void; // link-checked, reverted when something reads it
     renameInputField(field: string, from: string, to: string): PortableError | void; // link-checked, reverted on failure
+    readOutput(source: string): Promise<OutputReading>; // evaluates a model path, for example 'decision.level'
     subscribe(listener: () => void): Unsubscribe; // fires after every committed change
 }

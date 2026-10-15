@@ -19,6 +19,7 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 - [ ] EdgeRules Flow Editor (ReactFlow-based)
   - [x] InputNode ([spec](docs/stories/flow-editor-story.md#inputnode))
   - [x] FunctionNode ([spec and story](docs/stories/flow-editor-story.md))
+  - [x] OutputNode (shows the engine value of the wired result; no model writes)
   - [ ] RulesetNode
   - [ ] TermsNode
   - [ ] ChartNode

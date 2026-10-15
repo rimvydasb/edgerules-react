@@ -1,24 +1,16 @@
 import '@xyflow/react/dist/style.css';
-import {useCallback, useEffect, useMemo, useState, type ReactElement} from 'react';
-import {Box, Text} from '@mantine/core';
+import {useCallback, useMemo, useState, type ReactElement} from 'react';
 import type {Meta, StoryObj} from '@storybook/react-vite';
 import {expect, userEvent, within} from 'storybook/test';
-import {
-    Handle,
-    Position,
-    ReactFlow,
-    ReactFlowProvider,
-    type Connection,
-    type Edge,
-    type Node,
-    type NodeProps,
-} from '@xyflow/react';
+import {ReactFlow, ReactFlowProvider, type Connection, type Edge, type Node} from '@xyflow/react';
 import {init, MutableDecisionService} from '@edgerules/web/mutable';
 import {createDocumentationService} from '../../../src/components/documentation-service';
 import {
     createFlowEditorService,
     FlowEditorProvider,
     FunctionNode,
+    InputNode,
+    OutputNode,
     type FlowEditorService,
 } from '../../../src/components/flow-editor';
 
@@ -44,58 +36,7 @@ const SAMPLE_MODEL = `{
   eligibility: applicantDecision(person: applicant)
 }`;
 
-/** Story-local stand-in for an InputNode: one source pin per field of `applicant`. */
-function SourceStub({data}: NodeProps<Node<{title: string; fields: string[]}>>): ReactElement {
-    return (
-        <Box w={200} bd="1px solid var(--mantine-color-default-border)" bg="var(--mantine-color-body)">
-            <Box px="sm" h={40} bg="var(--mantine-color-default-hover)" style={{display: 'flex', alignItems: 'center'}}>
-                <Text fw={600} size="sm">
-                    {data.title}
-                </Text>
-            </Box>
-            {data.fields.map((field) => (
-                <Box
-                    key={field}
-                    px="sm"
-                    h={40}
-                    pos="relative"
-                    style={{display: 'flex', alignItems: 'center', justifyContent: 'flex-end'}}
-                    bd="0 solid"
-                >
-                    <Text size="sm">{field}</Text>
-                    <Handle type="source" position={Position.Right} id={`out:${field}`} />
-                </Box>
-            ))}
-        </Box>
-    );
-}
-
-/** Story-local stand-in for an OutputNode: shows a value computed by the engine. */
-function OutputStub({data}: NodeProps<Node<{title: string; value: string}>>): ReactElement {
-    return (
-        <Box w={200} bd="1px solid var(--mantine-color-default-border)" bg="var(--mantine-color-body)">
-            <Box
-                px="sm"
-                h={40}
-                pos="relative"
-                bg="var(--mantine-color-default-hover)"
-                style={{display: 'flex', alignItems: 'center'}}
-            >
-                <Handle type="target" position={Position.Left} id="in:value" />
-                <Text fw={600} size="sm">
-                    {data.title}
-                </Text>
-            </Box>
-            <Box px="sm" h={40} style={{display: 'flex', alignItems: 'center'}}>
-                <Text ff="monospace" size="sm" data-testid="output-value">
-                    {data.value}
-                </Text>
-            </Box>
-        </Box>
-    );
-}
-
-const nodeTypes = {functionNode: FunctionNode, sourceStub: SourceStub, outputStub: OutputStub};
+const nodeTypes = {functionNode: FunctionNode, inputNode: InputNode, outputNode: OutputNode};
 
 interface Built {
     service: FlowEditorService;
@@ -103,9 +44,10 @@ interface Built {
     field: string;
 }
 
-function build(field: string | null, partial: boolean): Built {
+function build(field: string | null, partial: boolean, wired: boolean): Built {
     const mutable = MutableDecisionService.fromCode(SAMPLE_MODEL);
     const service = createFlowEditorService(mutable as never);
+    if (wired) service.addInputNode('applicant');
     const nodeField = field ?? service.createDraftNode();
     if (partial) {
         // A draft: a callee and one of three arguments; nothing is written to the model.
@@ -126,7 +68,7 @@ function Canvas({
     partial?: boolean;
     description?: string;
 }): ReactElement {
-    const {service, mutable, field: nodeField} = useMemo(() => build(field, partial), [field, partial]);
+    const {service, field: nodeField} = useMemo(() => build(field, partial, wired), [field, partial, wired]);
     const documentation = useMemo(() => {
         const service = createDocumentationService(`flow-story-${Math.random()}`);
         if (description) service.setDescription(nodeField, description);
@@ -159,35 +101,21 @@ function Canvas({
                 targetHandle: 'in:value',
             });
     });
-    const [outputValue, setOutputValue] = useState('…');
-
-    useEffect(() => {
-        if (!wired) return;
-        const refresh = () => {
-            mutable
-                .execute(nodeField)
-                .then((result) => setOutputValue(JSON.stringify((result as Record<string, unknown>).level)))
-                .catch(() => setOutputValue('error'));
-        };
-        refresh();
-        return service.subscribe(refresh);
-    }, [wired, mutable, nodeField, service]);
-
     const nodes: Node[] = [
-        {id: nodeField, type: 'functionNode', position: {x: 320, y: 40}, data: {field: nodeField}},
+        {id: nodeField, type: 'functionNode', position: {x: 460, y: 40}, data: {field: nodeField}},
         ...(wired
             ? [
                   {
                       id: 'applicant',
-                      type: 'sourceStub',
+                      type: 'inputNode',
                       position: {x: 20, y: 60},
-                      data: {title: 'Applicant', fields: ['age', 'income', 'segment']},
+                      data: {field: 'applicant'},
                   },
                   {
                       id: 'output',
-                      type: 'outputStub',
-                      position: {x: 760, y: 80},
-                      data: {title: 'Output', value: outputValue},
+                      type: 'outputNode',
+                      position: {x: 960, y: 80},
+                      data: {},
                   },
               ]
             : []),
@@ -248,7 +176,7 @@ export const RecordArgument: Story = {args: {field: 'eligibility'}};
 export const Draft: Story = {args: {field: null, partial: true}};
 export const NoCallee: Story = {args: {field: null}};
 export const Wired: Story = {args: {field: 'decision', wired: true}};
-/** A draft next to the stub source: wire the two open arguments to complete it. */
+/** A draft next to the InputNode: wire the two open arguments to complete it. */
 export const WiredDraft: Story = {args: {field: null, partial: true, wired: true}};
 
 const DESCRIPTION = 'Assess the applicant risk band from age, income and segment';
