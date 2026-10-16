@@ -1,6 +1,6 @@
 import {Combobox, useCombobox} from '@mantine/core';
 import {IconChevronDown, IconSearch} from '@tabler/icons-react';
-import {useState, type ReactElement} from 'react';
+import {useEffect, useRef, useState, type ReactElement} from 'react';
 import {KindIcon} from './KindIcon';
 import type {CalleeKind, CalleePickerProps, CalleeRef} from './types';
 import styles from './functionNode.module.css';
@@ -33,6 +33,26 @@ export function CalleePicker({
         },
         onDropdownOpen: () => combobox.focusSearchInput(),
     });
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // The canvas stops mousedown propagation (d3-zoom), so Mantine's bubble-phase click-outside never fires.
+    useEffect(() => {
+        if (!opened) return;
+        const onPointerDown = (event: Event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            // The chip toggles the picker through its own onClick.
+            if (dropdownRef.current?.contains(target) || target.closest('[aria-haspopup="listbox"]')) return;
+            onOpenedChange(false);
+        };
+        document.addEventListener('mousedown', onPointerDown, true);
+        document.addEventListener('touchstart', onPointerDown, true);
+        return () => {
+            document.removeEventListener('mousedown', onPointerDown, true);
+            document.removeEventListener('touchstart', onPointerDown, true);
+        };
+    }, [opened, onOpenedChange]);
+
     const query = search.trim().toLowerCase();
 
     return (
@@ -66,7 +86,7 @@ export function CalleePicker({
                     <IconChevronDown size={12} className={styles.chevron} aria-hidden />
                 </button>
             </Combobox.Target>
-            <Combobox.Dropdown className="nodrag nowheel">
+            <Combobox.Dropdown ref={dropdownRef} className="nodrag nowheel">
                 <Combobox.Search
                     value={search}
                     onChange={(event) => setSearch(event.currentTarget.value)}
