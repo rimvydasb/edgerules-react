@@ -685,3 +685,136 @@ createInputNode(): string | PortableError; // a new '@InputNode' record 'input�
 - [x] Stories: Default, Empty, ReadOnly, LayoutChanges, AddFromPalette
 - [x] E2E: `e2e/flow-editor/flow-editor.spec.ts`
 - [ ] Manual: the FlowEditor stories in light and dark themes
+
+# Flow Editor: ChartNode
+
+## Summary
+
+`ChartNode` draws the value wired into its `data` pin as a TanStack Charts (`@tanstack/charts`) line, area or bar
+chart. Like an output node it writes nothing to the model: its config and size are canvas data in `FlowLayout.charts`.
+A node without a config configures itself from the data, and a new wire clears the config. "Configure" in the node menu
+flips the node to its config form. The bottom-right corner grip resizes the node.
+
+## Technical Breakdown
+
+| File                                                         | Responsibility                                                        |
+|--------------------------------------------------------------|-----------------------------------------------------------------------|
+| `src/components/flow-editor/chart-node/types.ts`             | `ChartConfig`, `ChartNodeData` (public); dataset and prop types       |
+| `src/components/flow-editor/chart-node/dataset.ts`           | Pure: engine value → `ChartDataset` (columns with kinds, rows)        |
+| `src/components/flow-editor/chart-node/autoConfig.ts`        | Pure: `autoConfigure`, `resolveConfig` (node config against new data) |
+| `src/components/flow-editor/chart-node/chartDefinition.ts`   | The only TanStack grammar: dataset + config → `defineChart(...)`      |
+| `src/components/flow-editor/chart-node/ChartView.tsx`        | Front face: `<Chart>` of the definition                               |
+| `src/components/flow-editor/chart-node/ChartConfigForm.tsx`  | Back face: chart type, horizontal axis, series, stacking, reset       |
+| `src/components/flow-editor/chart-node/chartNodeMenus.ts`    | Node menu: Configure / Show chart, Reset to automatic, Remove chart   |
+| `src/components/flow-editor/chart-node/ChartNode.tsx`        | xyflow node: header, `in:data` pin, flip card, `NodeResizeControl`    |
+| `src/components/flow-editor/core-node/useWiredReading.ts`    | Shared with OutputNode: reads the wired path again after each change  |
+| `src/components/flow-editor/testing/loanModel.ts`            | Loan repayment fixture: amortization schedule and cost split          |
+| `stories/components/flow-editor/ChartNode.stories.tsx`       | LoanRepayment, AutoConfigured, PaymentSplit, Configure, Unwired       |
+
+### Structural Diagram
+
+Layers of the ChartNode; only `chartDefinition.ts` and `ChartView.tsx` import `@tanstack/charts`.
+
+```mermaid
+flowchart LR
+    subgraph editor["editor"]
+        FlowEditor
+    end
+    subgraph node["chart-node"]
+        ChartNode
+        ChartConfigForm
+        ChartView
+        chartDefinition
+        autoConfig
+        dataset
+    end
+    subgraph core["core-node"]
+        useWiredReading
+    end
+    FlowEditorService
+    TanStack["@tanstack/charts"]
+    FlowEditor -.->|"FlowChart: source, config, size"| ChartNode
+    ChartNode -.->|"updateNodeData config"| FlowEditor
+    ChartNode -->|reads wire| useWiredReading
+    useWiredReading -->|readOutput| FlowEditorService
+    ChartNode -->|toDataset| dataset
+    ChartNode -->|resolveConfig| autoConfig
+    ChartNode -->|back face| ChartConfigForm
+    ChartNode -->|front face| ChartView
+    ChartView -->|buildChartDefinition| chartDefinition
+    chartDefinition -->|defineChart| TanStack
+```
+
+### Component API
+
+```typescript
+type ChartKind = 'line' | 'area' | 'bar';
+
+interface ChartConfig {
+    kind: ChartKind;
+    x: string; // column of the horizontal axis, or '#' for the row position
+    series: string[]; // numeric columns, one series each, in legend order
+    stacked?: boolean; // area and bar only
+}
+
+type ChartNodeData = {label?: string; config?: ChartConfig}; // no config: configured automatically
+
+interface FlowLayout {
+    positions: Record<string, XYPosition>;
+    outputs: FlowOutput[];
+    charts?: FlowChart[]; // reported only when the canvas has charts
+}
+
+interface FlowChart {
+    id: string; // 'chart', 'chart2'
+    label?: string;
+    source?: {node: string; handle: string}; // the result pin wired into 'in:data'
+    config?: ChartConfig;
+    size?: {width: number; height: number}; // default 440 × 340, at least 300 × 240
+}
+```
+
+### Data and automatic configuration
+
+| Wired value          | Dataset                                         | Automatic config                                   |
+|----------------------|-------------------------------------------------|----------------------------------------------------|
+| List of records      | One row per record; scalar fields are columns   | x and series as below                              |
+| List of numbers      | A `value` column                                | Line of `value` over the row position              |
+| Record of numbers    | `name` and `value` columns                      | Bars of `value` per `name`                         |
+| Anything else, `[]`  | An explanation on the chart face                | None                                               |
+
+- Column kinds: `number`, `string`, `date` (ISO strings, as the engine returns dates), `boolean`. Nested and mixed
+  columns are left out.
+- **x:** the first text or date column; else the first numeric column that only grows (a period, a year) when another
+  numeric column is left; else the row position.
+- **series:** every other numeric column, at most 6 (the palette size).
+- **kind:** bars for at most 24 text categories, lines otherwise.
+
+How a node config meets new data:
+
+```mermaid
+flowchart TD
+    Read["readOutput(source)"] -->|value| ToDataset["toDataset"]
+    ToDataset -->|ChartDataset| HasConfig{"node config?"}
+    HasConfig -->|no| Auto["autoConfigure: origin auto"]
+    HasConfig -->|yes| Fits{"x column and a series still in the data?"}
+    Fits -->|yes| Custom["drop missing series: origin custom"]
+    Fits -->|no| Fallback["autoConfigure: origin fallback"]
+```
+
+- A new wire (`onConnect`) clears `FlowChart.config`. Unwiring keeps the config and the size.
+- A config change goes through xyflow `updateNodeData`; the editor receives the `replace` change and updates
+  `FlowChart.config`. The resize grip ends with a `dimensions` change (`resizing: false`) that updates `FlowChart.size`.
+  The layout is not reported during a drag or a resize.
+- Series colors follow the column among the series candidates, so hiding a series keeps the other colors. The palette
+  variables `--ts-chart-1…6` map to Mantine colors in light and dark schemes.
+- Read-only mode: the chart draws; no menu, no form, no resize grip.
+
+## Tasks
+
+- [x] `dataset.ts`, `autoConfig.ts`, `chartDefinition.ts` with unit tests
+- [x] `ChartNode`, `ChartView`, `ChartConfigForm`, menus; `useWiredReading` shared with OutputNode
+- [x] Canvas: palette group "Charts", `FlowLayout.charts`, wiring, deletion, resize and config sync, column layout
+- [x] Stories: LoanRepayment, AutoConfigured, PaymentSplit, Configure, Unwired
+- [ ] E2E: wire a chart by dragging, resize from the corner
+- [ ] Manual: the ChartNode stories in light and dark themes

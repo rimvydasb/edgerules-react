@@ -183,6 +183,6 @@ export function typeText(value: unknown): string | undefined {
   if (value['@kind'] === 'type-definition') return 'object';
   if (typeof value.type !== 'string') return undefined;
   if (value.type !== 'array') return value.type;
-  const items = value.items;
-  return `${typeof items === 'string' ? items : isRecord(items) ? (items.type ?? '') : ''}[]`;
+  // An inline record element (`items` is a type-definition) reads as `object[]`, as the engine's value types do.
+  return `${typeText(value.items) ?? ''}[]`;
 }

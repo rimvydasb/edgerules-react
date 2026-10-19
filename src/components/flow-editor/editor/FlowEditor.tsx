@@ -31,6 +31,8 @@ import {
     type ReactElement,
 } from 'react';
 import {isPortableError} from '../../../lib/portable';
+import {CHART_SIZE, ChartNode} from '../chart-node/ChartNode';
+import type {ChartNodeData} from '../chart-node/types';
 import {FlowEditorProvider, useFlowEditor} from '../FlowEditorProvider';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import {FunctionNode} from '../function-node/FunctionNode';
@@ -39,20 +41,29 @@ import {OutputNode, sourcePath} from '../output-node/OutputNode';
 import {autoLayout, findFreeSpot, modelWires, outputWires, type LayoutKind, type Wire} from './graph';
 import {ICON_COLOR, NodePalette} from './NodePalette';
 import {DRAG_TYPE, paletteItems} from './paletteItems';
-import type {FlowEditorProps, FlowLayout, FlowOutput, PaletteItem} from './types';
+import type {FlowChart, FlowEditorProps, FlowLayout, FlowOutput, PaletteItem} from './types';
 import styles from './flowEditor.module.css';
 
-const NODE_TYPES = {functionNode: FunctionNode, inputNode: InputNode, outputNode: OutputNode};
+const NODE_TYPES = {functionNode: FunctionNode, inputNode: InputNode, outputNode: OutputNode, chartNode: ChartNode};
 const TYPE_OF: Record<LayoutKind, keyof typeof NODE_TYPES> = {
     function: 'functionNode',
     input: 'inputNode',
     output: 'outputNode',
+    chart: 'chartNode',
 };
-const KIND_OF: Record<string, LayoutKind> = {functionNode: 'function', inputNode: 'input', outputNode: 'output'};
+const KIND_OF: Record<string, LayoutKind> = {
+    functionNode: 'function',
+    inputNode: 'input',
+    outputNode: 'output',
+    chartNode: 'chart',
+};
+// Output and chart nodes exist on the canvas only: the model never adds or removes them.
+const CANVAS_TYPES = new Set(['outputNode', 'chartNode']);
 const MINIMAP_COLOR: Record<LayoutKind, string> = {
     input: ICON_COLOR.input,
     function: ICON_COLOR.function,
     output: ICON_COLOR.output,
+    chart: ICON_COLOR.chart,
 };
 const ROW = 40;
 const FIT_VIEW = {padding: 0.15, maxZoom: 1};
@@ -66,8 +77,9 @@ const WIRE_CLASS: Record<Wire['kind'], string> = {
 };
 
 /**
- * The EdgeRules Flow Editor: a canvas of Input, Function and Output nodes with a node palette on the left. Nodes and
- * wires come from the model; positions and output nodes are presentation data reported through `onLayoutChange`.
+ * The EdgeRules Flow Editor: a canvas of Input, Function, Output and Chart nodes with a node palette on the left.
+ * Nodes and wires come from the model; positions, output nodes and chart nodes are presentation data reported
+ * through `onLayoutChange`.
  */
 export function FlowEditor({
     service,
@@ -102,6 +114,7 @@ function useServiceVersion(service: FlowEditorService): number {
 // A size for a node that xyflow has not measured yet, from its row count.
 function estimateSize(service: FlowEditorService, id: string, kind: LayoutKind): {width: number; height: number} {
     if (kind === 'output') return {width: 240, height: 2 * ROW};
+    if (kind === 'chart') return CHART_SIZE;
     if (kind === 'input') return {width: 280, height: (3 + Math.max(1, service.getInputNode(id).fields.length)) * ROW};
     const model = service.getFunctionNode(id);
     if (!model.callee) return {width: 320, height: 3 * ROW};
@@ -109,9 +122,11 @@ function estimateSize(service: FlowEditorService, id: string, kind: LayoutKind):
 }
 
 function sizeOf(node: Node, service: FlowEditorService): {width: number; height: number} {
-    const kind = KIND_OF[node.type ?? ''] ?? 'function';
-    const estimate = node.measured?.width ? undefined : estimateSize(service, node.id, kind);
-    return {width: node.measured?.width ?? estimate!.width, height: node.measured?.height ?? estimate!.height};
+    // A chart has its own size before xyflow measures it.
+    const width = node.measured?.width ?? node.width;
+    const height = node.measured?.height ?? node.height;
+    if (width && height) return {width, height};
+    return estimateSize(service, node.id, KIND_OF[node.type ?? ''] ?? 'function');
 }
 
 function toEdge(wire: Wire, selected: ReadonlySet<string>): Edge {
@@ -127,14 +142,38 @@ function toEdge(wire: Wire, selected: ReadonlySet<string>): Edge {
 }
 
 function sameData(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
-    return a.field === b.field && a.label === b.label;
+    return a.field === b.field && a.label === b.label && a.config === b.config;
 }
 
-function nextOutputId(taken: Set<string>): string {
-    if (!taken.has('output')) return 'output';
+/** 'output', then 'output2', 'output3'…: the first id with `prefix` that is not taken. */
+function nextCanvasId(prefix: string, taken: Set<string>): string {
+    if (!taken.has(prefix)) return prefix;
     let index = 2;
-    while (taken.has(`output${index}`)) index += 1;
-    return `output${index}`;
+    while (taken.has(`${prefix}${index}`)) index += 1;
+    return `${prefix}${index}`;
+}
+
+/**
+ * Keeps the chart entries of the layout in step with their nodes: a ChartNode writes its config through
+ * `updateNodeData` (a 'replace' change), and the resize handle ends with a 'dimensions' change.
+ */
+function syncCharts(charts: FlowChart[], changes: NodeChange[]): FlowChart[] {
+    let next = charts;
+    const patch = (id: string, update: Partial<FlowChart>) => {
+        if (!next.some((chart) => chart.id === id)) return;
+        next = next.map((chart) => (chart.id === id ? {...chart, ...update} : chart));
+    };
+    for (const change of changes) {
+        if (change.type === 'replace' && change.item.type === 'chartNode') {
+            const data = change.item.data as ChartNodeData;
+            const chart = next.find((candidate) => candidate.id === change.id);
+            if (chart && chart.config !== data.config) patch(change.id, {config: data.config});
+        } else if (change.type === 'dimensions' && change.resizing === false && change.dimensions) {
+            const {width, height} = change.dimensions;
+            patch(change.id, {size: {width: Math.round(width), height: Math.round(height)}});
+        }
+    }
+    return next;
 }
 
 function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defaultLayout' | 'onLayoutChange'>) {
@@ -145,6 +184,7 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
     const wrapper = useRef<HTMLDivElement>(null);
 
     const [outputs, setOutputs] = useState<FlowOutput[]>(() => defaultLayout?.outputs ?? []);
+    const [charts, setCharts] = useState<FlowChart[]>(() => defaultLayout?.charts ?? []);
     const [nodes, setNodes] = useState<Node[]>([]);
     const [selectedEdges, setSelectedEdges] = useState<ReadonlySet<string>>(new Set());
     const [collapsed, setCollapsed] = useState(false);
@@ -155,7 +195,7 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
 
     const refs = useMemo(() => service.listNodes(), [service, version]);
     // xyflow fits the view when the first nodes are measured; on an empty flow that would move a dropped node away.
-    const [fitOnInit] = useState(() => refs.length + outputs.length > 0);
+    const [fitOnInit] = useState(() => refs.length + outputs.length + charts.length > 0);
     const loaded = useRef(!fitOnInit);
     const wires = useMemo(
         () => modelWires(refs, (field) => service.getFunctionNode(field)),
@@ -174,12 +214,23 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
         for (const id of byId.keys()) pending.current.delete(id);
         if (select.current && byId.has(select.current)) select.current = undefined;
 
-        const wanted: {id: string; kind: LayoutKind; data: Record<string, unknown>}[] = [
+        const wanted: {
+            id: string;
+            kind: LayoutKind;
+            data: Record<string, unknown>;
+            size?: {width: number; height: number};
+        }[] = [
             ...refs.map((ref: FlowNodeRef) => ({id: ref.field, kind: ref.kind, data: {field: ref.field}})),
             ...outputs.map((output) => ({id: output.id, kind: 'output' as const, data: {label: output.label}})),
+            ...charts.map((chart) => ({
+                id: chart.id,
+                kind: 'chart' as const,
+                data: {label: chart.label, config: chart.config} satisfies ChartNodeData,
+                size: chart.size ?? CHART_SIZE,
+            })),
         ];
         const wantedIds = new Set(wanted.map((node) => node.id));
-        const removed = current.filter((node) => !wantedIds.has(node.id) && node.type !== 'outputNode');
+        const removed = current.filter((node) => !wantedIds.has(node.id) && !CANVAS_TYPES.has(node.type ?? ''));
         const added = wanted.filter((node) => !byId.has(node.id));
         const unchanged =
             added.length === 0 &&
@@ -191,13 +242,12 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
         if (removed.length === 1 && added.length === 1 && TYPE_OF[added[0].kind] === removed[0].type) {
             const [from, to] = [removed[0].id, added[0].id];
             if (!pending.current.has(to)) pending.current.set(to, removed[0].position);
-            if (outputs.some((output) => output.source?.node === from)) {
-                setOutputs(
-                    outputs.map((output) =>
-                        output.source?.node === from ? {...output, source: {...output.source, node: to}} : output,
-                    ),
+            const follow = <T extends {source?: {node: string; handle: string}}>(sinks: T[]) =>
+                sinks.map((sink) =>
+                    sink.source?.node === from ? {...sink, source: {...sink.source, node: to}} : sink,
                 );
-            }
+            if (outputs.some((output) => output.source?.node === from)) setOutputs(follow(outputs));
+            if (charts.some((chart) => chart.source?.node === from)) setCharts(follow(charts));
         }
         const unplaced = added.filter((node) => !pending.current.has(node.id));
         if (unplaced.length > 0) {
@@ -224,6 +274,8 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
                     data: node.data,
                     selected,
                     deletable: !readOnly,
+                    // A chart has a size of its own, which the resize handle changes; other nodes fit their rows.
+                    ...node.size,
                 };
             }),
         );
@@ -234,10 +286,10 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
             const layoutNodes = unplaced.map((node) => ({
                 id: node.id,
                 kind: node.kind,
-                ...estimateSize(service, node.id, node.kind),
+                ...(node.size ?? estimateSize(service, node.id, node.kind)),
             }));
             const ids = new Set(unplaced.map((node) => node.id));
-            return autoLayout(layoutNodes, [...wires, ...outputWires(outputs, ids)]);
+            return autoLayout(layoutNodes, [...wires, ...outputWires(outputs, ids), ...outputWires(charts, ids)]);
         }
 
         function freePositions(unplaced: typeof wanted, existing: Node[]) {
@@ -245,7 +297,7 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
             const center = viewportCenter();
             const placed: Record<string, XYPosition> = {};
             for (const node of unplaced) {
-                const size = estimateSize(service, node.id, node.kind);
+                const size = node.size ?? estimateSize(service, node.id, node.kind);
                 const spot = findFreeSpot({x: center.x - size.width / 2, y: center.y - size.height / 2}, size, taken);
                 placed[node.id] = spot;
                 taken.push({...spot, ...size});
@@ -253,24 +305,26 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
             return placed;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refs, outputs, readOnly]);
+    }, [refs, outputs, charts, readOnly]);
 
     const nodeIds = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes]);
     const edges = useMemo(
         () =>
-            [...wires, ...outputWires(outputs, nodeIds)]
+            [...wires, ...outputWires(outputs, nodeIds), ...outputWires(charts, nodeIds, 'in:data')]
                 .filter((wire) => nodeIds.has(wire.source) && nodeIds.has(wire.target))
                 .map((wire) => toEdge(wire, selectedEdges)),
-        [wires, outputs, nodeIds, selectedEdges],
+        [wires, outputs, charts, nodeIds, selectedEdges],
     );
 
-    // Report the layout once a change settles: never in the middle of a drag.
+    // Report the layout once a change settles: never in the middle of a drag or a resize.
     const reported = useRef<string | undefined>(undefined);
     useEffect(() => {
-        if (!onLayoutChange || nodes.some((node) => node.dragging)) return;
+        if (!onLayoutChange || nodes.some((node) => node.dragging || node.resizing)) return;
         const layout: FlowLayout = {
             positions: Object.fromEntries(nodes.map((node) => [node.id, node.position])),
             outputs,
+            // Optional in `flow.json`: a flow without charts reports what it reported before charts existed.
+            ...(charts.length > 0 && {charts}),
         };
         const text = JSON.stringify(layout);
         if (reported.current === undefined) {
@@ -280,7 +334,7 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
         if (text === reported.current) return;
         reported.current = text;
         onLayoutChange(layout);
-    }, [nodes, outputs, onLayoutChange]);
+    }, [nodes, outputs, charts, onLayoutChange]);
 
     function viewportCenter(): XYPosition {
         const box = wrapper.current?.getBoundingClientRect();
@@ -294,10 +348,17 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
             select.current = id;
         };
         const {action} = item;
+        const taken = new Set([...outputs.map((output) => output.id), ...charts.map((chart) => chart.id), ...nodeIds]);
         if (action.kind === 'output') {
-            const id = nextOutputId(new Set([...outputs.map((output) => output.id), ...nodeIds]));
+            const id = nextCanvasId('output', taken);
             place(id);
             setOutputs([...outputs, {id}]);
+            return;
+        }
+        if (action.kind === 'chart') {
+            const id = nextCanvasId('chart', taken);
+            place(id);
+            setCharts([...charts, {id}]);
             return;
         }
         if (action.kind === 'input') {
@@ -330,6 +391,7 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
     };
 
     const outputIds = useMemo(() => new Set(outputs.map((output) => output.id)), [outputs]);
+    const chartIds = useMemo(() => new Set(charts.map((chart) => chart.id)), [charts]);
 
     const onConnect = useCallback(
         (connection: Connection) => {
@@ -343,10 +405,21 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
                 );
                 return;
             }
+            if (chartIds.has(target)) {
+                // New data: the chart configures itself again from what the wire brings.
+                setCharts((current) =>
+                    current.map((chart) =>
+                        chart.id === target
+                            ? {...chart, source: {node: source, handle: sourceHandle}, config: undefined}
+                            : chart,
+                    ),
+                );
+                return;
+            }
             // A rejected binding shows on the target node as its error row.
             service.bindArgument(target, targetHandle.slice('in:'.length), sourcePath(source, sourceHandle));
         },
-        [service, outputIds],
+        [service, outputIds, chartIds],
     );
 
     const isValidConnection: IsValidConnection = useCallback(
@@ -362,16 +435,19 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
         async ({nodes: doomedNodes, edges: doomedEdges}) => {
             const doomed = new Set(doomedNodes.map((node) => node.id));
             for (const node of doomedNodes) {
-                if (node.type !== 'outputNode') service.removeFromFlow(node.id);
+                if (!CANVAS_TYPES.has(node.type ?? '')) service.removeFromFlow(node.id);
             }
-            const removedOutputs = new Set(
-                doomedNodes.filter((node) => node.type === 'outputNode').map((node) => node.id),
-            );
+            const removedOf = (type: string) =>
+                new Set(doomedNodes.filter((node) => node.type === type).map((node) => node.id));
+            const removedOutputs = removedOf('outputNode');
+            const removedCharts = removedOf('chartNode');
             // A wire of a removed node goes with it; the binding stays in the model.
             const unwired = doomedEdges.filter((edge) => !doomed.has(edge.source) && !doomed.has(edge.target));
             const unwiredOutputs = new Set<string>();
+            const unwiredCharts = new Set<string>();
             for (const edge of unwired) {
                 if (outputIds.has(edge.target)) unwiredOutputs.add(edge.target);
+                else if (chartIds.has(edge.target)) unwiredCharts.add(edge.target);
                 else if (edge.targetHandle) service.unbindArgument(edge.target, edge.targetHandle.slice('in:'.length));
             }
             if (removedOutputs.size > 0 || unwiredOutputs.size > 0) {
@@ -383,15 +459,23 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
                         ),
                 );
             }
+            if (removedCharts.size > 0 || unwiredCharts.size > 0) {
+                // An unwired chart keeps its config and size; the next wire configures it again.
+                setCharts((current) =>
+                    current
+                        .filter((chart) => !removedCharts.has(chart.id))
+                        .map((chart) => (unwiredCharts.has(chart.id) ? {...chart, source: undefined} : chart)),
+                );
+            }
             return false;
         },
-        [service, outputIds],
+        [service, outputIds, chartIds],
     );
 
-    const onNodesChange = useCallback(
-        (changes: NodeChange[]) => setNodes((current) => applyNodeChanges(changes, current)),
-        [],
-    );
+    const onNodesChange = useCallback((changes: NodeChange[]) => {
+        setNodes((current) => applyNodeChanges(changes, current));
+        setCharts((current) => syncCharts(current, changes));
+    }, []);
 
     const arrange = useCallback(
         (animate: boolean) => {

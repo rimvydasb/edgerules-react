@@ -3,9 +3,10 @@ import {fireEvent, render, screen, waitFor, within} from '@testing-library/react
 import {describe, expect, it, vi} from 'vitest';
 import {createDocumentationService} from '../../../documentation-service';
 import {createFlowEditorService} from '../../service/createFlowEditorService';
+import {LOAN_MODEL} from '../../testing/loanModel';
 import {SAMPLE_MODEL} from '../../testing/sampleModel';
 import {FlowEditor} from '../FlowEditor';
-import type {FlowEditorProps} from '../types';
+import type {FlowEditorProps, FlowLayout} from '../types';
 
 function renderEditor(props: Partial<FlowEditorProps> & {seeded?: boolean} = {}) {
     const {seeded, ...rest} = props;
@@ -93,6 +94,12 @@ describe('FlowEditor', () => {
         expect(screen.getByTestId('flow-editor-empty')).toHaveTextContent('annotated for the flow');
     });
 
+    it('keeps the chart item on the rail', () => {
+        renderEditor();
+        fireEvent.click(screen.getByRole('button', {name: 'Hide node palette'}));
+        expect(palette().getByRole('button', {name: 'Add chart'})).toBeInTheDocument();
+    });
+
     it('collapses the palette to a rail', () => {
         renderEditor();
         fireEvent.click(screen.getByRole('button', {name: 'Hide node palette'}));
@@ -100,5 +107,86 @@ describe('FlowEditor', () => {
         expect(palette().getByRole('button', {name: 'Add output'})).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', {name: 'Show node palette'}));
         expect(screen.getByRole('textbox', {name: 'Search nodes'})).toBeInTheDocument();
+    });
+});
+
+describe('FlowEditor charts', () => {
+    const SAVED: FlowLayout = {
+        positions: {},
+        outputs: [],
+        charts: [
+            {
+                id: 'chart',
+                label: 'Balance',
+                source: {node: 'schedule', handle: 'out:result'},
+                size: {width: 520, height: 360},
+            },
+        ],
+    };
+
+    function renderLoan(props: Partial<FlowEditorProps> = {}) {
+        const service = createFlowEditorService(MutableDecisionService.fromCode(LOAN_MODEL));
+        service.addInputNode('loan');
+        service.setCallee('schedule', 'repayment'); // writes @node: FunctionNode, keeping the bindings
+        render(
+            <div style={{width: 1200, height: 700}}>
+                <FlowEditor service={service} {...props} />
+            </div>,
+        );
+        return {service};
+    }
+
+    it('adds a chart node without writing to the model', async () => {
+        const onLayoutChange = vi.fn();
+        const {service} = renderEditor({onLayoutChange});
+        fireEvent.click(palette().getByRole('button', {name: 'Add chart'}));
+        expect(await screen.findByTestId('chart-node-chart')).toHaveTextContent('Wire a list of records');
+        expect(service.listNodes()).toEqual([]);
+        await waitFor(() =>
+            expect(onLayoutChange).toHaveBeenLastCalledWith(
+                expect.objectContaining({outputs: [], charts: [{id: 'chart'}]}),
+            ),
+        );
+    });
+
+    it('starts a chart from a saved layout: its size, its wire and its automatic config', async () => {
+        renderLoan({defaultLayout: SAVED});
+        // The chart reads through the saved wire; jsdom has no handle bounds, so xyflow draws no edge path.
+        expect(await screen.findByRole('img', {name: 'Balance'})).toBeInTheDocument();
+        expect(screen.getByTestId('chart-summary')).toHaveTextContent('36 rows · auto');
+        const node = document.querySelector('.react-flow__node[data-id="chart"]') as HTMLElement;
+        expect(node.style.width).toBe('520px');
+        expect(node.style.height).toBe('360px');
+    });
+
+    it('reports a config change of a chart in the layout', async () => {
+        const onLayoutChange = vi.fn();
+        renderLoan({defaultLayout: SAVED, onLayoutChange});
+        await screen.findByRole('img', {name: 'Balance'});
+        fireEvent.click(screen.getByRole('button', {name: 'Chart actions'}));
+        fireEvent.click(await screen.findByRole('menuitem', {name: 'Configure'}));
+        const form = await screen.findByRole('form', {name: 'Chart configuration'});
+        fireEvent.click(within(form).getByLabelText('Bar'));
+        await waitFor(() => {
+            const layout = onLayoutChange.mock.lastCall?.[0] as FlowLayout | undefined;
+            expect(layout?.charts?.[0]).toMatchObject({
+                id: 'chart',
+                source: {node: 'schedule', handle: 'out:result'},
+                config: {kind: 'bar', x: 'period'},
+                size: {width: 520, height: 360},
+            });
+        });
+    });
+
+    it('removes a chart from its menu', async () => {
+        const onLayoutChange = vi.fn();
+        renderLoan({defaultLayout: SAVED, onLayoutChange});
+        await screen.findByRole('img', {name: 'Balance'});
+        fireEvent.click(screen.getByRole('button', {name: 'Chart actions'}));
+        fireEvent.click(await screen.findByRole('menuitem', {name: 'Remove chart'}));
+        await waitFor(() => expect(screen.queryByTestId('chart-node-chart')).toBeNull());
+        const layout = onLayoutChange.mock.lastCall?.[0] as FlowLayout;
+        expect(layout).not.toHaveProperty('charts');
+        expect(Object.keys(layout.positions).sort()).toEqual(['loan', 'schedule']);
     });
 });

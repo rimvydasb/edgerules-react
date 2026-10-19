@@ -1,4 +1,5 @@
 import type {XYPosition} from '@xyflow/react';
+import type {ChartConfig} from '../chart-node/types';
 import type {CodeEditorService} from '../../code-editor-cell';
 import type {DocumentationService} from '../../documentation-service';
 import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
@@ -17,6 +18,7 @@ export interface FlowEditorProps {
 export interface FlowLayout {
     positions: Record<string, XYPosition>; // node id -> top-left canvas position
     outputs: FlowOutput[]; // output nodes exist on the canvas only
+    charts?: FlowChart[]; // chart nodes exist on the canvas only; reported only when there are some
 }
 
 export interface FlowOutput {
@@ -25,16 +27,25 @@ export interface FlowOutput {
     source?: {node: string; handle: string}; // the result pin wired into the output
 }
 
-export type PaletteGroup = 'input' | 'function' | 'output';
+export interface FlowChart {
+    id: string; // node id, for example 'chart' or 'chart2'
+    label?: string; // title; falls back to 'Chart'
+    source?: {node: string; handle: string}; // the result pin wired into the chart
+    config?: ChartConfig; // undefined: configured automatically; a new wire clears it
+    size?: {width: number; height: number}; // px; the default size when absent
+}
+
+export type PaletteGroup = 'input' | 'function' | 'output' | 'chart';
 
 /** What a palette item creates. */
 export type PaletteAction =
     | {kind: 'new-input'}
     | {kind: 'input'; record: string} // annotate an existing record
     | {kind: 'function'; callee?: string} // a draft node, with its callee picked when given
-    | {kind: 'output'};
+    | {kind: 'output'}
+    | {kind: 'chart'};
 
-export type PaletteIcon = 'input' | 'function' | 'ruleset' | 'output';
+export type PaletteIcon = 'input' | 'function' | 'ruleset' | 'output' | 'chart';
 
 export interface PaletteItem {
     id: string; // stable key, also the drag payload

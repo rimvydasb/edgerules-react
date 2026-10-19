@@ -21,7 +21,12 @@ export interface Box {
     height: number;
 }
 
-export type LayoutKind = FlowNodeRef['kind'] | 'output';
+export type LayoutKind = FlowNodeRef['kind'] | 'output' | 'chart';
+
+/** Output and chart nodes only read: they sit one column after their source. */
+function isSink(kind: LayoutKind | undefined): boolean {
+    return kind === 'output' || kind === 'chart';
+}
 
 export interface LayoutNode {
     id: string;
@@ -81,17 +86,24 @@ export function modelWires(refs: FlowNodeRef[], functionModel: (field: string) =
     return wires;
 }
 
-/** The wires into output nodes whose source is still on the canvas. */
-export function outputWires(outputs: FlowOutput[], nodeIds: ReadonlySet<string>): Wire[] {
+/**
+ * The wires into canvas nodes (outputs and charts) whose source is still on the canvas. `targetHandle` is the one
+ * input pin of that node kind: 'in:value' of an output, 'in:data' of a chart.
+ */
+export function outputWires(
+    outputs: Pick<FlowOutput, 'id' | 'source'>[],
+    nodeIds: ReadonlySet<string>,
+    targetHandle = 'in:value',
+): Wire[] {
     return outputs.flatMap((output) =>
         output.source && nodeIds.has(output.source.node)
             ? [
                   {
-                      id: `${output.id}:value`,
+                      id: `${output.id}:${targetHandle.slice('in:'.length)}`,
                       source: output.source.node,
                       sourceHandle: output.source.handle,
                       target: output.id,
-                      targetHandle: 'in:value',
+                      targetHandle,
                       kind: 'any' as const,
                   },
               ]
@@ -101,7 +113,7 @@ export function outputWires(outputs: FlowOutput[], nodeIds: ReadonlySet<string>)
 
 /**
  * Positions in columns by data flow: inputs first, then each function one column after the latest node it reads,
- * then outputs one column after their source. Columns stack their nodes top-down.
+ * then outputs and charts one column after their source. Columns stack their nodes top-down.
  */
 export function autoLayout(
     nodes: LayoutNode[],
@@ -126,18 +138,18 @@ export function autoLayout(
         const sources = sourcesOf.get(id) ?? [];
         const after = Math.max(-1, ...sources.map((source) => columnOf(source, visiting))) + 1;
         visiting.delete(id);
-        const column = kind === 'output' ? after : Math.max(firstFunctionColumn, after);
+        const column = isSink(kind) ? after : Math.max(firstFunctionColumn, after);
         columns.set(id, column);
         return column;
     };
     for (const node of nodes) columns.set(node.id, columnOf(node.id, new Set()));
-    // Unwired outputs go after every other column.
+    // Unwired outputs and charts go after every other column.
     const lastColumn = Math.max(
         0,
-        ...nodes.filter((node) => node.kind !== 'output').map((node) => columns.get(node.id)!),
+        ...nodes.filter((node) => !isSink(node.kind)).map((node) => columns.get(node.id)!),
     );
     for (const node of nodes) {
-        if (node.kind === 'output' && !sourcesOf.has(node.id)) columns.set(node.id, lastColumn + 1);
+        if (isSink(node.kind) && !sourcesOf.has(node.id)) columns.set(node.id, lastColumn + 1);
     }
 
     const byColumn = new Map<number, LayoutNode[]>();

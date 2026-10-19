@@ -57,6 +57,13 @@ describe('outputWires', () => {
             {id: 'output:value', source: 'decision', sourceHandle: 'out:level', target: 'output', targetHandle: 'in:value', kind: 'any'},
         ]);
     });
+
+    it('wires a chart into its data pin', () => {
+        const wires = outputWires([{id: 'chart', source: {node: 'schedule', handle: 'out:result'}}], new Set(['schedule']), 'in:data');
+        expect(wires).toEqual([
+            {id: 'chart:data', source: 'schedule', sourceHandle: 'out:result', target: 'chart', targetHandle: 'in:data', kind: 'any'},
+        ]);
+    });
 });
 
 describe('autoLayout', () => {
@@ -108,6 +115,24 @@ describe('autoLayout', () => {
             ],
         );
         expect(positions.out.x).toBeGreaterThan(Math.max(positions.f.x, positions.g.x));
+    });
+
+    it('puts a chart one column after its source, as an output', () => {
+        const positions = autoLayout(
+            [
+                {id: 'in', kind: 'input', ...size},
+                {id: 'f', kind: 'function', ...size},
+                {id: 'chart', kind: 'chart', width: 440, height: 340},
+                {id: 'idle', kind: 'chart', width: 440, height: 340},
+            ],
+            [
+                {source: 'in', target: 'f'},
+                {source: 'f', target: 'chart'},
+            ],
+        );
+        expect(positions.chart).toEqual({x: 840, y: 0});
+        // An unwired chart goes after the last column, below the wired one.
+        expect(positions.idle).toEqual({x: 840, y: 380});
     });
 });
 

@@ -1,20 +1,15 @@
-import {useNodeConnections, type NodeProps} from '@xyflow/react';
+import type {NodeProps} from '@xyflow/react';
 import {IconLogout2} from '@tabler/icons-react';
-import {useEffect, useState, type ReactElement} from 'react';
-import {Pin, TrackRow} from '../core-node';
-import {useFlowEditor} from '../FlowEditorProvider';
-import type {OutputNodeType, OutputReading} from './types';
+import type {ReactElement} from 'react';
+import {Pin, TrackRow, useWiredReading} from '../core-node';
+import type {OutputNodeType} from './types';
 import styles from '../core-node/coreNode.module.css';
 import outputStyles from './outputNode.module.css';
 
+export {sourcePath} from '../core-node';
+
 const OUTPUT_COLOR = '#2f9e44';
 const WIDTH = 240;
-
-/** The model path a wire into the node reads: `out:level` of `decision` reads `decision.level`. */
-export function sourcePath(nodeId: string, handleId: string | null | undefined): string {
-    const name = handleId?.replace(/^out:/, '');
-    return !name || name === '*' || name === 'result' ? nodeId : `${nodeId}.${name}`;
-}
 
 export function formatValue(value: unknown): string {
     return typeof value === 'string' ? `'${value}'` : (JSON.stringify(value) ?? String(value));
@@ -25,29 +20,7 @@ export function formatValue(value: unknown): string {
  * is wired into it. It writes nothing to the model, so it has no menu and no inline edit.
  */
 export function OutputNode({id, data, selected}: NodeProps<OutputNodeType>): ReactElement {
-    const {service} = useFlowEditor();
-    const [connection] = useNodeConnections({handleType: 'target', handleId: 'in:value'});
-    const source = connection ? sourcePath(connection.source, connection.sourceHandle) : undefined;
-    const [reading, setReading] = useState<OutputReading | undefined>();
-
-    useEffect(() => {
-        if (!source) {
-            setReading(undefined);
-            return;
-        }
-        let current = true;
-        const refresh = () => {
-            void service.readOutput(source).then((next) => {
-                if (current) setReading(next);
-            });
-        };
-        refresh();
-        const unsubscribe = service.subscribe(refresh);
-        return () => {
-            current = false;
-            unsubscribe();
-        };
-    }, [service, source]);
+    const {source, reading} = useWiredReading('in:value');
 
     const failed = reading && 'error' in reading;
     const type = reading && !failed ? reading.type : 'any';

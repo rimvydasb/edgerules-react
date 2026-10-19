@@ -12,4 +12,5 @@ export {FONTS, measureText} from './measure';
 export {coreNodeMenuItems, rowMenuItems, startGroup} from './nodeMenus';
 export {isListType, typeKind} from './typeKind';
 export {runCommand, useCoreNode} from './useCoreNode';
+export {sourcePath, useWiredReading, type WiredReading} from './useWiredReading';
 export type * from './types';

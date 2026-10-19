@@ -20,7 +20,7 @@ describe('paletteItems', () => {
             'callee:monthly',
             'callee:risk',
         ]);
-        expect(ids.at(-1)).toBe('output');
+        expect(ids.slice(-2)).toEqual(['output', 'chart']);
     });
 
     it('describes a callee by its signature and kind', () => {
@@ -45,6 +45,7 @@ describe('filterItems', () => {
         const all = items().items;
         expect(filterItems(all, 'CREDIT').map((item) => item.id)).toEqual(['callee:creditScore']);
         expect(filterItems(all, 'outputs').map((item) => item.id)).toEqual(['output']);
+        expect(filterItems(all, 'charts').map((item) => item.id)).toEqual(['chart']);
         expect(filterItems(all, 'segment level').map((item) => item.id)).toEqual(['callee:risk']);
         expect(filterItems(all, '  ')).toBe(all);
     });

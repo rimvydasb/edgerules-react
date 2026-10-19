@@ -7,9 +7,10 @@ export const GROUP_LABEL: Record<PaletteGroup, string> = {
     input: 'Inputs',
     function: 'Functions & rulesets',
     output: 'Outputs',
+    chart: 'Charts',
 };
 
-export const GROUP_ORDER: PaletteGroup[] = ['input', 'function', 'output'];
+export const GROUP_ORDER: PaletteGroup[] = ['input', 'function', 'output', 'chart'];
 
 /** Every node the palette offers: one generic item per node type, then the model items of that type. */
 export function paletteItems(service: FlowEditorService): PaletteItem[] {
@@ -58,6 +59,15 @@ export function paletteItems(service: FlowEditorService): PaletteItem[] {
             detail: 'Shows the value of a wired result',
             label: 'Add output',
             action: {kind: 'output'},
+        },
+        {
+            id: 'chart',
+            group: 'chart',
+            icon: 'chart',
+            title: 'Chart',
+            detail: 'Draws a wired list as a chart',
+            label: 'Add chart',
+            action: {kind: 'chart'},
         },
     ];
     return items;

@@ -22,7 +22,9 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
   - [x] InputNode / TermsNode ([spec](docs/stories/flow-editor-story.md#inputnode))
   - [x] FunctionNode / RulesetNode ([spec and story](docs/stories/flow-editor-story.md))
   - [x] OutputNode (shows the engine value of the wired result; no model writes)
-  - [ ] ChartNode
+  - [x] ChartNode ([spec](docs/stories/flow-editor-story.md#flow-editor-chartnode)): a TanStack Charts line, area or
+    bar chart of the wired list or record; configures itself from the data, Configure flips it to its config form,
+    resizable from its bottom-right corner. Needs the `@tanstack/charts` peer.
 - [x] [EdgeRules Tests Manager](docs/TESTS_MANAGER_SPEC.md) (Inputs/Assertions/Validations grid over a model or any
   fully typed `func`/`ruleset`/`optimise`/`loop`, backed by the engine-free `test-cases-service` package and the
   `TestRunner` execution service)
@@ -103,7 +105,7 @@ Unit tests (React Testing Library) live next to the code they cover as `*.test.t
   (`edgerules-react/code-editor`, `edgerules-react/flow-editor`, ...) plus a root entry (`edgerules-react`) that
   re-exports everything for convenience.
 - **Peer dependencies**: `react`, `react-dom`, `@mantine/core`, `@mantine/hooks` and other heavy, component-specific libraries
-  (`reactflow`, `@codemirror/state`/`@codemirror/view`/`@codemirror/lint`, `@tabler/icons-react`) are declared as `peerDependencies`
+  (`reactflow`, `@tanstack/charts`, `@codemirror/state`/`@codemirror/view`/`@codemirror/lint`, `@tabler/icons-react`) are declared as `peerDependencies`
   (most marked optional via `peerDependenciesMeta`), never bundled, so consuming apps control their own versions
   and bundle size. Wrap the app in Mantine's `MantineProvider` and import `@mantine/core/styles.css` once; the
   library's own CSS Modules are injected at runtime, so no stylesheet of ours needs importing.

@@ -1,5 +1,6 @@
 import {ActionIcon, CloseButton, ScrollArea, TextInput, Tooltip} from '@mantine/core';
 import {
+    IconChartLine,
     IconGripVertical,
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -10,6 +11,7 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import {useState, type DragEvent, type KeyboardEvent, type ReactElement} from 'react';
+import {CHART_COLOR} from '../chart-node/ChartNode';
 import {KIND_COLOR} from '../function-node/KindIcon';
 import {DRAG_TYPE, filterItems, GROUP_LABEL, GROUP_ORDER} from './paletteItems';
 import type {NodePaletteProps, PaletteIcon, PaletteItem} from './types';
@@ -20,9 +22,19 @@ export const ICON_COLOR: Record<PaletteIcon, string> = {
     function: KIND_COLOR.function,
     ruleset: KIND_COLOR.ruleset,
     output: '#2f9e44',
+    chart: CHART_COLOR,
 };
 
-const ICONS = {input: IconLogin2, function: IconMathFunction, ruleset: IconListCheck, output: IconLogout2};
+const ICONS = {
+    input: IconLogin2,
+    function: IconMathFunction,
+    ruleset: IconListCheck,
+    output: IconLogout2,
+    chart: IconChartLine,
+};
+
+// The rail keeps the generic item of each node type one click away.
+const GENERIC_ITEMS = new Set(['new-input', 'function', 'output', 'chart']);
 
 function PaletteTile({icon, size = 28}: {icon: PaletteIcon; size?: number}): ReactElement {
     const Icon = ICONS[icon];
@@ -49,10 +61,7 @@ export function NodePalette({items, collapsed, onCollapsedChange, onAdd}: NodePa
     const [query, setQuery] = useState('');
 
     if (collapsed) {
-        // The rail keeps the generic item of each node type one click away.
-        const generic = items.filter(
-            (item) => item.id === 'new-input' || item.id === 'function' || item.id === 'output',
-        );
+        const generic = items.filter((item) => GENERIC_ITEMS.has(item.id));
         return (
             <nav className={`${styles.palette} ${styles.rail}`} aria-label="Node palette">
                 <Tooltip label="Show node palette" position="right" withArrow>
