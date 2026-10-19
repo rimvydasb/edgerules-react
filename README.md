@@ -19,13 +19,10 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 - [ ] EdgeRules Flow Editor (ReactFlow-based)
   - [x] FlowEditor canvas ([spec](docs/stories/flow-editor-story.md#flow-editor-canvas)): node palette with drag or click
     to add, wires from the model, automatic layout, zoom, minimap. The host imports `@xyflow/react/dist/style.css`.
-  - [x] InputNode ([spec](docs/stories/flow-editor-story.md#inputnode))
-  - [x] FunctionNode ([spec and story](docs/stories/flow-editor-story.md))
+  - [x] InputNode / TermsNode ([spec](docs/stories/flow-editor-story.md#inputnode))
+  - [x] FunctionNode / RulesetNode ([spec and story](docs/stories/flow-editor-story.md))
   - [x] OutputNode (shows the engine value of the wired result; no model writes)
-  - [ ] RulesetNode
-  - [ ] TermsNode
   - [ ] ChartNode
-  - [ ] OutputNode
 - [x] [EdgeRules Tests Manager](docs/TESTS_MANAGER_SPEC.md) (Inputs/Assertions/Validations grid over a model or any
   fully typed `func`/`ruleset`/`optimise`/`loop`, backed by the engine-free `test-cases-service` package and the
   `TestRunner` execution service)
