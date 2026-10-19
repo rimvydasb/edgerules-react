@@ -1,6 +1,7 @@
 import type {PortableError} from '@edgerules/portable';
 import type {ReactNode} from 'react';
 import type {BoxedEditorTargetKind} from '../boxed-editor/BoxedEditorProps';
+import type {CodeEditorEmbedContext, CodeEditorService} from '../code-editor-cell';
 import type {Unsubscribe} from '../boxed-editor/boxed-editor-types';
 import type {DocumentationService} from '../documentation-service';
 import type {CalleeRef, FunctionNodeModel} from './function-node/types';
@@ -12,6 +13,7 @@ export type {Unsubscribe};
 export interface FlowEditorProviderProps {
     service: FlowEditorService; // engine-backed node service from createFlowEditorService()
     documentation?: DocumentationService; // stores node descriptions; omit to hide description UI
+    languageService?: CodeEditorService; // diagnostics and completions of value cells; omit to show values read-only
     readOnly?: boolean; // disables every mutation; menus show only non-mutating items
     onOpenNode?: (target: FlowEditorOpenTarget) => void; // routes "Open in…", "Open tests", "View as code" to the host
     children: ReactNode; // the ReactFlow canvas
@@ -55,6 +57,8 @@ export interface FlowEditorService {
     moveInputField(field: string, name: string, direction: 'up' | 'down'): PortableError | void;
     removeInputField(field: string, name: string): PortableError | void; // link-checked, reverted when something reads it
     renameInputField(field: string, from: string, to: string): PortableError | void; // link-checked, reverted on failure
+    setInputFieldValue(field: string, name: string, text: string): PortableError | void; // an expression; link-checked
+    inputValueContext(field: string, name: string): CodeEditorEmbedContext; // model text around the value of a field
     readOutput(source: string): Promise<OutputReading>; // evaluates a model path, for example 'decision.level'
     subscribe(listener: () => void): Unsubscribe; // fires after every committed change
 }

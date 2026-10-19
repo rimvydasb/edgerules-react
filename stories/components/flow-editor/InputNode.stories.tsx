@@ -33,10 +33,12 @@ const nodeTypes = {inputNode: InputNode, functionNode: FunctionNode};
 function Canvas({
     field,
     wired = false,
+    readOnly = false,
     description,
 }: {
     field: string;
     wired?: boolean;
+    readOnly?: boolean;
     description?: string;
 }): ReactElement {
     const service = useMemo(() => {
@@ -56,7 +58,7 @@ function Canvas({
     const nodes: Node[] = [
         {id: field, type: 'inputNode', position: {x: 20, y: 40}, data: {field}},
         ...(wired
-            ? [{id: 'decision', type: 'functionNode', position: {x: 360, y: 40}, data: {field: 'decision'}}]
+            ? [{id: 'decision', type: 'functionNode', position: {x: 460, y: 40}, data: {field: 'decision'}}]
             : []),
     ];
     // The wires are the path bindings of `decision`, read again after every change of the model.
@@ -88,7 +90,12 @@ function Canvas({
 
     return (
         <ReactFlowProvider>
-            <FlowEditorProvider service={service} documentation={documentation}>
+            <FlowEditorProvider
+                service={service}
+                documentation={documentation}
+                languageService={MutableDecisionService}
+                readOnly={readOnly}
+            >
                 <div style={{width: '100%', height: 420}}>
                     <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={false} fitView />
                 </div>
@@ -116,6 +123,8 @@ export const Default: Story = {args: {field: 'applicant'}};
 export const SingleField: Story = {args: {field: 'application'}};
 /** The record feeds the `decision` FunctionNode: one wire per field. */
 export const Wired: Story = {args: {field: 'applicant', wired: true}};
+/** Values are shown as code and cannot be edited. */
+export const ReadOnly: Story = {args: {field: 'applicant', readOnly: true}};
 
 const DESCRIPTION = 'The person who applies for the credit';
 
@@ -139,5 +148,15 @@ export const RenameField: Story = {
         const input = await screen().findByLabelText('Rename field age');
         await userEvent.clear(input);
         await userEvent.type(input, 'years');
+    },
+};
+
+/** Click a value to edit it as an expression; Enter writes it to the model. */
+export const EditValue: Story = {
+    args: {field: 'applicant'},
+    play: async () => {
+        await userEvent.click(await screen().findByRole('button', {name: 'Value of age'}, SLOW));
+        const editor = await screen().findByTestId('value-editor-age');
+        await expect(editor).toBeVisible();
     },
 };

@@ -5,8 +5,8 @@ import type {InputNodeModel} from '../types';
 const applicant: InputNodeModel = {
     field: 'applicant',
     fields: [
-        {name: 'age', type: 'number', used: true},
-        {name: 'income', type: 'number', used: false},
+        {name: 'age', type: 'number', value: '23', used: true},
+        {name: 'income', type: 'number', value: '25000', used: false},
     ],
 };
 
@@ -16,10 +16,21 @@ describe('InputNode layout', () => {
         expect(recordSummary({field: 'empty', fields: []})).toBe('{  }');
     });
 
-    it('has only the output track', () => {
+    it('has a field track and a value track in whole steps', () => {
         const layout = computeInputNodeLayout(applicant);
-        expect(layout.inputTrack).toBe(0);
-        expect(layout.width).toBe(layout.outputTrack);
+        expect(layout.inputTrack).toBeGreaterThan(0);
+        expect(layout.outputTrack).toBeGreaterThan(0);
+        expect(layout.width).toBe(layout.inputTrack + layout.outputTrack);
+        expect(layout.inputTrack % 40).toBe(0);
         expect(layout.outputTrack % 40).toBe(0);
+    });
+
+    it('widens the value track for a long value', () => {
+        const short = computeInputNodeLayout(applicant);
+        const long = computeInputNodeLayout({
+            ...applicant,
+            fields: [{name: 'age', type: 'number', value: 'applicant.income / 1000 + 42', used: false}],
+        });
+        expect(long.outputTrack).toBeGreaterThan(short.outputTrack);
     });
 });

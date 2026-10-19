@@ -7,10 +7,10 @@ const FlowEditorContext = createContext<FlowEditorContextValue | null>(null);
 
 /** Provides the node service, the documentation service and the host callbacks to every node of the canvas. */
 export function FlowEditorProvider({children, ...value}: FlowEditorProviderProps): ReactElement {
-    const {service, documentation, readOnly, onOpenNode} = value;
+    const {service, documentation, languageService, readOnly, onOpenNode} = value;
     const memo = useMemo(
-        () => ({service, documentation, readOnly, onOpenNode}),
-        [service, documentation, readOnly, onOpenNode],
+        () => ({service, documentation, languageService, readOnly, onOpenNode}),
+        [service, documentation, languageService, readOnly, onOpenNode],
     );
     return <FlowEditorContext.Provider value={memo}>{children}</FlowEditorContext.Provider>;
 }

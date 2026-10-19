@@ -1,10 +1,12 @@
 import type {XYPosition} from '@xyflow/react';
+import type {CodeEditorService} from '../../code-editor-cell';
 import type {DocumentationService} from '../../documentation-service';
 import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
 
 export interface FlowEditorProps {
     service: FlowEditorService; // engine-backed node service from createFlowEditorService()
     documentation?: DocumentationService; // stores node descriptions; omit to hide description UI
+    languageService?: CodeEditorService; // diagnostics and completions of value cells; omit to show values read-only
     readOnly?: boolean; // hides the palette and disables wiring and removal; nodes still move
     onOpenNode?: (target: FlowEditorOpenTarget) => void; // routes "Open in…", "Open tests", "View as code" to the host
     defaultLayout?: FlowLayout; // positions and output nodes to start from; read on mount only

@@ -8,6 +8,7 @@ export const FONTS = {
     label: `600 11px ${UI_FONT}`,
     chip: `12.5px ${MONO_FONT}`,
     ret: `12px ${MONO_FONT}`,
+    value: `13px ${MONO_FONT}`,
     placeholder: `italic 13px ${UI_FONT}`,
 } as const;
 

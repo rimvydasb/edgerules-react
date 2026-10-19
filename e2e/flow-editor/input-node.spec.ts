@@ -43,7 +43,46 @@ test('shows one pin per field and the whole-record pin', async ({ page }) => {
     await expect(handle(page, 'applicant', `out:${name}`)).toBeVisible();
   }
   await expect(page.getByText('FIELDS')).toBeVisible();
-  await expect(page.getByText('retail')).toHaveCount(0);
+  await expect(page.getByText('VALUES')).toBeVisible();
+});
+
+test('shows the value of every field beside its name', async ({ page }) => {
+  await open(page, 'default');
+
+  await expect(page.getByRole('button', { name: 'Value of age' })).toHaveText('23');
+  await expect(page.getByRole('button', { name: 'Value of income' })).toHaveText('25000');
+  await expect(page.getByRole('button', { name: 'Value of segment' })).toHaveText("'retail'");
+});
+
+test('edits a value in a code editor cell', async ({ page }) => {
+  await open(page, 'default');
+
+  await page.getByRole('button', { name: 'Value of income' }).click();
+  const editor = page.getByTestId('value-editor-income').locator('.cm-content');
+  await expect(editor).toBeFocused();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('12000 * 2');
+  await page.keyboard.press('Enter');
+
+  await expect(page.getByTestId('value-editor-income')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Value of income' })).toHaveText('12000 * 2');
+});
+
+test('the value pin stays on the right edge of the node', async ({ page }) => {
+  await open(page, 'default');
+  const node = await page.getByTestId('input-node-applicant').boundingBox();
+  const pin = await handle(page, 'applicant', 'out:age').boundingBox();
+  const value = await page.getByRole('button', { name: 'Value of age' }).boundingBox();
+  if (!node || !pin || !value) throw new Error('no box');
+  expect(pin.x + pin.width / 2).toBeCloseTo(node.x + node.width, -1);
+  expect(value.x + value.width).toBeLessThanOrEqual(node.x + node.width);
+});
+
+test('read-only mode shows values without an editor', async ({ page }) => {
+  await open(page, 'read-only');
+
+  await expect(page.getByTestId('input-node-applicant')).toContainText('25000');
+  await expect(page.getByRole('button', { name: 'Value of age' })).toHaveCount(0);
 });
 
 test('the node keeps its right border on every row', async ({ page }) => {

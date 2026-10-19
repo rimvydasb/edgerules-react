@@ -15,7 +15,7 @@ export function runCommand(command: () => unknown): string | void {
  * callbacks of the "This node" and "Remove" menu groups.
  */
 export function useCoreNode<Row extends {kind: string} = never>(field: string) {
-    const {service, documentation, readOnly = false, onOpenNode} = useFlowEditor();
+    const {service, documentation, languageService, readOnly = false, onOpenNode} = useFlowEditor();
     const [editing, setEditing] = useState<NodeEditing<Row> | null>(null);
     const description = useNodeDescription(documentation, field);
 
@@ -35,5 +35,5 @@ export function useCoreNode<Row extends {kind: string} = never>(field: string) {
         },
     };
 
-    return {service, documentation, readOnly, onOpenNode, editing, setEditing, menu};
+    return {service, documentation, languageService, readOnly, onOpenNode, editing, setEditing, menu};
 }

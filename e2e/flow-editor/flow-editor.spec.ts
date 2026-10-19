@@ -318,3 +318,67 @@ test.describe('layout', () => {
             .toBeGreaterThan(before.x);
     });
 });
+
+test.describe('input values', () => {
+    async function editValue(page: Page, name: string, text: string) {
+        await page.getByRole('button', {name: `Value of ${name}`}).click();
+        await expect(page.getByTestId(`value-editor-${name}`).locator('.cm-content')).toBeFocused();
+        await page.keyboard.press('ControlOrMeta+a');
+        await page.keyboard.type(text);
+        await page.keyboard.press('Enter');
+    }
+
+    test('editing an input value recalculates the output nodes', async ({page}) => {
+        await openSeeded(page);
+        await expect(page.getByTestId('output-node-output')).toContainText("'high'");
+        await expect(page.getByTestId('output-node-output2')).toContainText('371');
+
+        // risk: age 30 matches the second rule; creditScore: 300 + 30 * 2 + 25000 / 1000.
+        await editValue(page, 'age', '30');
+
+        await expect(page.getByRole('button', {name: 'Value of age'})).toHaveText('30');
+        await expect(page.getByTestId('output-node-output')).toContainText("'medium'");
+        await expect(page.getByTestId('output-node-output2')).toContainText('385');
+    });
+
+    test('an expression value recalculates the output nodes', async ({page}) => {
+        await openSeeded(page);
+
+        await editValue(page, 'income', '25000 + 15000');
+
+        // creditScore: 300 + 23 * 2 + 40000 / 1000.
+        await expect(page.getByTestId('output-node-output2')).toContainText('386');
+        // risk: income 40000 no longer matches the first rule, and age 23 not the second.
+        await expect(page.getByTestId('output-node-output')).toContainText("'none'");
+    });
+
+    test('an invalid value shows the error and leaves the outputs unchanged', async ({page}) => {
+        await openSeeded(page);
+
+        await editValue(page, 'age', '30 +');
+
+        await expect(page.getByTestId('input-node-applicant').getByRole('alert')).toBeVisible();
+        await expect(page.getByTestId('value-editor-age')).toBeVisible();
+        await expect(page.getByTestId('output-node-output')).toContainText("'high'");
+        await expect(page.getByTestId('output-node-output2')).toContainText('371');
+
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('button', {name: 'Value of age'})).toHaveText('23');
+        await expect(page.getByTestId('input-node-applicant').getByRole('alert')).toHaveCount(0);
+    });
+
+    test('typing in a value does not delete the selected node', async ({page}) => {
+        await openSeeded(page);
+
+        await page.getByRole('button', {name: 'Value of age'}).click();
+        await expect(page.getByTestId('value-editor-age').locator('.cm-content')).toBeFocused();
+        await page.keyboard.press('Backspace');
+        await page.keyboard.press('Backspace');
+        await page.keyboard.type('41');
+        await page.keyboard.press('Enter');
+
+        await expect(page.getByTestId('input-node-applicant')).toBeVisible();
+        await expect(page.getByRole('button', {name: 'Value of age'})).toHaveText('41');
+        await expect(page.getByTestId('output-node-output2')).toContainText('407');
+    });
+});

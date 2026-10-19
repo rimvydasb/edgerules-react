@@ -10,6 +10,7 @@ export type InputNodeType = Node<InputNodeData, 'inputNode'>;
 export interface InputField {
     name: string;
     type: string; // 'number', 'string[]', 'object' for a nested record
+    value?: string; // expression text, for example '23' or "'retail'"; undefined for a nested record
     used: boolean; // an expression elsewhere in the model reads it; Delete field is disabled
 }
 
@@ -19,8 +20,8 @@ export interface InputNodeModel {
     fields: InputField[]; // one output pin per field of the record
 }
 
-/** The row edit of an InputNode: a record field rename. */
-export type InputNodeRowEditing = RowEditing<'input-field'>;
+/** The row edits of an InputNode: a record field rename or a field value edit. */
+export type InputNodeRowEditing = RowEditing<'input-field' | 'input-value'>;
 
 /** The inline edits of an InputNode: the header edits plus the row edit. */
 export type InputNodeEditing = NodeEditing<InputNodeRowEditing>;

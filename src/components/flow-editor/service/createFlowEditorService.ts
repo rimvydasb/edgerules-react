@@ -17,7 +17,14 @@ import {
 import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor/boxed-editor-types';
 import {createBoxedEditorService} from '../../boxed-editor/service/createBoxedEditorService';
 import {denormalize} from '../../boxed-editor/service/denormalize';
-import {isRecord, parentPath, portableAtPath, typeText} from '../../boxed-editor/service/portable-utils';
+import {buildExpressionEmbedContext} from '../../boxed-editor/service/embedContext';
+import {
+    formatPortableValue,
+    isRecord,
+    parentPath,
+    portableAtPath,
+    typeText,
+} from '../../boxed-editor/service/portable-utils';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
 import type {InputField, InputNodeModel} from '../input-node/types';
@@ -584,6 +591,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
                       .map(([name, type]) => ({
                           name,
                           type: typeText(type) ?? 'object',
+                          value: valueText(input[name]),
                           used: readsField(engine.toPortable(), field, name),
                       }))
                 : [];
@@ -677,6 +685,26 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             notify();
         },
 
+        setInputFieldValue(field, name, text) {
+            const input = inputAt(field);
+            if (!input) return failure(`node '${field}' does not exist`);
+            if (!(name in input) || name.startsWith('@')) return failure(`'${name}' does not exist`);
+            if (valueText(input[name]) === undefined) return failure(`'${field}.${name}' is a record`);
+            if (text.trim() === '') return failure('A value is required.');
+            const result = setWithLinkCheck(
+                engine,
+                `${field}.${name}`,
+                text as unknown as PortableNode,
+                input[name] as PortableNode,
+            );
+            if (isPortableError(result)) return result;
+            notify();
+        },
+
+        inputValueContext(field, name) {
+            return buildExpressionEmbedContext(engine.toPortable(), `${field}.${name}`);
+        },
+
         async readOutput(source) {
             const keys = source.split('.');
             let firstError: string | undefined;
@@ -708,6 +736,11 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             };
         },
     };
+}
+
+// The expression text of a record field value; undefined for a nested record, which has no single expression.
+function valueText(value: unknown): string | undefined {
+    return isRecord(value) && value['@kind'] === 'context' ? undefined : formatPortableValue(value);
 }
 
 function valueType(value: unknown): string {

@@ -69,12 +69,20 @@ const WIRE_CLASS: Record<Wire['kind'], string> = {
  * The EdgeRules Flow Editor: a canvas of Input, Function and Output nodes with a node palette on the left. Nodes and
  * wires come from the model; positions and output nodes are presentation data reported through `onLayoutChange`.
  */
-export function FlowEditor({service, documentation, readOnly, onOpenNode, ...layout}: FlowEditorProps): ReactElement {
+export function FlowEditor({
+    service,
+    documentation,
+    languageService,
+    readOnly,
+    onOpenNode,
+    ...layout
+}: FlowEditorProps): ReactElement {
     return (
         <ReactFlowProvider>
             <FlowEditorProvider
                 service={service}
                 documentation={documentation}
+                languageService={languageService}
                 readOnly={readOnly}
                 onOpenNode={onOpenNode}
             >

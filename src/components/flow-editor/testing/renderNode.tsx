@@ -39,6 +39,7 @@ export function renderNode(
             <FlowEditorProvider
                 service={service}
                 documentation={documentation}
+                languageService={MutableDecisionService}
                 readOnly={options.readOnly}
                 onOpenNode={options.onOpenNode}
             >

@@ -68,6 +68,7 @@ function Editor({
                 <FlowEditor
                     service={service}
                     documentation={documentation}
+                    languageService={MutableDecisionService}
                     readOnly={readOnly}
                     defaultLayout={seeded ? FLOW_LAYOUT : undefined}
                     onLayoutChange={setLayout}

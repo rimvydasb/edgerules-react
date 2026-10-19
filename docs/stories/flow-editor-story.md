@@ -455,8 +455,13 @@ Acceptance criteria:
 ## Summary
 
 `InputNode` is the source node of the Flow Editor. It renders one model field annotated `@InputNode` whose value is a
-record (`@kind: 'context'`). The node shows structure only: the field name and one output pin per field of the record.
-Wires from these pins feed the argument pins of a `FunctionNode`. Output nodes, not the InputNode, show values.
+record (`@kind: 'context'`).
+
+The node is a table with a Field column and a Value column, and one output pin per field. Wires from these pins
+feed the argument pins of a `FunctionNode`.
+
+The user edits a value in a `CodeEditorCell`, and the commit writes the expression to the model. Every FunctionNode
+and OutputNode that reads the field then recalculates.
 
 The proposal does not draw the InputNode. It is built from the FunctionNode parts: same 40px sheet, same header, band,
 pins, menu and inline edits. The tile uses the input color `#ed6c02`.
@@ -468,6 +473,8 @@ pins, menu and inline edits. The tile uses the input color `#ed6c02`.
 | `src/components/flow-editor/input-node/types.ts`                    | InputNode types: data, model, fields, menu contexts     |
 | `src/components/flow-editor/input-node/InputNode.tsx`               | The `@xyflow/react` custom node component               |
 | `src/components/flow-editor/input-node/inputNodeMenus.tsx`          | Node menu and field menu                                |
+| `src/components/flow-editor/input-node/InputValueCell.tsx`          | Value cell: highlighted text, `CodeEditorCell` in edit  |
+| `src/components/boxed-editor/service/embedContext.ts`               | Model text around a value, for diagnostics and completions |
 | `src/components/flow-editor/input-node/layout.ts`                   | Record summary; delegates to `computeTrackLayout`       |
 | `src/components/flow-editor/service/createFlowEditorService.ts`     | InputNode reads and writes                              |
 | `src/components/flow-editor/input-node/__tests__/`                  | RTL tests against the real `@edgerules/node` engine     |
@@ -483,6 +490,7 @@ interface InputNodeData {
 interface InputField {
     name: string;
     type: string; // 'number', 'string[]', 'object' for a nested record
+    value?: string; // expression text, for example '23' or "'retail'"; undefined for a nested record
     used: boolean; // an expression elsewhere in the model reads `<field>.<name>`; Delete field is disabled
 }
 
@@ -500,6 +508,11 @@ addInputField(field: string, after?: string): PortableError | void; // appends a
 moveInputField(field: string, name: string, direction: 'up' | 'down'): PortableError | void;
 removeInputField(field: string, name: string): PortableError | void; // link-checked, reverted when something reads it
 renameInputField(field: string, from: string, to: string): PortableError | void; // rewrites `<field>.<from>` only, link-checked
+setInputFieldValue(field: string, name: string, text: string): PortableError | void; // an expression; link-checked
+inputValueContext(field: string, name: string): CodeEditorEmbedContext; // model text around the value of a field
+
+// Added to FlowEditorProviderProps and FlowEditorProps
+languageService?: CodeEditorService; // diagnostics and completions of value cells; omit to show values read-only
 ```
 
 `setNodeName`, `renameField`, `duplicate`, `removeFromFlow` and `deleteField` act on an InputNode when `field` is one.
@@ -512,8 +525,9 @@ renameInputField(field: string, from: string, to: string): PortableError | void;
 | Header line 1   | `label`, `field`    | Bold label, mono field name, node menu ⋮                                   |
 | Header line 2   | `fields`            | INPUT label, `{ age, income }` summary, whole-record pin `out:*`           |
 | Description row | `DocumentationService` | Same as the FunctionNode                                                |
-| Field band      | `fields.length`     | Reads FIELD or FIELDS                                                      |
-| Field row       | `InputField`        | Right-aligned name; click to rename; field menu ⋮ on the left; pin `out:<name>`; no values |
+| Band            | `fields.length`     | FIELD or FIELDS over the names; VALUE or VALUES over the values            |
+| Field cell      | `InputField.name`   | Name; click to rename; field menu ⋮ at the end of the cell                 |
+| Value cell      | `InputField.value`  | Highlighted expression; click to edit in a `CodeEditorCell`; pin `out:<name>` |
 
 - **Handle ids:** `out:<field>` and `out:*`. There are no input handles.
 - **Source path:** `<nodeId>.<field>`, or `<nodeId>` for `out:*`.
@@ -554,6 +568,12 @@ renameInputField(field: string, from: string, to: string): PortableError | void;
 - Pin positions: xyflow measures the handles of a node only on mount and resize. Reordering, adding or renaming
   rows keeps the node size, so the wires stayed at the old pin positions (age appeared wired to income). Both node
   components call `useSyncPins(id, key)` (`updateNodeInternals`) when the ordered handle ids or the width change.
+- The value cell commits on Enter or blur and restores the value on Escape. A rejected value keeps the editor open.
+  The row then shows the engine message.
+- `setInputFieldValue` writes the text with `set('<field>.<name>', text)` and a link check. A value whose type breaks
+  a reader, for example a string for `risk(age: number)`, is reverted.
+- A nested record shows `{ … }` and is not editable. Without `languageService`, or in read-only mode, values are text.
+- The value editor has the `nodrag nowheel nokey` classes. Typing Backspace in it does not delete the selected node.
 - Dragging a wire from an InputNode is out of this story. Wires are written by the target FunctionNode (`bindArgument`).
 
 ## Tasks
@@ -568,6 +588,10 @@ renameInputField(field: string, from: string, to: string): PortableError | void;
 - [x] Fix: wires follow their pins after Move up, Move down, add, delete and rename (`useSyncPins`, both nodes)
 - [x] Fix: field rename is path-based
 - [x] E2E tests for the InputNode in `e2e/flow-editor/input-node.spec.ts`
+- [x] Value column: `InputValueCell`, `setInputFieldValue`, `inputValueContext`, `languageService` prop
+- [x] Tests: value edit in `InputNode.test.tsx`, `setInputFieldValue` in `createFlowEditorService.test.ts`
+- [x] Stories: ReadOnly, EditValue; `languageService` in the InputNode and FlowEditor stories
+- [x] E2E: an input value edit recalculates the output nodes, in `e2e/flow-editor/flow-editor.spec.ts`
 
 # Flow Editor: Canvas
 

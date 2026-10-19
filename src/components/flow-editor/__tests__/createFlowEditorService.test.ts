@@ -444,10 +444,65 @@ describe('InputNode service', () => {
         const {service} = build();
         service.addInputNode('applicant');
         expect(service.getInputNode('applicant').fields).toEqual([
-            {name: 'age', type: 'number', used: true},
-            {name: 'income', type: 'number', used: true},
-            {name: 'segment', type: 'string', used: true},
+            {name: 'age', type: 'number', value: '23', used: true},
+            {name: 'income', type: 'number', value: '25000', used: true},
+            {name: 'segment', type: 'string', value: "'retail'", used: true},
         ]);
+    });
+
+    describe('setInputFieldValue', () => {
+        it('writes the expression and recalculates what reads the field', async () => {
+            const {service, portable} = build();
+            service.addInputNode('applicant');
+            expect(await service.readOutput('decision.level')).toEqual({value: 'high', type: 'string'});
+            const listener = vi.fn();
+            service.subscribe(listener);
+
+            expect(service.setInputFieldValue('applicant', 'age', '30')).toBeUndefined();
+
+            expect(listener).toHaveBeenCalled();
+            expect(portable().applicant).toMatchObject({'@node': 'InputNode', age: 30});
+            expect(service.getInputNode('applicant').fields[0]).toMatchObject({name: 'age', value: '30'});
+            expect(await service.readOutput('decision.level')).toEqual({value: 'medium', type: 'string'});
+        });
+
+        it('accepts an expression that reads another field', async () => {
+            const {service} = build();
+            service.addInputNode('applicant');
+            expect(service.setInputFieldValue('applicant', 'age', '20 + 10')).toBeUndefined();
+            expect(service.getInputNode('applicant').fields[0].value).toBe('20 + 10');
+            expect(await service.readOutput('decision.level')).toEqual({value: 'medium', type: 'string'});
+        });
+
+        it('refuses invalid text and keeps the previous value', () => {
+            const {service, portable} = build();
+            service.addInputNode('applicant');
+            expect(isPortableError(service.setInputFieldValue('applicant', 'age', '30 +') as never)).toBe(true);
+            expect(isPortableError(service.setInputFieldValue('applicant', 'age', '  ') as never)).toBe(true);
+            expect(portable().applicant).toMatchObject({age: 23});
+        });
+
+        it('reverts a value whose type breaks a reader', () => {
+            const {service, portable} = build();
+            service.addInputNode('applicant');
+            expect(isPortableError(service.setInputFieldValue('applicant', 'age', "'old'") as never)).toBe(true);
+            expect(portable().applicant).toMatchObject({age: 23});
+        });
+
+        it('refuses a missing field or node', () => {
+            const {service} = build();
+            service.addInputNode('applicant');
+            expect(isPortableError(service.setInputFieldValue('applicant', 'missing', '1') as never)).toBe(true);
+            expect(isPortableError(service.setInputFieldValue('application', 'amount', '1') as never)).toBe(true);
+        });
+    });
+
+    it('inputValueContext wraps the value in the model text around it', () => {
+        const {service} = build();
+        service.addInputNode('applicant');
+        const {prefix, suffix} = service.inputValueContext('applicant', 'age');
+        expect(prefix).toMatch(/applicant: \{ age: $/);
+        expect(suffix).toMatch(/^; income: 25000/);
     });
 
     it('returns no fields for a record that is not an input node', () => {
@@ -612,7 +667,9 @@ describe('FlowEditorService flow nodes', () => {
         const field = service.createInputNode();
         expect(field).toBe('input');
         expect(portable().input).toMatchObject({'@kind': 'context', '@node': 'InputNode', value: 0});
-        expect(service.getInputNode('input').fields).toEqual([{name: 'value', type: 'number', used: false}]);
+        expect(service.getInputNode('input').fields).toEqual([
+            {name: 'value', type: 'number', value: '0', used: false},
+        ]);
         expect(service.createInputNode()).toBe('input2');
         expect(listener).toHaveBeenCalledTimes(2);
     });
