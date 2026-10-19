@@ -17,18 +17,18 @@ EdgeRules Flow editor displays root invocations in the model, so:
 }
 ```
 
-| `@kind`             | Portable type                        | Description                           |
-|---------------------|--------------------------------------|---------------------------------------|
-| `context`           | `PortableContext`                    | Model context and sub-contexts        |
-| `type`              | `PortableTypedValue`                 | Types Holes                           |
-| `type-definition`   | `PortableTypeDefinition`             | Type Definition                       |
-| `function`          | `PortableFunctionDefinition`         | Function definition (metaphor)        |
-| `expression`        | `PortableExpression`                 | Expression                            |
-| `invocation`        | `PortableInvocationDefinition`       | Expression that only invokes function |
-| `external-function` | `PortableExternalFunctionDefinition` | External function definition          |
-| `ruleset`           | `PortableRulesetDefinition`          | Ruleset metaphor                      |
-| `loop`              | `PortableLoopDefinition`             | Loop metaphor                         |
-| `optimise`          | `PortableOptimiseDefinition`         | Optimise metaphor                     |
+| `@kind`             | Portable type                        | Description                           | Flow Component | Boxed Expression Component |
+|---------------------|--------------------------------------|---------------------------------------|----------------|----------------------------|
+| `context`           | `PortableContext`                    | Model context and sub-contexts        |                |                            |
+| `type`              | `PortableTypedValue`                 | Types Holes                           |                |                            |
+| `type-definition`   | `PortableTypeDefinition`             | Type Definition                       |                |                            |
+| `function`          | `PortableFunctionDefinition`         | Function definition (metaphor)        |                |                            |
+| `expression`        | `PortableExpression`                 | Expression                            |                |                            |
+| `invocation`        | `PortableInvocationDefinition`       | Expression that only invokes function |                |                            |
+| `external-function` | `PortableExternalFunctionDefinition` | External function definition          |                |                            |
+| `ruleset`           | `PortableRulesetDefinition`          | Ruleset metaphor                      |                |                            |
+| `loop`              | `PortableLoopDefinition`             | Loop metaphor                         |                |                            |
+| `optimise`          | `PortableOptimiseDefinition`         | Optimise metaphor                     |                |                            |
 
 | `@kind`          | Portable type                   | Where it appears                               |
 |------------------|---------------------------------|------------------------------------------------|
