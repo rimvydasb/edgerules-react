@@ -327,7 +327,7 @@ Add an engine-owned persistent entity identity contract before the public projec
 | Scope                   | Unique within the project; globally unique generation makes merging simpler         |
 | Allocation              | Lazy: required only when an addressable entity is referenced by a sidecar           |
 | DSL representation      | Engine-defined metadata/annotation supported by the authoritative DSL specification |
-| Portable representation | Reserved `@id` metadata owned by `edgerules-v2`                                     |
+| Portable representation | Reserved `@id` metadata owned by `edgerules`                                     |
 | Rename/move             | ID is preserved                                                                     |
 | Copy/fork               | ID is preserved                                                                     |
 | Duplicate node          | New ID is allocated                                                                 |
@@ -336,7 +336,7 @@ Add an engine-owned persistent entity identity contract before the public projec
 | Expression internals    | No persistent ID unless they become externally addressable                          |
 | Lookup API              | `ensureEntityId(path)` and `pathForEntityId(id)` are engine operations              |
 
-The exact DSL syntax belongs in the authoritative `edgerules-v2` DSL and Portable specifications. The React repository
+The exact DSL syntax belongs in the authoritative `edgerules` DSL and Portable specifications. The React repository
 must not privately invent it.
 
 ### 6.3 Entity reference
@@ -537,7 +537,7 @@ Import rules:
 ### 10.3 `.bim`
 
 The `.bim` design in
-[`../edgerules-v2/doc/stories/PRECOMPILED_RULES_PROJECT_STORY.md`](../edgerules-v2/doc/stories/PRECOMPILED_RULES_PROJECT_STORY.md)
+[`../edgerules/doc/stories/PRECOMPILED_RULES_PROJECT_STORY.md`](../edgerules/doc/stories/PRECOMPILED_RULES_PROJECT_STORY.md)
 remains the deployment format:
 
 ```mermaid
@@ -1185,7 +1185,7 @@ flowchart TB
 
 | Package/repository           | Responsibility                                                |
 | ---------------------------- | ------------------------------------------------------------- |
-| `edgerules-v2`               | DSL, Portable, engine identity, conversion, execution, `.bim` |
+| `edgerules`               | DSL, Portable, engine identity, conversion, execution, `.bim` |
 | `@edgerules/project-format`  | Public project types, JSON Schemas, migration, `.erproject`   |
 | `@edgerules/project-session` | Framework-neutral working copy and repository ports           |
 | `edgerules-react`            | Reusable React surfaces and thin session integration          |
@@ -1276,11 +1276,11 @@ flowchart LR
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/BUG_REPORTS.md`](docs/BUG_REPORTS.md)
-- [`../edgerules-v2/doc/architecture/ARCHITECTURE.md`](../edgerules-v2/doc/architecture/ARCHITECTURE.md)
-- [`../edgerules-v2/doc/architecture/API_SPEC.md`](../edgerules-v2/doc/architecture/API_SPEC.md)
-- [`../edgerules-v2/doc/architecture/EBNF.md`](../edgerules-v2/doc/architecture/EBNF.md)
-- [`../edgerules-v2/doc/stories/PRECOMPILED_RULES_PROJECT_STORY.md`](../edgerules-v2/doc/stories/PRECOMPILED_RULES_PROJECT_STORY.md)
-- [`../edgerules-v2/tests/wasm/`](../edgerules-v2/tests/wasm/)
+- [`../edgerules/doc/architecture/ARCHITECTURE.md`](../edgerules/doc/architecture/ARCHITECTURE.md)
+- [`../edgerules/doc/architecture/API_SPEC.md`](../edgerules/doc/architecture/API_SPEC.md)
+- [`../edgerules/doc/architecture/EBNF.md`](../edgerules/doc/architecture/EBNF.md)
+- [`../edgerules/doc/stories/PRECOMPILED_RULES_PROJECT_STORY.md`](../edgerules/doc/stories/PRECOMPILED_RULES_PROJECT_STORY.md)
+- [`../edgerules/tests/wasm/`](../edgerules/tests/wasm/)
 
 ### External standards and provider documentation
 

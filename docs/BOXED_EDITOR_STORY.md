@@ -18,7 +18,7 @@ columns.
 | Actions with icons            | `edgerules-react-frames/src/boxed/actions.ts`                                                                           |
 | Test data contract            | [`specs/TESTS_MANAGER_SPEC.md`](specs/TESTS_MANAGER_SPEC.md) — owns `TestCasesService`, `TestRunner`, `TestCase`, `TestResultSet` |
 | Descriptions overlay          | [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md)                                                       |
-| Engine CRUD / DSL             | `../edgerules-v2/doc/architecture/CRUD_SPEC.md`, `.../dsl/RULESET_METAPHOR_SPEC.md`, `.../dsl/OPTIMISATION_METAPHOR_SPEC.md`, `../edgerules-v2/doc/reference/RULESETS_REFERENCE.md`, `.../OPTIMISE_REFERENCE.md` |
+| Engine CRUD / DSL             | `../edgerules/doc/architecture/CRUD_SPEC.md`, `.../dsl/RULESET_METAPHOR_SPEC.md`, `.../dsl/OPTIMISATION_METAPHOR_SPEC.md`, `../edgerules/doc/reference/RULESETS_REFERENCE.md`, `.../OPTIMISE_REFERENCE.md` |
 
 ## Implementation Status
 
@@ -571,7 +571,7 @@ Paths are the engine's CRUD paths — do not invent UI-only paths. `"*"` is the 
 paths (`application.amount`); collection items use indexes (`applicants[0]`); function/ruleset/optimisation bodies are
 addressed through their authored field path (`monthly.result`, `risk.rules[2].then.limit`,
 `factoryProduction.variables.chairs`). Authoritative syntax and filters:
-`../edgerules-v2/doc/architecture/CRUD_SPEC.md`.
+`../edgerules/doc/architecture/CRUD_SPEC.md`.
 
 ## Service composition
 

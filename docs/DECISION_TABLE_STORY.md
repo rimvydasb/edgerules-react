@@ -1,7 +1,7 @@
 # EdgeRules Decision Table Editor
 
 A DMN-style decision table editor over an EdgeRules first-class `ruleset` (see
-`../edgerules-v2/doc/reference/RULESETS_REFERENCE.md`). One grid metaphor covers the three shapes
+`../edgerules/doc/reference/RULESETS_REFERENCE.md`). One grid metaphor covers the three shapes
 enterprise rule engines converge on:
 
 1. **Decision table** — cell-map `when` rows form a condition matrix over the parameters; the
