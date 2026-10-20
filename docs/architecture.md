@@ -342,7 +342,9 @@ The add mode must be explicit. A silent copy loses provenance; a silent link can
 permitted.
 
 `UserProjectsRepository` should normally be account-backed for cross-device access. A user-owned GitHub/S3 index can
-implement the same port. IndexedDB alone is suitable only for an explicitly device-local product.
+implement the same port. IndexedDB alone is suitable only for an explicitly device-local product. Such a product
+uses a `ProjectLocator` with `provider: 'indexeddb'` (`resource` = database name, `projectPath` = project key), where
+IndexedDB is the canonical store of that project. See [PROJECT_SESSION_STORY.md](PROJECT_SESSION_STORY.md).
 
 ### Open-project sequence
 
@@ -484,7 +486,7 @@ classDiagram
   }
 
   class ProjectLocator {
-    +ProviderKind provider
+    +ProviderKind provider "github, s3 or indexeddb (local-only)"
     +string resource
     +string projectPath
   }
@@ -811,17 +813,24 @@ stateDiagram-v2
 
 ### Required engine API
 
-The installed `MutableDecisionService` exposes `toPortable()` but does not expose the existing Rust AST stringifier.
-Persisting DSL after structured CRUD therefore requires this upstream API:
+`@edgerules/web` and `@edgerules/node` `0.0.7-alpha.202610201841` serialize the AST back to DSL through `getCode` /
+`setCode`, so no separate `toCode()` is required:
 
 ```ts
 interface MutableDecisionService {
-  toCode(): string;
+  getCode(path: string, filter?: GetFilter): string | PortableError; // getCode('*') is the whole model
+  setCode(path: string, code: string): PortableNode | PortableError;
+  link(): void; // throws a path-scoped diagnosis when linking fails
 }
 ```
 
-Until `toCode()` exists, either structured edits cannot be saved as DSL or Portable JSON must become the persisted model
-format. The latter contradicts this architecture's explicit `model.edge` requirement, so `toCode()` is a prerequisite.
+`ProjectEngine.exportDsl()` is `service.getCode('*')`; `commitDsl(source)` is `MutableDecisionService.fromCode(source)`
+followed by `link()`. Verified on `0.0.7`: structured `set` / `rename` / `setCode` edits appear in `getCode('*')`, and
+`fromCode(getCode('*'))` round-trips.
+
+Known limits, tracked in `docs/engine-bug-reports.md`: the output is a single-line canonical form (comments in the
+source are not preserved), and `rename` does not migrate references. The project package therefore stores long-form
+documentation in sidecars, not comments.
 
 ## Persistence and concurrency
 
@@ -911,7 +920,7 @@ project aggregate.
 | `TestCasesService` owns hidden IndexedDB persistence.           | Inject persistence and route authored changes to `ProjectSession`.           | Project save and rename must be atomic across slices.                     |
 | `TestsManager` constructs its own `TestCasesService`.           | Accept a session-owned service/factory as a prop.                            | The Shell must supply the loaded project's test state.                    |
 | Authored tests and execution results share one service.         | Persist authored tests; move results to `TestRunCache`.                      | Results are derived, staleable and reproducible.                          |
-| Engine has `toPortable()` but no public `toCode()`.             | Expose canonical DSL serialization upstream.                                 | Structured edits must update `model.edge`.                                |
+| Engine DSL serialization.                                       | Done in `0.0.7`: use `getCode('*')`; no work required.                       | Structured edits update `model.edge`.                                     |
 | No React Flow store exists.                                     | Add `FlowMetadataStore` with snapshot, replace, rename and subscribe APIs.   | Flow layout must participate in load/save/undo.                           |
 
 Compatibility rule: standalone components may keep their current IndexedDB-backed factories. The application Shell must
@@ -969,7 +978,7 @@ Provider tokens, AWS secrets and long-lived credentials must not enter React sta
 | 1   | One `ProjectSession` per open project.                         | Defines one mutation, history, validation and persistence boundary.                                          |
 | 2   | No state-owning `ProjectState` React component.                | Project state outlives individual editor renders and integrates mutable non-React services.                  |
 | 3   | `ProjectProvider` injects a stable session.                    | Context is used for dependency injection without broad rerenders.                                            |
-| 4   | Remote repository is canonical; IndexedDB is recovery/cache.   | Prevents split-brain between devices and between project artifacts.                                          |
+| 4   | Remote repository is canonical; IndexedDB is recovery/cache, except for explicitly local (`indexeddb` locator) projects. | Prevents split-brain between devices and between project artifacts.                       |
 | 5   | Catalog/user-library metadata uses a server-state query cache. | It needs caching, deduplication, pagination, staleness and invalidation, not hand-written component effects. |
 | 6   | All authored slices save as one revision.                      | DSL, docs, tests and flow metadata must be reproducible together.                                            |
 | 7   | All mutations are typed project commands.                      | Cross-slice operations, undo/redo and one-notification transactions become enforceable.                      |

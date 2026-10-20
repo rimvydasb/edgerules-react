@@ -192,6 +192,11 @@ interface MutableDecisionService {
 }
 ```
 
+>
+> **Update (engine `0.0.7-alpha.202610201841`):** the DSL serialization half of this API ships as `getCode(path)` /
+> `setCode(path, code)`; `getCode('*')` returns the whole model. Read `toCode()` in this document as `getCode('*')`.
+> `toPortable()`, `fromPortable()` and the entity-ID operations are still to be verified against the installed package.
+
 Required invariants:
 
 | Invariant                                                                                   | Gate                           |

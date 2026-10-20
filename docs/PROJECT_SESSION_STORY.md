@@ -168,7 +168,7 @@ interface ProjectSessionManager {
 ```
 
 `ProjectFactory.createBundle` is the part to design in detail during task 5: how a Portable-only input is turned into
-the authored DSL depends on the engine's `toCode()` (see Risks).
+the authored DSL comes from `MutableDecisionService.fromPortable(...)` followed by `getCode('*')`.
 
 ## Tasks
 
@@ -183,7 +183,8 @@ Work in this order; each task builds on the previous one and ships with tests ag
 - [ ] **3. Session-backed slice stores.** Add `exportDocument` / `replaceDocument` / `renamePath` / `subscribe` to the
   documentation store, a `ProjectTestsStore` owning every subject and returning `TestCasesService` facades, and a
   `FlowMetadataStore`. The existing IndexedDB-backed factories stay for standalone use.
-- [ ] **4. `ProjectEngine` and `ProjectSession`.** `ProjectSession` owns the `MutableDecisionService` wrapped as
+- [ ] **4. `ProjectEngine` and `ProjectSession`.** Bump the `@edgerules/*` dependencies to `0.0.7-alpha.202610201841`.
+  `ProjectEngine.exportDsl()` is `getCode('*')`. `ProjectSession` owns the `MutableDecisionService` wrapped as
   `ProjectEngine` (`commitDsl`, `get`/`set`/`remove`/`rename`, `toPortable`), the slice stores, typed commands,
   transactions with one notification, dirty state, `save()` and `dispose()`. Components receive the facade, never the raw
   service.
@@ -198,9 +199,13 @@ Work in this order; each task builds on the previous one and ships with tests ag
 
 ## Risks and open questions
 
-- **`toCode()`:** the installed `MutableDecisionService` has no `toCode()`. Without it, structured edits cannot be
-  persisted as `model/main.edge`. Until the engine ships it, the local repository may store the last valid DSL only and
-  reject saves after structured edits, or temporarily store Portable. This must be an explicit decision in task 1.
+- **DSL serialization:** resolved in engine `0.0.7-alpha.202610201841`. `getCode('*')` returns the whole model as DSL
+  (verified: it reflects structured `set` / `rename` / `setCode` edits and round-trips through `fromCode`). The package
+  dependencies in `package.json` are still on `0.0.6`; task 4 bumps `@edgerules/web`, `@edgerules/portable` and
+  `@edgerules/node` first.
+- **Comments are not preserved:** `getCode('*')` emits a single-line canonical form, so source comments are dropped
+  on save. Treat this as an engine limitation: report it in `docs/engine-bug-reports.md` and keep long-form
+  documentation in the documentation sidecar.
 - **Multiple models per project:** out of scope; `activeModel` is the only seam (decision 8).
 - **Invalid DSL drafts:** the `ProjectDraftStore` for crash recovery (architecture phase 6) is not part of this story.
   Task 4 keeps the draft in memory only.

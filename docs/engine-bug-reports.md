@@ -111,6 +111,22 @@ Expected behavior: an error code and a message in the E113 style, for example
 Editor `FunctionNode` and the Boxed Editor both need to attach the error to one argument row. Today they can only
 do that by assuming the row the user just edited caused it.
 
+## `getCode('*')` drops source comments and formatting
+
+Found on `@edgerules/node` **`0.0.7-alpha.202610201841`** (2026-10-20). `fromCode` followed by `getCode('*')` returns a
+single-line canonical form and silently deletes comments:
+
+```ts
+MutableDecisionService.fromCode('{\n  // keep me\n  a: 1\n  b: a + 1\n}').getCode('*');
+// "{ a: 1; b: a + 1 }"
+```
+
+A project persisted from `getCode('*')` loses all authored comments on the first save, and every save of a multi-line
+model produces one very long line, which makes Git diffs poor.
+
+Expected behavior: preserve comments as trivia, or reject the operation instead of deleting them silently
+(`GLOBAL_PROJECT_MANAGEMENT.md` §4.5); ideally offer a multi-line canonical printer.
+
 ---
 
 ## Clarified behaviour — not bugs
