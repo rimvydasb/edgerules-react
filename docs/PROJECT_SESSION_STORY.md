@@ -1,0 +1,214 @@
+# EdgeRules Project Session
+
+Today every component receives an engine `service` from the host, and the documentation and test services key their own
+hidden IndexedDB stores by `modelName`. Nothing loads a project, holds the engine, or initialises the surrounding
+services together. This story adds that layer, starting with a device-local IndexedDB project source.
+
+It implements the first slices of `docs/architecture.md` ("Project state architecture") and
+`docs/GLOBAL_PROJECT_MANAGEMENT.md` §5 and §15. It does not replace them; where this story is more specific, the
+architecture documents are updated (see [Reconciliation](#reconciliation-with-the-architecture-docs)).
+
+## Decisions
+
+| #  | Decision                                                                                                         | Reason                                                                                          |
+|----|------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| 1  | `ProjectRepository` is bundle-level: `load`, `create`, `save(expectedRevision)`, plus `list` on the local one.   | Matches the architecture port; all authored slices save as one revision (architecture #6).      |
+| 2  | Only `ProjectSession` talks to the repository. Documentation, tests and flow never read or write it directly.    | Prevents split-brain and keeps renames atomic across slices (architecture #7).                  |
+| 3  | Slice stores are in-memory, session-owned, and expose `exportDocument` / `replaceDocument` / `subscribe`.        | A save moves every slice as one bundle; stores stay framework-neutral.                          |
+| 4  | `ProjectSession` owns the `MutableDecisionService`, wrapped as `ProjectEngine`. Components get the facade only.  | One mutation and validation boundary; resolves Boxed/Flow facade cache coherence.               |
+| 5  | The core open API is `open(locator)`. Name lookup is `LocalProjectRepository.findByName(name)`.                  | `modelName` is not unique; project identity is the locator, the manifest `name` is display text. |
+| 6  | `ProjectFactory` turns DSL or Portable (plus optional slice data) into a `ProjectBundle`. It does not persist.   | Keeps conversion separate from storage; `repository.create` accepts only finished bundles.      |
+| 7  | `LocalProjectRepository` is a device-local provider (`provider: 'indexeddb'`), canonical only for local projects. | Architecture #4 forbids IndexedDB as the canonical source for cloud projects, not for local ones. |
+| 8  | One model per project (manifest `model.source`). `ProjectSession` exposes `activeModel` as a seam.               | Multi-model needs engine support and a format change; decide it separately.                     |
+| 9  | The repository is injected into `ProjectSessionManager`. `LocalProjectRepository` is only the default.           | Keeps GitHub and S3 adapters pluggable without touching the session.                            |
+
+## Component diagram
+
+Data flow and ownership when a project is opened, edited and saved. Solid arrows are calls; dotted arrows carry data.
+
+```mermaid
+flowchart LR
+    subgraph ui["React"]
+        Storybook
+        Shell
+        ProjectProvider
+        Editors["Editors: ProjectExplorer, CodeEditor, BoxedEditor, DecisionTableEditor, TestsManager"]
+    end
+
+    subgraph core["Framework-neutral core"]
+        ProjectSessionManager
+        ProjectFactory
+        subgraph session["ProjectSession"]
+            ProjectEngine
+            DocumentationStore
+            ProjectTestsStore
+            FlowMetadataStore
+        end
+    end
+
+    subgraph persistence["Persistence"]
+        ProjectRepository["ProjectRepository (port)"]
+        LocalProjectRepository
+        IndexedDb[(IndexedDB)]
+    end
+
+    Engine["MutableDecisionService (@edgerules/web)"]
+
+    Storybook -->|open locator| ProjectSessionManager
+    Shell -->|open locator| ProjectSessionManager
+    ProjectSessionManager -->|load locator| ProjectRepository
+    ProjectSessionManager -->|creates| session
+    Storybook -->|createBundle input| ProjectFactory
+    ProjectFactory -.->|ProjectBundle| Storybook
+    Storybook -->|create target, bundle| ProjectRepository
+    LocalProjectRepository -.->|implements| ProjectRepository
+    LocalProjectRepository -.->|bundle, revision| IndexedDb
+    ProjectEngine -->|fromCode, get, set| Engine
+    session -.->|LoadedProject.bundle| ProjectEngine
+    session -.->|LoadedProject.bundle| DocumentationStore
+    session -.->|LoadedProject.bundle| ProjectTestsStore
+    session -.->|LoadedProject.bundle| FlowMetadataStore
+    ProjectSessionManager -.->|ProjectSession| ProjectProvider
+    ProjectProvider -.->|stable session| Editors
+    Editors -->|commands| session
+    session -->|save bundle, expectedRevision| ProjectRepository
+```
+
+### Open sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Story as Storybook
+    participant Manager as ProjectSessionManager
+    participant Repo as LocalProjectRepository
+    participant Session as ProjectSession
+    participant Engine as ProjectEngine
+    Story->>Manager: open(locator)
+    Manager->>Repo: load(locator)
+    Repo-->>Manager: LoadedProject(bundle, revision)
+    Manager->>Session: create(loadedProject)
+    Session->>Engine: commitDsl(bundle.model)
+    Session->>Session: replaceDocument on each slice store
+    Manager-->>Story: ProjectSession
+```
+
+### Create sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Story as Storybook
+    participant Factory as ProjectFactory
+    participant Repo as LocalProjectRepository
+    participant Manager as ProjectSessionManager
+    Story->>Factory: createBundle(input)
+    Factory-->>Story: ProjectBundle
+    Story->>Repo: create(target, bundle)
+    Repo-->>Story: LoadedProject(locator)
+    Story->>Manager: open(locator)
+    Manager-->>Story: ProjectSession
+```
+
+### Save sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Editor
+    participant Session as ProjectSession
+    participant Repo as ProjectRepository
+    Editor->>Session: execute(command)
+    Session->>Session: update slices, notify once
+    Editor->>Session: save()
+    Session->>Session: exportBundle()
+    Session->>Repo: save(locator, bundle, expectedRevision)
+    alt revision matches
+        Repo-->>Session: SaveResult(revision)
+    else revision changed
+        Repo-->>Session: conflict
+    end
+```
+
+## Contracts
+
+```ts
+interface ProjectLocator {
+  provider: 'indexeddb' | 'github' | 's3'; // 'indexeddb' is added by this story
+  resource: string; // indexeddb: database name
+  projectPath: string; // indexeddb: project key
+}
+
+interface ProjectRepository {
+  load(locator: ProjectLocator, revision?: string): Promise<LoadedProject>;
+  create(target: ProjectLocator, bundle: ProjectBundle): Promise<LoadedProject>;
+  save(locator: ProjectLocator, bundle: ProjectBundle, expectedRevision: string): Promise<SaveResult>;
+}
+
+interface LocalProjectRepository extends ProjectRepository {
+  list(): Promise<ProjectDescriptor[]>;
+  findByName(name: string): Promise<ProjectLocator | undefined>;
+}
+
+interface ProjectFactory {
+  createBundle(input: {
+    name: string;
+    model: { dsl: string } | { portable: PortableRootContext };
+    documentation?: DocumentationDocument;
+    tests?: TestSuitesDocument;
+    flow?: FlowMetadataDocument;
+  }): ProjectBundle;
+}
+
+interface ProjectSessionManager {
+  open(locator: ProjectLocator, revision?: string): Promise<ProjectSession>;
+  get(projectId: string): ProjectSession | undefined;
+  close(projectId: string): Promise<void>; // disposes the engine and subscriptions
+}
+```
+
+`ProjectFactory.createBundle` is the part to design in detail during task 5: how a Portable-only input is turned into
+the authored DSL depends on the engine's `toCode()` (see Risks).
+
+## Tasks
+
+Work in this order; each task builds on the previous one and ships with tests against the real engine.
+
+- [ ] **1. Bundle schema and locator.** Define `ProjectBundle`, the manifest (`edgerules.project.json`, one
+  `model.source`), `ProjectLocator` with `provider: 'indexeddb'`, and validators plus a `formatVersion` migration hook.
+  Schema round-trip tests.
+- [ ] **2. `ProjectRepository` port and `LocalProjectRepository`.** Implement `load`, `create`, `save` with a revision
+  counter and `expectedRevision` conflict detection, plus local-only `list()` and `findByName()`. Share a repository
+  contract test suite so GitHub and S3 adapters can reuse it later.
+- [ ] **3. Session-backed slice stores.** Add `exportDocument` / `replaceDocument` / `renamePath` / `subscribe` to the
+  documentation store, a `ProjectTestsStore` owning every subject and returning `TestCasesService` facades, and a
+  `FlowMetadataStore`. The existing IndexedDB-backed factories stay for standalone use.
+- [ ] **4. `ProjectEngine` and `ProjectSession`.** `ProjectSession` owns the `MutableDecisionService` wrapped as
+  `ProjectEngine` (`commitDsl`, `get`/`set`/`remove`/`rename`, `toPortable`), the slice stores, typed commands,
+  transactions with one notification, dirty state, `save()` and `dispose()`. Components receive the facade, never the raw
+  service.
+- [ ] **5. `ProjectSessionManager`.** `open(locator)`, `get`, `close`. Repository injected; `LocalProjectRepository` is
+  the default. Multi-project isolation tests.
+- [ ] **6. `ProjectFactory.createBundle`.** Accept EdgeRules DSL or Portable, plus optional documentation, test and flow
+  slices. Persisting is the caller's job (`repository.create`). Design the optional-slice input in this task.
+- [ ] **7. `ProjectProvider` and `useProjectSlice`.** Stable session via context, slice subscriptions via
+  `useSyncExternalStore`. Update `ProjectExplorer`, editors and `TestsManager` stories to build their session through
+  `ProjectFactory` + `LocalProjectRepository` + `ProjectSessionManager`.
+- [ ] **8. Docs.** Update `architecture.md` per the reconciliation list; add the storybook helper to the README.
+
+## Risks and open questions
+
+- **`toCode()`:** the installed `MutableDecisionService` has no `toCode()`. Without it, structured edits cannot be
+  persisted as `model/main.edge`. Until the engine ships it, the local repository may store the last valid DSL only and
+  reject saves after structured edits, or temporarily store Portable. This must be an explicit decision in task 1.
+- **Multiple models per project:** out of scope; `activeModel` is the only seam (decision 8).
+- **Invalid DSL drafts:** the `ProjectDraftStore` for crash recovery (architecture phase 6) is not part of this story.
+  Task 4 keeps the draft in memory only.
+
+## Reconciliation with the architecture docs
+
+- `architecture.md` decision #4 and the line stating IndexedDB alone suits only a device-local product: add that a
+  `provider: 'indexeddb'` locator is the canonical source for explicitly local projects.
+- `architecture.md` `ProjectLocator`: add `'indexeddb'` to `ProviderKind`.
+- `architecture.md` `ProjectRepository`: no change; `list`/`findByName` are local-only extensions.
+- `architecture.md` "Required service evolution": cite this story for the order of the slice-store work.
