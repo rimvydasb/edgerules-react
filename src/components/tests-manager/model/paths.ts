@@ -10,7 +10,7 @@ export type PathSegment = string | number; // A field name, or an array index.
 
 /** True when `path` addresses an array element — the precondition for duplicating a row. */
 export function hasIndex(path: string): boolean {
-  return path.includes('[');
+    return path.includes('[');
 }
 
 /**
@@ -20,7 +20,7 @@ export function hasIndex(path: string): boolean {
  * schema only ever describes element `[0]`.
  */
 export function normalizeIndexes(path: string): string {
-  return path.replace(INDEX_PATTERN, '[0]');
+    return path.replace(INDEX_PATTERN, '[0]');
 }
 
 /**
@@ -29,26 +29,26 @@ export function normalizeIndexes(path: string): string {
  * typed path *syntactically* invalid (as opposed to unknown to the model).
  */
 export function parsePathSegments(path: string): PathSegment[] | undefined {
-  if (path === '') return [];
-  const segments: PathSegment[] = [];
-  for (const part of path.split('.')) {
-    const match = SEGMENT_PATTERN.exec(part);
-    if (!match) return undefined;
-    segments.push(match[1]);
-    for (const index of match[2].matchAll(INDEX_PATTERN)) {
-      segments.push(Number(index[1]));
+    if (path === '') return [];
+    const segments: PathSegment[] = [];
+    for (const part of path.split('.')) {
+        const match = SEGMENT_PATTERN.exec(part);
+        if (!match) return undefined;
+        segments.push(match[1]);
+        for (const index of match[2].matchAll(INDEX_PATTERN)) {
+            segments.push(Number(index[1]));
+        }
     }
-  }
-  return segments;
+    return segments;
 }
 
 export function isValidPathSyntax(path: string): boolean {
-  return parsePathSegments(path) !== undefined;
+    return parsePathSegments(path) !== undefined;
 }
 
 /** Number of segments in `path`, used to bind shallower input paths before deeper ones. */
 export function pathDepth(path: string): number {
-  return parsePathSegments(path)?.length ?? path.split('.').length;
+    return parsePathSegments(path)?.length ?? path.split('.').length;
 }
 
 /**
@@ -57,22 +57,22 @@ export function pathDepth(path: string): number {
  * universe carries the prefixes too.
  */
 export function pathPrefixes(path: string): string[] {
-  if (path === '') return [''];
-  const prefixes: string[] = [];
-  let current = '';
-  for (const part of path.split('.')) {
-    const match = SEGMENT_PATTERN.exec(part);
-    const name = match ? match[1] : part;
-    current = current === '' ? name : `${current}.${name}`;
-    prefixes.push(current);
-    if (match) {
-      for (const index of match[2].matchAll(INDEX_PATTERN)) {
-        current = `${current}${index[0]}`;
+    if (path === '') return [''];
+    const prefixes: string[] = [];
+    let current = '';
+    for (const part of path.split('.')) {
+        const match = SEGMENT_PATTERN.exec(part);
+        const name = match ? match[1] : part;
+        current = current === '' ? name : `${current}.${name}`;
         prefixes.push(current);
-      }
+        if (match) {
+            for (const index of match[2].matchAll(INDEX_PATTERN)) {
+                current = `${current}${index[0]}`;
+                prefixes.push(current);
+            }
+        }
     }
-  }
-  return prefixes;
+    return prefixes;
 }
 
 /**
@@ -80,11 +80,11 @@ export function pathPrefixes(path: string): string[] {
  * normalized to zero. Membership in this set is what the Path cell highlights against.
  */
 export function collectKnownPaths(paths: Iterable<string>): Set<string> {
-  const known = new Set<string>();
-  for (const path of paths) {
-    for (const prefix of pathPrefixes(path)) known.add(normalizeIndexes(prefix));
-  }
-  return known;
+    const known = new Set<string>();
+    for (const path of paths) {
+        for (const prefix of pathPrefixes(path)) known.add(normalizeIndexes(prefix));
+    }
+    return known;
 }
 
 /**
@@ -92,9 +92,9 @@ export function collectKnownPaths(paths: Iterable<string>): Set<string> {
  * could not be read) accepts everything rather than painting every row red.
  */
 export function isKnownPath(path: string, known: ReadonlySet<string>): boolean {
-  if (known.size === 0) return true;
-  if (!isValidPathSyntax(path)) return false;
-  return known.has(normalizeIndexes(path));
+    if (known.size === 0) return true;
+    if (!isValidPathSyntax(path)) return false;
+    return known.has(normalizeIndexes(path));
 }
 
 /**
@@ -105,20 +105,20 @@ export function isKnownPath(path: string, known: ReadonlySet<string>): boolean {
  * `path` carries no index, which is why the action is only offered for indexed rows.
  */
 export function nextDuplicatePath(path: string, taken: Iterable<string>): string | undefined {
-  const lastIndex = path.lastIndexOf('[');
-  if (lastIndex === -1) return undefined;
-  const close = path.indexOf(']', lastIndex);
-  if (close === -1) return undefined;
+    const lastIndex = path.lastIndexOf('[');
+    if (lastIndex === -1) return undefined;
+    const close = path.indexOf(']', lastIndex);
+    if (close === -1) return undefined;
 
-  const head = path.slice(0, lastIndex);
-  const tail = path.slice(close + 1);
-  const current = Number(path.slice(lastIndex + 1, close));
-  if (!Number.isInteger(current)) return undefined;
+    const head = path.slice(0, lastIndex);
+    const tail = path.slice(close + 1);
+    const current = Number(path.slice(lastIndex + 1, close));
+    if (!Number.isInteger(current)) return undefined;
 
-  const used = new Set(taken);
-  for (let next = current + 1; next < current + 1000; next += 1) {
-    const candidate = `${head}[${next}]${tail}`;
-    if (!used.has(candidate)) return candidate;
-  }
-  return undefined;
+    const used = new Set(taken);
+    for (let next = current + 1; next < current + 1000; next += 1) {
+        const candidate = `${head}[${next}]${tail}`;
+        if (!used.has(candidate)) return candidate;
+    }
+    return undefined;
 }

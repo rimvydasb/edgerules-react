@@ -1,6 +1,6 @@
-import { MutableDecisionService } from '@edgerules/node/mutable';
-import { describe, expect, it } from 'vitest';
-import { listCallables } from '../callables';
+import {MutableDecisionService} from '@edgerules/node/mutable';
+import {describe, expect, it} from 'vitest';
+import {listCallables} from '../callables';
 
 const MODEL = `{
     library: {
@@ -32,27 +32,27 @@ const MODEL = `{
 }`;
 
 describe('listCallables', () => {
-  it('lists every fully typed callable of all four kinds by dotted path', () => {
-    const callables = listCallables(MutableDecisionService.fromCode(MODEL));
-    expect(callables).toEqual(
-      expect.arrayContaining([
-        { path: 'library.eligibility', kind: 'function' },
-        { path: 'risk', kind: 'ruleset' },
-        { path: 'amortize', kind: 'loop' },
-        { path: 'outer', kind: 'function' },
-        { path: 'plan', kind: 'optimise' },
-      ]),
-    );
-    expect(callables).toHaveLength(5);
-  });
+    it('lists every fully typed callable of all four kinds by dotted path', () => {
+        const callables = listCallables(MutableDecisionService.fromCode(MODEL));
+        expect(callables).toEqual(
+            expect.arrayContaining([
+                {path: 'library.eligibility', kind: 'function'},
+                {path: 'risk', kind: 'ruleset'},
+                {path: 'amortize', kind: 'loop'},
+                {path: 'outer', kind: 'function'},
+                {path: 'plan', kind: 'optimise'},
+            ]),
+        );
+        expect(callables).toHaveLength(5);
+    });
 
-  it('excludes callables with untyped parameters and callables nested in a body', () => {
-    const paths = listCallables(MutableDecisionService.fromCode(MODEL)).map((c) => c.path);
-    expect(paths).not.toContain('untyped');
-    expect(paths).not.toContain('outer.inner');
-  });
+    it('excludes callables with untyped parameters and callables nested in a body', () => {
+        const paths = listCallables(MutableDecisionService.fromCode(MODEL)).map((c) => c.path);
+        expect(paths).not.toContain('untyped');
+        expect(paths).not.toContain('outer.inner');
+    });
 
-  it('returns an empty list for a model without callables', () => {
-    expect(listCallables(MutableDecisionService.fromCode('{ a: 1 }'))).toEqual([]);
-  });
+    it('returns an empty list for a model without callables', () => {
+        expect(listCallables(MutableDecisionService.fromCode('{ a: 1 }'))).toEqual([]);
+    });
 });

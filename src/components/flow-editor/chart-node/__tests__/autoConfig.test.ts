@@ -38,7 +38,14 @@ describe('autoConfigure', () => {
     });
 
     it('puts a date column on the horizontal axis', () => {
-        expect(autoConfigure(dataset([{v: 1, month: '2026-01-01'}, {v: 2, month: '2026-02-01'}]))).toEqual({
+        expect(
+            autoConfigure(
+                dataset([
+                    {v: 1, month: '2026-01-01'},
+                    {v: 2, month: '2026-02-01'},
+                ]),
+            ),
+        ).toEqual({
             kind: 'line',
             x: 'month',
             series: ['v'],
@@ -46,7 +53,12 @@ describe('autoConfigure', () => {
     });
 
     it('falls back to the row position when no column only grows', () => {
-        const config = autoConfigure(dataset([{a: 3, b: 5}, {a: 2, b: 1}]));
+        const config = autoConfigure(
+            dataset([
+                {a: 3, b: 5},
+                {a: 2, b: 1},
+            ]),
+        );
         expect(config).toEqual({kind: 'line', x: ROW_NUMBER, series: ['a', 'b']});
     });
 

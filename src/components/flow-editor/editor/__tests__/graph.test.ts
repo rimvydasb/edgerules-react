@@ -54,14 +54,32 @@ describe('outputWires', () => {
             new Set(['decision']),
         );
         expect(wires).toEqual([
-            {id: 'output:value', source: 'decision', sourceHandle: 'out:level', target: 'output', targetHandle: 'in:value', kind: 'any'},
+            {
+                id: 'output:value',
+                source: 'decision',
+                sourceHandle: 'out:level',
+                target: 'output',
+                targetHandle: 'in:value',
+                kind: 'any',
+            },
         ]);
     });
 
     it('wires a chart into its data pin', () => {
-        const wires = outputWires([{id: 'chart', source: {node: 'schedule', handle: 'out:result'}}], new Set(['schedule']), 'in:data');
+        const wires = outputWires(
+            [{id: 'chart', source: {node: 'schedule', handle: 'out:result'}}],
+            new Set(['schedule']),
+            'in:data',
+        );
         expect(wires).toEqual([
-            {id: 'chart:data', source: 'schedule', sourceHandle: 'out:result', target: 'chart', targetHandle: 'in:data', kind: 'any'},
+            {
+                id: 'chart:data',
+                source: 'schedule',
+                sourceHandle: 'out:result',
+                target: 'chart',
+                targetHandle: 'in:data',
+                kind: 'any',
+            },
         ]);
     });
 });

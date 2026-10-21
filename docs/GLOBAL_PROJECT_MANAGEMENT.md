@@ -192,7 +192,6 @@ interface MutableDecisionService {
 }
 ```
 
->
 > **Update (engine `0.0.7-alpha.202610201841`):** the DSL serialization half of this API ships as `getCode(path)` /
 > `setCode(path, code)`; `getCode('*')` returns the whole model. Read `toCode()` in this document as `getCode('*')`.
 > `toPortable()`, `fromPortable()` and the entity-ID operations are still to be verified against the installed package.
@@ -332,7 +331,7 @@ Add an engine-owned persistent entity identity contract before the public projec
 | Scope                   | Unique within the project; globally unique generation makes merging simpler         |
 | Allocation              | Lazy: required only when an addressable entity is referenced by a sidecar           |
 | DSL representation      | Engine-defined metadata/annotation supported by the authoritative DSL specification |
-| Portable representation | Reserved `@id` metadata owned by `edgerules`                                     |
+| Portable representation | Reserved `@id` metadata owned by `edgerules`                                        |
 | Rename/move             | ID is preserved                                                                     |
 | Copy/fork               | ID is preserved                                                                     |
 | Duplicate node          | New ID is allocated                                                                 |
@@ -341,8 +340,8 @@ Add an engine-owned persistent entity identity contract before the public projec
 | Expression internals    | No persistent ID unless they become externally addressable                          |
 | Lookup API              | `ensureEntityId(path)` and `pathForEntityId(id)` are engine operations              |
 
-The exact DSL syntax belongs in the authoritative `edgerules` DSL and Portable specifications. The React repository
-must not privately invent it.
+The exact DSL syntax belongs in the authoritative `edgerules` DSL and Portable specifications. The React repository must
+not privately invent it.
 
 ### 6.3 Entity reference
 
@@ -1190,7 +1189,7 @@ flowchart TB
 
 | Package/repository           | Responsibility                                                |
 | ---------------------------- | ------------------------------------------------------------- |
-| `edgerules`               | DSL, Portable, engine identity, conversion, execution, `.bim` |
+| `edgerules`                  | DSL, Portable, engine identity, conversion, execution, `.bim` |
 | `@edgerules/project-format`  | Public project types, JSON Schemas, migration, `.erproject`   |
 | `@edgerules/project-session` | Framework-neutral working copy and repository ports           |
 | `edgerules-react`            | Reusable React surfaces and thin session integration          |

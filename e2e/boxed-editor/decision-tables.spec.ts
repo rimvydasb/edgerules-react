@@ -59,7 +59,7 @@ test.describe('Boxed Editor / decision tables', () => {
         }
     });
 
-    test("does not add condition cells to the default row", async ({page}) => {
+    test('does not add condition cells to the default row', async ({page}) => {
         await openBoxedEditorStory(page, 'decision-table-crud-playground');
         const before = await valueCell(page, 'risk.default').locator('span[tabindex="0"]').count();
         await chooseRowAction(page, 'risk', 'Add condition column');
@@ -144,9 +144,9 @@ test.describe('Boxed Editor / decision tables', () => {
 
     test('offers no Delete or Duplicate on default', async ({page}) => {
         await openBoxedEditorStory(page, 'decision-table-crud-playground');
-        await expect(
-            page.getByTestId('row-risk.default').getByRole('button', {name: 'Open row actions'}),
-        ).toHaveCount(0);
+        await expect(page.getByTestId('row-risk.default').getByRole('button', {name: 'Open row actions'})).toHaveCount(
+            0,
+        );
     });
 
     test('executes an input hitting the first rule', async ({page}) => {

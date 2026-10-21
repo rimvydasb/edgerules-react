@@ -12,21 +12,21 @@ double lines in nested grids.
 Benchmark for 5000 grid cells (median ms, production build, headless Chromium):
 
 | Variant                   | Mount | Rerender |
-|---------------------------|-------|----------|
+| ------------------------- | ----- | -------- |
 | MUI `TextField` with `sx` | 1113  | 413      |
 | Mantine `TextInput`       | 331   | 183      |
 | Plain `<input>` with CSS  | 59    | 33       |
 
 ### Decision
 
-- Use Mantine (`@mantine/core`, `@mantine/hooks`) for dialogs, menus, tooltips, selects, alerts, buttons and the
-  Project Explorer tree. Use `@tabler/icons-react` for icons.
-- Use plain elements with CSS Modules for grid rows, cells, in-cell inputs and layout wrappers. CSS Modules use
-  Mantine CSS variables so themes apply.
+- Use Mantine (`@mantine/core`, `@mantine/hooks`) for dialogs, menus, tooltips, selects, alerts, buttons and the Project
+  Explorer tree. Use `@tabler/icons-react` for icons.
+- Use plain elements with CSS Modules for grid rows, cells, in-cell inputs and layout wrappers. CSS Modules use Mantine
+  CSS variables so themes apply.
 - A cell MUST NOT use a UI library component. A library component MAY sit in a cell only as an overlay.
 - Drop `@mui/*` and `@emotion/*` peer dependencies. Public `sx` props become `style`.
-- The build bundles CSS Modules into the JS and injects them at runtime (`tsdown.config.ts`), so consumers import
-  only `@mantine/core/styles.css`.
+- The build bundles CSS Modules into the JS and injects them at runtime (`tsdown.config.ts`), so consumers import only
+  `@mantine/core/styles.css`.
 
 ### Consequences
 
@@ -44,8 +44,8 @@ evaluates until the argument is bound.
 
 ### Decision
 
-- `FlowEditorService` keeps a node with an unbound required argument in memory only. `getFunctionNode` returns the
-  draft over the committed field, and the node shows a "draft" badge.
+- `FlowEditorService` keeps a node with an unbound required argument in memory only. `getFunctionNode` returns the draft
+  over the committed field, and the node shows a "draft" badge.
 - The service writes the invocation, with `@node: 'FunctionNode'`, when the last required argument is bound.
 - Every write is link-checked. A failed link reverts the write and sets `error.parameter` on the node.
 

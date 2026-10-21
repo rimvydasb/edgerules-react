@@ -80,7 +80,7 @@ Expanding `[types]` and `[vars]` lists their individual entries, each with its o
 - `[type]` - Single type
 
 | Icon      | Description                          | On Expand           | On Click                                 |
-|-----------|--------------------------------------|---------------------|------------------------------------------|
+| --------- | ------------------------------------ | ------------------- | ---------------------------------------- |
 | `[vars]`  | Variables context (global or nested) | Lists all variables | Boxed Expressions Editor (all variables) |
 | `[var]`   | Single variable                      | None                | Boxed Expressions Editor (all variables) |
 | `[ctx]`   | Nested context                       | Render sub-tree     | None                                     |
@@ -97,15 +97,15 @@ Expanding `[types]` and `[vars]` lists their individual entries, each with its o
 3. **Functions**: The functions defined within the current context e.g. `deep()`.
 4. **Types**: The type definitions in that context e.g. `Person` and `PeopleList`. The types section hides all type
    definitions in that context.
-5. **Decision Tables**: A context field is rendered as a Decision Table (`[dt]`) only when it is a `ruleset`
-   declaration (`@kind: "ruleset"`, or its `"ruleset-schema"` projection on `get()`) — a named, callable rule matrix,
-   never a call-position form. Every invocation (`@kind: "invocation"`), whether it calls a plain user function
-   (e.g. `score: calcScore(input.data)`) or a ruleset (e.g. `decision: risk(age: applicant.age)`), is treated like
-   any other computed field and grouped under `[vars]` instead — decision tables come from `[dt]` declarations, not
-   from the calls made against them.
-6. **Ordering**: Within a context, groups always render in this fixed order: `[types]`, `[vars]`, then the
-   individual `[ctx]` / `[func]` / `[dt]` entries in the order they appear in the underlying Portable JSON (i.e.
-   source/document order, not alphabetical).
+5. **Decision Tables**: A context field is rendered as a Decision Table (`[dt]`) only when it is a `ruleset` declaration
+   (`@kind: "ruleset"`, or its `"ruleset-schema"` projection on `get()`) — a named, callable rule matrix, never a
+   call-position form. Every invocation (`@kind: "invocation"`), whether it calls a plain user function (e.g.
+   `score: calcScore(input.data)`) or a ruleset (e.g. `decision: risk(age: applicant.age)`), is treated like any other
+   computed field and grouped under `[vars]` instead — decision tables come from `[dt]` declarations, not from the calls
+   made against them.
+6. **Ordering**: Within a context, groups always render in this fixed order: `[types]`, `[vars]`, then the individual
+   `[ctx]` / `[func]` / `[dt]` entries in the order they appear in the underlying Portable JSON (i.e. source/document
+   order, not alphabetical).
 
 ### Error Handling
 
@@ -114,16 +114,16 @@ resolve). It no longer does so for a **linking** reason: as of the engine's link
 (`../edgerules/doc/architecture/CRUD_SPEC.md`), a CRUD edit that leaves the AST dirty degrades every path — not just the
 broken one — to a raw, type-free projection instead (no error, no `readOnly`/inferred-type info, just the authored
 shape); `MutableDecisionService.link()` is the only call that still throws a precise, path-scoped diagnosis, and it
-isn't exposed through `ProjectExplorerService` today. Practically: a `[ctx]` node whose subtree doesn't currently
-link keeps expanding and rendering its (now-untyped) children rather than getting stuck as an errored leaf — there
-is no engine signal left for this component to show an error badge/tooltip on. When building a node's children, if
-the underlying `get` call returns a genuine `PortableError` (a structural path problem, not linking):
+isn't exposed through `ProjectExplorerService` today. Practically: a `[ctx]` node whose subtree doesn't currently link
+keeps expanding and rendering its (now-untyped) children rather than getting stuck as an errored leaf — there is no
+engine signal left for this component to show an error badge/tooltip on. When building a node's children, if the
+underlying `get` call returns a genuine `PortableError` (a structural path problem, not linking):
 
-- Render the affected node with an error indicator (e.g. an error badge on the icon) instead of failing to render
-  the tree.
+- Render the affected node with an error indicator (e.g. an error badge on the icon) instead of failing to render the
+  tree.
 - Surface `PortableError.message` (and `location`, when present) in a tooltip on that node.
-- Do not expand further into a node that errored — treat it as a leaf until the underlying model is fixed and the
-  path resolves again.
+- Do not expand further into a node that errored — treat it as a leaf until the underlying model is fixed and the path
+  resolves again.
 
 ### Technical Details
 

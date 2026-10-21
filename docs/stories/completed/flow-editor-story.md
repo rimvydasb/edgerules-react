@@ -5,8 +5,8 @@
 `FunctionNode` is the first node of the EdgeRules Flow Editor. It renders one model field annotated `@FunctionNode`
 whose value is a Portable `invocation` of a user-defined `func` or `ruleset`.
 
-The node shows structure only: the callee, one input pin per argument, one output pin per result field. Wires show
-where argument values come from.
+The node shows structure only: the callee, one input pin per argument, one output pin per result field. Wires show where
+argument values come from.
 
 Output nodes show result values. The node renders alone in Storybook inside a `@xyflow/react` canvas.
 
@@ -20,26 +20,26 @@ tasks.
 
 ### Files
 
-| File                                                          | Responsibility                                                              |
-|---------------------------------------------------------------|-----------------------------------------------------------------------------|
-| `src/lib/callables.ts`                                        | `listCallables()`: every user callable in the model, moved from tests-manager |
-| `src/lib/linkCheck.ts`                                        | `setWithLinkCheck()`: write, link, revert on failure; moved from boxed-editor |
-| `src/ui/RowActionsMenu.tsx`                                   | Shared Mantine menu, moved from `boxed-editor/menu/RowActionsMenu.tsx`      |
-| `src/components/flow-editor/index.ts`                         | Public exports of the `edgerules-react/flow-editor` subpath                 |
-| `src/components/flow-editor/FlowEditorProvider.tsx`           | React context for the service, documentation service and host callbacks    |
-| `src/components/flow-editor/flow-editor-types.ts`             | Public and internal types (see Component API)                              |
-| `src/components/flow-editor/service/createFlowEditorService.ts` | Engine-backed reads, writes, drafts and link checks for flow nodes        |
-| `src/components/flow-editor/core-node/`                       | Parts every node kind shares: `NodeFrame` (header, title edits, node menu, description), `Track*` body rows, `Pin`, `InlineInput`, `EditableName`, `DescriptionRow`, core menus, `computeTrackLayout`, hooks, `coreNode.module.css` |
-| `src/components/flow-editor/function-node/types.ts`           | FunctionNode types: data, model, callee, arguments, results, menu contexts |
-| `src/components/flow-editor/function-node/FunctionNode.tsx`   | The `@xyflow/react` custom node component                                  |
-| `src/components/flow-editor/function-node/layout.ts`          | Header widths of the calls line; delegates to `computeTrackLayout`         |
-| `src/components/flow-editor/function-node/CalleePicker.tsx`   | Searchable callee list (Mantine `Combobox`)                                |
-| `src/components/flow-editor/function-node/functionNodeMenus.tsx` | Node menu and argument menu                                             |
-| `src/components/flow-editor/function-node/functionNode.module.css` | Callee chip, picker and draft badge styles                            |
-| `src/components/flow-editor/function-node/__tests__/`         | Vitest + RTL tests against the real `@edgerules/node` engine               |
-| `src/components/flow-editor/testing/`                         | Shared test helpers: `renderNode`, sample model                            |
-| `stories/components/flow-editor/FunctionNode.stories.tsx`     | Storybook stories against the real `@edgerules/web` engine                 |
-| `e2e/flow-editor/function-node.spec.ts`                       | Playwright tests against the built Storybook                               |
+| File                                                               | Responsibility                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/callables.ts`                                             | `listCallables()`: every user callable in the model, moved from tests-manager                                                                                                                                                       |
+| `src/lib/linkCheck.ts`                                             | `setWithLinkCheck()`: write, link, revert on failure; moved from boxed-editor                                                                                                                                                       |
+| `src/ui/RowActionsMenu.tsx`                                        | Shared Mantine menu, moved from `boxed-editor/menu/RowActionsMenu.tsx`                                                                                                                                                              |
+| `src/components/flow-editor/index.ts`                              | Public exports of the `edgerules-react/flow-editor` subpath                                                                                                                                                                         |
+| `src/components/flow-editor/FlowEditorProvider.tsx`                | React context for the service, documentation service and host callbacks                                                                                                                                                             |
+| `src/components/flow-editor/flow-editor-types.ts`                  | Public and internal types (see Component API)                                                                                                                                                                                       |
+| `src/components/flow-editor/service/createFlowEditorService.ts`    | Engine-backed reads, writes, drafts and link checks for flow nodes                                                                                                                                                                  |
+| `src/components/flow-editor/core-node/`                            | Parts every node kind shares: `NodeFrame` (header, title edits, node menu, description), `Track*` body rows, `Pin`, `InlineInput`, `EditableName`, `DescriptionRow`, core menus, `computeTrackLayout`, hooks, `coreNode.module.css` |
+| `src/components/flow-editor/function-node/types.ts`                | FunctionNode types: data, model, callee, arguments, results, menu contexts                                                                                                                                                          |
+| `src/components/flow-editor/function-node/FunctionNode.tsx`        | The `@xyflow/react` custom node component                                                                                                                                                                                           |
+| `src/components/flow-editor/function-node/layout.ts`               | Header widths of the calls line; delegates to `computeTrackLayout`                                                                                                                                                                  |
+| `src/components/flow-editor/function-node/CalleePicker.tsx`        | Searchable callee list (Mantine `Combobox`)                                                                                                                                                                                         |
+| `src/components/flow-editor/function-node/functionNodeMenus.tsx`   | Node menu and argument menu                                                                                                                                                                                                         |
+| `src/components/flow-editor/function-node/functionNode.module.css` | Callee chip, picker and draft badge styles                                                                                                                                                                                          |
+| `src/components/flow-editor/function-node/__tests__/`              | Vitest + RTL tests against the real `@edgerules/node` engine                                                                                                                                                                        |
+| `src/components/flow-editor/testing/`                              | Shared test helpers: `renderNode`, sample model                                                                                                                                                                                     |
+| `stories/components/flow-editor/FunctionNode.stories.tsx`          | Storybook stories against the real `@edgerules/web` engine                                                                                                                                                                          |
+| `e2e/flow-editor/function-node.spec.ts`                            | Playwright tests against the built Storybook                                                                                                                                                                                        |
 
 ### Structural Diagram
 
@@ -88,75 +88,75 @@ The public API is the `edgerules-react/flow-editor` subpath. Keep it to these ex
 ```typescript
 // FlowEditorProvider props
 interface FlowEditorProviderProps {
-    service: FlowEditorService; // engine-backed node service from createFlowEditorService()
-    documentation?: DocumentationService; // stores node descriptions; omit to hide description UI
-    readOnly?: boolean; // disables every mutation; menus show only non-mutating items
-    onOpenNode?: (target: FlowEditorOpenTarget) => void; // routes "Open in…", "Open tests", "View as code" to the host
-    children: ReactNode; // the ReactFlow canvas
+  service: FlowEditorService; // engine-backed node service from createFlowEditorService()
+  documentation?: DocumentationService; // stores node descriptions; omit to hide description UI
+  readOnly?: boolean; // disables every mutation; menus show only non-mutating items
+  onOpenNode?: (target: FlowEditorOpenTarget) => void; // routes "Open in…", "Open tests", "View as code" to the host
+  children: ReactNode; // the ReactFlow canvas
 }
 
 // Host routing target; reuses the Boxed Editor kinds and adds 'tests'
 interface FlowEditorOpenTarget {
-    path: string; // callee path ('risk') or node field path ('decision')
-    kind: BoxedEditorTargetKind | 'tests'; // 'ruleset', 'boxed-editor', 'code-editor' or 'tests'
+  path: string; // callee path ('risk') or node field path ('decision')
+  kind: BoxedEditorTargetKind | 'tests'; // 'ruleset', 'boxed-editor', 'code-editor' or 'tests'
 }
 
 // ReactFlow node data; the node id is the field path
 interface FunctionNodeData {
-    field: string; // model field path of the invocation, for example 'decision'
+  field: string; // model field path of the invocation, for example 'decision'
 }
 
 // Factory
 declare function createFlowEditorService(mutable: MutableDecisionService): FlowEditorService;
 
 interface FlowEditorService {
-    listCallees(): CalleeRef[]; // user func and ruleset entries with only typed parameters
-    getFunctionNode(field: string): FunctionNodeModel; // committed invocation plus any draft overlay
-    createDraftNode(): string; // new field name from uniqueName('node', …); no callee, nothing written
-    setCallee(field: string, method: string): PortableError | void; // keeps bindings with same name and type
-    bindArgument(field: string, parameter: string, sourcePath: string): PortableError | void; // link-checked
-    unbindArgument(field: string, parameter: string): void; // turns the node into a draft
-    setNodeName(field: string, name: string): PortableError | void; // '@node-name' only
-    renameField(field: string, newName: string): PortableError | void; // rewrites wires, moves description
-    duplicate(field: string): string | PortableError; // returns the new field name
-    removeFromFlow(field: string): PortableError | void; // remove(`${field}.@FunctionNode`)
-    deleteField(field: string): PortableError | void; // remove(field), link-checked
-    addArgument(field: string, after?: string): PortableError | void; // after = undefined appends
-    moveArgument(field: string, parameter: string, direction: 'up' | 'down'): PortableError | void;
-    removeArgument(field: string, parameter: string): PortableError | void; // refused when the body uses it
-    renameResult(field: string, from: string, to: string): PortableError | void; // link-checked, reverted on failure
-    subscribe(listener: () => void): Unsubscribe; // fires after every committed change
+  listCallees(): CalleeRef[]; // user func and ruleset entries with only typed parameters
+  getFunctionNode(field: string): FunctionNodeModel; // committed invocation plus any draft overlay
+  createDraftNode(): string; // new field name from uniqueName('node', …); no callee, nothing written
+  setCallee(field: string, method: string): PortableError | void; // keeps bindings with same name and type
+  bindArgument(field: string, parameter: string, sourcePath: string): PortableError | void; // link-checked
+  unbindArgument(field: string, parameter: string): void; // turns the node into a draft
+  setNodeName(field: string, name: string): PortableError | void; // '@node-name' only
+  renameField(field: string, newName: string): PortableError | void; // rewrites wires, moves description
+  duplicate(field: string): string | PortableError; // returns the new field name
+  removeFromFlow(field: string): PortableError | void; // remove(`${field}.@FunctionNode`)
+  deleteField(field: string): PortableError | void; // remove(field), link-checked
+  addArgument(field: string, after?: string): PortableError | void; // after = undefined appends
+  moveArgument(field: string, parameter: string, direction: 'up' | 'down'): PortableError | void;
+  removeArgument(field: string, parameter: string): PortableError | void; // refused when the body uses it
+  renameResult(field: string, from: string, to: string): PortableError | void; // link-checked, reverted on failure
+  subscribe(listener: () => void): Unsubscribe; // fires after every committed change
 }
 
 interface CalleeRef {
-    path: string; // dotted callee path, for example 'risk' or 'group.nested'
-    kind: 'function' | 'ruleset';
-    parameters: SignatureParameter[]; // from get(path, 'FIELDS')
-    returnLabel: string; // 'number' or '{ level, limit }'
+  path: string; // dotted callee path, for example 'risk' or 'group.nested'
+  kind: 'function' | 'ruleset';
+  parameters: SignatureParameter[]; // from get(path, 'FIELDS')
+  returnLabel: string; // 'number' or '{ level, limit }'
 }
 
 interface FunctionNodeModel {
-    field: string; // model field path
-    label?: string; // '@node-name'
-    callee?: CalleeRef; // undefined while no callee is picked
-    arguments: NodeArgument[]; // one per callee parameter, in signature order
-    results: NodeResult[]; // record fields, or one unnamed 'result'
-    draft: boolean; // true while a required argument is unbound; the draft is not in the model
-    callers: number; // invocations of the callee in the whole model
-    error?: { parameter: string; message: string }; // last rejected bindArgument
+  field: string; // model field path
+  label?: string; // '@node-name'
+  callee?: CalleeRef; // undefined while no callee is picked
+  arguments: NodeArgument[]; // one per callee parameter, in signature order
+  results: NodeResult[]; // record fields, or one unnamed 'result'
+  draft: boolean; // true while a required argument is unbound; the draft is not in the model
+  callers: number; // invocations of the callee in the whole model
+  error?: {parameter: string; message: string}; // last rejected bindArgument
 }
 
 interface NodeArgument {
-    name: string;
-    type: string; // 'number', 'string', 'Applicant', 'number[]'
-    binding?: { kind: 'path' | 'value'; text: string }; // 'path' draws a wire; 'value' is a literal or expression
-    used: boolean; // the callee body references it; Delete argument is disabled
+  name: string;
+  type: string; // 'number', 'string', 'Applicant', 'number[]'
+  binding?: {kind: 'path' | 'value'; text: string}; // 'path' draws a wire; 'value' is a literal or expression
+  used: boolean; // the callee body references it; Delete argument is disabled
 }
 
 interface NodeResult {
-    name: string; // field name, or 'result' for an unnamed return
-    type: string;
-    renamable: boolean; // false for the unnamed return of a func
+  name: string; // field name, or 'result' for an unnamed return
+  type: string;
+  renamable: boolean; // false for the unnamed return of a func
 }
 ```
 
@@ -164,28 +164,28 @@ interface NodeResult {
 
 The proposal shows every part. The table maps each part to its data and behavior.
 
-| Part              | Source                                    | Behavior                                                              |
-|-------------------|-------------------------------------------|-----------------------------------------------------------------------|
-| Kind tile         | `callee.kind`                             | Boxed Editor color and icon: `func` `#1976d2`, `ruleset` `#6a1b9a`    |
-| Header line 1     | `label`, `field`, `draft`                 | Bold label, mono field name, "draft" badge, node menu ⋮               |
-| Header line 2     | `callee.path`, `callee.returnLabel`       | Callee chip opens `CalleePicker`; whole-result pin `out:*` at the right edge |
-| Description row   | `DocumentationService` at `field`         | Full width, yellow tint, two-line clamp, click to edit                |
-| Argument band     | `arguments.length`                        | Reads ARGUMENT or ARGUMENTS; hidden with zero parameters              |
-| Result band       | `results.length`                          | Reads RESULT or RESULTS                                               |
-| Argument row      | `NodeArgument`                            | Name and required mark only; ⋮ on hover or focus; pin `in:<name>`     |
-| Result row        | `NodeResult`                              | Right-aligned name; click to rename; pin `out:<name>`                 |
+| Part            | Source                              | Behavior                                                                     |
+| --------------- | ----------------------------------- | ---------------------------------------------------------------------------- |
+| Kind tile       | `callee.kind`                       | Boxed Editor color and icon: `func` `#1976d2`, `ruleset` `#6a1b9a`           |
+| Header line 1   | `label`, `field`, `draft`           | Bold label, mono field name, "draft" badge, node menu ⋮                      |
+| Header line 2   | `callee.path`, `callee.returnLabel` | Callee chip opens `CalleePicker`; whole-result pin `out:*` at the right edge |
+| Description row | `DocumentationService` at `field`   | Full width, yellow tint, two-line clamp, click to edit                       |
+| Argument band   | `arguments.length`                  | Reads ARGUMENT or ARGUMENTS; hidden with zero parameters                     |
+| Result band     | `results.length`                    | Reads RESULT or RESULTS                                                      |
+| Argument row    | `NodeArgument`                      | Name and required mark only; ⋮ on hover or focus; pin `in:<name>`            |
+| Result row      | `NodeResult`                        | Right-aligned name; click to rename; pin `out:<name>`                        |
 
 The node MUST NOT show argument bindings or result values. The pin tooltip shows the binding text.
 
 ### Pins
 
-| Pin            | Condition                                         | Style                               |
-|----------------|---------------------------------------------------|-------------------------------------|
-| Filled circle  | Scalar, `binding.kind === 'path'`                 | Fill and ring in the type color     |
-| Dotted ring    | `binding.kind === 'value'`                        | No wire                             |
-| Square         | Record type, and the `out:*` pin                  | Radius 2px                          |
-| Double ring    | List type (`number[]`)                            | Ring in the element type color      |
-| Red ring       | No binding, or `error.parameter` matches          | `--mantine-color-error`             |
+| Pin           | Condition                                | Style                           |
+| ------------- | ---------------------------------------- | ------------------------------- |
+| Filled circle | Scalar, `binding.kind === 'path'`        | Fill and ring in the type color |
+| Dotted ring   | `binding.kind === 'value'`               | No wire                         |
+| Square        | Record type, and the `out:*` pin         | Radius 2px                      |
+| Double ring   | List type (`number[]`)                   | Ring in the element type color  |
+| Red ring      | No binding, or `error.parameter` matches | `--mantine-color-error`         |
 
 Type colors: number blue, string green, boolean orange, date and time teal, record grey. Define them as CSS custom
 properties in `functionNode.module.css` with light and dark values from the Mantine palette.
@@ -196,22 +196,22 @@ properties in `functionNode.module.css` with light and dark values from the Mant
 
 ### Sizing
 
-`core-node/layout.ts` exports a pure function that every node kind uses. Text measurement is injected, so tests
-run without a canvas. `function-node/layout.ts` measures the header and the names and maps arguments to the input
-track and results to the output track.
+`core-node/layout.ts` exports a pure function that every node kind uses. Text measurement is injected, so tests run
+without a canvas. `function-node/layout.ts` measures the header and the names and maps arguments to the input track and
+results to the output track.
 
 ```typescript
 interface TrackLayoutInput {
-    titleWidth: number; // measured width of the first header line
-    summaryWidth: number; // measured width of the second header line
-    inputNameWidths: number[]; // measured widths of the left track names; empty for no left track
-    outputNameWidths: number[]; // measured widths of the right track names
+  titleWidth: number; // measured width of the first header line
+  summaryWidth: number; // measured width of the second header line
+  inputNameWidths: number[]; // measured widths of the left track names; empty for no left track
+  outputNameWidths: number[]; // measured widths of the right track names
 }
 
 interface TrackLayout {
-    inputTrack: number; // px, 0 when there is no left track
-    outputTrack: number; // px
-    width: number; // px, inputTrack + outputTrack
+  inputTrack: number; // px, 0 when there is no left track
+  outputTrack: number; // px
+  width: number; // px, inputTrack + outputTrack
 }
 
 declare function computeTrackLayout(input: TrackLayoutInput): TrackLayout;
@@ -226,34 +226,34 @@ declare function computeTrackLayout(input: TrackLayoutInput): TrackLayout;
 
 The node menu and the argument menu use `RowActionsMenu`. Disabled items show the reason in a tooltip.
 
-| Menu     | Group          | Item                          | Service call                                        |
-|----------|----------------|-------------------------------|-----------------------------------------------------|
-| Node     | This node      | Rename node                   | `setNodeName`                                       |
-| Node     | This node      | Rename field                  | `renameField`                                       |
-| Node     | This node      | Change callee…                | opens `CalleePicker`, then `setCallee`              |
-| Node     | This node      | Duplicate                     | `duplicate`                                         |
-| Node     | This node      | Add description               | shows the description row in edit mode; no description exists |
-| Node     | This node      | Remove description            | `documentation.setDescription(field, '')`; a description exists |
-| Node     | Callee · N callers | Add argument              | `addArgument(field)`                                |
+| Menu     | Group              | Item                          | Service call                                                                                                   |
+| -------- | ------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Node     | This node          | Rename node                   | `setNodeName`                                                                                                  |
+| Node     | This node          | Rename field                  | `renameField`                                                                                                  |
+| Node     | This node          | Change callee…                | opens `CalleePicker`, then `setCallee`                                                                         |
+| Node     | This node          | Duplicate                     | `duplicate`                                                                                                    |
+| Node     | This node          | Add description               | shows the description row in edit mode; no description exists                                                  |
+| Node     | This node          | Remove description            | `documentation.setDescription(field, '')`; a description exists                                                |
+| Node     | Callee · N callers | Add argument                  | `addArgument(field)`                                                                                           |
 | Node     | Callee · N callers | Open in decision table editor | `onOpenNode({ path, kind: 'ruleset' })`; reads "Open in boxed editor" with `kind: 'boxed-editor'` for a `func` |
-| Node     | Callee · N callers | Open tests                | `onOpenNode({ path, kind: 'tests' })`               |
-| Node     | Callee · N callers | View as code              | `onOpenNode({ path: field, kind: 'code-editor' })`  |
-| Node     | Remove         | Remove from flow              | `removeFromFlow`                                    |
-| Node     | Remove         | Delete (red)                  | `deleteField`                                       |
-| Argument | -              | Move up                       | `moveArgument(field, name, 'up')`; disabled on the first row |
-| Argument | -              | Move down                     | `moveArgument(field, name, 'down')`; disabled on the last row |
-| Argument | -              | Add argument below            | `addArgument(field, name)`                          |
-| Argument | -              | Delete argument (red)         | `removeArgument`; disabled when `used`              |
+| Node     | Callee · N callers | Open tests                    | `onOpenNode({ path, kind: 'tests' })`                                                                          |
+| Node     | Callee · N callers | View as code                  | `onOpenNode({ path: field, kind: 'code-editor' })`                                                             |
+| Node     | Remove             | Remove from flow              | `removeFromFlow`                                                                                               |
+| Node     | Remove             | Delete (red)                  | `deleteField`                                                                                                  |
+| Argument | -                  | Move up                       | `moveArgument(field, name, 'up')`; disabled on the first row                                                   |
+| Argument | -                  | Move down                     | `moveArgument(field, name, 'down')`; disabled on the last row                                                  |
+| Argument | -                  | Add argument below            | `addArgument(field, name)`                                                                                     |
+| Argument | -                  | Delete argument (red)         | `removeArgument`; disabled when `used`                                                                         |
 
 The argument menu footer reads "Changes `<callee>` for N callers". Results have no menu.
 
 ### Inline edits
 
-| Edit               | Trigger          | Commit                        | Cancel  | Rule                                                  |
-|--------------------|------------------|-------------------------------|---------|-------------------------------------------------------|
-| Rename result      | Click result name | Enter or click away          | Escape  | Identifier pattern, unique among results; not for an unnamed return |
-| Edit description   | Click description | Enter or click away          | Escape  | Single-line input; an empty text deletes the description |
-| New argument name  | Add argument     | Enter or click away           | Escape  | Same rules as the Boxed Editor argument header        |
+| Edit              | Trigger           | Commit              | Cancel | Rule                                                                |
+| ----------------- | ----------------- | ------------------- | ------ | ------------------------------------------------------------------- |
+| Rename result     | Click result name | Enter or click away | Escape | Identifier pattern, unique among results; not for an unnamed return |
+| Edit description  | Click description | Enter or click away | Escape | Single-line input; an empty text deletes the description            |
+| New argument name | Add argument      | Enter or click away | Escape | Same rules as the Boxed Editor argument header                      |
 
 ### Behavioral Diagram
 
@@ -284,22 +284,22 @@ sequenceDiagram
 
 - A node with an unbound required argument is a draft. The service keeps its invocation in memory only.
 - `getFunctionNode` returns the draft overlay over the committed field. A new node is a draft with no callee.
-- The service writes the invocation when the last required argument is bound. `@node: 'FunctionNode'` is part of
-  that write.
+- The service writes the invocation when the last required argument is bound. `@node: 'FunctionNode'` is part of that
+  write.
 
 ### Reuse
 
-| Need                                       | Existing code                                                                 |
-|--------------------------------------------|-------------------------------------------------------------------------------|
-| List user callables                        | `listTestSubjects` walk in `tests-manager/model/subjects.ts`                  |
+| Need                                                   | Existing code                                                                                                                     |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| List user callables                                    | `listTestSubjects` walk in `tests-manager/model/subjects.ts`                                                                      |
 | Add, move, remove a parameter with call-site migration | `addArgument`, `moveArgument`, `removeArgument` in `boxed-editor/commands/rowFactories.ts` + `BoxedEditorService.setBoxedRowData` |
-| Ruleset parameter (condition column)       | `addConditionColumn`, `moveConditionColumn`, `removeConditionColumn`          |
-| Rename a ruleset result (action column)    | `renameActionColumn`                                                          |
-| Rename a `func` result field               | `BoxedEditorService.rename(`${callee}.${from}`, to)`                          |
-| Write with link check and revert           | `setWithLinkCheck` in `boxed-editor/service/createBoxedEditorService.ts`      |
-| Menu                                       | `RowActionsMenu` in `boxed-editor/menu/RowActionsMenu.tsx`                    |
-| Unique names                               | `uniqueName` in `boxed-editor/commands/rowFactories.ts`                       |
-| Descriptions                               | `DocumentationService`, `useDescription`                                      |
+| Ruleset parameter (condition column)                   | `addConditionColumn`, `moveConditionColumn`, `removeConditionColumn`                                                              |
+| Rename a ruleset result (action column)                | `renameActionColumn`                                                                                                              |
+| Rename a `func` result field                           | `BoxedEditorService.rename(`${callee}.${from}`, to)`                                                                              |
+| Write with link check and revert                       | `setWithLinkCheck` in `boxed-editor/service/createBoxedEditorService.ts`                                                          |
+| Menu                                                   | `RowActionsMenu` in `boxed-editor/menu/RowActionsMenu.tsx`                                                                        |
+| Unique names                                           | `uniqueName` in `boxed-editor/commands/rowFactories.ts`                                                                           |
+| Descriptions                                           | `DocumentationService`, `useDescription`                                                                                          |
 
 ## Architecture Changes
 
@@ -310,17 +310,17 @@ sequenceDiagram
 ## Clarifications
 
 - Engine facts verified on `@edgerules/node` `0.0.6-alpha.202607291629`:
-    - `get(path)` on a mutable service returns the full definition. Pass `'FIELDS'` to get a `function-schema` or
-      `ruleset-schema`.
-    - `get(field, 'FIELDS')` on a record-returning invocation returns `"@type": "object"`. Result fields come from the
-      callee schema `@return`.
-    - `set` accepts a mistyped or incomplete invocation without an error. Only linking detects it.
-    - One unbound required argument raises `E113` at link time, and no field of the model evaluates.
-    - A mistyped argument raises `type mismatch in node NodeId(n): expected string, found number`. The message has no
-      argument name, so the service assigns it to the parameter of the current `bindArgument` call.
-    - `rename()` on a plain field does not migrate references. Dangling references raise `E103` at link time.
-    - `remove('decision.@FunctionNode')` removes the annotation and keeps the field.
-    - `DocumentationService.setDescription(path, '')` deletes the entry.
+  - `get(path)` on a mutable service returns the full definition. Pass `'FIELDS'` to get a `function-schema` or
+    `ruleset-schema`.
+  - `get(field, 'FIELDS')` on a record-returning invocation returns `"@type": "object"`. Result fields come from the
+    callee schema `@return`.
+  - `set` accepts a mistyped or incomplete invocation without an error. Only linking detects it.
+  - One unbound required argument raises `E113` at link time, and no field of the model evaluates.
+  - A mistyped argument raises `type mismatch in node NodeId(n): expected string, found number`. The message has no
+    argument name, so the service assigns it to the parameter of the current `bindArgument` call.
+  - `rename()` on a plain field does not migrate references. Dangling references raise `E103` at link time.
+  - `remove('decision.@FunctionNode')` removes the annotation and keeps the field.
+  - `DocumentationService.setDescription(path, '')` deletes the entry.
 - Built-in functions are not callees. The callee list has user `func` and `ruleset` entries only.
 - The unnamed return of a `func` (`func monthly(amount: number): amount / 12`) shows one result named `result`. It is
   not renamable, because naming it changes the return type for every caller.
@@ -343,14 +343,14 @@ sequenceDiagram
 
 ## Verification
 
-| Check      | Command                    |
-|------------|----------------------------|
-| Build      | `npm run build`            |
-| Typecheck  | `npm run typecheck`        |
-| Format     | `npm run format:check`     |
-| Test       | `npm test`                 |
-| E2E        | `npm run e2e`              |
-| Start      | `npm run storybook`        |
+| Check     | Command                |
+| --------- | ---------------------- |
+| Build     | `npm run build`        |
+| Typecheck | `npm run typecheck`    |
+| Format    | `npm run format:check` |
+| Test      | `npm test`             |
+| E2E       | `npm run e2e`          |
+| Start     | `npm run storybook`    |
 
 ## Tasks
 
@@ -373,20 +373,20 @@ Acceptance criteria:
 
 - [x] Write `flow-editor-types.ts` with the Component API types
 - [x] Write `createFlowEditorService`: `listCallees`, `getFunctionNode`, `createDraftNode`, `setCallee`, `bindArgument`,
-  `unbindArgument`, draft map, `subscribe`
+      `unbindArgument`, draft map, `subscribe`
 - [x] Write `computeFunctionNodeLayout` in `layout.ts`
 - [x] Add tests for the code of this phase, against `MutableDecisionService.fromCode` from `@edgerules/node/mutable`,
-  with the sample model from the proposal
+      with the sample model from the proposal
 
 Acceptance criteria:
 
 - [x] `createFlowEditorService.test.ts` passes with these cases:
-    - [x] The service does not write a draft.
-    - [x] The last required binding writes the invocation with `@node`.
-    - [x] A mistyped binding is reverted and sets `error.parameter`.
-    - [x] `setCallee` keeps bindings with the same name and type.
+  - [x] The service does not write a draft.
+  - [x] The last required binding writes the invocation with `@node`.
+  - [x] A mistyped binding is reverted and sets `error.parameter`.
+  - [x] `setCallee` keeps bindings with the same name and type.
 - [x] `layout.test.ts` passes: step rounding, 2 to 4 step limits, header-wins distribution, no argument track for zero
-  parameters
+      parameters
 
 **Phase 3: FunctionNode rendering**
 
@@ -394,25 +394,25 @@ Acceptance criteria:
 - [x] Write `functionNode.module.css` with Mantine variables, type color tokens, light and dark values
 - [x] Write `CalleePicker` with search and Functions / Rulesets groups
 - [x] Add the Storybook stories:
-    - [x] Default (`risk`), Unnamed return (`monthly`), Record argument (`applicantDecision`)
-    - [x] Draft, No callee
-    - [x] Wired: story-local stub source and output nodes. The output value comes from `execute`.
+  - [x] Default (`risk`), Unnamed return (`monthly`), Record argument (`applicantDecision`)
+  - [x] Draft, No callee
+  - [x] Wired: story-local stub source and output nodes. The output value comes from `execute`.
 - [x] Add tests for the code of this phase (RTL inside `ReactFlowProvider`)
 
 Acceptance criteria:
 
 - [x] `FunctionNode.test.tsx` passes with these cases:
-    - [x] Band labels are singular or plural.
-    - [x] No binding text and no value text renders.
-    - [x] The draft badge shows for an unbound argument.
-    - [x] The picker lists only user callables.
+  - [x] Band labels are singular or plural.
+  - [x] No binding text and no value text renders.
+  - [x] The draft badge shows for an unbound argument.
+  - [x] The picker lists only user callables.
 - [ ] Manual: `npm run storybook`, each FunctionNode story matches the proposal in light and dark themes
 
 **Phase 4: Menus and inline edits**
 
 - [x] Write the node menu and the argument menu from the Menus table
-- [x] Write `addArgument`, `moveArgument`, `removeArgument`, `renameResult`, `setNodeName`, `renameField`,
-  `duplicate`, `removeFromFlow`, `deleteField` in the service, with the Reuse table helpers
+- [x] Write `addArgument`, `moveArgument`, `removeArgument`, `renameResult`, `setNodeName`, `renameField`, `duplicate`,
+      `removeFromFlow`, `deleteField` in the service, with the Reuse table helpers
 - [x] Write inline result rename and `DescriptionRow` with Add description and Remove description
 - [x] Add stories with `play` functions: Node menu, Argument menu, Rename result, Edit description
 - [x] Add tests for the code of this phase
@@ -420,15 +420,15 @@ Acceptance criteria:
 Acceptance criteria:
 
 - [x] `FunctionNodeMenus.test.tsx` passes with these cases:
-    - [x] Delete argument is disabled for a used parameter.
-    - [x] Move up is disabled on the first row.
-    - [x] Add argument below inserts after the row.
-    - [x] The unnamed `result` has no rename input.
+  - [x] Delete argument is disabled for a used parameter.
+  - [x] Move up is disabled on the first row.
+  - [x] Add argument below inserts after the row.
+  - [x] The unnamed `result` has no rename input.
 - [x] `createFlowEditorService.test.ts` passes with these cases:
-    - [x] `renameResult` rewrites the wires of every caller.
-    - [x] `renameResult` reverts on a failed link.
-    - [x] `removeFromFlow` keeps the field.
-    - [x] Parameter edits migrate every call site.
+  - [x] `renameResult` rewrites the wires of every caller.
+  - [x] `renameResult` reverts on a failed link.
+  - [x] `removeFromFlow` keeps the field.
+  - [x] Parameter edits migrate every call site.
 - [x] `DescriptionRow.test.tsx` passes: an empty commit deletes the description; Escape restores the old text
 
 **Phase E2E**
@@ -457,28 +457,28 @@ Acceptance criteria:
 `InputNode` is the source node of the Flow Editor. It renders one model field annotated `@InputNode` whose value is a
 record (`@kind: 'context'`).
 
-The node is a table with a Field column and a Value column, and one output pin per field. Wires from these pins
-feed the argument pins of a `FunctionNode`.
+The node is a table with a Field column and a Value column, and one output pin per field. Wires from these pins feed the
+argument pins of a `FunctionNode`.
 
-The user edits a value in a `CodeEditorCell`, and the commit writes the expression to the model. Every FunctionNode
-and OutputNode that reads the field then recalculates.
+The user edits a value in a `CodeEditorCell`, and the commit writes the expression to the model. Every FunctionNode and
+OutputNode that reads the field then recalculates.
 
 The proposal does not draw the InputNode. It is built from the FunctionNode parts: same 40px sheet, same header, band,
 pins, menu and inline edits. The tile uses the input color `#ed6c02`.
 
 ## Technical Breakdown
 
-| File                                                                | Responsibility                                          |
-|---------------------------------------------------------------------|---------------------------------------------------------|
-| `src/components/flow-editor/input-node/types.ts`                    | InputNode types: data, model, fields, menu contexts     |
-| `src/components/flow-editor/input-node/InputNode.tsx`               | The `@xyflow/react` custom node component               |
-| `src/components/flow-editor/input-node/inputNodeMenus.tsx`          | Node menu and field menu                                |
-| `src/components/flow-editor/input-node/InputValueCell.tsx`          | Value cell: highlighted text, `CodeEditorCell` in edit  |
-| `src/components/boxed-editor/service/embedContext.ts`               | Model text around a value, for diagnostics and completions |
-| `src/components/flow-editor/input-node/layout.ts`                   | Record summary; delegates to `computeTrackLayout`       |
-| `src/components/flow-editor/service/createFlowEditorService.ts`     | InputNode reads and writes                              |
-| `src/components/flow-editor/input-node/__tests__/`                  | RTL tests against the real `@edgerules/node` engine     |
-| `stories/components/flow-editor/InputNode.stories.tsx`              | Storybook stories against the real `@edgerules/web` engine |
+| File                                                            | Responsibility                                             |
+| --------------------------------------------------------------- | ---------------------------------------------------------- |
+| `src/components/flow-editor/input-node/types.ts`                | InputNode types: data, model, fields, menu contexts        |
+| `src/components/flow-editor/input-node/InputNode.tsx`           | The `@xyflow/react` custom node component                  |
+| `src/components/flow-editor/input-node/inputNodeMenus.tsx`      | Node menu and field menu                                   |
+| `src/components/flow-editor/input-node/InputValueCell.tsx`      | Value cell: highlighted text, `CodeEditorCell` in edit     |
+| `src/components/boxed-editor/service/embedContext.ts`           | Model text around a value, for diagnostics and completions |
+| `src/components/flow-editor/input-node/layout.ts`               | Record summary; delegates to `computeTrackLayout`          |
+| `src/components/flow-editor/service/createFlowEditorService.ts` | InputNode reads and writes                                 |
+| `src/components/flow-editor/input-node/__tests__/`              | RTL tests against the real `@edgerules/node` engine        |
+| `stories/components/flow-editor/InputNode.stories.tsx`          | Storybook stories against the real `@edgerules/web` engine |
 
 ### Component API
 
@@ -519,15 +519,15 @@ languageService?: CodeEditorService; // diagnostics and completions of value cel
 
 ### Node anatomy
 
-| Part            | Source              | Behavior                                                                   |
-|-----------------|---------------------|----------------------------------------------------------------------------|
-| Kind tile       | -                   | Orange, input icon                                                         |
-| Header line 1   | `label`, `field`    | Bold label, mono field name, node menu ⋮                                   |
-| Header line 2   | `fields`            | INPUT label, `{ age, income }` summary, whole-record pin `out:*`           |
-| Description row | `DocumentationService` | Same as the FunctionNode                                                |
-| Band            | `fields.length`     | FIELD or FIELDS over the names; VALUE or VALUES over the values            |
-| Field cell      | `InputField.name`   | Name; click to rename; field menu ⋮ at the end of the cell                 |
-| Value cell      | `InputField.value`  | Highlighted expression; click to edit in a `CodeEditorCell`; pin `out:<name>` |
+| Part            | Source                 | Behavior                                                                      |
+| --------------- | ---------------------- | ----------------------------------------------------------------------------- |
+| Kind tile       | -                      | Orange, input icon                                                            |
+| Header line 1   | `label`, `field`       | Bold label, mono field name, node menu ⋮                                      |
+| Header line 2   | `fields`               | INPUT label, `{ age, income }` summary, whole-record pin `out:*`              |
+| Description row | `DocumentationService` | Same as the FunctionNode                                                      |
+| Band            | `fields.length`        | FIELD or FIELDS over the names; VALUE or VALUES over the values               |
+| Field cell      | `InputField.name`      | Name; click to rename; field menu ⋮ at the end of the cell                    |
+| Value cell      | `InputField.value`     | Highlighted expression; click to edit in a `CodeEditorCell`; pin `out:<name>` |
 
 - **Handle ids:** `out:<field>` and `out:*`. There are no input handles.
 - **Source path:** `<nodeId>.<field>`, or `<nodeId>` for `out:*`.
@@ -535,29 +535,29 @@ languageService?: CodeEditorService; // diagnostics and completions of value cel
 
 ### Menu
 
-| Group  | Item                                      | Service call                                    |
-|--------|-------------------------------------------|-------------------------------------------------|
-| This node | Rename node                            | `setNodeName`                                   |
-| This node | Rename field                           | `renameField`                                   |
-| This node | Duplicate                              | `duplicate`                                     |
-| This node | Add description, Remove description    | `documentation.setDescription`                  |
-| Record | Add field                                 | `addInputField(field)`, then the name opens for editing |
-| Record | Open in boxed editor                      | `onOpenNode({ path: field, kind: 'boxed-editor' })` |
-| Record | View as code                              | `onOpenNode({ path: field, kind: 'code-editor' })` |
-| Remove | Remove from flow                          | `removeFromFlow`                                |
-| Remove | Delete (red)                              | `deleteField`                                   |
+| Group     | Item                                | Service call                                            |
+| --------- | ----------------------------------- | ------------------------------------------------------- |
+| This node | Rename node                         | `setNodeName`                                           |
+| This node | Rename field                        | `renameField`                                           |
+| This node | Duplicate                           | `duplicate`                                             |
+| This node | Add description, Remove description | `documentation.setDescription`                          |
+| Record    | Add field                           | `addInputField(field)`, then the name opens for editing |
+| Record    | Open in boxed editor                | `onOpenNode({ path: field, kind: 'boxed-editor' })`     |
+| Record    | View as code                        | `onOpenNode({ path: field, kind: 'code-editor' })`      |
+| Remove    | Remove from flow                    | `removeFromFlow`                                        |
+| Remove    | Delete (red)                        | `deleteField`                                           |
 
 ### Clarifications
 
 - Engine facts verified on `@edgerules/node` `0.0.6-alpha.202607291629`:
-    - `set` on a record that already has annotations keeps them when the new node has none. `removeFromFlow` therefore
-      calls `remove('<field>.@InputNode')`, which removes `@node` and `@node-name`.
-    - A plain value such as `amount: 5` takes no annotation, and `set` rejects `@kind: 'value'`. An InputNode is a
-      record only.
-    - `get(field, 'FIELDS')` on a record returns the typed fields with `readOnly: true`.
-- The field menu is the FunctionNode argument menu for a record field: Move up, Move down, Add field below,
-  Delete field (disabled with the reason when `used`). The footer reads "Changes `<field>`". The dots are always
-  visible, on the left of the row, with no box.
+  - `set` on a record that already has annotations keeps them when the new node has none. `removeFromFlow` therefore
+    calls `remove('<field>.@InputNode')`, which removes `@node` and `@node-name`.
+  - A plain value such as `amount: 5` takes no annotation, and `set` rejects `@kind: 'value'`. An InputNode is a record
+    only.
+  - `get(field, 'FIELDS')` on a record returns the typed fields with `readOnly: true`.
+- The field menu is the FunctionNode argument menu for a record field: Move up, Move down, Add field below, Delete field
+  (disabled with the reason when `used`). The footer reads "Changes `<field>`". The dots are always visible, on the left
+  of the row, with no box.
 - A new field is a `number` with value `0`. Each edit rewrites the whole record in one link-checked write that keeps
   `@node` and `@node-name`; the engine keeps the key order, so Move up and Move down reorder the rows.
 - `renameInputField` rewrites `<field>.<from>` in every expression and renames the key. It does **not** use the Boxed
@@ -565,13 +565,13 @@ languageService?: CodeEditorService; // diagnostics and completions of value cel
   renamed the `age` parameter of `risk` and every call-site argument. The write goes through the changed top-level
   entries and `link()`, not `set('*')`, which drops the root metadata. A bare sibling reference such as `b: a + 1`
   inside the record is not rewritten; linking fails and the rename is reverted with the engine message.
-- Pin positions: xyflow measures the handles of a node only on mount and resize. Reordering, adding or renaming
-  rows keeps the node size, so the wires stayed at the old pin positions (age appeared wired to income). Both node
-  components call `useSyncPins(id, key)` (`updateNodeInternals`) when the ordered handle ids or the width change.
-- The value cell commits on Enter or blur and restores the value on Escape. A rejected value keeps the editor open.
-  The row then shows the engine message.
-- `setInputFieldValue` writes the text with `set('<field>.<name>', text)` and a link check. A value whose type breaks
-  a reader, for example a string for `risk(age: number)`, is reverted.
+- Pin positions: xyflow measures the handles of a node only on mount and resize. Reordering, adding or renaming rows
+  keeps the node size, so the wires stayed at the old pin positions (age appeared wired to income). Both node components
+  call `useSyncPins(id, key)` (`updateNodeInternals`) when the ordered handle ids or the width change.
+- The value cell commits on Enter or blur and restores the value on Escape. A rejected value keeps the editor open. The
+  row then shows the engine message.
+- `setInputFieldValue` writes the text with `set('<field>.<name>', text)` and a link check. A value whose type breaks a
+  reader, for example a string for `risk(age: number)`, is reverted.
 - A nested record shows `{ … }` and is not editable. Without `languageService`, or in read-only mode, values are text.
 - The value editor has the `nodrag nowheel nokey` classes. Typing Backspace in it does not delete the selected node.
 - Dragging a wire from an InputNode is out of this story. Wires are written by the target FunctionNode (`bindArgument`).
@@ -600,21 +600,21 @@ languageService?: CodeEditorService; // diagnostics and completions of value cel
 `FlowEditor` is the canvas component of the Flow Editor. It renders every flow node of the model on an `@xyflow/react`
 canvas and has a node palette on the left. A drag from the palette, a click, or Enter on a palette item adds a node.
 
-Nodes and wires come from the model. Positions and output nodes are presentation data (`flow.json`). The editor
-reports them through `onLayoutChange` and reads them once from `defaultLayout`.
+Nodes and wires come from the model. Positions and output nodes are presentation data (`flow.json`). The editor reports
+them through `onLayoutChange` and reads them once from `defaultLayout`.
 
 ## Technical Breakdown
 
-| File                                                        | Responsibility                                                         |
-|-------------------------------------------------------------|------------------------------------------------------------------------|
-| `src/components/flow-editor/editor/FlowEditor.tsx`          | The canvas: node reconciliation, placement, wiring, deletion, controls |
-| `src/components/flow-editor/editor/NodePalette.tsx`         | The left side menu: groups, search, collapse to a rail, drag and click |
-| `src/components/flow-editor/editor/paletteItems.ts`         | Palette items from the service; search filter                          |
-| `src/components/flow-editor/editor/graph.ts`                | Pure: binding to wire, column layout, free spot                        |
-| `src/components/flow-editor/editor/types.ts`                | `FlowEditorProps`, `FlowLayout`, `FlowOutput`, palette types           |
-| `src/components/flow-editor/editor/flowEditor.module.css`   | Palette, canvas, wire colors, empty state; light and dark values       |
-| `stories/components/flow-editor/FlowEditor.stories.tsx`     | Default, Empty, ReadOnly, LayoutChanges, AddFromPalette                |
-| `e2e/flow-editor/flow-editor.spec.ts`                       | Playwright tests against the built Storybook                           |
+| File                                                      | Responsibility                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `src/components/flow-editor/editor/FlowEditor.tsx`        | The canvas: node reconciliation, placement, wiring, deletion, controls |
+| `src/components/flow-editor/editor/NodePalette.tsx`       | The left side menu: groups, search, collapse to a rail, drag and click |
+| `src/components/flow-editor/editor/paletteItems.ts`       | Palette items from the service; search filter                          |
+| `src/components/flow-editor/editor/graph.ts`              | Pure: binding to wire, column layout, free spot                        |
+| `src/components/flow-editor/editor/types.ts`              | `FlowEditorProps`, `FlowLayout`, `FlowOutput`, palette types           |
+| `src/components/flow-editor/editor/flowEditor.module.css` | Palette, canvas, wire colors, empty state; light and dark values       |
+| `stories/components/flow-editor/FlowEditor.stories.tsx`   | Default, Empty, ReadOnly, LayoutChanges, AddFromPalette                |
+| `e2e/flow-editor/flow-editor.spec.ts`                     | Playwright tests against the built Storybook                           |
 
 ### Component API
 
@@ -649,13 +649,13 @@ createInputNode(): string | PortableError; // a new '@InputNode' record 'input�
 
 ### Palette
 
-| Group                | Item                         | Action                                                        |
-|----------------------|------------------------------|---------------------------------------------------------------|
-| Inputs               | New input                    | `createInputNode()`                                           |
-| Inputs               | One per `listInputCandidates()` | `addInputNode(record)`; the item leaves the palette         |
-| Functions & rulesets | Function call                | `createDraftNode()`; the callee is picked on the node         |
-| Functions & rulesets | One per `listCallees()`      | `createDraftNode()`, then `setCallee(field, path)`            |
-| Outputs              | Output                       | A canvas-only output node                                     |
+| Group                | Item                            | Action                                                |
+| -------------------- | ------------------------------- | ----------------------------------------------------- |
+| Inputs               | New input                       | `createInputNode()`                                   |
+| Inputs               | One per `listInputCandidates()` | `addInputNode(record)`; the item leaves the palette   |
+| Functions & rulesets | Function call                   | `createDraftNode()`; the callee is picked on the node |
+| Functions & rulesets | One per `listCallees()`         | `createDraftNode()`, then `setCallee(field, path)`    |
+| Outputs              | Output                          | A canvas-only output node                             |
 
 - A dropped node has its top-left corner at the drop point. A clicked node goes in the middle of the view, below any
   node in the way. The new node is selected.
@@ -665,8 +665,8 @@ createInputNode(): string | PortableError; // a new '@InputNode' record 'input�
 ### Canvas
 
 - **Wires:** one per path-bound argument whose source is a node on the canvas (`resolveSource`). `applicant.age` →
-  `out:age`; a whole node → `out:result` for an unnamed return, else `out:*`. Deeper paths have no wire. The wire
-  color is the argument type color.
+  `out:age`; a whole node → `out:result` for an unnamed return, else `out:*`. Deeper paths have no wire. The wire color
+  is the argument type color.
 - **Connect:** into a FunctionNode calls `bindArgument`; into an output sets `FlowOutput.source`.
 - **Delete / Backspace:** a model node calls `removeFromFlow`; an output is removed; a selected wire calls
   `unbindArgument` or clears the output source. Wires of a removed node go with it, and the bindings stay.
@@ -680,7 +680,7 @@ createInputNode(): string | PortableError; // a new '@InputNode' record 'input�
 
 - [x] `listNodes` and `createInputNode` in the service, with tests
 - [x] `FlowEditor`, `NodePalette`, `graph.ts`, `paletteItems.ts`; export `FlowEditor`, `FlowEditorProps`, `FlowLayout`,
-  `FlowOutput`, `FlowNodeRef`
+      `FlowOutput`, `FlowNodeRef`
 - [x] Unit tests: `graph.test.ts`, `paletteItems.test.ts`, `FlowEditor.test.tsx`
 - [x] Stories: Default, Empty, ReadOnly, LayoutChanges, AddFromPalette
 - [x] E2E: `e2e/flow-editor/flow-editor.spec.ts`
@@ -690,26 +690,26 @@ createInputNode(): string | PortableError; // a new '@InputNode' record 'input�
 
 ## Summary
 
-`ChartNode` draws the value wired into its `data` pin as a TanStack Charts (`@tanstack/charts`) line, area or bar
-chart. Like an output node it writes nothing to the model: its config and size are canvas data in `FlowLayout.charts`.
-A node without a config configures itself from the data, and a new wire clears the config. "Configure" in the node menu
-flips the node to its config form. The bottom-right corner grip resizes the node.
+`ChartNode` draws the value wired into its `data` pin as a TanStack Charts (`@tanstack/charts`) line, area or bar chart.
+Like an output node it writes nothing to the model: its config and size are canvas data in `FlowLayout.charts`. A node
+without a config configures itself from the data, and a new wire clears the config. "Configure" in the node menu flips
+the node to its config form. The bottom-right corner grip resizes the node.
 
 ## Technical Breakdown
 
-| File                                                         | Responsibility                                                        |
-|--------------------------------------------------------------|-----------------------------------------------------------------------|
-| `src/components/flow-editor/chart-node/types.ts`             | `ChartConfig`, `ChartNodeData` (public); dataset and prop types       |
-| `src/components/flow-editor/chart-node/dataset.ts`           | Pure: engine value → `ChartDataset` (columns with kinds, rows)        |
-| `src/components/flow-editor/chart-node/autoConfig.ts`        | Pure: `autoConfigure`, `resolveConfig` (node config against new data) |
-| `src/components/flow-editor/chart-node/chartDefinition.ts`   | The only TanStack grammar: dataset + config → `defineChart(...)`      |
-| `src/components/flow-editor/chart-node/ChartView.tsx`        | Front face: `<Chart>` of the definition                               |
-| `src/components/flow-editor/chart-node/ChartConfigForm.tsx`  | Back face: chart type, horizontal axis, series, stacking, reset       |
-| `src/components/flow-editor/chart-node/chartNodeMenus.ts`    | Node menu: Configure / Show chart, Reset to automatic, Remove chart   |
-| `src/components/flow-editor/chart-node/ChartNode.tsx`        | xyflow node: header, `in:data` pin, flip card, `NodeResizeControl`    |
-| `src/components/flow-editor/core-node/useWiredReading.ts`    | Shared with OutputNode: reads the wired path again after each change  |
-| `src/components/flow-editor/testing/loanModel.ts`            | Loan repayment fixture: amortization schedule and cost split          |
-| `stories/components/flow-editor/ChartNode.stories.tsx`       | LoanRepayment, AutoConfigured, PaymentSplit, Configure, Unwired       |
+| File                                                        | Responsibility                                                        |
+| ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| `src/components/flow-editor/chart-node/types.ts`            | `ChartConfig`, `ChartNodeData` (public); dataset and prop types       |
+| `src/components/flow-editor/chart-node/dataset.ts`          | Pure: engine value → `ChartDataset` (columns with kinds, rows)        |
+| `src/components/flow-editor/chart-node/autoConfig.ts`       | Pure: `autoConfigure`, `resolveConfig` (node config against new data) |
+| `src/components/flow-editor/chart-node/chartDefinition.ts`  | The only TanStack grammar: dataset + config → `defineChart(...)`      |
+| `src/components/flow-editor/chart-node/ChartView.tsx`       | Front face: `<Chart>` of the definition                               |
+| `src/components/flow-editor/chart-node/ChartConfigForm.tsx` | Back face: chart type, horizontal axis, series, stacking, reset       |
+| `src/components/flow-editor/chart-node/chartNodeMenus.ts`   | Node menu: Configure / Show chart, Reset to automatic, Remove chart   |
+| `src/components/flow-editor/chart-node/ChartNode.tsx`       | xyflow node: header, `in:data` pin, flip card, `NodeResizeControl`    |
+| `src/components/flow-editor/core-node/useWiredReading.ts`   | Shared with OutputNode: reads the wired path again after each change  |
+| `src/components/flow-editor/testing/loanModel.ts`           | Loan repayment fixture: amortization schedule and cost split          |
+| `stories/components/flow-editor/ChartNode.stories.tsx`      | LoanRepayment, AutoConfigured, PaymentSplit, Configure, Unwired       |
 
 ### Structural Diagram
 
@@ -751,37 +751,37 @@ flowchart LR
 type ChartKind = 'line' | 'area' | 'bar';
 
 interface ChartConfig {
-    kind: ChartKind;
-    x: string; // column of the horizontal axis, or '#' for the row position
-    series: string[]; // numeric columns, one series each, in legend order
-    stacked?: boolean; // area and bar only
+  kind: ChartKind;
+  x: string; // column of the horizontal axis, or '#' for the row position
+  series: string[]; // numeric columns, one series each, in legend order
+  stacked?: boolean; // area and bar only
 }
 
 type ChartNodeData = {label?: string; config?: ChartConfig}; // no config: configured automatically
 
 interface FlowLayout {
-    positions: Record<string, XYPosition>;
-    outputs: FlowOutput[];
-    charts?: FlowChart[]; // reported only when the canvas has charts
+  positions: Record<string, XYPosition>;
+  outputs: FlowOutput[];
+  charts?: FlowChart[]; // reported only when the canvas has charts
 }
 
 interface FlowChart {
-    id: string; // 'chart', 'chart2'
-    label?: string;
-    source?: {node: string; handle: string}; // the result pin wired into 'in:data'
-    config?: ChartConfig;
-    size?: {width: number; height: number}; // default 440 × 340, at least 300 × 240
+  id: string; // 'chart', 'chart2'
+  label?: string;
+  source?: {node: string; handle: string}; // the result pin wired into 'in:data'
+  config?: ChartConfig;
+  size?: {width: number; height: number}; // default 440 × 340, at least 300 × 240
 }
 ```
 
 ### Data and automatic configuration
 
-| Wired value          | Dataset                                         | Automatic config                                   |
-|----------------------|-------------------------------------------------|----------------------------------------------------|
-| List of records      | One row per record; scalar fields are columns   | x and series as below                              |
-| List of numbers      | A `value` column                                | Line of `value` over the row position              |
-| Record of numbers    | `name` and `value` columns                      | Bars of `value` per `name`                         |
-| Anything else, `[]`  | An explanation on the chart face                | None                                               |
+| Wired value         | Dataset                                       | Automatic config                      |
+| ------------------- | --------------------------------------------- | ------------------------------------- |
+| List of records     | One row per record; scalar fields are columns | x and series as below                 |
+| List of numbers     | A `value` column                              | Line of `value` over the row position |
+| Record of numbers   | `name` and `value` columns                    | Bars of `value` per `name`            |
+| Anything else, `[]` | An explanation on the chart face              | None                                  |
 
 - Column kinds: `number`, `string`, `date` (ISO strings, as the engine returns dates), `boolean`. Nested and mixed
   columns are left out.

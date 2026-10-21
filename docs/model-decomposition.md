@@ -12,7 +12,7 @@ EdgeRules Flow editor displays root invocations in the model, so:
       city: "Vilnius"
       zip: "01100"
     }
-  }  
+  }
   limit: riskScore(applicant.age).score
 }
 ```
@@ -20,7 +20,7 @@ EdgeRules Flow editor displays root invocations in the model, so:
 ## Model to GUI Mapping
 
 | `@kind`             | Portable type                        | Description                           | Category   | Flow Component | Boxed Expression Component(s) | Annotations     |
-|---------------------|--------------------------------------|---------------------------------------|------------|----------------|-------------------------------|-----------------|
+| ------------------- | ------------------------------------ | ------------------------------------- | ---------- | -------------- | ----------------------------- | --------------- |
 | `context`           | `PortableContext`                    | Model context with expressions        |            | `InputNode`    | `ContextRow`                  | `@InputNode`    |
 | `context`           | `PortableContext`                    | TanStack Chart body { data, x, y }    |            | `ChartNode`    | Not Supported (Hidden)        | `@ChartNode`    |
 | `context`           | `PortableContext`                    | Expressions to output                 |            | `OutputNode`   | Not Supported (Hidden)        | `@OutputNode`   |
@@ -40,7 +40,7 @@ EdgeRules Flow editor displays root invocations in the model, so:
 - **Definition** - this is reusable side effect free definition asset
 
 | `@kind`          | Portable type                   | Where it appears                               |
-|------------------|---------------------------------|------------------------------------------------|
+| ---------------- | ------------------------------- | ---------------------------------------------- |
 | `input`          | `PortableInputEnvelope`         | Execute request envelope.                      |
 | `result`         | `PortableResultEnvelope`        | Successful execution result envelope.          |
 | `partial-result` | `PortablePartialResultEnvelope` | Partial execution result envelope.             |
@@ -48,4 +48,4 @@ EdgeRules Flow editor displays root invocations in the model, so:
 
 ### Clarifications
 
-1. 
+1.

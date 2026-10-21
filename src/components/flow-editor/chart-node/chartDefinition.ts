@@ -128,10 +128,7 @@ function categoricalChart(dataset: ChartDataset, config: ChartConfig) {
               ? [line]
               : config.stacked
                 ? [areaY(rows, {id: 'series-area', x: 'x', y: 'value', z: 'series', fillOpacity: 0.55})]
-                : [
-                      areaY(rows, {id: 'series-area', x: 'x', y1: 0, y2: 'value', z: 'series', fillOpacity: 0.16}),
-                      line,
-                  ];
+                : [areaY(rows, {id: 'series-area', x: 'x', y1: 0, y2: 'value', z: 'series', fillOpacity: 0.16}), line];
     return defineChart({marks, scales: {x, y: yScale(config)}, color: seriesColor(dataset, config), tooltip});
 }
 

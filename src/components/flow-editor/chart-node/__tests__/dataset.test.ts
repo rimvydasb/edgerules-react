@@ -24,7 +24,10 @@ describe('toDataset', () => {
     });
 
     it('reads ISO date strings, as the engine returns dates, as a date column', () => {
-        const table = dataset([{month: '2026-01-01', v: 1}, {month: '2026-02-01T10:00:00Z', v: 2}]);
+        const table = dataset([
+            {month: '2026-01-01', v: 1},
+            {month: '2026-02-01T10:00:00Z', v: 2},
+        ]);
         expect(table.columns[0]).toEqual({name: 'month', kind: 'date'});
     });
 

@@ -169,9 +169,11 @@ test.describe('Boxed Editor / drag and drop', () => {
 
     test('indents list items one block deeper than the list', async ({page}) => {
         await openBoxedEditorStory(page, 'collections-list-and-relation');
-        const indents = (path: string) => page.getByTestId(`row-${path}`).locator('[aria-hidden="true"]').evaluateAll(
-            (nodes) => nodes.filter((node) => getComputedStyle(node).width === '40px').length,
-        );
+        const indents = (path: string) =>
+            page
+                .getByTestId(`row-${path}`)
+                .locator('[aria-hidden="true"]')
+                .evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).width === '40px').length);
         expect(await indents('reviewStages[0]')).toBe((await indents('reviewStages')) + 1);
     });
 

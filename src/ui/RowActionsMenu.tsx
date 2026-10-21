@@ -46,7 +46,8 @@ export function RowActionsMenu({items, children, footer}: RowActionsMenuProps): 
             const target = event.target as Node | null;
             if (!(target instanceof Element)) return;
             // The open menu's own trigger toggles it through `onChange`.
-            if (dropdownRef.current?.contains(target) || target.closest('[aria-haspopup="menu"][aria-expanded="true"]')) return;
+            if (dropdownRef.current?.contains(target) || target.closest('[aria-haspopup="menu"][aria-expanded="true"]'))
+                return;
             setOpened(false);
         };
         document.addEventListener('mousedown', onPointerDown, true);

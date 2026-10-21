@@ -144,10 +144,7 @@ export function autoLayout(
     };
     for (const node of nodes) columns.set(node.id, columnOf(node.id, new Set()));
     // Unwired outputs and charts go after every other column.
-    const lastColumn = Math.max(
-        0,
-        ...nodes.filter((node) => !isSink(node.kind)).map((node) => columns.get(node.id)!),
-    );
+    const lastColumn = Math.max(0, ...nodes.filter((node) => !isSink(node.kind)).map((node) => columns.get(node.id)!));
     for (const node of nodes) {
         if (isSink(node.kind) && !sourcesOf.has(node.id)) columns.set(node.id, lastColumn + 1);
     }

@@ -32,66 +32,62 @@ export const TALL_ROW_HEIGHT = CELL * 2; // 80
 export type BoxedColumn = 'value' | 'description' | 'test-results';
 
 export interface ColumnVisibility {
-  showDescription: boolean;
-  showTestResults: boolean;
-  /** Value-column width in steps; defaults to {@link VALUE_COLUMN_UNITS}. */
-  valueUnits?: number;
+    showDescription: boolean;
+    showTestResults: boolean;
+    /** Value-column width in steps; defaults to {@link VALUE_COLUMN_UNITS}. */
+    valueUnits?: number;
 }
 
 /** Shared `grid-template-columns` for every row — description/test-results collapse together. */
 export function gridTemplateColumns({
-  showDescription,
-  showTestResults,
-  valueUnits = VALUE_COLUMN_UNITS,
+    showDescription,
+    showTestResults,
+    valueUnits = VALUE_COLUMN_UNITS,
 }: ColumnVisibility): string {
-  const columns = [
-    `${NAME_COLUMN_WIDTH}px`,
-    `${valueUnits * CELL}px`,
-    `${ACTIONS_COLUMN_WIDTH}px`,
-  ];
-  if (showDescription) columns.push(`${DESCRIPTION_COLUMN_WIDTH}px`);
-  if (showTestResults) columns.push(`${TEST_RESULTS_COLUMN_WIDTH}px`);
-  return columns.join(' ');
+    const columns = [`${NAME_COLUMN_WIDTH}px`, `${valueUnits * CELL}px`, `${ACTIONS_COLUMN_WIDTH}px`];
+    if (showDescription) columns.push(`${DESCRIPTION_COLUMN_WIDTH}px`);
+    if (showTestResults) columns.push(`${TEST_RESULTS_COLUMN_WIDTH}px`);
+    return columns.join(' ');
 }
 
 /** Splits `total` steps into `count` whole-step tracks; leftover steps go to the leftmost tracks. */
 export function splitUnits(count: number, total: number): number[] {
-  if (count <= 0) return [];
-  const base = Math.floor(total / count);
-  const extra = total - base * count;
-  return Array.from({length: count}, (_, index) => base + (index < extra ? 1 : 0));
+    if (count <= 0) return [];
+    const base = Math.floor(total / count);
+    const extra = total - base * count;
+    return Array.from({length: count}, (_, index) => base + (index < extra ? 1 : 0));
 }
 
 /** Whole-step widths of a ruleset's sub-columns, shared by its header, rule, and default rows. */
 export interface RulesetTracks {
-  /** One entry per condition column (a single empty slot when there are none). */
-  conditions: number[];
-  /** One entry per action column (a single empty slot when there are none). */
-  actions: number[];
-  /** `undefined` when the hit policy has no `priority`. */
-  priority?: number;
+    /** One entry per condition column (a single empty slot when there are none). */
+    conditions: number[];
+    /** One entry per action column (a single empty slot when there are none). */
+    actions: number[];
+    /** `undefined` when the hit policy has no `priority`. */
+    priority?: number;
 }
 
 export function sum(units: number[]): number {
-  return units.reduce((total, value) => total + value, 0);
+    return units.reduce((total, value) => total + value, 0);
 }
 
 function rulesetColumnCounts(row: BoxedTableRowData): {conditions: number; actions: number} {
-  return {
-    conditions: Math.max(row.parameters?.length ?? row.conditionColumns?.length ?? 0, 1),
-    actions: Math.max(row.actionColumns?.length ?? 0, 1),
-  };
+    return {
+        conditions: Math.max(row.parameters?.length ?? row.conditionColumns?.length ?? 0, 1),
+        actions: Math.max(row.actionColumns?.length ?? 0, 1),
+    };
 }
 
 export function rulesetTracks(row: BoxedTableRowData, valueUnits: number, showPriority: boolean): RulesetTracks {
-  const counts = rulesetColumnCounts(row);
-  const priority = showPriority ? PRIORITY_COLUMN_UNITS : undefined;
-  const shared = splitUnits(counts.conditions + counts.actions, valueUnits - (priority ?? 0));
-  return {
-    conditions: shared.slice(0, counts.conditions),
-    actions: shared.slice(counts.conditions),
-    priority,
-  };
+    const counts = rulesetColumnCounts(row);
+    const priority = showPriority ? PRIORITY_COLUMN_UNITS : undefined;
+    const shared = splitUnits(counts.conditions + counts.actions, valueUnits - (priority ?? 0));
+    return {
+        conditions: shared.slice(0, counts.conditions),
+        actions: shared.slice(counts.conditions),
+        priority,
+    };
 }
 
 /**
@@ -100,47 +96,47 @@ export function rulesetTracks(row: BoxedTableRowData, valueUnits: number, showPr
  * inside a block. Add a new container kind here and it is separated like the others.
  */
 const BLOCK_KINDS = new Set<BoxedRowKind>([
-  'context',
-  'complexType',
-  'list',
-  'relation',
-  'function',
-  'ruleset',
-  'optimisation',
-  'optimisation-variable-group',
-  'optimisation-constraint-group',
+    'context',
+    'complexType',
+    'list',
+    'relation',
+    'function',
+    'ruleset',
+    'optimisation',
+    'optimisation-variable-group',
+    'optimisation-constraint-group',
 ]);
 
 export function isBlock(row: BoxedRowData): boolean {
-  return BLOCK_KINDS.has(row.kind);
+    return BLOCK_KINDS.has(row.kind);
 }
 
 /** Steps the value column needs so no nested sub-column is narrower than {@link MIN_SUB_COLUMN_UNITS}. */
 function requiredValueUnits(row: BoxedRowData): number {
-  const table = row as BoxedTableRowData;
-  switch (row.kind) {
-    case 'ruleset': {
-      const counts = rulesetColumnCounts(table);
-      // Reserve the priority column unconditionally so switching hit policy never resizes the grid.
-      return (counts.conditions + counts.actions) * MIN_SUB_COLUMN_UNITS + PRIORITY_COLUMN_UNITS;
+    const table = row as BoxedTableRowData;
+    switch (row.kind) {
+        case 'ruleset': {
+            const counts = rulesetColumnCounts(table);
+            // Reserve the priority column unconditionally so switching hit policy never resizes the grid.
+            return (counts.conditions + counts.actions) * MIN_SUB_COLUMN_UNITS + PRIORITY_COLUMN_UNITS;
+        }
+        case 'relation':
+            return (table.columns?.length ?? 0) * MIN_SUB_COLUMN_UNITS;
+        case 'function':
+        case 'optimisation':
+            return (table.parameters?.length ?? 0) * MIN_SUB_COLUMN_UNITS;
+        default:
+            return 0;
     }
-    case 'relation':
-      return (table.columns?.length ?? 0) * MIN_SUB_COLUMN_UNITS;
-    case 'function':
-    case 'optimisation':
-      return (table.parameters?.length ?? 0) * MIN_SUB_COLUMN_UNITS;
-    default:
-      return 0;
-  }
 }
 
 /** Value-column width (in steps) that fits every sub-grid in `rows` and their descendants. */
 export function valueColumnUnits(rows: BoxedRowData[]): number {
-  let units = VALUE_COLUMN_UNITS;
-  const visit = (row: BoxedRowData): void => {
-    units = Math.max(units, requiredValueUnits(row));
-    row.children?.forEach(visit);
-  };
-  rows.forEach(visit);
-  return units;
+    let units = VALUE_COLUMN_UNITS;
+    const visit = (row: BoxedRowData): void => {
+        units = Math.max(units, requiredValueUnits(row));
+        row.children?.forEach(visit);
+    };
+    rows.forEach(visit);
+    return units;
 }
