@@ -10,26 +10,26 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 - [x] EdgeRules Code Editor Cell (the same language tooling in a compact cell control for the Boxed and Decision
   Table editors; commits on Enter/blur, cancels on Escape, analyzes the cell in the scope of its surrounding
   model via an embed context)
-- [x] EdgeRules Boxed Editor ([spec and story](docs/BOXED_EDITOR_STORY.md), [phase plans](docs/boxed-editor/); a
+- [x] EdgeRules Boxed Editor ([spec and story](docs/BOXED_EDITOR_STORY.md); a
   single flat treegrid over every `BoxedRowKind` — fields, collections, `func`/`ruleset`/`optimise` — with inline
   editing, drag-and-drop, context-menu actions, and optional description/live-test-result overlay columns)
 - [x] [EdgeRules Decision Table Editor](docs/DECISION_TABLE_STORY.md) (DMN-style grid over a `ruleset`:
   decision tables, boolean-expression rules, and scorecards; statically highlighted display cells
   with a single CodeEditorCell on the active cell)
 - [ ] EdgeRules Flow Editor (ReactFlow-based)
-  - [x] FlowEditor canvas ([spec](docs/stories/flow-editor-story.md#flow-editor-canvas)): node palette with drag or click
+  - [x] FlowEditor canvas ([spec](docs/stories/completed/flow-editor-story.md#flow-editor-canvas)): node palette with drag or click
     to add, wires from the model, automatic layout, zoom, minimap. The host imports `@xyflow/react/dist/style.css`.
-  - [x] InputNode / TermsNode ([spec](docs/stories/flow-editor-story.md#inputnode))
-  - [x] FunctionNode / RulesetNode ([spec and story](docs/stories/flow-editor-story.md))
+  - [x] InputNode / TermsNode ([spec](docs/stories/completed/flow-editor-story.md#flow-editor-inputnode))
+  - [x] FunctionNode / RulesetNode ([spec and story](docs/stories/completed/flow-editor-story.md))
   - [x] OutputNode (shows the engine value of the wired result; no model writes)
-  - [x] ChartNode ([spec](docs/stories/flow-editor-story.md#flow-editor-chartnode)): a TanStack Charts line, area or
+  - [x] ChartNode ([spec](docs/stories/completed/flow-editor-story.md#flow-editor-chartnode)): a TanStack Charts line, area or
     bar chart of the wired list or record; configures itself from the data, Configure flips it to its config form,
     resizable from its bottom-right corner. Needs the `@tanstack/charts` peer.
-- [x] [EdgeRules Tests Manager](docs/TESTS_MANAGER_SPEC.md) (Inputs/Assertions/Validations grid over a model or any
+- [x] [EdgeRules Tests Manager](docs/specs/tests-manager-spec.md) (Inputs/Assertions/Validations grid over a model or any
   fully typed `func`/`ruleset`/`optimise`/`loop`, backed by the engine-free `test-cases-service` package and the
   `TestRunner` execution service)
 - [ ] EdgeRules Types Editor
-- [EdgeRules Project Explorer](docs/PROJECT_EXPLORER_STORY.md)
+- [EdgeRules Project Explorer](docs/stories/completed/project-explorer-story.md)
 - [x] [EdgeRules Project Session](docs/PROJECT_SESSION_STORY.md) (`edgerules-react/project-session`, no GUI): loads a
   project bundle — model DSL, documentation, tests and flow layout — into one `ProjectSession` that owns the engine
   and the slice stores, and saves it back as one revision. `LocalProjectRepository` keeps device-local projects in
@@ -38,10 +38,10 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 ## Preview
 
 **Flow Editor:**
-![img_1.png](img_1.png)
+![img_1.png](docs/screenshots/img_1.png)
 
 **Simple Decision Table:**
-![img_2.png](img_2.png)
+![img_2.png](docs/screenshots/img_2.png)
 
 ## Opening a project in a story
 
@@ -111,16 +111,16 @@ components they actually import — a project that only uses the Code Editor nev
 │   │   ├── project-session/       # Project bundle, repositories, ProjectSession and its React provider (no GUI) —
 │   │   │                          #   see PROJECT_SESSION_STORY.md
 │   │   ├── test-cases-service/    # Persistence for test cases/rows/results (no engine, no GUI) — see
-│   │   │                          #   TESTS_MANAGER_SPEC.md; used by tests-manager, designed for boxed-editor too
+│   │   │                          #   tests-manager-spec.md (docs/specs); used by tests-manager, designed for boxed-editor too
 │   │   ├── tests-manager/         # Tests Manager grid + TestRunner (the execution service; see
-│   │   │                          #   Clarification #13 in TESTS_MANAGER_SPEC.md for why the names differ)
+│   │   │                          #   Clarification #13 in tests-manager-spec.md (docs/specs) for why the names differ)
 │   │   └── types-editor/          # Types Editor
 │   ├── hooks/                     # Custom React hooks for EdgeRules
 │   ├── lib/                       # Core logic and utilities shared across components
 │   └── index.ts                   # Root barrel re-exporting the full public API
 ├── stories/                        # Storybook stories, mirroring the src/components layout; support/ holds helpers
 ├── e2e/                            # Playwright end-to-end/visual tests
-├── docs/                           # Design notes and feature specs (e.g. PROJECT_EXPLORER_STORY.md)
+├── docs/                           # Design notes and feature specs (e.g. stories/completed/project-explorer-story.md)
 ├── dist/                           # Build output (ESM + CJS + .d.ts), git-ignored, published to npm
 ├── package.json
 ├── tsconfig.json
