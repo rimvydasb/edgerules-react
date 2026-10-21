@@ -1,10 +1,10 @@
-import { useCallback, useSyncExternalStore } from 'react';
-import { useBoxedEditorContext } from '../context/BoxedEditorContext';
+import {useCallback, useSyncExternalStore} from 'react';
+import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 
 export interface UseDescriptionResult {
-  description: string;
-  setDescription: (value: string) => void;
-  readOnly: boolean;
+    description: string;
+    setDescription: (value: string) => void;
+    readOnly: boolean;
 }
 
 const subscribeNever = (): (() => void) => () => {};
@@ -15,15 +15,15 @@ const subscribeNever = (): (() => void) => () => {};
  * was mounted without one (Section 4).
  */
 export function useDescription(path: string): UseDescriptionResult {
-  const { documentationService, readOnly } = useBoxedEditorContext();
-  const getSnapshot = useCallback(
-    () => documentationService?.getDescription(path) ?? '',
-    [documentationService, path],
-  );
-  const description = useSyncExternalStore(documentationService?.subscribe ?? subscribeNever, getSnapshot);
-  const setDescription = useCallback(
-    (value: string) => documentationService?.setDescription(path, value),
-    [documentationService, path],
-  );
-  return { description, setDescription, readOnly: readOnly || documentationService === undefined };
+    const {documentationService, readOnly} = useBoxedEditorContext();
+    const getSnapshot = useCallback(
+        () => documentationService?.getDescription(path) ?? '',
+        [documentationService, path],
+    );
+    const description = useSyncExternalStore(documentationService?.subscribe ?? subscribeNever, getSnapshot);
+    const setDescription = useCallback(
+        (value: string) => documentationService?.setDescription(path, value),
+        [documentationService, path],
+    );
+    return {description, setDescription, readOnly: readOnly || documentationService === undefined};
 }

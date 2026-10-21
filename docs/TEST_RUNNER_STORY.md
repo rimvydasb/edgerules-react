@@ -43,7 +43,7 @@ The engine is injected, never imported. Core declares `MutableDecisionService` s
 ## Domain vocabulary
 
 | Term                | Meaning                                                                                  |
-|---------------------|------------------------------------------------------------------------------------------|
+| ------------------- | ---------------------------------------------------------------------------------------- |
 | `TestSubject`       | What is under test: the whole model (`*`) or one callable's dotted path                  |
 | `TestSuite`         | Everything authored for one subject — its rows and its cases — plus their latest results |
 | `TestRow`           | One subject-relative path, in the inputs, assertions or validations section              |
@@ -58,7 +58,7 @@ Three npm packages across two repositories. Exact names, one row each — the di
 identifier because mermaid's grammar rejects `@` and `/`, so read the mapping from this table.
 
 | npm package name          | Diagram namespace        | Repository · directory                         | Contents                                            | Runtime dependencies                    | Entry points                                  |
-|---------------------------|--------------------------|------------------------------------------------|-----------------------------------------------------|-----------------------------------------|-----------------------------------------------|
+| ------------------------- | ------------------------ | ---------------------------------------------- | --------------------------------------------------- | --------------------------------------- | --------------------------------------------- |
 | `@edgerules/testing`      | `edgerules_testing`      | `edgerules-testing` · `packages/testing/`      | Executor, runners, suite, ports, formatters, codecs | **none**                                | `.`                                           |
 | `@edgerules/testing-node` | `edgerules_testing_node` | `edgerules-testing` · `packages/testing-node/` | SQLite and filesystem adapters, Node engine, CLI    | `@edgerules/testing`, `@edgerules/node` | `.` · bin `edgerules-test`                    |
 | `edgerules-react`         | `edgerules_react`        | `edgerules-react` · repo root                  | React components, hooks, browser adapters           | `@edgerules/testing`, `@dnd-kit/*`      | `.` · `./tests-manager` · `./code-editor` · … |
@@ -211,9 +211,9 @@ one stands for.
 
 The runner belongs in its own repository, `edgerules-testing`, not in `edgerules-react`.
 
-- **The volatile surface has no React consumer.** `BatchTestRunner`, `DatasetReader`, `ReportWriter`, SQLite and the
-  CLI — where nearly all the new work lands — are never imported by a browser bundle. Only
-  `InteractiveTestRunner` and `TestSuite` face the UI, and they face it through a small, stable API.
+- **The volatile surface has no React consumer.** `BatchTestRunner`, `DatasetReader`, `ReportWriter`, SQLite and the CLI
+  — where nearly all the new work lands — are never imported by a browser bundle. Only `InteractiveTestRunner` and
+  `TestSuite` face the UI, and they face it through a small, stable API.
 - **The coupling is one publish, not a loop.** `edgerules-react` consumes a published `@edgerules/testing` and rewrites
   its imports once. There is no ongoing cross-repo edit cycle, because the CLI never changes what the grid consumes.
 - **CI has nothing in common.** A Node version matrix with real SQLite files against Storybook, Playwright and jsdom.
@@ -255,7 +255,7 @@ workspace root is private and never published.
 ## Data types
 
 | Type                | Shape                                                                                                                    |
-|---------------------|--------------------------------------------------------------------------------------------------------------------------|
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `CaseRequest`       | `{ caseId, rows: TestRow[], inputs: TestValuesByPath, assertions?: TestValuesByPath }`                                   |
 | `CaseOutcome`       | `{ caseId, status: 'ok'\|'error', error?, results: Record<path, TestResult>, discovered: TestRow[], ranAt, durationMs }` |
 | `TestSuiteSnapshot` | `{ rows: TestRow[], cases: TestCase[], results: TestResultSet[] }`                                                       |
@@ -285,9 +285,8 @@ it for brevity.
 against assertions. It holds no storage and publishes no events.
 
 `InteractiveTestRunner` drives a grid — it persists every outcome through `TestSuite` and notifies subscribers, so a UI
-stays live. `BatchTestRunner` streams a dataset at bounded concurrency, writes outcomes straight to a
-`ReportWriter`, and never touches suite storage. Sharing the executor is what guarantees a case cannot pass in the grid
-and fail in CI.
+stays live. `BatchTestRunner` streams a dataset at bounded concurrency, writes outcomes straight to a `ReportWriter`,
+and never touches suite storage. Sharing the executor is what guarantees a case cannot pass in the grid and fail in CI.
 
 ## CLI
 
@@ -300,7 +299,7 @@ npx --package @edgerules/testing-node edgerules-test --help    # explicit form
 ```
 
 | Requirement            | Consequence                                                                                     |
-|------------------------|-------------------------------------------------------------------------------------------------|
+| ---------------------- | ----------------------------------------------------------------------------------------------- |
 | Cold start under `npx` | Subcommands `import()` SQLite and the WASM engine lazily; `--help` and `--version` load neither |
 | CI contract            | Exit `0` all passed · `1` assertion failures · `2` execution or configuration error             |
 | Single bin             | `"bin": { "edgerules-test": "./dist/cli.js" }`, ESM with `#!/usr/bin/env node`                  |
@@ -311,7 +310,7 @@ through a formatter).
 ## Boundary enforcement
 
 | Guard            | Mechanism                                                                                                |
-|------------------|----------------------------------------------------------------------------------------------------------|
+| ---------------- | -------------------------------------------------------------------------------------------------------- |
 | No DOM in core   | `packages/testing/tsconfig.json` with `"lib": ["ES2022"]` — no `DOM`                                     |
 | No Node in core  | Build-output test: `packages/testing/dist/**` contains no `node:` specifier                              |
 | No React in core | Same test: no `react` import; `"dependencies": {}` in its manifest                                       |
@@ -320,7 +319,7 @@ through a formatter).
 ## Testing
 
 | Package                        | Environment    | Engine                                         |
-|--------------------------------|----------------|------------------------------------------------|
+| ------------------------------ | -------------- | ---------------------------------------------- |
 | `@edgerules/testing`           | vitest `node`  | real `@edgerules/node`                         |
 | `@edgerules/testing-node`      | vitest `node`  | real `@edgerules/node`, real temp SQLite files |
 | `edgerules-react` (other repo) | vitest `jsdom` | real `@edgerules/node`, `fake-indexeddb`       |

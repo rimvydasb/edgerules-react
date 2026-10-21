@@ -1,0 +1,301 @@
+/*
+ * The Flow Editor shell: the node palette on the left, the canvas on the right. Mantine colors only, so the light and
+ * dark schemes follow the host theme. Wire colors are the pin type colors of coreNode.module.css.
+ */
+.editor {
+  --fe-border: var(--mantine-color-default-border);
+  --fe-muted: var(--mantine-color-default-hover);
+  --fe-canvas: var(--mantine-color-gray-0);
+  --fe-dot: #ced4da;
+  --fe-wire: var(--mantine-color-gray-5);
+  --fe-t-number: var(--mantine-color-blue-7);
+  --fe-t-string: var(--mantine-color-green-8);
+  --fe-t-boolean: var(--mantine-color-orange-7);
+  --fe-t-date: var(--mantine-color-cyan-8);
+  --fe-t-record: var(--mantine-color-gray-7);
+
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+  overflow: hidden;
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  font-family: var(--mantine-font-family);
+}
+
+:global([data-mantine-color-scheme='dark']) .editor {
+  --fe-canvas: var(--mantine-color-dark-8);
+  --fe-dot: #3a3a3a;
+  --fe-wire: var(--mantine-color-dark-2);
+  --fe-t-number: var(--mantine-color-blue-4);
+  --fe-t-string: var(--mantine-color-green-4);
+  --fe-t-boolean: var(--mantine-color-orange-4);
+  --fe-t-date: var(--mantine-color-cyan-4);
+  --fe-t-record: var(--mantine-color-gray-5);
+}
+
+/* ---------------------------------------------------------------- palette */
+.palette {
+  display: flex;
+  flex: 0 0 256px;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--fe-border);
+  background: var(--mantine-color-body);
+}
+
+.paletteHeader {
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 14px 8px;
+  border-bottom: 1px solid var(--fe-border);
+  background: var(--fe-muted);
+}
+
+.paletteTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.paletteSearch {
+  padding: 10px 10px 4px;
+}
+
+.paletteBody {
+  flex: 1;
+  min-height: 0;
+}
+
+.paletteEmpty {
+  padding: 16px 14px;
+  color: var(--mantine-color-dimmed);
+  font-size: 12.5px;
+}
+
+.paletteFooter {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-top: 1px solid var(--fe-border);
+  color: var(--mantine-color-dimmed);
+  font-size: 11.5px;
+}
+
+.group {
+  padding: 6px 6px 4px;
+}
+
+.groupLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px 4px;
+  color: var(--mantine-color-dimmed);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.groupCount {
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--fe-muted);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--mantine-radius-sm);
+  cursor: grab;
+  user-select: none;
+  outline: none;
+}
+
+.item:hover {
+  border-color: var(--fe-border);
+  background: var(--fe-muted);
+}
+
+.item:focus-visible {
+  border-color: var(--mantine-primary-color-filled);
+}
+
+.item:active {
+  cursor: grabbing;
+}
+
+.tile {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.itemText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.itemTitle {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemDetail {
+  overflow: hidden;
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grip {
+  flex: 0 0 auto;
+  color: var(--mantine-color-dimmed);
+  opacity: 0;
+}
+
+.item:hover .grip,
+.item:focus-visible .grip {
+  opacity: 1;
+}
+
+/* The collapsed palette: a rail with the generic item of each node type. */
+.rail {
+  flex-basis: 48px;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.railItem {
+  display: flex;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: var(--mantine-radius-sm);
+  cursor: grab;
+  outline: none;
+}
+
+.railItem:hover,
+.railItem:focus-visible {
+  border-color: var(--fe-border);
+  background: var(--fe-muted);
+}
+
+/* ---------------------------------------------------------------- canvas */
+.canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas :global(.react-flow) {
+  --xy-background-color: var(--fe-canvas);
+  --xy-edge-stroke: var(--fe-wire);
+  --xy-edge-stroke-selected: var(--mantine-primary-color-filled);
+  --xy-connectionline-stroke: var(--mantine-primary-color-filled);
+  --xy-minimap-background-color: var(--mantine-color-body);
+  --xy-controls-button-background-color: var(--mantine-color-body);
+  --xy-controls-button-background-color-hover: var(--fe-muted);
+  --xy-controls-button-color: var(--mantine-color-text);
+  --xy-controls-button-border-color: var(--fe-border);
+}
+
+.background {
+  --xy-background-pattern-dots-color: var(--fe-dot);
+}
+
+.controls,
+.minimap {
+  overflow: hidden;
+  border: 1px solid var(--fe-border);
+  border-radius: var(--mantine-radius-sm);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+/* ---------------------------------------------------------------- wires */
+.wire :global(.react-flow__edge-path) {
+  stroke: var(--wc, var(--fe-wire));
+  stroke-width: 1.75;
+}
+
+.wire:global(.selected) :global(.react-flow__edge-path),
+.wire:hover :global(.react-flow__edge-path) {
+  stroke-width: 2.75;
+}
+
+.wire:global(.selected) :global(.react-flow__edge-path) {
+  stroke: var(--mantine-primary-color-filled);
+}
+
+.wireNumber {
+  --wc: var(--fe-t-number);
+}
+
+.wireString {
+  --wc: var(--fe-t-string);
+}
+
+.wireBoolean {
+  --wc: var(--fe-t-boolean);
+}
+
+.wireDate {
+  --wc: var(--fe-t-date);
+}
+
+.wireRecord {
+  --wc: var(--fe-t-record);
+}
+
+.wireAny {
+  --wc: var(--fe-wire);
+}
+
+/* ---------------------------------------------------------------- empty state */
+.emptyPanel {
+  margin-top: 18vh;
+  pointer-events: none;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 340px;
+  padding: 20px 24px;
+  border: 1px dashed var(--fe-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-dimmed);
+  font-size: 13px;
+  text-align: center;
+}
+
+.empty strong {
+  color: var(--mantine-color-text);
+  font-size: 14px;
+}
+
+.emptyIcon {
+  color: var(--mantine-color-dimmed);
+}

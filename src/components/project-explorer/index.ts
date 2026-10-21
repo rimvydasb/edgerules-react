@@ -1,2 +1,2 @@
-export { ProjectExplorer } from './ProjectExplorer';
-export type { ProjectExplorerProps } from './ProjectExplorer';
+export {ProjectExplorer} from './ProjectExplorer';
+export type {ProjectExplorerProps} from './ProjectExplorer';

@@ -6,7 +6,7 @@ import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import type {BoxedRowData} from '../boxed-editor-types';
 import * as classes from '../boxedEditor.module.css';
-import {RowActionsMenu, type RowMenuItem} from '../menu/RowActionsMenu';
+import {RowActionsMenu, type RowMenuItem} from '../../../ui/RowActionsMenu';
 import {Cell} from './Cell';
 import {CELL} from './layout';
 import {RowActionsButton} from './RowActionsButton';

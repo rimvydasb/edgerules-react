@@ -100,13 +100,36 @@
         "types": "./dist/components/tests-manager/index.d.cts",
         "default": "./dist/components/tests-manager/index.cjs"
       }
+    },
+    "./flow-editor": {
+      "import": {
+        "types": "./dist/components/flow-editor/index.d.ts",
+        "default": "./dist/components/flow-editor/index.js"
+      },
+      "require": {
+        "types": "./dist/components/flow-editor/index.d.cts",
+        "default": "./dist/components/flow-editor/index.cjs"
+      }
+    },
+    "./project-session": {
+      "import": {
+        "types": "./dist/components/project-session/index.d.ts",
+        "default": "./dist/components/project-session/index.js"
+      },
+      "require": {
+        "types": "./dist/components/project-session/index.d.cts",
+        "default": "./dist/components/project-session/index.cjs"
+      }
     }
   },
   "scripts": {
-    "build": "tsup",
-    "format": "prettier --write \"src/**/*.tsx\" \"stories/**/*.tsx\"",
-    "format:check": "prettier --check \"src/**/*.tsx\" \"stories/**/*.tsx\"",
+    "build": "tsdown",
+    "format": "prettier --write --log-level warn \"**/*.{ts,tsx,js,cjs,mjs,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,mjs,md}\"",
+    "lint": "oxlint --type-aware --quiet",
+    "lint:all": "oxlint --type-aware",
     "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint && npm test",
     "test": "vitest run",
     "test:watch": "vitest",
     "storybook": "storybook dev -p 6006",
@@ -124,6 +147,8 @@
     "@mantine/core": "^9.0.0",
     "@mantine/hooks": "^9.0.0",
     "@tabler/icons-react": "^3.0.0",
+    "@tanstack/charts": "^1.1.0",
+    "@xyflow/react": "^12.0.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
   },
@@ -151,14 +176,20 @@
     },
     "@tabler/icons-react": {
       "optional": true
+    },
+    "@tanstack/charts": {
+      "optional": true
+    },
+    "@xyflow/react": {
+      "optional": true
     }
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@edgerules/portable": "0.0.6-alpha.202607291629",
-    "@edgerules/web": "0.0.6-alpha.202607291629"
+    "@edgerules/portable": "0.0.7-alpha.202610201841",
+    "@edgerules/web": "0.0.7-alpha.202610201841"
   },
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -167,36 +198,35 @@
     "@codemirror/lint": "^6.9.7",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.14",
-    "@edgerules/node": "0.0.6-alpha.202607291629",
+    "@edgerules/node": "0.0.7-alpha.202610201841",
     "@lezer/highlight": "^1.2.5",
     "@mantine/core": "^9.7.2",
     "@mantine/hooks": "^9.7.2",
     "@playwright/test": "^1.64.0",
     "@storybook/react-vite": "^10.6.2",
     "@tabler/icons-react": "^3.49.0",
+    "@tanstack/charts": "^1.1.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@xyflow/react": "^12.12.0",
     "esbuild": "0.28.1",
     "fake-indexeddb": "^6.2.5",
     "highs": "^1.15.3",
     "http-server": "^14.1.1",
     "jsdom": "^30.1.2",
+    "oxlint": "^1.89.0",
+    "oxlint-tsgolint": "^7.0.2004",
     "prettier": "^3.9.10",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "storybook": "^10.6.2",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.23.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.4"
-  },
-  "overrides": {
-    "tsup": {
-      "esbuild": "0.28.1"
-    }
   }
 }

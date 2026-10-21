@@ -14,6 +14,7 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
     const {
         service,
         modelName,
+        testCases,
         documentationService,
         subjectId: controlledSubjectId,
         onSubjectChange,
@@ -32,8 +33,11 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
     const subjects = useMemo(() => listTestSubjects(service), [service, revision]);
     const subject = subjects.find((candidate) => candidate.id === subjectId) ?? subjects[0];
 
-    const testCasesService = useMemo(() => createTestCasesService(modelName, subject.id), [modelName, subject.id]);
-    useEffect(() => () => testCasesService.dispose(), [testCasesService]);
+    const testCasesService = useMemo(
+        () => testCases?.forSubject(subject.id) ?? createTestCasesService(modelName!, subject.id),
+        [testCases, modelName, subject.id],
+    );
+    useEffect(() => (testCases ? undefined : () => testCasesService.dispose()), [testCases, testCasesService]);
 
     const runner = useMemo(
         () =>
@@ -49,12 +53,12 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
     // "locally mutated" and cause it to discard the very persisted data hydration was about to
     // deliver. Subscribing in a layout effect (synchronous with mount, before any queued microtask
     // from the no-IndexedDB fallback's hydration can fire) guarantees the one-time hydration
-    // notification is never missed.
+    // notification is never missed. Host-owned tests are already loaded and never hydrate.
     const [ready, setReady] = useState(false);
     useLayoutEffect(() => {
-        setReady(false);
+        setReady(testCases !== undefined);
         return testCasesService.subscribe(() => setReady(true));
-    }, [testCasesService]);
+    }, [testCases, testCasesService]);
 
     useEffect(() => {
         if (!ready) return;

@@ -8,11 +8,10 @@ import * as rtl from './node_modules/@testing-library/react/dist/index.js';
 export * from './node_modules/@testing-library/react/dist/index.js';
 
 function Providers({children}: {children: ReactNode}): ReactElement {
-  return <MantineProvider env="test">{children}</MantineProvider>;
+    return <MantineProvider env="test">{children}</MantineProvider>;
 }
 
-export const render: typeof rtl.render = (ui, options) =>
-  rtl.render(ui, {wrapper: Providers, ...options} as never);
+export const render: typeof rtl.render = (ui, options) => rtl.render(ui, {wrapper: Providers, ...options} as never);
 
 export const renderHook: typeof rtl.renderHook = (callback, options) =>
-  rtl.renderHook(callback, {wrapper: Providers, ...options} as never);
+    rtl.renderHook(callback, {wrapper: Providers, ...options} as never);
