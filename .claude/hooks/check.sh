@@ -10,7 +10,7 @@ input=$(cat)
 cd "$CLAUDE_PROJECT_DIR" || exit 0
 session=$(jq -r '.session_id // "none"' <<<"$input")
 
-state_dir="${TMPDIR:-/tmp}/askbudget-agent-check"
+state_dir="${TMPDIR:-/tmp}/edgerules-react-agent-check"
 mkdir -p "$state_dir"
 pass_file="$state_dir/last-pass"
 attempts_file="$state_dir/$session.attempts"

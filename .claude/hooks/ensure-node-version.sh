@@ -37,5 +37,5 @@ fi
 
 if [ "$current_default" != "$resolved" ]; then
   nvm alias default "$wanted" >/dev/null 2>&1
-  echo "{\"systemMessage\": \"nvm default switched to Node $resolved (from .nvmrc) for askbudget.\"}"
+  echo "{\"systemMessage\": \"nvm default switched to Node $resolved (from .nvmrc).\"}"
 fi

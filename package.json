@@ -129,6 +129,7 @@
     "lint": "oxlint --type-aware --quiet",
     "lint:all": "oxlint --type-aware",
     "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint && npm test",
     "test": "vitest run",
     "test:watch": "vitest",
     "storybook": "storybook dev -p 6006",
