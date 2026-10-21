@@ -4,35 +4,13 @@ import {
     useMemo,
     useRef,
     useState,
+    type CSSProperties,
     type KeyboardEvent,
     type ReactElement,
     type ReactNode,
 } from 'react';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import InputBase from '@mui/material/InputBase';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import Snackbar from '@mui/material/Snackbar';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import AddIcon from '@mui/icons-material/Add';
-import {alpha, type SxProps, type Theme} from '@mui/material/styles';
+import {ActionIcon, Alert, Button, Group, Menu, Modal, Select, Text, TextInput, Tooltip} from '@mantine/core';
+import {IconDotsVertical, IconPlus} from '@tabler/icons-react';
 import type {
     PortableContext,
     PortableError,
@@ -43,9 +21,13 @@ import type {
     PortableTypeReference,
 } from '@edgerules/portable';
 import {isPortableError} from '../../lib/portable';
+import {cx} from '../../ui/cx';
+import {GridBody, GridCell, GridHead, GridRow, GridTable} from '../../ui/grid';
+import {Toast} from '../../ui/Toast';
+import * as classes from './decisionTable.module.css';
 import {CodeEditorCell} from '../code-editor-cell/CodeEditorCell';
 import type {CodeEditorService} from '../code-editor/language/service';
-import {highlightEdgeRules} from '../code-editor/language/highlight';
+import {HighlightedCode} from '../code-editor-cell/HighlightedCode';
 import {
     HIT_POLICIES,
     SCALAR_OUTPUT,
@@ -145,7 +127,7 @@ export interface DecisionTableEditorProps {
     /** Fired after a successful "Rename table…" — the host should update its `path` prop to match. */
     onRenamed?: (newPath: string) => void;
     className?: string;
-    sx?: SxProps<Theme>;
+    style?: CSSProperties;
 }
 
 type CellId =
@@ -173,26 +155,14 @@ function cellKey(id: CellId): string {
     }
 }
 
-const NOOP_LANGUAGE_SERVICE: CodeEditorService = {diagnostics: () => []};
+/** Column widths in grid steps (`GRID_STEP` = 40px). */
+const ROW_NUMBER_UNITS = 1;
+const INPUT_COLUMN_UNITS = 5;
+const OUTPUT_COLUMN_UNITS = 4;
+const PRIORITY_COLUMN_UNITS = 2;
+const ANNOTATION_COLUMN_UNITS = 4;
 
-/** Display-only rendering of a cell's DSL text as statically highlighted spans. */
-function HighlightedText({text}: {text: string}): ReactElement {
-    const spans = useMemo(() => highlightEdgeRules(text), [text]);
-    return (
-        <>
-            {spans.map((span, index) =>
-                span.className ? (
-                    // eslint-disable-next-line react/no-array-index-key
-                    <span key={index} className={span.className}>
-                        {span.text}
-                    </span>
-                ) : (
-                    span.text
-                ),
-            )}
-        </>
-    );
-}
+const NOOP_LANGUAGE_SERVICE: CodeEditorService = {diagnostics: () => []};
 
 interface DisplayCellProps {
     text: string;
@@ -249,8 +219,7 @@ function DisplayCell({
     };
 
     return (
-        <Box
-            component="div"
+        <div
             // Not in the default Tab order when read-only — there is no action to reach, so it
             // shouldn't present as a focusable "button" (DT-031). Still programmatically focusable
             // (tabIndex -1) so arrow-key grid navigation keeps working.
@@ -270,39 +239,21 @@ function DisplayCell({
             }}
             onDoubleClick={readOnly ? undefined : onStartEdit}
             onKeyDown={handleKeyDown}
-            sx={{
-                minHeight: 24,
-                display: 'flex',
-                alignItems: 'center',
-                px: 0.75,
-                cursor: readOnly ? 'default' : 'cell',
-                borderRadius: 0.5,
-                outline: 'none',
-                fontFamily: 'monospace',
-                fontSize: '0.85rem',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                ...(warning ? {bgcolor: (theme: Theme) => alpha(theme.palette.warning.main, 0.18)} : {}),
-                '&:focus-visible': {
-                    boxShadow: (theme) => `inset 0 0 0 2px ${theme.palette.primary.main}`,
-                },
-            }}
+            className={cx(classes.displayCell, !readOnly && classes.editable, warning && classes.warning)}
         >
             {/* Single child span: the flex parent would otherwise drop whitespace-only text nodes between token spans. */}
-            <Box component="span" sx={{whiteSpace: 'pre-wrap'}}>
+            <span className={classes.pre}>
                 {text.length > 0 ? (
                     plain ? (
                         text
                     ) : (
-                        <HighlightedText text={text} />
+                        <HighlightedCode code={text} />
                     )
                 ) : (
-                    <Box component="span" sx={{color: 'text.disabled'}}>
-                        {emptyLabel}
-                    </Box>
+                    <span className={classes.empty}>{emptyLabel}</span>
                 )}
-            </Box>
-        </Box>
+            </span>
+        </div>
     );
 }
 
@@ -318,12 +269,12 @@ interface PlainCellEditorProps {
 function PlainCellEditor({value, type = 'text', ariaLabel, onCommit, onCancel}: PlainCellEditorProps): ReactElement {
     const cancelledRef = useRef(false);
     return (
-        <InputBase
+        <input
             autoFocus
             defaultValue={value}
             type={type}
-            inputProps={{'aria-label': ariaLabel}}
-            sx={{fontSize: '0.85rem', width: '100%', px: 0.75}}
+            aria-label={ariaLabel}
+            className={classes.plainEditor}
             onBlur={(event) => {
                 if (!cancelledRef.current) {
                     onCommit(event.target.value);
@@ -391,25 +342,20 @@ function ColumnDialog({state, onClose}: {state: ColumnDialogState | null; onClos
     };
 
     return (
-        <Dialog open={state !== null} onClose={onClose} maxWidth="xs" fullWidth>
-            <DialogTitle>{state?.title}</DialogTitle>
-            <DialogContent
-                sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2,
-                    pt: '8px !important',
-                }}
-            >
-                {state?.warning ? <Alert severity="info">{state.warning}</Alert> : null}
-                <TextField
-                    autoFocus
+        <Modal opened={state !== null} onClose={onClose} title={state?.title} size="sm" centered>
+            <div className={classes.dialogFields}>
+                {state?.warning ? (
+                    <Alert color="blue" variant="light">
+                        {state.warning}
+                    </Alert>
+                ) : null}
+                <TextInput
+                    data-autofocus
                     label={state?.nameLabel}
                     value={name}
-                    size="small"
+                    size="sm"
                     disabled={state?.nameEditable === false}
-                    error={error !== null}
-                    helperText={error ?? ' '}
+                    error={error ?? undefined}
                     onChange={(event) => {
                         setName(event.target.value);
                         setError(null);
@@ -423,25 +369,25 @@ function ColumnDialog({state, onClose}: {state: ColumnDialogState | null; onClos
                 {state?.withType ? (
                     <Select
                         value={type}
-                        size="small"
-                        onChange={(event) => setType(event.target.value as PortableTypeReference)}
-                        inputProps={{'aria-label': 'Column type'}}
-                    >
-                        {INPUT_TYPES.map((option) => (
-                            <MenuItem key={option} value={option}>
-                                {option}
-                            </MenuItem>
-                        ))}
-                    </Select>
+                        size="sm"
+                        allowDeselect={false}
+                        data={INPUT_TYPES}
+                        onChange={(next) => {
+                            if (next) setType(next as PortableTypeReference);
+                        }}
+                        aria-label="Column type"
+                    />
                 ) : null}
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Cancel</Button>
-                <Button variant="contained" onClick={submit} disabled={name.trim().length === 0}>
-                    OK
-                </Button>
-            </DialogActions>
-        </Dialog>
+                <Group justify="flex-end" gap="xs">
+                    <Button variant="default" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button onClick={submit} disabled={name.trim().length === 0}>
+                        OK
+                    </Button>
+                </Group>
+            </div>
+        </Modal>
     );
 }
 
@@ -455,16 +401,15 @@ interface ConfirmState {
 /** Confirms a destructive structural op (delete rule/column, remove default, drop-on-hit-policy-change). */
 function ConfirmDialog({state, onClose}: {state: ConfirmState | null; onClose: () => void}): ReactElement {
     return (
-        <Dialog open={state !== null} onClose={onClose} maxWidth="xs" fullWidth>
-            <DialogTitle>{state?.title}</DialogTitle>
-            <DialogContent>
-                <DialogContentText>{state?.message}</DialogContentText>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Cancel</Button>
+        <Modal opened={state !== null} onClose={onClose} title={state?.title} size="sm" centered>
+            <Text size="sm">{state?.message}</Text>
+            <Group justify="flex-end" gap="xs" mt="md">
+                <Button variant="default" onClick={onClose}>
+                    Cancel
+                </Button>
                 <Button
-                    variant="contained"
-                    color="error"
+                    color="red"
+                    data-autofocus
                     onClick={() => {
                         state?.onConfirm();
                         onClose();
@@ -472,8 +417,8 @@ function ConfirmDialog({state, onClose}: {state: ConfirmState | null; onClose: (
                 >
                     {state?.confirmLabel ?? 'Delete'}
                 </Button>
-            </DialogActions>
-        </Dialog>
+            </Group>
+        </Modal>
     );
 }
 
@@ -518,7 +463,7 @@ export function DecisionTableEditor({
     onChange,
     onRenamed,
     className,
-    sx,
+    style,
 }: DecisionTableEditorProps): ReactElement {
     const [definition, setDefinition] = useState<PortableRulesetDefinition | null>(null);
     const [schema, setSchema] = useState<PortableRulesetSchema | undefined>(undefined);
@@ -529,15 +474,6 @@ export function DecisionTableEditor({
      * cell is retried successfully or the edit is cancelled, so a rejected edit doesn't lose what
      * the user typed (DT-029). */
     const [pendingErrors, setPendingErrors] = useState<Record<string, {text: string; message: string}>>({});
-    const [rowMenu, setRowMenu] = useState<{
-        anchor: HTMLElement;
-        row: number;
-    } | null>(null);
-    const [columnMenu, setColumnMenu] = useState<{
-        anchor: HTMLElement;
-        column: {kind: 'input' | 'output'; name: string};
-    } | null>(null);
-    const [tableMenu, setTableMenu] = useState<HTMLElement | null>(null);
     const [dialog, setDialog] = useState<ColumnDialogState | null>(null);
     const [confirm, setConfirm] = useState<ConfirmState | null>(null);
     const [undo, setUndo] = useState<{label: string; definition: PortableRulesetDefinition} | null>(null);
@@ -819,13 +755,13 @@ export function DecisionTableEditor({
 
     if (loadError !== null) {
         return (
-            <Alert severity="error" className={className} sx={sx}>
+            <Alert color="red" variant="light" className={className} style={style}>
                 {loadError}
             </Alert>
         );
     }
     if (!definition || !model) {
-        return <Box className={className} sx={sx} />;
+        return <div className={className} style={style} />;
     }
 
     const effectiveLanguageService = languageService ?? NOOP_LANGUAGE_SERVICE;
@@ -833,6 +769,15 @@ export function DecisionTableEditor({
     const showPriority = model.hitPolicy === 'best-match';
     const priorityColumns = showPriority ? 1 : 0;
     const totalColumns = 1 + model.inputs.length + model.outputs.length + priorityColumns + 1 + (readOnly ? 0 : 1);
+    // Whole-step column widths (see `GRID_STEP`), in the same order as the header row's cells.
+    const columnUnits = [
+        ROW_NUMBER_UNITS,
+        ...model.inputs.map(() => INPUT_COLUMN_UNITS),
+        ...model.outputs.map(() => OUTPUT_COLUMN_UNITS),
+        ...(showPriority ? [PRIORITY_COLUMN_UNITS] : []),
+        ANNOTATION_COLUMN_UNITS,
+        ...(readOnly ? [] : [ROW_NUMBER_UNITS]),
+    ];
     const editingKey = editing ? cellKey(editing) : null;
     const duplicatePrioritySet = showPriority ? duplicatePriorities(model.rows) : new Set<number>();
 
@@ -844,7 +789,7 @@ export function DecisionTableEditor({
     ): ReactElement => {
         const pending = pendingErrors[idKey];
         return (
-            <Box>
+            <div>
                 <CodeEditorCell
                     value={pending ? pending.text : value}
                     service={effectiveLanguageService}
@@ -856,32 +801,31 @@ export function DecisionTableEditor({
                         setEditing(null);
                     }}
                 />
-                {pending ? (
-                    <Typography
-                        variant="caption"
-                        sx={{color: 'error.main', display: 'block', mt: 0.25, lineHeight: 1.2}}
-                    >
-                        {pending.message}
-                    </Typography>
-                ) : null}
-            </Box>
+                {pending ? <span className={classes.cellError}>{pending.message}</span> : null}
+            </div>
         );
     };
 
     const columnHeader = (column: {kind: 'input' | 'output'; name: string}, label: ReactNode): ReactNode => (
-        <Box sx={{display: 'flex', alignItems: 'center', gap: 0.5}}>
-            <Box sx={{flex: 1, minWidth: 0}}>{label}</Box>
+        <div className={classes.columnHeader}>
+            <div className={classes.columnLabel}>{label}</div>
             {!readOnly && (
-                <IconButton
-                    size="small"
-                    aria-label={`${column.name || 'score'} column menu`}
-                    sx={{p: 0.25, opacity: 0.7, '&:hover': {opacity: 1}, '&:focus-visible': {opacity: 1}}}
-                    onClick={(event) => setColumnMenu({anchor: event.currentTarget, column})}
-                >
-                    <MoreVertIcon sx={{fontSize: 16}} />
-                </IconButton>
+                <Menu position="bottom-start" withinPortal>
+                    <Menu.Target>
+                        <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            color="gray"
+                            className={classes.columnMenu}
+                            aria-label={`${column.name || 'score'} column menu`}
+                        >
+                            <IconDotsVertical size={14} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>{columnMenuItems(column)}</Menu.Dropdown>
+                </Menu>
             )}
-        </Box>
+        </div>
     );
 
     const gridRow = (rowIndex: number): number => rowIndex;
@@ -894,7 +838,7 @@ export function DecisionTableEditor({
 
         const whenCells: ReactNode =
             row.when.kind === 'expression' ? (
-                <TableCell key="when-expression" colSpan={Math.max(model.inputs.length, 1)}>
+                <GridCell key="when-expression" colSpan={Math.max(model.inputs.length, 1)}>
                     {editingKey === cellKey({kind: 'when-expression', row: rowIndex}) ? (
                         editorCell(
                             cellKey({kind: 'when-expression', row: rowIndex}),
@@ -926,14 +870,14 @@ export function DecisionTableEditor({
                             registerRef={registerRef}
                         />
                     )}
-                </TableCell>
+                </GridCell>
             ) : (
                 model.inputs.map((column, inputIndex) => {
                     const id: CellId = {kind: 'when', row: rowIndex, name: column.name};
                     const cells = row.when.kind === 'cells' ? row.when.cells : {};
                     const position = {row: gridRow(rowIndex), col: inputIndex};
                     return (
-                        <TableCell key={`when-${column.name}`}>
+                        <GridCell key={`when-${column.name}`}>
                             {editingKey === cellKey(id) ? (
                                 editorCell(
                                     cellKey(id),
@@ -961,23 +905,23 @@ export function DecisionTableEditor({
                                     registerRef={registerRef}
                                 />
                             )}
-                        </TableCell>
+                        </GridCell>
                     );
                 })
             );
         col += model.inputs.length;
 
         return (
-            <TableRow key={rowIndex} hover>
-                <TableCell align="center" sx={{color: 'text.secondary', width: 34}}>
+            <GridRow key={rowIndex} hover>
+                <GridCell align="center" className={cx(classes.muted, classes.iconCell)}>
                     {rowIndex + 1}
-                </TableCell>
+                </GridCell>
                 {whenCells}
                 {model.outputs.map((column, outputIndex) => {
                     const id: CellId = {kind: 'then', row: rowIndex, name: column.name};
                     const position = {row: gridRow(rowIndex), col: col + outputIndex};
                     return (
-                        <TableCell key={`then-${column.name}`} className="dt-output-cell">
+                        <GridCell key={`then-${column.name}`}>
                             {editingKey === cellKey(id) ? (
                                 editorCell(
                                     cellKey(id),
@@ -1003,13 +947,13 @@ export function DecisionTableEditor({
                                     registerRef={registerRef}
                                 />
                             )}
-                        </TableCell>
+                        </GridCell>
                     );
                 })}
                 {showPriority ? (
-                    <TableCell sx={{width: 70}}>
+                    <GridCell className={classes.priorityCell}>
                         {editingKey === cellKey(priorityId) ? (
-                            <Box>
+                            <div>
                                 <PlainCellEditor
                                     value={
                                         pendingErrors[cellKey(priorityId)]?.text ??
@@ -1041,14 +985,11 @@ export function DecisionTableEditor({
                                     }}
                                 />
                                 {pendingErrors[cellKey(priorityId)] ? (
-                                    <Typography
-                                        variant="caption"
-                                        sx={{color: 'error.main', display: 'block', lineHeight: 1.2}}
-                                    >
+                                    <span className={classes.cellError}>
                                         {pendingErrors[cellKey(priorityId)].message}
-                                    </Typography>
+                                    </span>
                                 ) : null}
-                            </Box>
+                            </div>
                         ) : (
                             <DisplayCell
                                 text={row.priority !== undefined ? String(row.priority) : ''}
@@ -1064,9 +1005,9 @@ export function DecisionTableEditor({
                                 registerRef={registerRef}
                             />
                         )}
-                    </TableCell>
+                    </GridCell>
                 ) : null}
-                <TableCell sx={{color: 'text.secondary'}}>
+                <GridCell className={classes.muted}>
                     {editingKey === cellKey(annotationId) ? (
                         <PlainCellEditor
                             value={row.name ?? ''}
@@ -1093,29 +1034,33 @@ export function DecisionTableEditor({
                             registerRef={registerRef}
                         />
                     )}
-                </TableCell>
+                </GridCell>
                 {!readOnly && (
-                    <TableCell sx={{width: 34, p: 0}} align="center">
-                        <IconButton
-                            size="small"
-                            aria-label={`rule ${rowIndex + 1} menu`}
-                            onClick={(event) => setRowMenu({anchor: event.currentTarget, row: rowIndex})}
-                        >
-                            <MoreVertIcon fontSize="inherit" />
-                        </IconButton>
-                    </TableCell>
+                    <GridCell align="center" className={classes.iconCell}>
+                        <Menu position="bottom-start" withinPortal>
+                            <Menu.Target>
+                                <ActionIcon
+                                    size="sm"
+                                    variant="subtle"
+                                    color="gray"
+                                    aria-label={`rule ${rowIndex + 1} menu`}
+                                >
+                                    <IconDotsVertical size={14} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>{rowMenuItems(rowIndex)}</Menu.Dropdown>
+                        </Menu>
+                    </GridCell>
                 )}
-            </TableRow>
+            </GridRow>
         );
     };
 
-    const handleRowMenuAction = (action: string): void => {
-        if (!rowMenu || !definition || !model) {
+    const handleRowMenuAction = (action: string, index: number): void => {
+        if (!definition || !model) {
             return;
         }
-        const index = rowMenu.row;
         const rules = [...definition['@rules']];
-        setRowMenu(null);
         switch (action) {
             case 'delete': {
                 const label = describeRow(model.rows[index]);
@@ -1196,12 +1141,10 @@ export function DecisionTableEditor({
         }
     };
 
-    const handleColumnMenuAction = (action: string): void => {
-        if (!columnMenu || !definition || !model) {
+    const handleColumnMenuAction = (action: string, column: {kind: 'input' | 'output'; name: string}): void => {
+        if (!definition || !model) {
             return;
         }
-        const {column} = columnMenu;
-        setColumnMenu(null);
         if (action === 'rename' && column.kind === 'output' && column.name !== SCALAR_OUTPUT) {
             setDialog({
                 title: 'Rename output column',
@@ -1301,7 +1244,6 @@ export function DecisionTableEditor({
         if (!definition || !model) {
             return;
         }
-        setTableMenu(null);
         switch (action) {
             case 'rename-table':
                 setDialog({
@@ -1393,212 +1335,214 @@ export function DecisionTableEditor({
         }
     };
 
-    return (
-        <Box
-            className={className}
-            sx={{
-                // Static token colors for display cells, mirroring the CodeMirror highlight theme.
-                '& .tok-keyword': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#c792ea' : '#7b1fa2'),
-                },
-                '& .tok-atom': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#d19a66' : '#e65100'),
-                },
-                '& .tok-bool': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#56b6c2' : '#0b7285'),
-                },
-                '& .tok-number': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#b5cea8' : '#098658'),
-                },
-                '& .tok-string': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#ce9178' : '#a31515'),
-                },
-                '& .tok-typeName': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#4ec9b0' : '#267f99'),
-                },
-                '& .tok-propertyName': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#9cdcfe' : '#001080'),
-                },
-                '& .tok-variableName': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#9cdcfe' : '#0070c1'),
-                },
-                '& .tok-function': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#dcdcaa' : '#795e26'),
-                },
-                '& .tok-self': {
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#569cd6' : '#0000ff'),
-                },
-                ...sx,
-            }}
-        >
-            <Box sx={{display: 'flex', alignItems: 'center', gap: 1.5, mb: 1}}>
-                <Typography variant="subtitle1" sx={{fontWeight: 600}}>
-                    {rulesetName}
-                </Typography>
-                <Typography variant="body2" sx={{color: 'text.secondary', fontFamily: 'monospace'}}>
-                    ({parameterSignature(definition)})
-                </Typography>
-                {model.scorecard ? (
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            px: 0.75,
-                            py: 0.25,
-                            borderRadius: 0.5,
-                            bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
-                        }}
-                    >
-                        scorecard
-                    </Typography>
+    // Menus are built per trigger (Mantine anchors a menu to its own target), so the item lists are
+    // functions of the row/column they act on.
+    const rowMenuItems = (rowIndex: number): ReactNode => (
+        <>
+            <Menu.Item onClick={() => handleRowMenuAction('duplicate', rowIndex)}>Duplicate rule</Menu.Item>
+            <Menu.Item disabled={rowIndex === 0} onClick={() => handleRowMenuAction('move-up', rowIndex)}>
+                Move up
+            </Menu.Item>
+            <Menu.Item
+                disabled={rowIndex === model.rows.length - 1}
+                onClick={() => handleRowMenuAction('move-down', rowIndex)}
+            >
+                Move down
+            </Menu.Item>
+            {model.rows[rowIndex]?.when.kind === 'cells' ? (
+                <Menu.Item onClick={() => handleRowMenuAction('to-expression', rowIndex)}>
+                    Use expression condition
+                </Menu.Item>
+            ) : (
+                <Menu.Item onClick={() => handleRowMenuAction('to-cells', rowIndex)}>Use column conditions</Menu.Item>
+            )}
+            <Menu.Item color="red" onClick={() => handleRowMenuAction('delete', rowIndex)}>
+                Delete rule
+            </Menu.Item>
+        </>
+    );
+
+    function columnMenuItems(column: {kind: 'input' | 'output'; name: string}): ReactNode {
+        const outputIndex = model!.outputs.findIndex((c) => c.name === column.name);
+        const movable = column.kind === 'output' && column.name !== SCALAR_OUTPUT && model!.outputs.length > 1;
+        return (
+            <>
+                {column.kind === 'output' && column.name !== SCALAR_OUTPUT ? (
+                    <Menu.Item onClick={() => handleColumnMenuAction('rename', column)}>Rename column…</Menu.Item>
                 ) : null}
-                <Box sx={{flex: 1}} />
+                {column.kind === 'input' ? (
+                    <Menu.Item onClick={() => handleColumnMenuAction('rename', column)}>Rename column…</Menu.Item>
+                ) : null}
+                {column.kind === 'input' ? (
+                    <Menu.Item onClick={() => handleColumnMenuAction('change-type', column)}>Change type…</Menu.Item>
+                ) : null}
+                {movable ? (
+                    <Menu.Item disabled={outputIndex === 0} onClick={() => handleColumnMenuAction('move-left', column)}>
+                        Move left
+                    </Menu.Item>
+                ) : null}
+                {movable ? (
+                    <Menu.Item
+                        disabled={outputIndex === model!.outputs.length - 1}
+                        onClick={() => handleColumnMenuAction('move-right', column)}
+                    >
+                        Move right
+                    </Menu.Item>
+                ) : null}
+                {!(column.kind === 'output' && model!.outputs.length <= 1) ? (
+                    <Menu.Item color="red" onClick={() => handleColumnMenuAction('delete', column)}>
+                        Delete column
+                    </Menu.Item>
+                ) : null}
+            </>
+        );
+    }
+
+    const hitPolicyBadge = HIT_POLICIES.find((policy) => policy.value === model.hitPolicy);
+
+    return (
+        <div className={cx(classes.root, className)} style={style}>
+            <div className={classes.header}>
+                <span className={classes.title}>{rulesetName}</span>
+                <span className={classes.signature}>({parameterSignature(definition)})</span>
+                {model.scorecard ? <span className={classes.badge}>scorecard</span> : null}
+                <div className={classes.spacer} />
                 <Select
+                    className={classes.hitPolicy}
                     value={model.hitPolicy}
-                    size="small"
+                    size="sm"
+                    allowDeselect={false}
                     disabled={readOnly}
-                    inputProps={{'aria-label': 'Hit policy'}}
-                    onChange={(event) => handleHitPolicyChange(event.target.value as HitPolicy)}
-                    renderValue={(value) => {
-                        const policy = HIT_POLICIES.find((option) => option.value === value);
-                        return policy ? `${policy.badge} · ${policy.label}` : String(value);
+                    aria-label="Hit policy"
+                    data={HIT_POLICIES.map((policy) => ({
+                        value: policy.value,
+                        label: `${policy.badge} · ${policy.label}`,
+                    }))}
+                    onChange={(next) => {
+                        if (next) handleHitPolicyChange(next as HitPolicy);
                     }}
-                    sx={{minWidth: 200}}
-                >
-                    {HIT_POLICIES.map((policy) => (
-                        <MenuItem key={policy.value} value={policy.value}>
-                            {policy.badge} · {policy.label}
-                        </MenuItem>
-                    ))}
-                </Select>
+                />
                 {!readOnly && (
-                    <IconButton aria-label="table menu" onClick={(event) => setTableMenu(event.currentTarget)}>
-                        <MoreVertIcon />
-                    </IconButton>
+                    <Menu position="bottom-end" withinPortal>
+                        <Menu.Target>
+                            <ActionIcon variant="subtle" color="gray" aria-label="table menu">
+                                <IconDotsVertical size={18} />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            {service.rename ? (
+                                <Menu.Item onClick={() => handleTableMenuAction('rename-table')}>
+                                    Rename table…
+                                </Menu.Item>
+                            ) : null}
+                            <Menu.Item onClick={() => handleTableMenuAction('add-input')}>Add input column…</Menu.Item>
+                            {!model.scorecard ? (
+                                <Menu.Item onClick={() => handleTableMenuAction('add-output')}>
+                                    Add output column…
+                                </Menu.Item>
+                            ) : null}
+                            {model.hitPolicy !== 'collect-matches' && !model.defaultRow ? (
+                                <Menu.Item onClick={() => handleTableMenuAction('add-default')}>
+                                    Add default row
+                                </Menu.Item>
+                            ) : null}
+                            {model.defaultRow ? (
+                                <Menu.Item onClick={() => handleTableMenuAction('remove-default')}>
+                                    Remove default row
+                                </Menu.Item>
+                            ) : null}
+                        </Menu.Dropdown>
+                    </Menu>
                 )}
-            </Box>
+            </div>
 
             {editError !== null ? (
-                <Alert severity="error" onClose={() => setEditError(null)} sx={{mb: 1}}>
+                <Alert color="red" variant="light" withCloseButton onClose={() => setEditError(null)} mb="xs">
                     {editError}
                 </Alert>
             ) : null}
 
-            <Box sx={{overflowX: 'auto'}}>
-                <Table
-                    size="small"
-                    aria-label={`${rulesetName} decision table`}
-                    sx={{
-                        borderCollapse: 'separate',
-                        '& td, & th': {
-                            border: (theme) => `1px solid ${theme.palette.divider}`,
-                            p: 0.25,
-                        },
-                        '& th': {fontWeight: 600},
-                        '& thead th.dt-input-header': {
-                            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
-                        },
-                        '& thead th.dt-output-header': {
-                            bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.08),
-                        },
-                    }}
-                >
-                    <TableHead>
-                        <TableRow>
-                            <TableCell sx={{border: 'none', p: 0}} />
+            <div className={classes.scroll}>
+                <GridTable aria-label={`${rulesetName} decision table`} columnUnits={columnUnits}>
+                    <GridHead>
+                        <GridRow>
+                            <GridCell header borderless />
                             {model.inputs.length > 0 ? (
-                                <TableCell
+                                <GridCell
+                                    header
+                                    borderless
                                     colSpan={model.inputs.length}
                                     align="center"
-                                    sx={{
-                                        border: 'none',
-                                        color: 'text.secondary',
-                                        fontSize: '0.7rem',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: 0.5,
-                                    }}
+                                    className={classes.band}
                                 >
                                     Conditions
-                                </TableCell>
+                                </GridCell>
                             ) : null}
-                            <TableCell
+                            <GridCell
+                                header
+                                borderless
                                 colSpan={model.outputs.length + priorityColumns}
                                 align="center"
-                                sx={{
-                                    border: 'none',
-                                    color: 'text.secondary',
-                                    fontSize: '0.7rem',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: 0.5,
-                                }}
+                                className={classes.band}
                             >
                                 Results
-                            </TableCell>
-                            <TableCell colSpan={1 + (readOnly ? 0 : 1)} sx={{border: 'none'}} />
-                        </TableRow>
-                        <TableRow>
-                            <TableCell align="center" sx={{width: 34}}>
-                                <Tooltip
-                                    title={HIT_POLICIES.find((policy) => policy.value === model.hitPolicy)?.label ?? ''}
-                                >
-                                    <span>
-                                        {HIT_POLICIES.find((policy) => policy.value === model.hitPolicy)?.badge}
-                                    </span>
+                            </GridCell>
+                            <GridCell header borderless colSpan={1 + (readOnly ? 0 : 1)} />
+                        </GridRow>
+                        <GridRow>
+                            <GridCell header align="center" className={classes.iconCell}>
+                                <Tooltip label={hitPolicyBadge?.label ?? ''} withinPortal>
+                                    <span>{hitPolicyBadge?.badge}</span>
                                 </Tooltip>
-                            </TableCell>
+                            </GridCell>
                             {model.inputs.map((column) => (
-                                <TableCell key={`input-${column.name}`} className="dt-input-header">
+                                <GridCell header key={`input-${column.name}`} className={classes.inputHeader}>
                                     {columnHeader(
                                         column,
                                         <>
                                             {column.name}
-                                            <Typography
-                                                component="span"
-                                                variant="caption"
-                                                sx={{color: 'text.secondary', ml: 0.5}}
-                                            >
-                                                {column.typeLabel}
-                                            </Typography>
+                                            <span className={classes.typeLabel}>{column.typeLabel}</span>
                                         </>,
                                     )}
-                                </TableCell>
+                                </GridCell>
                             ))}
                             {model.outputs.map((column) => (
-                                <TableCell key={`output-${column.name}`} className="dt-output-header">
+                                <GridCell header key={`output-${column.name}`} className={classes.outputHeader}>
                                     {columnHeader(
                                         column,
                                         <>
                                             {column.name === SCALAR_OUTPUT ? 'score' : column.name}
-                                            <Typography
-                                                component="span"
-                                                variant="caption"
-                                                sx={{color: 'text.secondary', ml: 0.5}}
-                                            >
-                                                {column.typeLabel}
-                                            </Typography>
+                                            <span className={classes.typeLabel}>{column.typeLabel}</span>
                                         </>,
                                     )}
-                                </TableCell>
+                                </GridCell>
                             ))}
-                            {showPriority ? <TableCell sx={{width: 70}}>priority</TableCell> : null}
-                            <TableCell sx={{color: 'text.secondary', fontWeight: 400}}>annotation</TableCell>
-                            {!readOnly && <TableCell sx={{width: 34}} />}
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
+                            {showPriority ? (
+                                <GridCell header className={classes.priorityCell}>
+                                    priority
+                                </GridCell>
+                            ) : null}
+                            <GridCell header className={classes.muted} style={{fontWeight: 400}}>
+                                annotation
+                            </GridCell>
+                            {!readOnly && <GridCell header className={classes.iconCell} />}
+                        </GridRow>
+                    </GridHead>
+                    <GridBody>
                         {model.rows.map((row, rowIndex) => renderRuleRow(row, rowIndex))}
                         {model.defaultRow ? (
-                            <TableRow>
-                                <TableCell
+                            <GridRow>
+                                <GridCell
                                     align="right"
                                     colSpan={1 + model.inputs.length}
-                                    sx={{color: 'text.secondary', fontStyle: 'italic'}}
+                                    className={cx(classes.muted, classes.italic)}
                                 >
                                     default
-                                </TableCell>
+                                </GridCell>
                                 {model.outputs.map((column, outputIndex) => {
                                     const id: CellId = {kind: 'default', name: column.name};
                                     return (
-                                        <TableCell key={`default-${column.name}`}>
+                                        <GridCell key={`default-${column.name}`}>
                                             {editingKey === cellKey(id) ? (
                                                 editorCell(
                                                     cellKey(id),
@@ -1624,115 +1568,43 @@ export function DecisionTableEditor({
                                                     registerRef={registerRef}
                                                 />
                                             )}
-                                        </TableCell>
+                                        </GridCell>
                                     );
                                 })}
-                                {showPriority ? <TableCell /> : null}
-                                <TableCell />
-                                {!readOnly && <TableCell />}
-                            </TableRow>
+                                {showPriority ? <GridCell /> : null}
+                                <GridCell />
+                                {!readOnly && <GridCell />}
+                            </GridRow>
                         ) : null}
                         {!readOnly && (
-                            <TableRow>
-                                <TableCell colSpan={totalColumns} sx={{border: 'none !important'}}>
-                                    <Button size="small" startIcon={<AddIcon />} onClick={addRule}>
+                            <GridRow>
+                                <GridCell colSpan={totalColumns} borderless>
+                                    <Button
+                                        size="compact-sm"
+                                        variant="subtle"
+                                        leftSection={<IconPlus size={14} />}
+                                        onClick={addRule}
+                                    >
                                         Add rule
                                     </Button>
-                                </TableCell>
-                            </TableRow>
+                                </GridCell>
+                            </GridRow>
                         )}
-                    </TableBody>
-                </Table>
-            </Box>
-
-            <Menu anchorEl={rowMenu?.anchor ?? null} open={rowMenu !== null} onClose={() => setRowMenu(null)}>
-                <MenuItem onClick={() => handleRowMenuAction('duplicate')}>Duplicate rule</MenuItem>
-                <MenuItem disabled={rowMenu?.row === 0} onClick={() => handleRowMenuAction('move-up')}>
-                    Move up
-                </MenuItem>
-                <MenuItem
-                    disabled={rowMenu !== null && rowMenu.row === model.rows.length - 1}
-                    onClick={() => handleRowMenuAction('move-down')}
-                >
-                    Move down
-                </MenuItem>
-                {rowMenu !== null && model.rows[rowMenu.row]?.when.kind === 'cells' ? (
-                    <MenuItem onClick={() => handleRowMenuAction('to-expression')}>Use expression condition</MenuItem>
-                ) : (
-                    <MenuItem onClick={() => handleRowMenuAction('to-cells')}>Use column conditions</MenuItem>
-                )}
-                <MenuItem onClick={() => handleRowMenuAction('delete')} sx={{color: 'error.main'}}>
-                    Delete rule
-                </MenuItem>
-            </Menu>
-
-            <Menu anchorEl={columnMenu?.anchor ?? null} open={columnMenu !== null} onClose={() => setColumnMenu(null)}>
-                {columnMenu?.column.kind === 'output' && columnMenu.column.name !== SCALAR_OUTPUT ? (
-                    <MenuItem onClick={() => handleColumnMenuAction('rename')}>Rename column…</MenuItem>
-                ) : null}
-                {columnMenu?.column.kind === 'input' ? (
-                    <MenuItem onClick={() => handleColumnMenuAction('rename')}>Rename column…</MenuItem>
-                ) : null}
-                {columnMenu?.column.kind === 'input' ? (
-                    <MenuItem onClick={() => handleColumnMenuAction('change-type')}>Change type…</MenuItem>
-                ) : null}
-                {columnMenu?.column.kind === 'output' &&
-                columnMenu.column.name !== SCALAR_OUTPUT &&
-                model.outputs.length > 1 ? (
-                    <MenuItem
-                        disabled={model.outputs.findIndex((c) => c.name === columnMenu.column.name) === 0}
-                        onClick={() => handleColumnMenuAction('move-left')}
-                    >
-                        Move left
-                    </MenuItem>
-                ) : null}
-                {columnMenu?.column.kind === 'output' &&
-                columnMenu.column.name !== SCALAR_OUTPUT &&
-                model.outputs.length > 1 ? (
-                    <MenuItem
-                        disabled={
-                            model.outputs.findIndex((c) => c.name === columnMenu.column.name) ===
-                            model.outputs.length - 1
-                        }
-                        onClick={() => handleColumnMenuAction('move-right')}
-                    >
-                        Move right
-                    </MenuItem>
-                ) : null}
-                {!(columnMenu?.column.kind === 'output' && model.outputs.length <= 1) ? (
-                    <MenuItem onClick={() => handleColumnMenuAction('delete')} sx={{color: 'error.main'}}>
-                        Delete column
-                    </MenuItem>
-                ) : null}
-            </Menu>
-
-            <Menu anchorEl={tableMenu} open={tableMenu !== null} onClose={() => setTableMenu(null)}>
-                {service.rename ? (
-                    <MenuItem onClick={() => handleTableMenuAction('rename-table')}>Rename table…</MenuItem>
-                ) : null}
-                <MenuItem onClick={() => handleTableMenuAction('add-input')}>Add input column…</MenuItem>
-                {!model.scorecard ? (
-                    <MenuItem onClick={() => handleTableMenuAction('add-output')}>Add output column…</MenuItem>
-                ) : null}
-                {model.hitPolicy !== 'collect-matches' && !model.defaultRow ? (
-                    <MenuItem onClick={() => handleTableMenuAction('add-default')}>Add default row</MenuItem>
-                ) : null}
-                {model.defaultRow ? (
-                    <MenuItem onClick={() => handleTableMenuAction('remove-default')}>Remove default row</MenuItem>
-                ) : null}
-            </Menu>
+                    </GridBody>
+                </GridTable>
+            </div>
 
             <ColumnDialog state={dialog} onClose={() => setDialog(null)} />
             <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
-            <Snackbar
+            <Toast
                 open={undo !== null}
                 autoHideDuration={8000}
                 onClose={() => setUndo(null)}
                 message={undo?.label}
                 action={
                     <Button
-                        color="inherit"
-                        size="small"
+                        variant="light"
+                        size="compact-sm"
                         onClick={() => {
                             if (undo) {
                                 applyDefinition(undo.definition);
@@ -1744,6 +1616,6 @@ export function DecisionTableEditor({
                     </Button>
                 }
             />
-        </Box>
+        </div>
     );
 }

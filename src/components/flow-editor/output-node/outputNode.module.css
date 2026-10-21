@@ -1,0 +1,21 @@
+/* The value row of an OutputNode: the name cell, then the engine value on the green result tint. */
+.name {
+  display: flex;
+  flex: 0 0 80px;
+  align-items: center;
+  padding-inline: 14px 10px;
+}
+
+.value {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 10px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--mantine-color-green-6) 8%, transparent);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

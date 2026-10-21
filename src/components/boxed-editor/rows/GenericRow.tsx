@@ -1,29 +1,18 @@
-import Box from '@mui/material/Box';
-import Alert from '@mui/material/Alert';
+import {Alert} from '@mantine/core';
 import type {KeyboardEvent, ReactElement, ReactNode} from 'react';
 import {DescriptionCell} from '../cells/DescriptionCell';
 import {NameCell} from '../cells/NameCell';
 import {TestResultCell} from '../cells/TestResultCell';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import type {BoxedRowData, BoxedRowKind} from '../boxed-editor-types';
 import {useRowDrag} from '../dnd/useRowDrag';
 import {useRowDrop} from '../dnd/useRowDrop';
-import {RowActionsMenu, type RowMenuItem} from '../menu/RowActionsMenu';
-import {useRowMenu} from '../menu/useRowMenu';
-import {
-    ACTIONS_COLUMN_WIDTH,
-    Cell,
-    CELL,
-    Drag,
-    gridTemplateColumns,
-    RowActionsButton,
-    RowLine,
-    ROW_HEIGHT,
-    TALL_ROW_HEIGHT,
-    TallIconHandle,
-    TypeName,
-} from '../primitives';
+import {RowActionsMenu, type RowMenuItem} from '../../../ui/RowActionsMenu';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
+import {Cell, Drag, RowActionsButton, ROW_HEIGHT, TALL_ROW_HEIGHT, TallIconHandle, TypeName} from '../primitives';
 
 // `Row` is the generic leaf row every `BoxedRowKind` in this phase (and most of the rest)
 // reduces to once laid out — only `kind`-driven display flags change between them (which the
@@ -68,6 +57,9 @@ export interface GenericRowProps {
     /** Skips the ellipsis-text wrapper around `value` — pass true when `value` renders its own
      * layout (e.g. `ExpressionCell`, which swaps between static text and a full-width editor). */
     valueIsInteractive?: boolean;
+    /** `value` is a nested sub-grid (`SubGrid`): the value cell drops its padding so the
+     * sub-grid's own column lines sit on the sheet's step lines. Implies `valueIsInteractive`. */
+    valueIsSubGrid?: boolean;
     /** `false` suppresses the three-dot menu button — the trailing `NewRow` placeholder has no
      * actions of its own; an empty `ActionsColumn`-width cell fills the gap instead. */
     showActions?: boolean;
@@ -95,17 +87,15 @@ export function GenericRow({
     placeholder = false,
     tall = false,
     valueIsInteractive = false,
+    valueIsSubGrid = false,
     showActions = true,
     actions = [],
     onActivate,
 }: GenericRowProps): ReactElement {
-    const {showDescription, showTestResults, showType, testCasesService} = useBoxedEditorContext();
+    const {showType} = useBoxedEditorContext();
+    const {template, showDescription, showTestResults: showTestResultsColumn} = useBoxedLayout();
     const {rowErrors} = useBoxedEditorUi();
     const rowError = row ? rowErrors.get(row.path) : undefined;
-    // The `TestResultsColumn` is hidden entirely (not just emptied) when no `testCasesService` is
-    // provided — unlike `showDescription`, which always shows the column (empty + read-only).
-    const showTestResultsColumn = showTestResults && testCasesService !== undefined;
-    const menu = useRowMenu();
     const height = tall ? TALL_ROW_HEIGHT : ROW_HEIGHT;
     const drag = useRowDrag(row);
     const drop = useRowDrop(row);
@@ -119,51 +109,27 @@ export function GenericRow({
     };
 
     return (
-        <Box
+        <div
             ref={drop.setNodeRef}
             data-testid={row ? `row-${row.path}` : undefined}
             role={onActivate ? 'button' : undefined}
             tabIndex={onActivate ? 0 : undefined}
             onClick={onActivate}
             onKeyDown={onActivate ? handleKeyDown : undefined}
-            sx={{
-                position: 'relative',
-                display: 'grid',
-                gridTemplateColumns: gridTemplateColumns({
-                    showDescription,
-                    showTestResults: showTestResultsColumn,
-                }),
+            className={cx(
+                classes.row,
+                onActivate && classes.rowClickable,
+                drag.isDragging && classes.rowDragging,
+                drop.isOver && (drop.canDrop ? classes.dropOk : classes.dropBad),
+            )}
+            style={{
+                gridTemplateColumns: template,
                 height,
-                bgcolor: 'background.paper',
-                cursor: onActivate ? 'pointer' : undefined,
-                opacity: drag.isDragging ? 0.4 : 1,
-                outline: drop.isOver
-                    ? (theme) => `2px solid ${drop.canDrop ? theme.palette.success.main : theme.palette.error.main}`
-                    : 'none',
-                outlineOffset: '-2px',
             }}
         >
-            <Box
-                sx={{
-                    display: 'flex',
-                    minWidth: 0,
-                    alignItems: 'center',
-                    borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                    bgcolor: 'action.hover',
-                    gridColumn: occupiesNameAndValue ? 'span 2' : undefined,
-                }}
-            >
+            <div className={cx(classes.nameColumn, occupiesNameAndValue && classes.span2)}>
                 {Array.from({length: depth}, (_, index) => (
-                    <Box
-                        key={index}
-                        aria-hidden="true"
-                        sx={{
-                            width: CELL,
-                            height: CELL,
-                            flexShrink: 0,
-                            borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                        }}
-                    />
+                    <div key={index} aria-hidden="true" className={classes.indent} />
                 ))}
                 {showDragHandle && !iconActsAsDragHandle && (
                     <Drag
@@ -176,7 +142,7 @@ export function GenericRow({
                 {icon && (
                     <TallIconHandle
                         ariaLabel={iconActsAsDragHandle ? 'Drag to reorder row' : undefined}
-                        sx={{bgcolor: iconBgColor}}
+                        style={{backgroundColor: iconBgColor}}
                         dragRef={iconActsAsDragHandle ? drag.setNodeRef : undefined}
                         dragListeners={iconActsAsDragHandle ? drag.listeners : undefined}
                         dragAttributes={iconActsAsDragHandle ? drag.attributes : undefined}
@@ -187,78 +153,45 @@ export function GenericRow({
                 )}
                 <TypeName
                     type={showType ? type : undefined}
-                    sx={{
-                        px: 1,
-                        fontWeight: strong ? 600 : 400,
-                        fontStyle: placeholder ? 'italic' : 'normal',
-                        color: placeholder ? 'text.disabled' : 'text.primary',
-                    }}
+                    className={cx(strong && classes.strong, placeholder && classes.placeholder)}
+                    style={{paddingInline: 8}}
                 >
                     {row && RENAMABLE_KINDS.has(row.kind) ? <NameCell row={row} /> : name}
                 </TypeName>
-            </Box>
+            </div>
             {!occupiesNameAndValue && (
-                <Cell>
-                    {valueIsInteractive ? (
+                <Cell flush={valueIsSubGrid}>
+                    {valueIsInteractive || valueIsSubGrid ? (
                         value
                     ) : (
-                        <Box
-                            component="span"
-                            sx={{
-                                minWidth: 0,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                fontStyle: placeholder ? 'italic' : 'normal',
-                                color: placeholder ? 'text.disabled' : 'inherit',
-                            }}
-                        >
-                            {value}
-                        </Box>
+                        <span className={cx(classes.ellipsis, placeholder && classes.placeholder)}>{value}</span>
                     )}
                 </Cell>
             )}
             {showActions && actions.length > 0 ? (
-                <>
-                    <RowActionsButton tall={tall} onClick={menu.open} />
-                    <RowActionsMenu items={actions} anchorEl={menu.anchorEl} onClose={menu.close} />
-                </>
+                <RowActionsMenu items={actions}>
+                    <RowActionsButton />
+                </RowActionsMenu>
             ) : (
-                <Box
-                    aria-hidden="true"
-                    sx={{
-                        width: ACTIONS_COLUMN_WIDTH,
-                        height,
-                        flexShrink: 0,
-                        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                        bgcolor: 'action.hover',
-                    }}
-                />
+                <div aria-hidden="true" className={classes.actionsFiller} />
             )}
             {showDescription && <Cell column="description">{row && <DescriptionCell path={row.path} />}</Cell>}
             {showTestResultsColumn && <Cell column="test-results">{row && <TestResultCell path={row.path} />}</Cell>}
             {rowError && (
-                <Alert
-                    severity="error"
-                    role="alert"
-                    data-testid={`row-error-${row?.path}`}
-                    sx={{
-                        position: 'absolute',
-                        insetInlineEnd: 4,
-                        bottom: 2,
-                        zIndex: 3,
-                        py: 0,
-                        px: 0.75,
-                        maxWidth: '60%',
-                        '& .MuiAlert-message': {py: 0, fontSize: '0.75rem'},
-                        '& .MuiAlert-icon': {py: 0, mr: 0.5},
-                    }}
-                >
-                    {rowError.path ? `${rowError.path}: ` : ''}
-                    {rowError.message}
-                </Alert>
+                <div className={classes.rowError}>
+                    <Alert
+                        color="red"
+                        variant="light"
+                        role="alert"
+                        data-testid={`row-error-${row?.path}`}
+                        py={0}
+                        px="xs"
+                    >
+                        {rowError.path ? `${rowError.path}: ` : ''}
+                        {rowError.message}
+                    </Alert>
+                </div>
             )}
-            <RowLine />
-        </Box>
+        </div>
     );
 }

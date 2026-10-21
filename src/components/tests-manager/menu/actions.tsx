@@ -1,5 +1,4 @@
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import DeleteIcon from '@mui/icons-material/Delete';
+import {IconCopy, IconTrash} from '@tabler/icons-react';
 import type {ReactElement} from 'react';
 import type {TestCase, TestCasesService, TestRow} from '../../test-cases-service';
 import {hasIndex, nextDuplicatePath} from '../model/paths';
@@ -67,7 +66,7 @@ export function rowActionsFor(row: TestRow, testCasesService: TestCasesService):
         );
         actions.push({
             label: 'Duplicate',
-            icon: <ContentCopyIcon fontSize="small" />,
+            icon: <IconCopy size={16} />,
             disabled: target === undefined,
             onSelect: () => {
                 if (target) testCasesService.duplicateRow(row.path, target);
@@ -91,7 +90,7 @@ export function rowActionsFor(row: TestRow, testCasesService: TestCasesService):
     if (row.section === 'assertions' && !row.custom) {
         actions.push({
             label: 'Delete',
-            icon: <DeleteIcon fontSize="small" />,
+            icon: <IconTrash size={16} />,
             onSelect: () => testCasesService.setRowSection(row.path, 'validations'),
         });
     }
@@ -103,7 +102,7 @@ export function rowActionsFor(row: TestRow, testCasesService: TestCasesService):
     if (row.custom) {
         actions.push({
             label: 'Delete row',
-            icon: <DeleteIcon fontSize="small" />,
+            icon: <IconTrash size={16} />,
             onSelect: () => testCasesService.removeRow(row.path),
         });
     }

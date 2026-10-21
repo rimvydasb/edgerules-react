@@ -9,29 +9,29 @@
  */
 
 export interface CodeEditorDiagnostic {
-  from: number;
-  to: number;
-  message: string;
-  severity?: string;
-  source?: string;
-  code?: string;
+    from: number;
+    to: number;
+    message: string;
+    severity?: string;
+    source?: string;
+    code?: string;
 }
 
 export interface CodeEditorCompletion {
-  label: string;
-  type?: string;
-  detail?: string;
+    label: string;
+    type?: string;
+    detail?: string;
 }
 
 export interface CodeEditorCompletionResult {
-  from: number;
-  to: number;
-  options: CodeEditorCompletion[];
+    from: number;
+    to: number;
+    options: CodeEditorCompletion[];
 }
 
 /** Diagnostics-only service (the original `CodeEditor` contract). */
 export interface CodeEditorDiagnosticsService {
-  diagnostics: (code: string) => CodeEditorDiagnostic[];
+    diagnostics: (code: string) => CodeEditorDiagnostic[];
 }
 
 /**
@@ -39,7 +39,7 @@ export interface CodeEditorDiagnosticsService {
  * when absent the editor falls back to no completion source.
  */
 export interface CodeEditorService extends CodeEditorDiagnosticsService {
-  completions?: (code: string, pos: number) => CodeEditorCompletionResult;
+    completions?: (code: string, pos: number) => CodeEditorCompletionResult;
 }
 
 /**
@@ -48,44 +48,41 @@ export interface CodeEditorService extends CodeEditorDiagnosticsService {
  * surrounding model (positions are mapped back into the cell automatically).
  */
 export interface CodeEditorEmbedContext {
-  prefix: string;
-  suffix: string;
+    prefix: string;
+    suffix: string;
 }
 
 /** Narrows a full-model service to the view of a single embedded cell. */
-export function embedService(
-  service: CodeEditorService,
-  context: CodeEditorEmbedContext,
-): CodeEditorService {
-  const { prefix, suffix } = context;
+export function embedService(service: CodeEditorService, context: CodeEditorEmbedContext): CodeEditorService {
+    const {prefix, suffix} = context;
 
-  const embedded: CodeEditorService = {
-    diagnostics: (code) => {
-      const cellFrom = prefix.length;
-      const cellTo = cellFrom + code.length;
-      return service
-        .diagnostics(prefix + code + suffix)
-        .filter((diagnostic) => diagnostic.to >= cellFrom && diagnostic.from <= cellTo)
-        .map((diagnostic) => ({
-          ...diagnostic,
-          from: Math.max(0, Math.min(diagnostic.from - cellFrom, code.length)),
-          to: Math.max(0, Math.min(diagnostic.to - cellFrom, code.length)),
-        }));
-    },
-  };
-
-  const completions = service.completions?.bind(service);
-  if (completions) {
-    embedded.completions = (code, pos) => {
-      const cellFrom = prefix.length;
-      const result = completions(prefix + code + suffix, pos + cellFrom);
-      return {
-        from: Math.max(0, Math.min(result.from - cellFrom, code.length)),
-        to: Math.max(0, Math.min(result.to - cellFrom, code.length)),
-        options: result.options,
-      };
+    const embedded: CodeEditorService = {
+        diagnostics: (code) => {
+            const cellFrom = prefix.length;
+            const cellTo = cellFrom + code.length;
+            return service
+                .diagnostics(prefix + code + suffix)
+                .filter((diagnostic) => diagnostic.to >= cellFrom && diagnostic.from <= cellTo)
+                .map((diagnostic) => ({
+                    ...diagnostic,
+                    from: Math.max(0, Math.min(diagnostic.from - cellFrom, code.length)),
+                    to: Math.max(0, Math.min(diagnostic.to - cellFrom, code.length)),
+                }));
+        },
     };
-  }
 
-  return embedded;
+    const completions = service.completions?.bind(service);
+    if (completions) {
+        embedded.completions = (code, pos) => {
+            const cellFrom = prefix.length;
+            const result = completions(prefix + code + suffix, pos + cellFrom);
+            return {
+                from: Math.max(0, Math.min(result.from - cellFrom, code.length)),
+                to: Math.max(0, Math.min(result.to - cellFrom, code.length)),
+                options: result.options,
+            };
+        };
+    }
+
+    return embedded;
 }

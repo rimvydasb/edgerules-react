@@ -1,18 +1,8 @@
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import AddIcon from '@mui/icons-material/Add';
-import FactCheckIcon from '@mui/icons-material/FactCheck';
+import {Alert, Button, ActionIcon} from '@mantine/core';
+import {IconAlertTriangle, IconChecklist, IconPlus} from '@tabler/icons-react';
 import {closestCenter, DndContext} from '@dnd-kit/core';
 import {horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy} from '@dnd-kit/sortable';
-import type {ReactElement} from 'react';
+import type {CSSProperties, ReactElement} from 'react';
 import type {TestCase, TestRow} from '../../test-cases-service';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {useColumnDrag} from '../dnd/useColumnDrag';
@@ -22,7 +12,9 @@ import {useTestRows} from '../hooks/useTestRows';
 import {useKnownPaths} from '../hooks/useKnownPaths';
 import {useTestSubjects} from '../hooks/useTestSubjects';
 import type {TestSubjectId} from '../tests-manager-types';
-import {CELL_BORDER_SX} from './gridStyle';
+import {GridBody, GridCell, GridHead, GridRow, GridTable} from '../../../ui/grid';
+import {cx} from '../../../ui/cx';
+import * as classes from './testsGrid.module.css';
 import {computePathColumnWidth} from './PathCell';
 import {SectionHeaderRow} from './SectionHeaderRow';
 import {SubjectHeaderCell} from './SubjectHeaderCell';
@@ -108,69 +100,71 @@ export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectI
         itemIds: columnItemIds,
     } = useColumnDrag(allCases, visibleCases, moveTestCase);
 
+    const iconCell: CSSProperties = {width: ICON_CELL_WIDTH, maxWidth: ICON_CELL_WIDTH, padding: 0};
+
     return (
-        <Box data-testid="tests-grid">
+        <div data-testid="tests-grid" className={classes.root}>
             {needsSolver && (
-                <Alert severity="warning" data-testid="missing-solver-banner" sx={{mb: 1}}>
+                <Alert
+                    color="yellow"
+                    variant="light"
+                    data-testid="missing-solver-banner"
+                    mb="xs"
+                    icon={<IconAlertTriangle size={16} />}
+                >
                     No optimisation solver registered for this model.
                 </Alert>
             )}
-            <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+            <div className={classes.toolbar}>
                 {!readOnly && (
-                    <Button size="small" onClick={() => testCasesService.addTestCase()}>
+                    <Button size="compact-sm" variant="subtle" onClick={() => testCasesService.addTestCase()}>
                         Add test case
                     </Button>
                 )}
-                <Button size="small" onClick={() => void runner.runAll()}>
+                <Button size="compact-sm" variant="subtle" onClick={() => void runner.runAll()}>
                     Run all
                 </Button>
                 {pageCount > 1 && (
-                    <Box sx={{display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto'}}>
-                        <Button size="small" onClick={prevPage} disabled={pageIndex === 0} aria-label="previous page">
+                    <div className={classes.pager}>
+                        <Button
+                            size="compact-sm"
+                            variant="subtle"
+                            onClick={prevPage}
+                            disabled={pageIndex === 0}
+                            aria-label="previous page"
+                        >
                             ‹
                         </Button>
                         <span data-testid="page-indicator">
                             Page {pageIndex + 1}/{pageCount}
                         </span>
                         <Button
-                            size="small"
+                            size="compact-sm"
+                            variant="subtle"
                             onClick={nextPage}
                             disabled={pageIndex >= pageCount - 1}
                             aria-label="next page"
                         >
                             ›
                         </Button>
-                    </Box>
+                    </div>
                 )}
-            </Box>
-            <TableContainer sx={{maxHeight: 640}}>
-                <Table size="small" stickyHeader sx={{borderCollapse: 'collapse', tableLayout: 'fixed', width: 'auto'}}>
-                    <TableHead>
-                        <TableRow style={{height: headerRowHeight}}>
-                            <TableCell
-                                sx={{
-                                    ...CELL_BORDER_SX,
-                                    position: 'sticky',
-                                    left: 0,
-                                    zIndex: 3,
-                                    backgroundColor: '#000',
-                                    width: ICON_CELL_WIDTH,
-                                    maxWidth: ICON_CELL_WIDTH,
-                                    padding: 0,
-                                    textAlign: 'center',
-                                }}
+            </div>
+            <div className={classes.container}>
+                <GridTable className={classes.table}>
+                    <GridHead>
+                        <GridRow style={{height: headerRowHeight}}>
+                            <GridCell
+                                header
+                                className={cx(classes.head, classes.logo)}
+                                style={{...iconCell, left: 0, zIndex: 4}}
                             >
-                                <FactCheckIcon sx={{color: '#fff'}} fontSize="small" />
-                            </TableCell>
-                            <TableCell
-                                sx={{
-                                    ...CELL_BORDER_SX,
-                                    position: 'sticky',
-                                    left: ICON_CELL_WIDTH,
-                                    zIndex: 3,
-                                    backgroundColor: 'background.paper',
-                                    width: pathColumnWidth,
-                                }}
+                                <IconChecklist size={16} />
+                            </GridCell>
+                            <GridCell
+                                header
+                                className={classes.head}
+                                style={{left: ICON_CELL_WIDTH, zIndex: 4, width: pathColumnWidth}}
                             >
                                 <SubjectHeaderCell
                                     subjects={subjects}
@@ -178,32 +172,24 @@ export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectI
                                     onChange={onSubjectChange}
                                     readOnly={readOnly}
                                 />
-                            </TableCell>
-                            <TableCell
-                                sx={{
-                                    ...CELL_BORDER_SX,
-                                    position: 'sticky',
-                                    left: ICON_CELL_WIDTH + pathColumnWidth,
-                                    zIndex: 3,
-                                    backgroundColor: 'background.paper',
-                                    width: ICON_CELL_WIDTH,
-                                    maxWidth: ICON_CELL_WIDTH,
-                                    padding: 0,
-                                }}
+                            </GridCell>
+                            <GridCell
+                                header
+                                className={classes.head}
+                                style={{...iconCell, left: ICON_CELL_WIDTH + pathColumnWidth, zIndex: 4}}
                             />
-                            <TableCell
-                                sx={{
-                                    ...CELL_BORDER_SX,
-                                    position: 'sticky',
+                            <GridCell
+                                header
+                                className={classes.head}
+                                style={{
                                     left: ICON_CELL_WIDTH + pathColumnWidth + ICON_CELL_WIDTH,
-                                    zIndex: 3,
-                                    backgroundColor: 'background.paper',
+                                    zIndex: 4,
                                     width: DESCRIPTION_COLUMN_WIDTH,
                                     maxWidth: DESCRIPTION_COLUMN_WIDTH,
                                 }}
                             >
                                 Description
-                            </TableCell>
+                            </GridCell>
                             {/* See the row-level `DndContext` above for why `accessibility.container` is set. */}
                             <DndContext
                                 sensors={columnSensors}
@@ -213,43 +199,34 @@ export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectI
                             >
                                 <SortableContext items={columnItemIds} strategy={horizontalListSortingStrategy}>
                                     {visibleCases.map((testCase) => (
-                                        <TableCell
+                                        <GridCell
+                                            header
+                                            fill
                                             key={testCase.id}
-                                            sx={{
-                                                ...CELL_BORDER_SX,
-                                                position: 'relative',
-                                                width: TEST_CASE_COLUMN_WIDTH,
-                                                maxWidth: TEST_CASE_COLUMN_WIDTH,
-                                                padding: 0,
-                                            }}
+                                            className={classes.head}
+                                            style={{width: TEST_CASE_COLUMN_WIDTH, maxWidth: TEST_CASE_COLUMN_WIDTH}}
                                         >
                                             <TestCaseHeaderCell testCase={testCase} />
-                                        </TableCell>
+                                        </GridCell>
                                     ))}
                                 </SortableContext>
                             </DndContext>
-                            <TableCell
-                                sx={{
-                                    ...CELL_BORDER_SX,
-                                    width: ICON_CELL_WIDTH,
-                                    maxWidth: ICON_CELL_WIDTH,
-                                    padding: 0,
-                                    textAlign: 'center',
-                                }}
-                            >
+                            <GridCell header align="center" className={classes.head} style={iconCell}>
                                 {!readOnly && (
-                                    <IconButton
-                                        size="small"
+                                    <ActionIcon
+                                        size="sm"
+                                        variant="subtle"
+                                        color="gray"
                                         aria-label="Add test case at end"
                                         onClick={() => testCasesService.addTestCase()}
                                     >
-                                        <AddIcon fontSize="small" />
-                                    </IconButton>
+                                        <IconPlus size={16} />
+                                    </ActionIcon>
                                 )}
-                            </TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
+                            </GridCell>
+                        </GridRow>
+                    </GridHead>
+                    <GridBody>
                         <SectionHeaderRow
                             sectionId="inputs"
                             rows={inputRows}
@@ -292,9 +269,9 @@ export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectI
                             knownPaths={knownPaths}
                             onMove={moveRow}
                         />
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </Box>
+                    </GridBody>
+                </GridTable>
+            </div>
+        </div>
     );
 }

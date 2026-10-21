@@ -1,7 +1,6 @@
 import {useState, type ReactElement} from 'react';
+import {Box, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import {init, MutableDecisionService} from '@edgerules/web/mutable';
 import {CodeEditorCell} from '../../../src/components/code-editor-cell';
 import {CELL_EMBED_PREFIX, CELL_EMBED_SUFFIX} from '../../../src/components/code-editor/testing/model.dsl';
@@ -25,7 +24,7 @@ function CellHarness({
     const [value, setValue] = useState(initialValue);
     const [committed, setCommitted] = useState<string | null>(null);
     return (
-        <Box sx={{maxWidth: 420}}>
+        <Box maw={420}>
             <CodeEditorCell
                 value={value}
                 onChange={setValue}
@@ -36,9 +35,9 @@ function CellHarness({
                 multiline={multiline}
                 placeholder="expression…"
             />
-            <Typography variant="caption" data-testid="committed">
+            <Text size="xs" data-testid="committed">
                 committed: {committed ?? '—'}
-            </Typography>
+            </Text>
         </Box>
     );
 }

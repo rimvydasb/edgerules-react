@@ -1,10 +1,10 @@
-import ArrowLeftIcon from '@mui/icons-material/ArrowLeft';
-import ArrowRightIcon from '@mui/icons-material/ArrowRight';
-import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-import TextField from '@mui/material/TextField';
+import {ActionIcon, Menu} from '@mantine/core';
+import {IconArrowLeft, IconArrowRight, IconDotsVertical} from '@tabler/icons-react';
 import {useState, type KeyboardEvent, type ReactElement} from 'react';
+import * as classes from '../boxedEditor.module.css';
 import {TypeName} from './TypeName';
+
+const COLUMN_TYPES = ['string', 'number', 'boolean', 'date', 'time', 'datetime', 'duration', 'period'];
 
 export interface EditableColumnHeaderProps {
     rowPath: string;
@@ -20,8 +20,8 @@ export interface EditableColumnHeaderProps {
 
 /**
  * Shared header editing surface. A click edits the name; clicking the visible type edits the type.
- * Reorder uses explicit buttons because keyboard-accessible controls are preferable to a mouse-only
- * drag affordance and make positional argument changes deliberate.
+ * Reorder and type conversion live in a per-header context menu, which keeps positional changes
+ * deliberate and keyboard-accessible.
  */
 export function EditableColumnHeader({
     rowPath,
@@ -60,87 +60,86 @@ export function EditableColumnHeader({
         if (event.key === 'Enter') commit();
         if (event.key === 'Escape') setEditing(null);
     };
+    const editor = (label: string): ReactElement => (
+        <>
+            <input
+                autoFocus
+                className={classes.headerInput}
+                value={draft}
+                aria-invalid={Boolean(error)}
+                aria-label={label}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={keyDown}
+                onBlur={commit}
+            />
+            {error ? <span className={classes.fieldError}>{error}</span> : null}
+        </>
+    );
 
     return (
-        <Box
-            data-testid={`column-${rowPath}-${name}`}
-            sx={{display: 'flex', alignItems: 'center', minWidth: 0, width: '100%', position: 'relative'}}
-        >
-            <Box sx={{display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, px: 0.5}}>
+        <div data-testid={`column-${rowPath}-${name}`} className={classes.columnHeader}>
+            <div className={classes.columnHeaderBody}>
                 {editing === 'name' ? (
-                    <TextField
-                        autoFocus
-                        size="small"
-                        value={draft}
-                        error={Boolean(error)}
-                        helperText={error}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={keyDown}
-                        onBlur={commit}
-                        slotProps={{htmlInput: {'aria-label': `Rename ${name}`}}}
-                    />
+                    editor(`Rename ${name}`)
                 ) : (
-                    <Box component="button" type="button" onClick={() => begin('name')} sx={buttonSx}>
+                    <button type="button" onClick={() => begin('name')} className={classes.textButton}>
                         <TypeName type={type}>{name}</TypeName>
-                    </Box>
+                    </button>
                 )}
                 {typeEditable &&
                     (editing === 'type' ? (
-                        <TextField
-                            autoFocus
-                            size="small"
-                            value={draft}
-                            error={Boolean(error)}
-                            helperText={error}
-                            onChange={(event) => setDraft(event.target.value)}
-                            onKeyDown={keyDown}
-                            onBlur={commit}
-                            slotProps={{htmlInput: {'aria-label': `Change type of ${name}`}}}
-                        />
+                        editor(`Change type of ${name}`)
                     ) : (
-                        <Box
-                            component="button"
+                        <button
                             type="button"
                             aria-label={`Edit type ${name}`}
                             onClick={() => begin('type')}
-                            sx={typeButtonSx}
+                            className={classes.typeButton}
                         >
                             {type ?? 'any'}
-                        </Box>
+                        </button>
                     ))}
-            </Box>
-            <IconButton
-                size="small"
-                aria-label={`Move ${name} left`}
-                disabled={index === 0}
-                onClick={() => onMove(index - 1)}
-            >
-                <ArrowLeftIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-                size="small"
-                aria-label={`Move ${name} right`}
-                disabled={index === count - 1}
-                onClick={() => onMove(index + 1)}
-            >
-                <ArrowRightIcon fontSize="small" />
-            </IconButton>
-        </Box>
+            </div>
+            <Menu position="bottom-end" width={180} withinPortal>
+                <Menu.Target>
+                    <ActionIcon size="sm" variant="subtle" color="gray" aria-label={`Column actions ${name}`}>
+                        <IconDotsVertical size={16} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        leftSection={<IconArrowLeft size={16} />}
+                        disabled={index === 0}
+                        onClick={() => onMove(index - 1)}
+                    >
+                        Move left
+                    </Menu.Item>
+                    <Menu.Item
+                        leftSection={<IconArrowRight size={16} />}
+                        disabled={index === count - 1}
+                        onClick={() => onMove(index + 1)}
+                    >
+                        Move right
+                    </Menu.Item>
+                    {typeEditable && onRetype && (
+                        <>
+                            <Menu.Divider />
+                            {COLUMN_TYPES.map((target) => (
+                                <Menu.Item
+                                    key={target}
+                                    disabled={type === target}
+                                    onClick={() => {
+                                        const nextError = onRetype(target);
+                                        if (nextError) setError(nextError);
+                                    }}
+                                >
+                                    to {target}
+                                </Menu.Item>
+                            ))}
+                        </>
+                    )}
+                </Menu.Dropdown>
+            </Menu>
+        </div>
     );
 }
-
-const buttonSx = {
-    p: 0,
-    border: 0,
-    bgcolor: 'transparent',
-    color: 'inherit',
-    textAlign: 'left',
-    cursor: 'text',
-    minWidth: 0,
-};
-
-const typeButtonSx = {
-    ...buttonSx,
-    color: 'text.secondary',
-    fontSize: '0.6875rem',
-};

@@ -1,12 +1,5 @@
 import {expect, test, type Page} from '@playwright/test';
-import {
-    chooseRowAction,
-    dragRow,
-    expectLiveModel,
-    expectRowError,
-    openBoxedEditorStory,
-    renameRow,
-} from './helpers';
+import {chooseRowAction, dragRow, expectLiveModel, expectRowError, openBoxedEditorStory, renameRow} from './helpers';
 import {renameHeader} from './columnHelpers';
 
 test.describe('Boxed Editor / rename', () => {

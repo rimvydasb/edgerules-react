@@ -1,6 +1,6 @@
-import { useSyncExternalStore } from 'react';
-import type { BoxedRowData } from '../boxed-editor-types';
-import { useBoxedEditorService } from './useBoxedEditorService';
+import {useSyncExternalStore} from 'react';
+import type {BoxedRowData} from '../boxed-editor-types';
+import {useBoxedEditorService} from './useBoxedEditorService';
 
 /**
  * The row tree under `path`, kept in sync with the facade's cache. `getBoxedRowsData` is
@@ -8,6 +8,6 @@ import { useBoxedEditorService } from './useBoxedEditorService';
  * committed mutation or an `invalidate()` — safe as a `useSyncExternalStore` snapshot.
  */
 export function useBoxedRows(path: string): BoxedRowData[] {
-  const service = useBoxedEditorService();
-  return useSyncExternalStore(service.subscribe, () => service.getBoxedRowsData(path));
+    const service = useBoxedEditorService();
+    return useSyncExternalStore(service.subscribe, () => service.getBoxedRowsData(path));
 }

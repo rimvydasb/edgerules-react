@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test';
-import {expectHeaders, moveHeader, renameHeader, retypeHeader} from './columnHelpers';
+import {columnHeader, expectHeaders, moveHeader, renameHeader, retypeHeader} from './columnHelpers';
 import {
     chooseRowAction,
     expectLiveModel,
@@ -89,6 +89,28 @@ test.describe('Boxed Editor / column headers', () => {
         await expectLiveModel(page, before ?? '');
     });
 
+    test('lists move and conversion entries in the column context menu', async ({page}) => {
+        await openBoxedEditorStory(page, 'decision-table-crud-playground');
+        await columnHeader(page, 'risk', 'age').getByLabel('Column actions age').click();
+        await expect(page.getByRole('menuitem', {name: 'Move left'})).toBeDisabled();
+        await expect(page.getByRole('menuitem', {name: 'Move right'})).toBeEnabled();
+        await expect(page.getByRole('menuitem', {name: 'to number'})).toBeDisabled();
+        for (const type of ['string', 'period']) {
+            await expect(page.getByRole('menuitem', {name: `to ${type}`})).toBeVisible();
+        }
+    });
+
+    test('converts an argument type from the context menu', async ({page}) => {
+        await openBoxedEditorStory(page, 'blank-model');
+        await chooseRowAction(page, '*', 'Add function');
+        await chooseRowAction(page, 'function', 'Add argument');
+        for (const type of ['string', 'boolean', 'date']) {
+            await columnHeader(page, 'function', 'arg').getByLabel('Column actions arg').click();
+            await page.getByRole('menuitem', {name: `to ${type}`, exact: true}).click();
+            await expect(columnHeader(page, 'function', 'arg').getByLabel('Edit type arg')).toHaveText(type);
+        }
+    });
+
     test('creates a numeric condition column and authors a range condition', async ({page}) => {
         await openBoxedEditorStory(page, 'blank-model');
         await chooseRowAction(page, '*', 'Add decision table');
@@ -137,6 +159,6 @@ test.describe('Boxed Editor / column headers', () => {
     test('offers no drag affordance where column reorder is unsupported', async ({page}) => {
         await openBoxedEditorStory(page, 'function-crud-playground');
         await expect(page.getByLabel('Drag to reorder column')).toHaveCount(0);
-        await expect(page.getByLabel('Move amount right')).toBeVisible();
+        await expect(page.getByLabel('Column actions amount')).toBeVisible();
     });
 });

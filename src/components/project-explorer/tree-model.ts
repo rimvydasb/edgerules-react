@@ -1,4 +1,4 @@
-import type { PortableContext, PortableNode } from '@edgerules/portable';
+import type {PortableContext, PortableNode} from '@edgerules/portable';
 
 export type FieldKind = 'ctx' | 'func' | 'dt' | 'var';
 
@@ -16,33 +16,33 @@ export const ROOT_PATH = '';
  * computed field.
  */
 export function classifyFieldNode(node: PortableNode): FieldKind {
-  if (node === null || typeof node !== 'object' || Array.isArray(node)) {
-    return 'var';
-  }
-  // Widened to `string | undefined`: the real engine's default CONTEXT filter returns
-  // `'function-schema'` / `'ruleset-schema'` for function/ruleset fields (see API_SPEC.md),
-  // shapes that aren't part of the declared `PortableNode` union — comparing the narrower type
-  // directly would make some of the branches below unreachable per the type checker even though
-  // they occur at runtime.
-  const kind = ('@kind' in node ? node['@kind'] : undefined) as string | undefined;
+    if (node === null || typeof node !== 'object' || Array.isArray(node)) {
+        return 'var';
+    }
+    // Widened to `string | undefined`: the real engine's default CONTEXT filter returns
+    // `'function-schema'` / `'ruleset-schema'` for function/ruleset fields (see API_SPEC.md),
+    // shapes that aren't part of the declared `PortableNode` union — comparing the narrower type
+    // directly would make some of the branches below unreachable per the type checker even though
+    // they occur at runtime.
+    const kind = ('@kind' in node ? node['@kind'] : undefined) as string | undefined;
 
-  if (kind === undefined || kind === 'context') {
-    return 'ctx';
-  }
-  if (kind === 'function' || kind === 'function-schema') {
-    return 'func';
-  }
-  if (kind === 'ruleset' || kind === 'ruleset-schema') {
-    return 'dt';
-  }
-  return 'var';
+    if (kind === undefined || kind === 'context') {
+        return 'ctx';
+    }
+    if (kind === 'function' || kind === 'function-schema') {
+        return 'func';
+    }
+    if (kind === 'ruleset' || kind === 'ruleset-schema') {
+        return 'dt';
+    }
+    return 'var';
 }
 
 export interface NamedEntry {
-  name: string;
-  path: string;
-  node: PortableNode;
-  kind: FieldKind;
+    name: string;
+    path: string;
+    node: PortableNode;
+    kind: FieldKind;
 }
 
 /**
@@ -51,38 +51,38 @@ export interface NamedEntry {
  * separately grouped by sub-kind, only vars/types are pulled out as their own groups).
  */
 export function groupContextChildren(
-  contextPath: string,
-  context: PortableContext,
-): { vars: NamedEntry[]; ordered: NamedEntry[] } {
-  const vars: NamedEntry[] = [];
-  const ordered: NamedEntry[] = [];
+    contextPath: string,
+    context: PortableContext,
+): {vars: NamedEntry[]; ordered: NamedEntry[]} {
+    const vars: NamedEntry[] = [];
+    const ordered: NamedEntry[] = [];
 
-  for (const [name, value] of Object.entries(context)) {
-    if (name.startsWith('@') || value === undefined || name.includes('.')) {
-      // A `.` can never appear in an EdgeRules identifier (EBNF.md), so a dotted key is never a
-      // genuine same-level field — the current engine's CONTEXT projection sometimes flattens a
-      // descendant function schema onto an ancestor context as a dotted-path key (e.g. `nested.deep`
-      // alongside `nested` itself); skip it here rather than render it as a false sibling.
-      continue;
+    for (const [name, value] of Object.entries(context)) {
+        if (name.startsWith('@') || value === undefined || name.includes('.')) {
+            // A `.` can never appear in an EdgeRules identifier (EBNF.md), so a dotted key is never a
+            // genuine same-level field — the current engine's CONTEXT projection sometimes flattens a
+            // descendant function schema onto an ancestor context as a dotted-path key (e.g. `nested.deep`
+            // alongside `nested` itself); skip it here rather than render it as a false sibling.
+            continue;
+        }
+        // Metadata (`@`-prefixed) keys are the only string|number-valued entries on PortableContext;
+        // everything else is a PortableNode.
+        const node = value as PortableNode;
+        const kind = classifyFieldNode(node);
+        const entry: NamedEntry = {name, path: joinPath(contextPath, name), node, kind};
+        (kind === 'var' ? vars : ordered).push(entry);
     }
-    // Metadata (`@`-prefixed) keys are the only string|number-valued entries on PortableContext;
-    // everything else is a PortableNode.
-    const node = value as PortableNode;
-    const kind = classifyFieldNode(node);
-    const entry: NamedEntry = { name, path: joinPath(contextPath, name), node, kind };
-    (kind === 'var' ? vars : ordered).push(entry);
-  }
 
-  return { vars, ordered };
+    return {vars, ordered};
 }
 
 export function joinPath(parentPath: string, name: string): string {
-  return parentPath === ROOT_PATH ? name : `${parentPath}.${name}`;
+    return parentPath === ROOT_PATH ? name : `${parentPath}.${name}`;
 }
 
 export interface TypeEntry {
-  name: string;
-  node: PortableNode;
+    name: string;
+    node: PortableNode;
 }
 
 /**
@@ -91,7 +91,7 @@ export interface TypeEntry {
  * Types are global/root-only (story doc: `[types]` renders once, at the root, never per-context).
  */
 export function listTypeEntries(rootTypes: PortableContext): TypeEntry[] {
-  return Object.entries(rootTypes)
-    .filter(([name, value]) => !name.startsWith('@') && value !== undefined)
-    .map(([name, value]) => ({ name, node: value as PortableNode }));
+    return Object.entries(rootTypes)
+        .filter(([name, value]) => !name.startsWith('@') && value !== undefined)
+        .map(([name, value]) => ({name, node: value as PortableNode}));
 }

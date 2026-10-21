@@ -1,6 +1,6 @@
-import TextField from '@mui/material/TextField';
 import {useState, type KeyboardEvent, type ReactElement} from 'react';
 import {useDescription} from '../hooks/useDescription';
+import * as classes from '../boxedEditor.module.css';
 
 export interface DescriptionCellProps {
     path: string;
@@ -22,24 +22,16 @@ export function DescriptionCell({path}: DescriptionCellProps): ReactElement {
     };
 
     return (
-        <TextField
-            variant="standard"
-            size="small"
-            fullWidth
+        <input
+            className={classes.descriptionInput}
             placeholder={readOnly ? undefined : 'Add a description…'}
             value={value}
             disabled={readOnly}
-            slotProps={{htmlInput: {'aria-label': `description ${path}`}}}
+            aria-label={`description ${path}`}
             onChange={(event) => setDraft(event.target.value)}
             onBlur={commit}
             onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
                 if (event.key === 'Enter') event.currentTarget.blur();
-            }}
-            sx={{
-                '& .MuiInputBase-input': {
-                    fontSize: '0.8125rem',
-                    fontStyle: value ? 'normal' : 'italic',
-                },
             }}
         />
     );

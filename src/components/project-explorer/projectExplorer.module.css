@@ -1,0 +1,39 @@
+.heading {
+  padding: 4px 8px;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+}
+
+.node {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: var(--mantine-radius-sm);
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.node:hover {
+  background-color: var(--mantine-color-default-hover);
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chevron {
+  flex-shrink: 0;
+  transition: transform 100ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.chevronHidden {
+  visibility: hidden;
+}

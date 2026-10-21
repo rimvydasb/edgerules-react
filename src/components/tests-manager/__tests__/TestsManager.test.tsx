@@ -58,8 +58,8 @@ describe('TestsManager — rendering', () => {
         const service = buildService(MULTI_SUBJECT_MODEL);
         render(<TestsManager service={service} modelName={uniqueModelName()} />);
 
-        await waitFor(() => expect(screen.getByLabelText('Test subject')).toBeInTheDocument());
-        await user.click(screen.getByLabelText('Test subject'));
+        await waitFor(() => expect(screen.getByRole('combobox', {name: 'Test subject'})).toBeInTheDocument());
+        await user.click(screen.getByRole('combobox', {name: 'Test subject'}));
         await user.click(screen.getByRole('option', {name: 'risk'}));
 
         await waitFor(() => expect(screen.getByTestId('row-age')).toBeInTheDocument());
@@ -79,8 +79,8 @@ describe('TestsManager — rendering', () => {
             />,
         );
 
-        await waitFor(() => expect(screen.getByLabelText('Test subject')).toBeInTheDocument());
-        await user.click(screen.getByLabelText('Test subject'));
+        await waitFor(() => expect(screen.getByRole('combobox', {name: 'Test subject'})).toBeInTheDocument());
+        await user.click(screen.getByRole('combobox', {name: 'Test subject'}));
         await user.click(screen.getByRole('option', {name: 'isEligible'}));
 
         expect(onSubjectChange).toHaveBeenCalledWith('isEligible');

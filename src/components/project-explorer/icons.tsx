@@ -1,26 +1,27 @@
 import type {ReactElement} from 'react';
-import Badge from '@mui/material/Badge';
-import Tooltip from '@mui/material/Tooltip';
-import CategoryIcon from '@mui/icons-material/Category';
-import DataObjectIcon from '@mui/icons-material/DataObject';
-import ErrorOutlinedIcon from '@mui/icons-material/ErrorOutlined';
-import FolderIcon from '@mui/icons-material/Folder';
-import FunctionsIcon from '@mui/icons-material/Functions';
-import LabelIcon from '@mui/icons-material/Label';
-import TableChartIcon from '@mui/icons-material/TableChart';
-import ViewListIcon from '@mui/icons-material/ViewList';
+import {Indicator, Tooltip} from '@mantine/core';
+import {
+    IconBraces,
+    IconCategory,
+    IconFolder,
+    IconList,
+    IconMathFunction,
+    IconTable,
+    IconTag,
+    type Icon,
+} from '@tabler/icons-react';
 import type {PortableError} from '@edgerules/portable';
 
 export type IconKind = 'vars' | 'var' | 'ctx' | 'func' | 'dt' | 'types' | 'type';
 
-const ICON_BY_KIND: Record<IconKind, typeof FolderIcon> = {
-    vars: ViewListIcon,
-    var: DataObjectIcon,
-    ctx: FolderIcon,
-    func: FunctionsIcon,
-    dt: TableChartIcon,
-    types: CategoryIcon,
-    type: LabelIcon,
+const ICON_BY_KIND: Record<IconKind, Icon> = {
+    vars: IconList,
+    var: IconBraces,
+    ctx: IconFolder,
+    func: IconMathFunction,
+    dt: IconTable,
+    types: IconCategory,
+    type: IconTag,
 };
 
 export interface KindIconProps {
@@ -31,8 +32,8 @@ export interface KindIconProps {
 
 /** Icon for a tree node, per the story doc's icon table. Renders an error badge/tooltip when `error` is set. */
 export function KindIcon({kind, error}: KindIconProps): ReactElement {
-    const Icon = ICON_BY_KIND[kind];
-    const icon = <Icon fontSize="small" data-testid={`icon-${kind}`} />;
+    const Glyph = ICON_BY_KIND[kind];
+    const icon = <Glyph size={18} data-testid={`icon-${kind}`} />;
 
     if (!error) {
         return icon;
@@ -42,10 +43,10 @@ export function KindIcon({kind, error}: KindIconProps): ReactElement {
     const locationSuffix = location?.line !== undefined ? ` (${location.line}:${location.column ?? 0})` : '';
 
     return (
-        <Tooltip title={`${error.message}${locationSuffix}`}>
-            <Badge overlap="circular" badgeContent={<ErrorOutlinedIcon color="error" sx={{fontSize: 12}} />}>
+        <Tooltip label={`${error.message}${locationSuffix}`} withinPortal>
+            <Indicator color="red" size={8} offset={1} aria-label="error">
                 {icon}
-            </Badge>
+            </Indicator>
         </Tooltip>
     );
 }

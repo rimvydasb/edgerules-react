@@ -1,10 +1,11 @@
-import Box from '@mui/material/Box';
-import InputBase from '@mui/material/InputBase';
 import {useEffect, useRef, useState, type KeyboardEvent, type ReactElement} from 'react';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import type {BoxedRowData} from '../boxed-editor-types';
+import {cx} from '../../../ui/cx';
+import {ErrorPopover} from '../../../ui/ErrorPopover';
+import * as classes from '../boxedEditor.module.css';
 
 export interface NameCellProps {
     row: BoxedRowData;
@@ -86,8 +87,7 @@ export function NameCell({row}: NameCellProps): ReactElement {
 
     if (!active) {
         return (
-            <Box
-                component="span"
+            <span
                 tabIndex={editable ? 0 : undefined}
                 onClick={activate}
                 onKeyDown={(event) => {
@@ -97,18 +97,10 @@ export function NameCell({row}: NameCellProps): ReactElement {
                         activate();
                     }
                 }}
-                sx={{
-                    display: 'block',
-                    width: '100%',
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    cursor: editable ? 'text' : 'default',
-                }}
+                className={cx(classes.editableText, editable && classes.editableTextActive)}
             >
                 {row.name}
-            </Box>
+            </span>
         );
     }
 
@@ -123,48 +115,16 @@ export function NameCell({row}: NameCellProps): ReactElement {
     };
 
     return (
-        <Box sx={{position: 'relative', width: '100%'}}>
-            <InputBase
-                inputRef={inputRef}
+        <ErrorPopover message={error}>
+            <input
+                ref={inputRef}
+                className={classes.nameInput}
                 value={draft}
+                aria-label={`name ${row.path}`}
                 onChange={(event) => setDraft(event.target.value)}
                 onKeyDown={handleKeyDown}
                 onBlur={commit}
-                fullWidth
-                slotProps={{input: {'aria-label': `name ${row.path}`}}}
-                sx={{
-                    width: '100%',
-                    font: 'inherit',
-                    fontSize: '0.875rem',
-                    border: (theme) => `1px solid ${theme.palette.primary.main}`,
-                    borderRadius: 0.5,
-                    px: '5px',
-                    py: '1px',
-                    bgcolor: 'background.paper',
-                }}
             />
-            {error && (
-                <Box
-                    role="alert"
-                    sx={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        zIndex: 1300,
-                        mt: 0.5,
-                        px: 1,
-                        py: 0.5,
-                        maxWidth: 360,
-                        borderRadius: 0.5,
-                        bgcolor: 'error.main',
-                        color: 'error.contrastText',
-                        fontSize: '0.75rem',
-                        boxShadow: 2,
-                    }}
-                >
-                    {error}
-                </Box>
-            )}
-        </Box>
+        </ErrorPopover>
     );
 }

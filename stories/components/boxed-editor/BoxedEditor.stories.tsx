@@ -1,11 +1,9 @@
 import {useEffect, useMemo, useState, type ReactElement} from 'react';
+import {Box, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import highsLoader from 'highs';
 import highsWasmUrl from 'highs/runtime?url';
 import {
-    init,
     mapHighsSolution,
     MutableDecisionService,
     toCplexLp,
@@ -14,17 +12,11 @@ import {
     type LpProblem,
 } from '@edgerules/web/mutable';
 import {BoxedEditor, createBoxedEditorService, type BoxedEditorService} from '../../../src/components/boxed-editor';
-import {createDocumentationService} from '../../../src/components/documentation-service';
-import {createTestCasesService} from '../../../src/components/test-cases-service';
-import {
-    createTestRunner,
-    type MutableDecisionService as RunnerService,
-    type TestSubject,
-} from '../../../src/components/tests-manager';
-
-function uniqueDbName(prefix: string): string {
-    return `${prefix}-${Math.random().toString(36).slice(2)}`;
-}
+import type {DocumentationService} from '../../../src/components/documentation-service';
+import type {ProjectEngine, ProjectSession} from '../../../src/components/project-session';
+import type {TestCasesService} from '../../../src/components/test-cases-service';
+import {createTestRunner, type TestSubject} from '../../../src/components/tests-manager';
+import {openStoryProject} from '../../support/storyProject';
 
 const LOAN_ORIGINATION_MODEL = `{
   type Applicant: {
@@ -56,8 +48,7 @@ const COLLECTIONS_MODEL = `{
 const LARGE_MODEL = `{ ${Array.from({length: 200}, (_, index) => `value${index}: ${index}`).join(' ')} }`;
 
 async function buildService(code: string) {
-    await init();
-    return createBoxedEditorService(MutableDecisionService.fromCode(code));
+    return createBoxedEditorService((await openStoryProject(code)).engine);
 }
 
 /** Renders the editor plus a caption reflecting the live committed model, so a story can show
@@ -75,7 +66,7 @@ function EditableHarness({
     const payment = service.getBoxedRowData('payment')?.value ?? '(not in this model)';
 
     return (
-        <Box sx={{width: 'fit-content'}}>
+        <Box w="fit-content">
             <BoxedEditor
                 service={service}
                 path={path}
@@ -83,23 +74,30 @@ function EditableHarness({
                 readOnly={readOnly}
                 onChange={() => setChangeCount((current) => current + 1)}
             />
-            <Typography variant="caption" data-testid="live-payment" sx={{display: 'block', mt: 1}}>
+            <Text size="xs" data-testid="live-payment" mt="xs">
                 payment (committed): {payment}
-            </Typography>
-            <Typography variant="caption" data-testid="boxed-change-count" sx={{display: 'block'}}>
+            </Text>
+            <Text size="xs" data-testid="boxed-change-count">
                 Changes: {changeCount}
-            </Typography>
+            </Text>
         </Box>
     );
 }
 
-async function buildServiceWithMutable(code: string) {
-    await init();
-    const mutable = MutableDecisionService.fromCode(code);
-    return {service: createBoxedEditorService(mutable), mutable};
+interface EngineFixture {
+    service: BoxedEditorService;
+    mutable: ProjectEngine; // the session's engine facade
 }
 
-type ExecutingFixture = Awaited<ReturnType<typeof buildServiceWithMutable>>;
+// The project session also supplies documentation and test cases.
+interface ExecutingFixture extends EngineFixture {
+    session: ProjectSession;
+}
+
+async function buildServiceWithMutable(code: string): Promise<ExecutingFixture> {
+    const session = await openStoryProject(code);
+    return {service: createBoxedEditorService(session.engine), mutable: session.engine, session};
+}
 
 function errorText(error: unknown): string {
     if (error instanceof Error) return error.message;
@@ -126,11 +124,11 @@ function ExecutingHarness({
     documentationService,
     readOnly = false,
     allowReadOnlyToggle = false,
-}: ExecutingFixture & {
+}: EngineFixture & {
     path?: string;
     method?: string;
     input?: Record<string, unknown>;
-    documentationService?: ReturnType<typeof createDocumentationService>;
+    documentationService?: DocumentationService;
     readOnly?: boolean;
     allowReadOnlyToggle?: boolean;
 }): ReactElement {
@@ -155,7 +153,7 @@ function ExecutingHarness({
     }, [mutable, method, input, revision]);
 
     return (
-        <Box sx={{width: 'fit-content'}}>
+        <Box w="fit-content">
             {allowReadOnlyToggle && (
                 <button
                     type="button"
@@ -173,15 +171,15 @@ function ExecutingHarness({
                 readOnly={viewerReadOnly}
                 onChange={() => setRevision((current) => current + 1)}
             />
-            <Typography variant="caption" data-testid="live-result" sx={{display: 'block', mt: 1}}>
+            <Text size="xs" data-testid="live-result" mt="xs">
                 {result}
-            </Typography>
-            <Typography variant="caption" data-testid="live-model" sx={{display: 'block'}}>
+            </Text>
+            <Text size="xs" data-testid="live-model">
                 {JSON.stringify(service.toPortable())}
-            </Typography>
-            <Typography variant="caption" data-testid="boxed-change-count" sx={{display: 'block'}}>
+            </Text>
+            <Text size="xs" data-testid="boxed-change-count">
                 Changes: {revision}
-            </Typography>
+            </Text>
         </Box>
     );
 }
@@ -213,23 +211,24 @@ const MODEL_SUBJECT: TestSubject = {id: '*', kind: 'model', name: 'Model'};
 function TestCasesAndTestRunnerHarness({
     service,
     mutable,
+    testCasesService,
     path,
 }: {
     service: BoxedEditorService;
-    mutable: InstanceType<typeof MutableDecisionService>;
+    mutable: ProjectEngine;
+    testCasesService: TestCasesService;
     path: string;
 }): ReactElement {
     const [revision, setRevision] = useState(0);
-    const testCasesService = useMemo(() => createTestCasesService(uniqueDbName('boxed-editor-story'), '*'), []);
     const testRunner = useMemo(
         () =>
-            createTestRunner(mutable as unknown as RunnerService, testCasesService, MODEL_SUBJECT, {
+            createTestRunner(mutable, testCasesService, MODEL_SUBJECT, {
                 modelRevision: String(revision),
             }),
         [mutable, testCasesService, revision],
     );
 
-    // Seeds two test cases the first time this story mounts, against a fresh IndexedDB database.
+    // Seeds the test cases the first time this story mounts, into the story's fresh project session.
     useEffect(() => {
         if (testCasesService.listTestCases().length > 0) return;
         testCasesService.syncRows([
@@ -374,7 +373,12 @@ export const TestCasesAndTestRunner: Story = {
     },
     loaders: [async () => buildServiceWithMutable(LOAN_ORIGINATION_MODEL)],
     render: (_args, {loaded}) => (
-        <TestCasesAndTestRunnerHarness service={loaded.service} mutable={loaded.mutable} path="*" />
+        <TestCasesAndTestRunnerHarness
+            service={loaded.service}
+            mutable={loaded.mutable}
+            testCasesService={loaded.session.tests.forSubject('*')}
+            path="*"
+        />
     ),
 };
 
@@ -441,7 +445,7 @@ export const FullModel: Story = {
     loaders: [
         async () => {
             const fixture = await buildExecutingService(FULL_MODEL, true);
-            const documentationService = createDocumentationService(uniqueDbName('full-model-docs'));
+            const documentationService = fixture.session.documentation;
             documentationService.setDescription('application', 'Current loan application');
             documentationService.setDescription('reviewStages', 'Ordered application workflow');
             documentationService.setDescription('risk', 'Credit risk tiering');
@@ -634,7 +638,7 @@ export const RelationCrudPlayground: Story = {
     loaders: [
         async () => {
             const fixture = await buildExecutingService(RELATION_CRUD_MODEL);
-            const documentationService = createDocumentationService(uniqueDbName('relation-crud-docs'));
+            const documentationService = fixture.session.documentation;
             documentationService.setDescription('properties', 'Collateral properties');
             return {...fixture, documentationService};
         },
@@ -655,8 +659,8 @@ function RenameOverlayHarness({
     testCaseId,
 }: {
     service: BoxedEditorService;
-    documentationService: ReturnType<typeof createDocumentationService>;
-    testCasesService: ReturnType<typeof createTestCasesService>;
+    documentationService: DocumentationService;
+    testCasesService: TestCasesService;
     testCaseId: string;
 }): ReactElement {
     const [revision, setRevision] = useState(0);
@@ -672,15 +676,15 @@ function RenameOverlayHarness({
                 testSubjectId="*"
                 onChange={() => setRevision((value) => value + 1)}
             />
-            <Typography data-testid="overlay-descriptions">
+            <Text size="xs" data-testid="overlay-descriptions">
                 {paths.map((path) => `${path}:${documentationService.getDescription(path) ?? ''}`).join('|')}
-            </Typography>
-            <Typography data-testid="overlay-test-cell">
-                {paths
-                    .map((path) => `${path}:${testCasesService.getCell(testCaseId, path, 'input') ?? ''}`)
-                    .join('|')}
-            </Typography>
-            <Typography data-testid="live-model">{JSON.stringify(service.toPortable())}</Typography>
+            </Text>
+            <Text size="xs" data-testid="overlay-test-cell">
+                {paths.map((path) => `${path}:${testCasesService.getCell(testCaseId, path, 'input') ?? ''}`).join('|')}
+            </Text>
+            <Text size="xs" data-testid="live-model">
+                {JSON.stringify(service.toPortable())}
+            </Text>
             <span hidden>{revision}</span>
         </Box>
     );
@@ -689,13 +693,13 @@ function RenameOverlayHarness({
 export const RenameOverlayPlayground: Story = {
     loaders: [
         async () => {
-            const service = await buildService(
+            const {service, session} = await buildServiceWithMutable(
                 '{ source: { value: 1; doubled: value * 2 }; sourceValue: source.value; target: { existing: 2 }; free: 3 }',
             );
-            const documentationService = createDocumentationService(uniqueDbName('rename-docs'));
+            const documentationService = session.documentation;
             documentationService.setDescription('source', 'Source context');
             documentationService.setDescription('source.value', 'Nested value');
-            const testCasesService = createTestCasesService(uniqueDbName('rename-cases'), '*');
+            const testCasesService = session.tests.forSubject('*');
             testCasesService.syncRows([{path: 'source.value', section: 'inputs', order: 0, present: true}]);
             const testCase = testCasesService.addTestCase('Case 1');
             testCasesService.setCell(testCase.id, 'source.value', 'input', '42');
@@ -705,10 +709,8 @@ export const RenameOverlayPlayground: Story = {
     render: (_args, {loaded}) => (
         <RenameOverlayHarness
             service={loaded.service as BoxedEditorService}
-            documentationService={
-                loaded.documentationService as ReturnType<typeof createDocumentationService>
-            }
-            testCasesService={loaded.testCasesService as ReturnType<typeof createTestCasesService>}
+            documentationService={loaded.documentationService as DocumentationService}
+            testCasesService={loaded.testCasesService as TestCasesService}
             testCaseId={loaded.testCaseId as string}
         />
     ),

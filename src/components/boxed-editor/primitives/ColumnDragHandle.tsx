@@ -1,24 +1,12 @@
-import Box from '@mui/material/Box';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import {IconGripVertical} from '@tabler/icons-react';
 import type {ReactElement} from 'react';
-import {CELL} from './layout';
+import * as classes from '../boxedEditor.module.css';
 
 /** Compact drag affordance for a header cell inside `ArgumentHeaders` (Phase 4+). */
 export function ColumnDragHandle(): ReactElement {
     return (
-        <Box
-            aria-label="Drag to reorder column"
-            sx={{
-                display: 'flex',
-                width: 24,
-                height: CELL,
-                flexShrink: 0,
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'grab',
-            }}
-        >
-            <DragIndicatorIcon sx={{fontSize: 17, color: 'text.secondary'}} />
-        </Box>
+        <div aria-label="Drag to reorder column" className={classes.columnDragHandle}>
+            <IconGripVertical size={17} />
+        </div>
     );
 }

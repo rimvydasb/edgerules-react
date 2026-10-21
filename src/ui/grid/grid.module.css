@@ -1,0 +1,92 @@
+/*
+ * Plain-element grid primitives. Cells MUST NOT use a UI library component (see
+ * docs/MANTINE_MIGRATION_STORY.md): a Mantine/MUI input per cell is 5-20x slower to mount and rerender.
+ *
+ * Border rules: one `border-collapse: collapse` table, so two adjacent cells share a single 1px line;
+ * every border uses the same variable so themes change it in one place. With `columnUnits` the table
+ * sits on the same 40px step grid as the Boxed Editor (`GRID_STEP`).
+ */
+.table {
+  --grid-border: var(--mantine-color-default-border);
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-text);
+}
+
+.cell {
+  border: 1px solid var(--grid-border);
+  padding: 2px 4px;
+  box-sizing: border-box;
+  vertical-align: middle;
+  text-align: left;
+  background-clip: padding-box;
+}
+
+/* Step-grid layout (`columnUnits`): fixed whole-step columns, rows at least one 40px step tall. */
+.stepped {
+  table-layout: fixed;
+}
+
+.stepped .cell {
+  height: 40px;
+}
+
+th.cell {
+  font-weight: 600;
+}
+
+/* Spacer / label cells that must not draw a frame (e.g. the "Conditions" / "Results" band). */
+.borderless {
+  border: none;
+}
+
+.center {
+  text-align: center;
+}
+
+.right {
+  text-align: right;
+}
+
+/* A cell whose single input fills it edge to edge; the input is positioned against the padding box. */
+.fill {
+  position: relative;
+  padding: 0;
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+  /* The outline is drawn inside the cell, on its border box (negative offset). */
+  outline: none;
+}
+
+.input:focus {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.input:disabled {
+  cursor: not-allowed;
+  color: var(--mantine-color-dimmed);
+}
+
+.input[aria-invalid='true'] {
+  outline: 2px solid var(--mantine-color-error);
+  outline-offset: -2px;
+}
+
+.row:hover > .cell {
+  background-color: var(--mantine-color-default-hover);
+}

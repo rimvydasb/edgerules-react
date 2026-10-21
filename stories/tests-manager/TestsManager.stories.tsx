@@ -1,11 +1,15 @@
-import {useState, type ReactElement} from 'react';
+import type {ReactElement} from 'react';
+import {Box, Button, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import {init, MutableDecisionService} from '@edgerules/web/mutable';
+import {
+    ProjectProvider,
+    useProjectSession,
+    useProjectSlice,
+    type ProjectSession,
+} from '../../src/components/project-session';
 import {TestsManager} from '../../src/components/tests-manager';
-import type {DocumentationService} from '../../src/components/tests-manager';
+import type {TestsManagerProps} from '../../src/components/tests-manager';
+import {openStoryProject} from '../support/storyProject';
 
 const WORKBOOK_MODEL = `{
     maxLimit: 10000,
@@ -80,34 +84,19 @@ const OPTIMISE_MODEL = `{
     }
 }`;
 
-async function buildService(code: string): Promise<MutableDecisionService> {
-    await init();
-    return MutableDecisionService.fromCode(code);
-}
-
-function uniqueModelName(prefix: string): string {
-    return `${prefix}-${Math.random().toString(36).slice(2)}`;
-}
-
-// A minimal in-memory `DocumentationService` for stories: the real package
-// (`edgerules-react/documentation-service`) doesn't ship yet, but this satisfies the same
-// structural interface `TestsManager` accepts, so it demonstrates the Description column exactly
-// as a host wiring the real service would see it.
-function createMockDocumentationService(): DocumentationService {
-    const store = new Map<string, string>();
-    const listeners = new Set<() => void>();
-    return {
-        getDescription: (path) => store.get(path),
-        setDescription: (path, description) => {
-            if (description === '') store.delete(path);
-            else store.set(path, description);
-            for (const listener of listeners) listener();
-        },
-        subscribe: (listener) => {
-            listeners.add(listener);
-            return () => listeners.delete(listener);
-        },
-    };
+// A story's project session: TestsManager reads the engine facade, the session's tests and its descriptions.
+function ProjectTestsManager({
+    session,
+    ...props
+}: {session: ProjectSession} & Omit<TestsManagerProps, 'service' | 'testCases' | 'modelName'>): ReactElement {
+    return (
+        <TestsManager
+            service={session.engine}
+            testCases={session.tests}
+            documentationService={session.documentation}
+            {...props}
+        />
+    );
 }
 
 const meta: Meta<typeof TestsManager> = {
@@ -132,22 +121,18 @@ type Story = StoryObj<typeof TestsManager>;
 export const Workbook: Story = {
     loaders: [
         async () => {
-            const service = await buildService(WORKBOOK_MODEL);
-            return {service, modelName: uniqueModelName('workbook')};
+            return {session: await openStoryProject(WORKBOOK_MODEL)};
         },
     ],
     render: (_args, {loaded}) => {
-        const {service, modelName} = loaded as {
-            service: MutableDecisionService;
-            modelName: string;
-        };
+        const {session} = loaded as {session: ProjectSession};
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     Type values into Inputs, then use a row&apos;s three-dots menu to &quot;Move to Assertions&quot; and
                     edit the expected value to see the mismatch highlight.
-                </Typography>
-                <TestsManager service={service} modelName={modelName} />
+                </Text>
+                <ProjectTestsManager session={session} />
             </Box>
         );
     },
@@ -156,23 +141,19 @@ export const Workbook: Story = {
 export const DecisionServiceEntryPoints: Story = {
     loaders: [
         async () => {
-            const service = await buildService(DECISION_SERVICE_MODEL);
-            return {service, modelName: uniqueModelName('decision-service')};
+            return {session: await openStoryProject(DECISION_SERVICE_MODEL)};
         },
     ],
     render: (_args, {loaded}) => {
-        const {service, modelName} = loaded as {
-            service: MutableDecisionService;
-            modelName: string;
-        };
+        const {session} = loaded as {session: ProjectSession};
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     The subject drop-down lists the model, a root <code>func</code>, a <code>ruleset</code>, a nested{' '}
                     <code>library.eligibility</code>, and a <code>loop</code>. <code>untypedExample</code> is declared
                     but has an untyped parameter, so it never appears as a subject.
-                </Typography>
-                <TestsManager service={service} modelName={modelName} subjectId="isEligible" />
+                </Text>
+                <ProjectTestsManager session={session} subjectId="isEligible" />
             </Box>
         );
     },
@@ -181,8 +162,8 @@ export const DecisionServiceEntryPoints: Story = {
 export const OptimiseWithSolver: Story = {
     loaders: [
         async () => {
-            const service = await buildService(OPTIMISE_MODEL);
-            service.registerSolver(
+            const session = await openStoryProject(OPTIMISE_MODEL);
+            session.engine.registerSolver(
                 () => ({
                     status: 'optimal',
                     objective: 120,
@@ -190,22 +171,19 @@ export const OptimiseWithSolver: Story = {
                 }),
                 {name: 'story-stub', version: '1.0'},
             );
-            return {service, modelName: uniqueModelName('optimise-solved')};
+            return {session};
         },
     ],
     render: (_args, {loaded}) => {
-        const {service, modelName} = loaded as {
-            service: MutableDecisionService;
-            modelName: string;
-        };
+        const {session} = loaded as {session: ProjectSession};
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     Solver registered by this story&apos;s own loader (EdgeRules ships none). Enter <code>workers</code>
                     /<code>sticks</code>/<code>plates</code> to see the result record: status, objective, the decision
                     variables, and <code>bottlenecks.*</code>.
-                </Typography>
-                <TestsManager service={service} modelName={modelName} subjectId="factoryProduction" />
+                </Text>
+                <ProjectTestsManager session={session} subjectId="factoryProduction" />
             </Box>
         );
     },
@@ -214,21 +192,17 @@ export const OptimiseWithSolver: Story = {
 export const OptimiseWithoutSolver: Story = {
     loaders: [
         async () => {
-            const service = await buildService(OPTIMISE_MODEL);
-            return {service, modelName: uniqueModelName('optimise-unsolved')};
+            return {session: await openStoryProject(OPTIMISE_MODEL)};
         },
     ],
     render: (_args, {loaded}) => {
-        const {service, modelName} = loaded as {
-            service: MutableDecisionService;
-            modelName: string;
-        };
+        const {session} = loaded as {session: ProjectSession};
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     No solver registered — the pre-flight banner appears instead of a per-cell failure.
-                </Typography>
-                <TestsManager service={service} modelName={modelName} subjectId="factoryProduction" />
+                </Text>
+                <ProjectTestsManager session={session} subjectId="factoryProduction" />
             </Box>
         );
     },
@@ -237,22 +211,18 @@ export const OptimiseWithoutSolver: Story = {
 export const ColumnPaging: Story = {
     loaders: [
         async () => {
-            const service = await buildService(WORKBOOK_MODEL);
-            return {service, modelName: uniqueModelName('paging')};
+            return {session: await openStoryProject(WORKBOOK_MODEL)};
         },
     ],
     render: (_args, {loaded}) => {
-        const {service, modelName} = loaded as {
-            service: MutableDecisionService;
-            modelName: string;
-        };
+        const {session} = loaded as {session: ProjectSession};
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     <code>pageSize=3</code>. Use &quot;Add test case&quot; a few times to see the Path and Description
                     columns stay frozen while test-case columns page.
-                </Typography>
-                <TestsManager service={service} modelName={modelName} pageSize={3} />
+                </Text>
+                <ProjectTestsManager session={session} pageSize={3} />
             </Box>
         );
     },
@@ -261,65 +231,54 @@ export const ColumnPaging: Story = {
 export const SharedDocumentationService: Story = {
     loaders: [
         async () => {
-            const service = await buildService(WORKBOOK_MODEL);
-            return {service, modelName: uniqueModelName('shared-docs')};
+            return {session: await openStoryProject(WORKBOOK_MODEL)};
         },
     ],
     render: (_args, {loaded}) => {
-        const {service, modelName} = loaded as {
-            service: MutableDecisionService;
-            modelName: string;
-        };
-        const [documentationService] = useState(createMockDocumentationService);
+        const {session} = loaded as {session: ProjectSession};
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
-                    Two <code>TestsManager</code> instances over the same model, sharing one{' '}
-                    <code>DocumentationService</code> instance — edit a Description cell in either and watch it appear
-                    in the other.
-                </Typography>
-                <Typography variant="subtitle2">Instance A</Typography>
-                <TestsManager service={service} modelName={modelName} documentationService={documentationService} />
-                <Typography variant="subtitle2" sx={{mt: 2}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
+                    Two <code>TestsManager</code> instances over one project session, sharing its documentation store
+                    and its tests — edit a Description or a value cell in either and watch it appear in the other.
+                </Text>
+                <Text size="sm" fw={600}>
+                    Instance A
+                </Text>
+                <ProjectTestsManager session={session} />
+                <Text size="sm" fw={600} mt="md">
                     Instance B
-                </Typography>
-                <TestsManager service={service} modelName={modelName} documentationService={documentationService} />
+                </Text>
+                <ProjectTestsManager session={session} />
             </Box>
         );
     },
 };
 
-function LiveModelHarness({service, modelName}: {service: MutableDecisionService; modelName: string}): ReactElement {
-    const [revision, setRevision] = useState(0);
+function LiveModelHarness(): ReactElement {
+    const session = useProjectSession();
+    const model = useProjectSlice('model');
 
     return (
-        <Box sx={{maxWidth: 1100}}>
-            <Typography variant="body2" sx={{mb: 1}}>
-                &quot;Add bonus field&quot; edits the model directly through the engine and bumps <code>revision</code>{' '}
-                — every case re-runs and the new field appears in Validations. &quot;Remove bonus field&quot; then hides
-                its row again.
-            </Typography>
+        <Box maw={1100}>
+            <Text size="sm" mb="xs">
+                &quot;Add bonus field&quot; edits the model through the session engine; the model slice version (
+                <code>{model.version}</code>) is passed as <code>revision</code>, so every case re-runs and the new
+                field appears in Validations. &quot;Remove bonus field&quot; then hides its row again.
+            </Text>
             <Button
-                size="small"
-                sx={{mr: 1, mb: 1}}
-                onClick={() => {
-                    service.set('bonus', {'@kind': 'expression', expression: '5'});
-                    setRevision((r) => r + 1);
-                }}
+                size="compact-sm"
+                variant="subtle"
+                mr="xs"
+                mb="xs"
+                onClick={() => session.engine.set('bonus', {'@kind': 'expression', expression: '5'})}
             >
                 Add bonus field
             </Button>
-            <Button
-                size="small"
-                sx={{mb: 1}}
-                onClick={() => {
-                    service.remove('bonus');
-                    setRevision((r) => r + 1);
-                }}
-            >
+            <Button size="compact-sm" variant="subtle" mb="xs" onClick={() => session.engine.remove('bonus')}>
                 Remove bonus field
             </Button>
-            <TestsManager service={service} modelName={modelName} revision={revision} />
+            <ProjectTestsManager session={session} revision={model.version} />
         </Box>
     );
 }
@@ -327,40 +286,36 @@ function LiveModelHarness({service, modelName}: {service: MutableDecisionService
 export const LiveModelEdits: Story = {
     loaders: [
         async () => {
-            const service = await buildService(WORKBOOK_MODEL);
-            return {service, modelName: uniqueModelName('live-edits')};
+            return {session: await openStoryProject(WORKBOOK_MODEL)};
         },
     ],
     render: (_args, {loaded}) => {
-        const {service, modelName} = loaded as {
-            service: MutableDecisionService;
-            modelName: string;
-        };
-        return <LiveModelHarness service={service} modelName={modelName} />;
+        const {session} = loaded as {session: ProjectSession};
+        return (
+            <ProjectProvider session={session}>
+                <LiveModelHarness />
+            </ProjectProvider>
+        );
     },
 };
 
 export const IndexedArrayPaths: Story = {
     loaders: [
         async () => {
-            const service = await buildService(ARRAY_MODEL);
-            return {service, modelName: uniqueModelName('arrays')};
+            return {session: await openStoryProject(ARRAY_MODEL)};
         },
     ],
     render: (_args, {loaded}) => {
-        const {service, modelName} = loaded as {
-            service: MutableDecisionService;
-            modelName: string;
-        };
+        const {session} = loaded as {session: ProjectSession};
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <Typography variant="body2" sx={{mb: 1}}>
+            <Box maw={1100}>
+                <Text size="sm" mb="xs">
                     Every array is pre-generated down to its element <code>[0]</code>, at any depth (
                     <code>application.applicant[0].creditLine[0].balance</code>
                     ). Use a row&apos;s three-dots menu to <strong>Duplicate</strong> it into the next element, and
                     click a Path cell to retype it — an unknown path turns red as you type.
-                </Typography>
-                <TestsManager service={service} modelName={modelName} />
+                </Text>
+                <ProjectTestsManager session={session} />
             </Box>
         );
     },
@@ -369,18 +324,14 @@ export const IndexedArrayPaths: Story = {
 export const ReadOnly: Story = {
     loaders: [
         async () => {
-            const service = await buildService(WORKBOOK_MODEL);
-            return {service, modelName: uniqueModelName('read-only')};
+            return {session: await openStoryProject(WORKBOOK_MODEL)};
         },
     ],
     render: (_args, {loaded}) => {
-        const {service, modelName} = loaded as {
-            service: MutableDecisionService;
-            modelName: string;
-        };
+        const {session} = loaded as {session: ProjectSession};
         return (
-            <Box sx={{maxWidth: 1100}}>
-                <TestsManager service={service} modelName={modelName} readOnly />
+            <Box maw={1100}>
+                <ProjectTestsManager session={session} readOnly />
             </Box>
         );
     },

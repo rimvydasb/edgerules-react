@@ -1,9 +1,5 @@
-import type {
-  BoxedRowData,
-  BoxedRowKind,
-  BoxedTableRowData,
-} from '../boxed-editor-types';
-import { childPath, indexedPath, parentPath, pathDepth } from '../service/portable-utils';
+import type {BoxedRowData, BoxedRowKind, BoxedTableRowData} from '../boxed-editor-types';
+import {childPath, indexedPath, parentPath, pathDepth} from '../service/portable-utils';
 
 export type RowFactory = (path: string, name: string, depth: number) => BoxedRowData;
 
@@ -19,88 +15,88 @@ const BLANK_LITERAL = '""';
  * map as later phases add the remaining kinds (`function`, `ruleset`, `optimisation`, ...).
  */
 export const rowFactories: Partial<Record<BoxedRowKind, RowFactory>> = {
-  field: (path, name, depth) => ({
-    kind: 'field',
-    depth,
-    path,
-    name,
-    value: BLANK_LITERAL,
-  }),
-  context: (path, name, depth) => ({
-    kind: 'context',
-    depth,
-    path,
-    name,
-    children: [],
-  }),
-  complexType: (path, name, depth) => ({
-    kind: 'complexType',
-    depth,
-    path,
-    name,
-    children: [],
-  }),
-  list: (path, name, depth) => ({
-    kind: 'list',
-    depth,
-    path,
-    name,
-    children: [],
-  }),
-  'list-item': (path, name, depth) => ({
-    kind: 'list-item',
-    depth,
-    path,
-    name,
-    value: BLANK_LITERAL,
-  }),
-  relation: (path, name, depth): BoxedTableRowData => ({
-    kind: 'relation',
-    depth,
-    path,
-    name,
-    columns: [],
-    children: [],
-  }),
-  'relation-item': (path, name, depth): BoxedTableRowData => ({
-    kind: 'relation-item',
-    depth,
-    path,
-    name,
-    columns: [],
-    cells: [],
-  }),
-  rule: (path, name, depth): BoxedTableRowData => ({
-    kind: 'rule',
-    depth,
-    path,
-    name,
-    conditionColumns: [],
-    actionColumns: [],
-    conditions: [],
-    actions: [],
-  }),
-  'optimisation-variable': (path, name, depth) => ({
-    kind: 'optimisation-variable',
-    depth,
-    path,
-    name,
-    value: '<number, min: 0>',
-  }),
-  'optimisation-constraint': (path, name, depth) => ({
-    kind: 'optimisation-constraint',
-    depth,
-    path,
-    name,
-    value: '0 <= 0',
-  }),
+    field: (path, name, depth) => ({
+        kind: 'field',
+        depth,
+        path,
+        name,
+        value: BLANK_LITERAL,
+    }),
+    context: (path, name, depth) => ({
+        kind: 'context',
+        depth,
+        path,
+        name,
+        children: [],
+    }),
+    complexType: (path, name, depth) => ({
+        kind: 'complexType',
+        depth,
+        path,
+        name,
+        children: [],
+    }),
+    list: (path, name, depth) => ({
+        kind: 'list',
+        depth,
+        path,
+        name,
+        children: [],
+    }),
+    'list-item': (path, name, depth) => ({
+        kind: 'list-item',
+        depth,
+        path,
+        name,
+        value: BLANK_LITERAL,
+    }),
+    relation: (path, name, depth): BoxedTableRowData => ({
+        kind: 'relation',
+        depth,
+        path,
+        name,
+        columns: [],
+        children: [],
+    }),
+    'relation-item': (path, name, depth): BoxedTableRowData => ({
+        kind: 'relation-item',
+        depth,
+        path,
+        name,
+        columns: [],
+        cells: [],
+    }),
+    rule: (path, name, depth): BoxedTableRowData => ({
+        kind: 'rule',
+        depth,
+        path,
+        name,
+        conditionColumns: [],
+        actionColumns: [],
+        conditions: [],
+        actions: [],
+    }),
+    'optimisation-variable': (path, name, depth) => ({
+        kind: 'optimisation-variable',
+        depth,
+        path,
+        name,
+        value: '<number, min: 0>',
+    }),
+    'optimisation-constraint': (path, name, depth) => ({
+        kind: 'optimisation-constraint',
+        depth,
+        path,
+        name,
+        value: '0 <= 0',
+    }),
 };
 
 export function uniqueName(base: string, existing: Set<string>): string {
-  if (!existing.has(base)) return base;
-  let index = 2;
-  while (existing.has(`${base}${index}`)) index += 1;
-  return `${base}${index}`;
+    if (!existing.has(base)) return base;
+    let index = 2;
+    while (existing.has(`${base}${index}`)) index += 1;
+    return `${base}${index}`;
 }
 
 /**
@@ -111,28 +107,25 @@ export function uniqueName(base: string, existing: Set<string>): string {
  * whole-type rewrite), and a member's node is a bare type reference, never `BLANK_LITERAL`'s
  * string-expression default — so `isTypeMember` seeds a real (if generic) type name instead.
  */
-export function nextFieldRow(
-  container: Pick<BoxedRowData, 'path' | 'children'>,
-  isTypeMember = false,
-): BoxedRowData {
-  const existing = new Set((container.children ?? []).map((child) => child.name));
-  const name = uniqueName('field', existing);
-  const path = childPath(container.path, name);
-  const field = rowFactories.field!(path, name, pathDepth(path));
-  return isTypeMember ? { ...field, value: 'string' } : field;
+export function nextFieldRow(container: Pick<BoxedRowData, 'path' | 'children'>, isTypeMember = false): BoxedRowData {
+    const existing = new Set((container.children ?? []).map((child) => child.name));
+    const name = uniqueName('field', existing);
+    const path = childPath(container.path, name);
+    const field = rowFactories.field!(path, name, pathDepth(path));
+    return isTypeMember ? {...field, value: 'string'} : field;
 }
 
 export function compatibleLiteralDefault(value: string | undefined): string {
-  const trimmed = value?.trim() ?? '';
-  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return '0';
-  if (trimmed === 'true' || trimmed === 'false') return 'false';
-  // Indexed engine reads materialize temporal values as JSON strings even though the array schema
-  // remains `date`/`datetime`. Restore the temporal shorthand for ISO-shaped values so appending a
-  // record does not silently retype a date column to string.
-  const temporal = /^(['"])(\d{4}-\d{2}-\d{2}(?:T[^'"]+)?)\1$/.exec(trimmed);
-  if (temporal) return `@"${temporal[2]}"`;
-  if (/^(['"]).*\1$/.test(trimmed)) return BLANK_LITERAL;
-  return trimmed || BLANK_LITERAL;
+    const trimmed = value?.trim() ?? '';
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) return '0';
+    if (trimmed === 'true' || trimmed === 'false') return 'false';
+    // Indexed engine reads materialize temporal values as JSON strings even though the array schema
+    // remains `date`/`datetime`. Restore the temporal shorthand for ISO-shaped values so appending a
+    // record does not silently retype a date column to string.
+    const temporal = /^(['"])(\d{4}-\d{2}-\d{2}(?:T[^'"]+)?)\1$/.exec(trimmed);
+    if (temporal) return `@"${temporal[2]}"`;
+    if (/^(['"]).*\1$/.test(trimmed)) return BLANK_LITERAL;
+    return trimmed || BLANK_LITERAL;
 }
 
 /**
@@ -141,14 +134,14 @@ export function compatibleLiteralDefault(value: string | undefined): string {
  * numeric or boolean list fail before the new cell can be edited.
  */
 export function appendListItem(row: BoxedRowData): BoxedRowData {
-  const children = row.children ?? [];
-  const index = children.length;
-  const path = indexedPath(row.path, index);
-  const item = {
-    ...rowFactories['list-item']!(path, `Item ${index + 1}`, pathDepth(path)),
-    value: compatibleLiteralDefault(children.at(-1)?.value),
-  };
-  return { ...row, children: [...children, item] };
+    const children = row.children ?? [];
+    const index = children.length;
+    const path = indexedPath(row.path, index);
+    const item = {
+        ...rowFactories['list-item']!(path, `Item ${index + 1}`, pathDepth(path)),
+        value: compatibleLiteralDefault(children.at(-1)?.value),
+    };
+    return {...row, children: [...children, item]};
 }
 
 /**
@@ -158,34 +151,30 @@ export function appendListItem(row: BoxedRowData): BoxedRowData {
  * only type-neutral seed available because there is not yet an inferred column type.
  */
 export function appendRelationItem(row: BoxedTableRowData): BoxedTableRowData {
-  const children = row.children ?? [];
-  const index = children.length;
-  const path = indexedPath(row.path, index);
-  const columns = row.columns ?? [];
-  const previous = children.at(-1) as BoxedTableRowData | undefined;
-  const rebaseChild = (child: BoxedRowData, parent: string): BoxedRowData => {
-    const nextPath = childPath(parent, child.name);
-    return {
-      ...child,
-      path: nextPath,
-      depth: pathDepth(nextPath),
-      children: child.children?.map((nested) => rebaseChild(nested, nextPath)),
+    const children = row.children ?? [];
+    const index = children.length;
+    const path = indexedPath(row.path, index);
+    const columns = row.columns ?? [];
+    const previous = children.at(-1) as BoxedTableRowData | undefined;
+    const rebaseChild = (child: BoxedRowData, parent: string): BoxedRowData => {
+        const nextPath = childPath(parent, child.name);
+        return {
+            ...child,
+            path: nextPath,
+            depth: pathDepth(nextPath),
+            children: child.children?.map((nested) => rebaseChild(nested, nextPath)),
+        };
     };
-  };
-  const drillDownNames = new Set(previous?.children?.map((child) => child.name) ?? []);
-  const item: BoxedTableRowData = {
-    ...(rowFactories['relation-item']!(
-      path,
-      `Item ${index + 1}`,
-      pathDepth(path),
-    ) as BoxedTableRowData),
-    columns,
-    cells: columns.map((column, columnIndex) =>
-      drillDownNames.has(column) ? '' : compatibleLiteralDefault(previous?.cells?.[columnIndex]),
-    ),
-    children: previous?.children?.map((child) => rebaseChild(child, path)) ?? [],
-  };
-  return { ...row, children: [...children, item] };
+    const drillDownNames = new Set(previous?.children?.map((child) => child.name) ?? []);
+    const item: BoxedTableRowData = {
+        ...(rowFactories['relation-item']!(path, `Item ${index + 1}`, pathDepth(path)) as BoxedTableRowData),
+        columns,
+        cells: columns.map((column, columnIndex) =>
+            drillDownNames.has(column) ? '' : compatibleLiteralDefault(previous?.cells?.[columnIndex]),
+        ),
+        children: previous?.children?.map((child) => rebaseChild(child, path)) ?? [],
+    };
+    return {...row, children: [...children, item]};
 }
 
 /**
@@ -196,83 +185,69 @@ export function appendRelationItem(row: BoxedTableRowData): BoxedTableRowData {
  * vanish. Unlike `appendRelationItem`, a brand-new column has no previous typed cell to derive a
  * compatible default from, so this `BLANK_LITERAL` backfill is deliberately unchanged.
  */
-export function addRelationColumn(
-  row: BoxedTableRowData,
-  columnName: string,
-): BoxedTableRowData {
-  return {
-    ...row,
-    columns: [...(row.columns ?? []), columnName],
-    children: (row.children ?? []).map((child) => {
-      const table = child as BoxedTableRowData;
-      return {
-        ...table,
-        columns: [...(table.columns ?? []), columnName],
-        cells: [...(table.cells ?? []), BLANK_LITERAL],
-      };
-    }),
-  };
+export function addRelationColumn(row: BoxedTableRowData, columnName: string): BoxedTableRowData {
+    return {
+        ...row,
+        columns: [...(row.columns ?? []), columnName],
+        children: (row.children ?? []).map((child) => {
+            const table = child as BoxedTableRowData;
+            return {
+                ...table,
+                columns: [...(table.columns ?? []), columnName],
+                cells: [...(table.cells ?? []), BLANK_LITERAL],
+            };
+        }),
+    };
 }
 
 /**
  * Removes `columnName` from the header and from every record, and returns the whole `relation`
  * row for a parent rewrite. A no-op if the column is already absent.
  */
-export function removeRelationColumn(
-  row: BoxedTableRowData,
-  columnName: string,
-): BoxedTableRowData {
-  const index = (row.columns ?? []).indexOf(columnName);
-  if (index === -1) return row;
-  return {
-    ...row,
-    columns: (row.columns ?? []).filter((name) => name !== columnName),
-    children: (row.children ?? []).map((child) => {
-      const table = child as BoxedTableRowData;
-      const cells = [...(table.cells ?? [])];
-      cells.splice(index, 1);
-      return {
-        ...table,
-        columns: (table.columns ?? []).filter((name) => name !== columnName),
-        cells,
-      };
-    }),
-  };
+export function removeRelationColumn(row: BoxedTableRowData, columnName: string): BoxedTableRowData {
+    const index = (row.columns ?? []).indexOf(columnName);
+    if (index === -1) return row;
+    return {
+        ...row,
+        columns: (row.columns ?? []).filter((name) => name !== columnName),
+        children: (row.children ?? []).map((child) => {
+            const table = child as BoxedTableRowData;
+            const cells = [...(table.cells ?? [])];
+            cells.splice(index, 1);
+            return {
+                ...table,
+                columns: (table.columns ?? []).filter((name) => name !== columnName),
+                cells,
+            };
+        }),
+    };
 }
 
-export function renameRelationColumn(
-  row: BoxedTableRowData,
-  from: string,
-  to: string,
-): BoxedTableRowData {
-  const columns = (row.columns ?? []).map((column) => (column === from ? to : column));
-  return {
-    ...row,
-    columns,
-    children: (row.children ?? []).map((child) => ({...child, columns})),
-  };
+export function renameRelationColumn(row: BoxedTableRowData, from: string, to: string): BoxedTableRowData {
+    const columns = (row.columns ?? []).map((column) => (column === from ? to : column));
+    return {
+        ...row,
+        columns,
+        children: (row.children ?? []).map((child) => ({...child, columns})),
+    };
 }
 
-export function moveRelationColumn(
-  row: BoxedTableRowData,
-  from: number,
-  to: number,
-): BoxedTableRowData {
-  const move = <T,>(values: T[]): T[] => {
-    const next = [...values];
-    const [value] = next.splice(from, 1);
-    next.splice(to, 0, value);
-    return next;
-  };
-  const columns = move(row.columns ?? []);
-  return {
-    ...row,
-    columns,
-    children: (row.children ?? []).map((child) => {
-      const table = child as BoxedTableRowData;
-      return {...table, columns, cells: move(table.cells ?? [])};
-    }),
-  };
+export function moveRelationColumn(row: BoxedTableRowData, from: number, to: number): BoxedTableRowData {
+    const move = <T>(values: T[]): T[] => {
+        const next = [...values];
+        const [value] = next.splice(from, 1);
+        next.splice(to, 0, value);
+        return next;
+    };
+    const columns = move(row.columns ?? []);
+    return {
+        ...row,
+        columns,
+        children: (row.children ?? []).map((child) => {
+            const table = child as BoxedTableRowData;
+            return {...table, columns, cells: move(table.cells ?? [])};
+        }),
+    };
 }
 
 /**
@@ -286,38 +261,28 @@ export function moveRelationColumn(
  * known-good row keeps every column's literal valid for its column instead of guessing.
  */
 export function appendRule(row: BoxedTableRowData): BoxedTableRowData {
-  const children = row.children ?? [];
-  const rules = children.filter((child) => child.kind === 'rule') as BoxedTableRowData[];
-  const fallback = children.find((child) => child.kind === 'ruleset-default') as
-    | BoxedTableRowData
-    | undefined;
-  const referenceActions = rules[0]?.actions ?? fallback?.actions;
-  const path = indexedPath(childPath(row.path, 'rules'), rules.length);
-  const conditionColumns = row.conditionColumns ?? [];
-  const actionColumns = row.actionColumns ?? [];
-  const bestMatch =
-    children.find((child) => child.kind === 'ruleset-hit-policy')?.value ===
-    'best-match';
-  const rule: BoxedTableRowData = {
-    ...(rowFactories.rule!(
-      path,
-      `Rule ${rules.length + 1}`,
-      pathDepth(path),
-    ) as BoxedTableRowData),
-    conditionColumns,
-    actionColumns,
-    ...(conditionColumns.length === 0
-      ? {conditionsExpression: 'true'}
-      : {conditions: conditionColumns.map(() => '')}),
-    actions: referenceActions ?? actionColumns.map(() => BLANK_LITERAL),
-    ...(bestMatch ? {priority: rules.length + 1} : {}),
-  };
-  const insertAt = children.findIndex((child) => child.kind === 'ruleset-default');
-  const nextChildren =
-    insertAt === -1
-      ? [...children, rule]
-      : [...children.slice(0, insertAt), rule, ...children.slice(insertAt)];
-  return { ...row, children: nextChildren };
+    const children = row.children ?? [];
+    const rules = children.filter((child) => child.kind === 'rule') as BoxedTableRowData[];
+    const fallback = children.find((child) => child.kind === 'ruleset-default') as BoxedTableRowData | undefined;
+    const referenceActions = rules[0]?.actions ?? fallback?.actions;
+    const path = indexedPath(childPath(row.path, 'rules'), rules.length);
+    const conditionColumns = row.conditionColumns ?? [];
+    const actionColumns = row.actionColumns ?? [];
+    const bestMatch = children.find((child) => child.kind === 'ruleset-hit-policy')?.value === 'best-match';
+    const rule: BoxedTableRowData = {
+        ...(rowFactories.rule!(path, `Rule ${rules.length + 1}`, pathDepth(path)) as BoxedTableRowData),
+        conditionColumns,
+        actionColumns,
+        ...(conditionColumns.length === 0
+            ? {conditionsExpression: 'true'}
+            : {conditions: conditionColumns.map(() => '')}),
+        actions: referenceActions ?? actionColumns.map(() => BLANK_LITERAL),
+        ...(bestMatch ? {priority: rules.length + 1} : {}),
+    };
+    const insertAt = children.findIndex((child) => child.kind === 'ruleset-default');
+    const nextChildren =
+        insertAt === -1 ? [...children, rule] : [...children.slice(0, insertAt), rule, ...children.slice(insertAt)];
+    return {...row, children: nextChildren};
 }
 
 /**
@@ -326,12 +291,12 @@ export function appendRule(row: BoxedTableRowData): BoxedTableRowData {
  * group's path into the owning `optimise` declaration (Section 7).
  */
 export function appendOptimisationVariable(row: BoxedRowData): BoxedRowData {
-  const children = row.children ?? [];
-  const existing = new Set(children.map((child) => child.name));
-  const name = uniqueName('variable', existing);
-  const path = childPath(row.path, name);
-  const variable = rowFactories['optimisation-variable']!(path, name, pathDepth(path));
-  return { ...row, children: [...children, variable] };
+    const children = row.children ?? [];
+    const existing = new Set(children.map((child) => child.name));
+    const name = uniqueName('variable', existing);
+    const path = childPath(row.path, name);
+    const variable = rowFactories['optimisation-variable']!(path, name, pathDepth(path));
+    return {...row, children: [...children, variable]};
 }
 
 /**
@@ -339,12 +304,12 @@ export function appendOptimisationVariable(row: BoxedRowData): BoxedRowData {
  * `optimisation-constraint-group` row for a parent rewrite.
  */
 export function appendOptimisationConstraint(row: BoxedRowData): BoxedRowData {
-  const children = row.children ?? [];
-  const existing = new Set(children.map((child) => child.name));
-  const name = uniqueName('constraint', existing);
-  const path = childPath(row.path, name);
-  const constraint = rowFactories['optimisation-constraint']!(path, name, pathDepth(path));
-  return { ...row, children: [...children, constraint] };
+    const children = row.children ?? [];
+    const existing = new Set(children.map((child) => child.name));
+    const name = uniqueName('constraint', existing);
+    const path = childPath(row.path, name);
+    const constraint = rowFactories['optimisation-constraint']!(path, name, pathDepth(path));
+    return {...row, children: [...children, constraint]};
 }
 
 /**
@@ -356,52 +321,52 @@ export function appendOptimisationConstraint(row: BoxedRowData): BoxedRowData {
  * commit has to update both the `variables` and `constraints` groups together.
  */
 export function addOptimisationVariable(row: BoxedTableRowData): BoxedTableRowData {
-  const children = row.children ?? [];
-  const variableGroup = children.find((child) => child.kind === 'optimisation-variable-group');
-  const constraintGroup = children.find((child) => child.kind === 'optimisation-constraint-group');
-  if (!variableGroup || !constraintGroup) return row;
+    const children = row.children ?? [];
+    const variableGroup = children.find((child) => child.kind === 'optimisation-variable-group');
+    const constraintGroup = children.find((child) => child.kind === 'optimisation-constraint-group');
+    if (!variableGroup || !constraintGroup) return row;
 
-  const updatedVariableGroup = appendOptimisationVariable(variableGroup);
-  const variableName = updatedVariableGroup.children?.[updatedVariableGroup.children.length - 1]?.name;
-  if (!variableName) return row;
+    const updatedVariableGroup = appendOptimisationVariable(variableGroup);
+    const variableName = updatedVariableGroup.children?.[updatedVariableGroup.children.length - 1]?.name;
+    if (!variableName) return row;
 
-  const constraintNames = new Set((constraintGroup.children ?? []).map((child) => child.name));
-  const constraintName = uniqueName(`${variableName}Bound`, constraintNames);
-  const constraintPath = childPath(constraintGroup.path, constraintName);
-  const updatedConstraintGroup: BoxedRowData = {
-    ...constraintGroup,
-    children: [
-      ...(constraintGroup.children ?? []),
-      {
-        kind: 'optimisation-constraint',
-        depth: pathDepth(constraintPath),
-        path: constraintPath,
-        name: constraintName,
-        value: `${variableName} >= 0`,
-      },
-    ],
-  };
+    const constraintNames = new Set((constraintGroup.children ?? []).map((child) => child.name));
+    const constraintName = uniqueName(`${variableName}Bound`, constraintNames);
+    const constraintPath = childPath(constraintGroup.path, constraintName);
+    const updatedConstraintGroup: BoxedRowData = {
+        ...constraintGroup,
+        children: [
+            ...(constraintGroup.children ?? []),
+            {
+                kind: 'optimisation-constraint',
+                depth: pathDepth(constraintPath),
+                path: constraintPath,
+                name: constraintName,
+                value: `${variableName} >= 0`,
+            },
+        ],
+    };
 
-  return {
-    ...row,
-    children: children.map((child) => {
-      if (child.kind === 'optimisation-variable-group') return updatedVariableGroup;
-      if (child.kind === 'optimisation-constraint-group') return updatedConstraintGroup;
-      return child;
-    }),
-  };
+    return {
+        ...row,
+        children: children.map((child) => {
+            if (child.kind === 'optimisation-variable-group') return updatedVariableGroup;
+            if (child.kind === 'optimisation-constraint-group') return updatedConstraintGroup;
+            return child;
+        }),
+    };
 }
 
 // --- Duplicate ---------------------------------------------------------------------------
 
 function remapPaths(row: BoxedRowData, fromPath: string, toPath: string): BoxedRowData {
-  const path = toPath + row.path.slice(fromPath.length);
-  return {
-    ...row,
-    path,
-    depth: pathDepth(path),
-    children: row.children?.map((child) => remapPaths(child, fromPath, toPath)),
-  };
+    const path = toPath + row.path.slice(fromPath.length);
+    return {
+        ...row,
+        path,
+        depth: pathDepth(path),
+        children: row.children?.map((child) => remapPaths(child, fromPath, toPath)),
+    };
 }
 
 /**
@@ -413,14 +378,11 @@ function remapPaths(row: BoxedRowData, fromPath: string, toPath: string): BoxedR
  * `optimisation` child — the facade's owner-coalescing already applies to whatever path this
  * writes to, exactly as it does for any other child edit (Section 7).
  */
-export function duplicateNamedRow(
-  row: BoxedRowData,
-  siblingNames: Set<string>,
-): { path: string; row: BoxedRowData } {
-  const name = uniqueName(row.name, siblingNames);
-  const parent = parentPath(row.path) ?? '*';
-  const path = childPath(parent, name);
-  return { path, row: remapPaths({ ...row, name }, row.path, path) };
+export function duplicateNamedRow(row: BoxedRowData, siblingNames: Set<string>): {path: string; row: BoxedRowData} {
+    const name = uniqueName(row.name, siblingNames);
+    const parent = parentPath(row.path) ?? '*';
+    const path = childPath(parent, name);
+    return {path, row: remapPaths({...row, name}, row.path, path)};
 }
 
 /**
@@ -431,17 +393,10 @@ export function duplicateNamedRow(
  * (`setBoxedRowData`) — arrays are append-only and reject gaps, so every sibling must be rewritten
  * together.
  */
-export function duplicateChildAt(
-  children: BoxedRowData[],
-  targetPath: string,
-): BoxedRowData[] {
-  const index = children.findIndex((child) => child.path === targetPath);
-  if (index === -1) return children;
-  return [
-    ...children.slice(0, index + 1),
-    { ...children[index] },
-    ...children.slice(index + 1),
-  ];
+export function duplicateChildAt(children: BoxedRowData[], targetPath: string): BoxedRowData[] {
+    const index = children.findIndex((child) => child.path === targetPath);
+    if (index === -1) return children;
+    return [...children.slice(0, index + 1), {...children[index]}, ...children.slice(index + 1)];
 }
 
 // --- Function / Optimisation arguments ----------------------------------------------------
@@ -452,86 +407,76 @@ export function duplicateChildAt(
  * carry a real type annotation (`E331`), so the caller passes one for that case.
  */
 export function addArgument(row: BoxedTableRowData, type?: string): BoxedTableRowData {
-  const existing = new Set((row.parameters ?? []).map((parameter) => parameter.name));
-  const name = uniqueName('arg', existing);
-  return { ...row, parameters: [...(row.parameters ?? []), { name, ...(type ? { type } : {}) }] };
+    const existing = new Set((row.parameters ?? []).map((parameter) => parameter.name));
+    const name = uniqueName('arg', existing);
+    return {...row, parameters: [...(row.parameters ?? []), {name, ...(type ? {type} : {})}]};
 }
 
 /** `Delete "‹argument›" Argument` — also the cleared-argument-name special action (Section 5). */
 export function removeArgument(row: BoxedTableRowData, name: string): BoxedTableRowData {
-  return {
-    ...row,
-    parameters: (row.parameters ?? []).filter((parameter) => parameter.name !== name),
-  };
+    return {
+        ...row,
+        parameters: (row.parameters ?? []).filter((parameter) => parameter.name !== name),
+    };
 }
 
 function replaceIdentifier(value: string | undefined, from: string, to: string): string | undefined {
-  if (value === undefined) return undefined;
-  return value.replace(new RegExp(`\\b${from.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'g'), to);
+    if (value === undefined) return undefined;
+    return value.replace(new RegExp(`\\b${from.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'g'), to);
 }
 
 function rewriteRowReferences(row: BoxedRowData, from: string, to: string): BoxedRowData {
-  const table = row as BoxedTableRowData;
-  return {
-    ...row,
-    ...(row.value !== undefined ? { value: replaceIdentifier(row.value, from, to) } : {}),
-    ...(table.cells ? { cells: table.cells.map((value) => replaceIdentifier(value, from, to) ?? '') } : {}),
-    ...(table.conditions
-      ? { conditions: table.conditions.map((value) => replaceIdentifier(value, from, to) ?? '') }
-      : {}),
-    ...(table.actions ? { actions: table.actions.map((value) => replaceIdentifier(value, from, to) ?? '') } : {}),
-    ...(table.conditionsExpression !== undefined
-      ? { conditionsExpression: replaceIdentifier(table.conditionsExpression, from, to) }
-      : {}),
-    ...(row.children
-      ? { children: row.children.map((child) => rewriteRowReferences(child, from, to)) }
-      : {}),
-  };
+    const table = row as BoxedTableRowData;
+    return {
+        ...row,
+        ...(row.value !== undefined ? {value: replaceIdentifier(row.value, from, to)} : {}),
+        ...(table.cells ? {cells: table.cells.map((value) => replaceIdentifier(value, from, to) ?? '')} : {}),
+        ...(table.conditions
+            ? {conditions: table.conditions.map((value) => replaceIdentifier(value, from, to) ?? '')}
+            : {}),
+        ...(table.actions ? {actions: table.actions.map((value) => replaceIdentifier(value, from, to) ?? '')} : {}),
+        ...(table.conditionsExpression !== undefined
+            ? {conditionsExpression: replaceIdentifier(table.conditionsExpression, from, to)}
+            : {}),
+        ...(row.children ? {children: row.children.map((child) => rewriteRowReferences(child, from, to))} : {}),
+    };
 }
 
-export function renameArgument(
-  row: BoxedTableRowData,
-  from: string,
-  to: string,
-): BoxedTableRowData {
-  const rewritten = rewriteRowReferences(row, from, to) as BoxedTableRowData;
-  return {
-    ...rewritten,
-    parameters: (rewritten.parameters ?? []).map((parameter) =>
-      parameter.name === from ? { ...parameter, name: to } : parameter,
-    ),
-  };
+export function renameArgument(row: BoxedTableRowData, from: string, to: string): BoxedTableRowData {
+    const rewritten = rewriteRowReferences(row, from, to) as BoxedTableRowData;
+    return {
+        ...rewritten,
+        parameters: (rewritten.parameters ?? []).map((parameter) =>
+            parameter.name === from ? {...parameter, name: to} : parameter,
+        ),
+    };
 }
 
-export function retypeArgument(
-  row: BoxedTableRowData,
-  name: string,
-  type: string,
-): BoxedTableRowData {
-  const required = /^<(.+),\s*required:\s*(true|false)>$/.exec(type);
-  return {
-    ...row,
-    parameters: (row.parameters ?? []).map((parameter) =>
-      parameter.name === name
-        ? {
-            ...parameter,
-            type: required?.[1].trim() ?? type,
-            ...(required ? {required: required[2] === 'true'} : {required: undefined}),
-          }
-        : parameter,
-    ),
-  };
+export function retypeArgument(row: BoxedTableRowData, name: string, type: string): BoxedTableRowData {
+    const required = /^<(.+),\s*required:\s*(true|false)>$/.exec(type);
+    return {
+        ...row,
+        parameters: (row.parameters ?? []).map((parameter) =>
+            parameter.name === name
+                ? {
+                      ...parameter,
+                      type: required?.[1].trim() ?? type,
+                      ...(required ? {required: required[2] === 'true'} : {required: undefined}),
+                  }
+                : parameter,
+        ),
+    };
 }
 
 function moved<T>(values: T[], from: number, to: number): T[] {
-  const next = [...values];
-  const [value] = next.splice(from, 1);
-  next.splice(to, 0, value);
-  return next;
+    const next = [...values];
+    const [value] = next.splice(from, 1);
+    next.splice(to, 0, value);
+    return next;
 }
 
 export function moveArgument(row: BoxedTableRowData, from: number, to: number): BoxedTableRowData {
-  return {...row, parameters: moved(row.parameters ?? [], from, to)};
+    return {...row, parameters: moved(row.parameters ?? [], from, to)};
 }
 
 // --- Ruleset condition / action columns ---------------------------------------------------
@@ -546,106 +491,91 @@ export function moveArgument(row: BoxedTableRowData, from: number, to: number): 
  * other parameter.
  */
 export function addConditionColumn(row: BoxedTableRowData, columnName: string): BoxedTableRowData {
-  const parameters = [...(row.parameters ?? []), { name: columnName, type: 'string' }];
-  const conditionColumns = parameters.map((parameter) => parameter.name);
-  return {
-    ...row,
-    parameters,
-    conditionColumns,
-    children: (row.children ?? []).map((child) => {
-      if (child.kind !== 'rule') return child;
-      const table = child as BoxedTableRowData;
-      if (table.conditionsExpression !== undefined) return { ...table, conditionColumns };
-      return { ...table, conditionColumns, conditions: [...(table.conditions ?? []), ''] };
-    }),
-  };
+    const parameters = [...(row.parameters ?? []), {name: columnName, type: 'string'}];
+    const conditionColumns = parameters.map((parameter) => parameter.name);
+    return {
+        ...row,
+        parameters,
+        conditionColumns,
+        children: (row.children ?? []).map((child) => {
+            if (child.kind !== 'rule') return child;
+            const table = child as BoxedTableRowData;
+            if (table.conditionsExpression !== undefined) return {...table, conditionColumns};
+            return {...table, conditionColumns, conditions: [...(table.conditions ?? []), '']};
+        }),
+    };
 }
 
 /** `Delete "‹column›" Column` for a condition column — the inverse of `addConditionColumn`. */
-export function removeConditionColumn(
-  row: BoxedTableRowData,
-  columnName: string,
-): BoxedTableRowData {
-  const index = (row.parameters ?? []).findIndex((parameter) => parameter.name === columnName);
-  if (index === -1) return row;
-  const parameters = (row.parameters ?? []).filter((parameter) => parameter.name !== columnName);
-  const conditionColumns = parameters.map((parameter) => parameter.name);
-  return {
-    ...row,
-    parameters,
-    conditionColumns,
-    children: (row.children ?? []).map((child) => {
-      if (child.kind !== 'rule') return child;
-      const table = child as BoxedTableRowData;
-      if (table.conditionsExpression !== undefined) return { ...table, conditionColumns };
-      const conditions = [...(table.conditions ?? [])];
-      conditions.splice(index, 1);
-      return { ...table, conditionColumns, conditions };
-    }),
-  };
-}
-
-export function renameConditionColumn(
-  row: BoxedTableRowData,
-  from: string,
-  to: string,
-): BoxedTableRowData {
-  const rewritten = rewriteRowReferences(row, from, to) as BoxedTableRowData;
-  const parameters = (rewritten.parameters ?? []).map((parameter) =>
-    parameter.name === from ? {...parameter, name: to} : parameter,
-  );
-  const conditionColumns = parameters.map((parameter) => parameter.name);
-  return {
-    ...rewritten,
-    parameters,
-    conditionColumns,
-    children: (rewritten.children ?? []).map((child) =>
-      child.kind === 'rule' ? {...child, conditionColumns} : child,
-    ),
-  };
-}
-
-export function retypeConditionColumn(
-  row: BoxedTableRowData,
-  name: string,
-  type: string,
-): BoxedTableRowData {
-  const required = /^<(.+),\s*required:\s*(true|false)>$/.exec(type);
-  return {
-    ...row,
-    parameters: (row.parameters ?? []).map((parameter) =>
-      parameter.name === name
-        ? {
-            ...parameter,
-            type: required?.[1].trim() ?? type,
-            ...(required ? {required: required[2] === 'true'} : {required: undefined}),
-          }
-        : parameter,
-    ),
-  };
-}
-
-export function moveConditionColumn(
-  row: BoxedTableRowData,
-  from: number,
-  to: number,
-): BoxedTableRowData {
-  const parameters = moved(row.parameters ?? [], from, to);
-  const conditionColumns = parameters.map((parameter) => parameter.name);
-  return {
-    ...row,
-    parameters,
-    conditionColumns,
-    children: (row.children ?? []).map((child) => {
-      if (child.kind !== 'rule') return child;
-      const table = child as BoxedTableRowData;
-      return {
-        ...table,
+export function removeConditionColumn(row: BoxedTableRowData, columnName: string): BoxedTableRowData {
+    const index = (row.parameters ?? []).findIndex((parameter) => parameter.name === columnName);
+    if (index === -1) return row;
+    const parameters = (row.parameters ?? []).filter((parameter) => parameter.name !== columnName);
+    const conditionColumns = parameters.map((parameter) => parameter.name);
+    return {
+        ...row,
+        parameters,
         conditionColumns,
-        ...(table.conditions ? {conditions: moved(table.conditions, from, to)} : {}),
-      };
-    }),
-  };
+        children: (row.children ?? []).map((child) => {
+            if (child.kind !== 'rule') return child;
+            const table = child as BoxedTableRowData;
+            if (table.conditionsExpression !== undefined) return {...table, conditionColumns};
+            const conditions = [...(table.conditions ?? [])];
+            conditions.splice(index, 1);
+            return {...table, conditionColumns, conditions};
+        }),
+    };
+}
+
+export function renameConditionColumn(row: BoxedTableRowData, from: string, to: string): BoxedTableRowData {
+    const rewritten = rewriteRowReferences(row, from, to) as BoxedTableRowData;
+    const parameters = (rewritten.parameters ?? []).map((parameter) =>
+        parameter.name === from ? {...parameter, name: to} : parameter,
+    );
+    const conditionColumns = parameters.map((parameter) => parameter.name);
+    return {
+        ...rewritten,
+        parameters,
+        conditionColumns,
+        children: (rewritten.children ?? []).map((child) =>
+            child.kind === 'rule' ? {...child, conditionColumns} : child,
+        ),
+    };
+}
+
+export function retypeConditionColumn(row: BoxedTableRowData, name: string, type: string): BoxedTableRowData {
+    const required = /^<(.+),\s*required:\s*(true|false)>$/.exec(type);
+    return {
+        ...row,
+        parameters: (row.parameters ?? []).map((parameter) =>
+            parameter.name === name
+                ? {
+                      ...parameter,
+                      type: required?.[1].trim() ?? type,
+                      ...(required ? {required: required[2] === 'true'} : {required: undefined}),
+                  }
+                : parameter,
+        ),
+    };
+}
+
+export function moveConditionColumn(row: BoxedTableRowData, from: number, to: number): BoxedTableRowData {
+    const parameters = moved(row.parameters ?? [], from, to);
+    const conditionColumns = parameters.map((parameter) => parameter.name);
+    return {
+        ...row,
+        parameters,
+        conditionColumns,
+        children: (row.children ?? []).map((child) => {
+            if (child.kind !== 'rule') return child;
+            const table = child as BoxedTableRowData;
+            return {
+                ...table,
+                conditionColumns,
+                ...(table.conditions ? {conditions: moved(table.conditions, from, to)} : {}),
+            };
+        }),
+    };
 }
 
 /**
@@ -653,133 +583,114 @@ export function moveConditionColumn(
  * a blank literal (action columns are pure output shape, not part of `@parameters`).
  */
 export function addActionColumn(row: BoxedTableRowData, columnName: string): BoxedTableRowData {
-  const actionColumns = [...(row.actionColumns ?? []), columnName];
-  return {
-    ...row,
-    actionColumns,
-    children: (row.children ?? []).map((child) => {
-      if (child.kind !== 'rule' && child.kind !== 'ruleset-default') return child;
-      const table = child as BoxedTableRowData;
-      return { ...table, actionColumns, actions: [...(table.actions ?? []), BLANK_LITERAL] };
-    }),
-  };
+    const actionColumns = [...(row.actionColumns ?? []), columnName];
+    return {
+        ...row,
+        actionColumns,
+        children: (row.children ?? []).map((child) => {
+            if (child.kind !== 'rule' && child.kind !== 'ruleset-default') return child;
+            const table = child as BoxedTableRowData;
+            return {...table, actionColumns, actions: [...(table.actions ?? []), BLANK_LITERAL]};
+        }),
+    };
 }
 
 /** `Delete "‹column›" Column` for an action column — the inverse of `addActionColumn`. */
 export function removeActionColumn(row: BoxedTableRowData, columnName: string): BoxedTableRowData {
-  const index = (row.actionColumns ?? []).indexOf(columnName);
-  if (index === -1) return row;
-  const actionColumns = (row.actionColumns ?? []).filter((column) => column !== columnName);
-  return {
-    ...row,
-    actionColumns,
-    children: (row.children ?? []).map((child) => {
-      if (child.kind !== 'rule' && child.kind !== 'ruleset-default') return child;
-      const table = child as BoxedTableRowData;
-      const actions = [...(table.actions ?? [])];
-      actions.splice(index, 1);
-      return { ...table, actionColumns, actions };
-    }),
-  };
+    const index = (row.actionColumns ?? []).indexOf(columnName);
+    if (index === -1) return row;
+    const actionColumns = (row.actionColumns ?? []).filter((column) => column !== columnName);
+    return {
+        ...row,
+        actionColumns,
+        children: (row.children ?? []).map((child) => {
+            if (child.kind !== 'rule' && child.kind !== 'ruleset-default') return child;
+            const table = child as BoxedTableRowData;
+            const actions = [...(table.actions ?? [])];
+            actions.splice(index, 1);
+            return {...table, actionColumns, actions};
+        }),
+    };
 }
 
-export function renameActionColumn(
-  row: BoxedTableRowData,
-  from: string,
-  to: string,
-): BoxedTableRowData {
-  const actionColumns = (row.actionColumns ?? []).map((column) => (column === from ? to : column));
-  return {
-    ...row,
-    actionColumns,
-    children: (row.children ?? []).map((child) =>
-      child.kind === 'rule' || child.kind === 'ruleset-default'
-        ? {...child, actionColumns}
-        : child,
-    ),
-  };
+export function renameActionColumn(row: BoxedTableRowData, from: string, to: string): BoxedTableRowData {
+    const actionColumns = (row.actionColumns ?? []).map((column) => (column === from ? to : column));
+    return {
+        ...row,
+        actionColumns,
+        children: (row.children ?? []).map((child) =>
+            child.kind === 'rule' || child.kind === 'ruleset-default' ? {...child, actionColumns} : child,
+        ),
+    };
 }
 
-export function moveActionColumn(
-  row: BoxedTableRowData,
-  from: number,
-  to: number,
-): BoxedTableRowData {
-  const actionColumns = moved(row.actionColumns ?? [], from, to);
-  return {
-    ...row,
-    actionColumns,
-    children: (row.children ?? []).map((child) => {
-      if (child.kind !== 'rule' && child.kind !== 'ruleset-default') return child;
-      const table = child as BoxedTableRowData;
-      return {...table, actionColumns, actions: moved(table.actions ?? [], from, to)};
-    }),
-  };
+export function moveActionColumn(row: BoxedTableRowData, from: number, to: number): BoxedTableRowData {
+    const actionColumns = moved(row.actionColumns ?? [], from, to);
+    return {
+        ...row,
+        actionColumns,
+        children: (row.children ?? []).map((child) => {
+            if (child.kind !== 'rule' && child.kind !== 'ruleset-default') return child;
+            const table = child as BoxedTableRowData;
+            return {...table, actionColumns, actions: moved(table.actions ?? [], from, to)};
+        }),
+    };
 }
 
 // --- Convert to Context / Relation / List -----------------------------------------------
 
 /** `Convert to Context / Relation / List` — replaces a `field` with an empty container in place. */
-export function convertField(
-  row: BoxedRowData,
-  kind: 'context' | 'relation' | 'list',
-): BoxedRowData {
-  const base = { depth: row.depth, path: row.path, name: row.name };
-  if (kind === 'relation') {
-    return { ...base, kind: 'relation', columns: [], children: [] } as BoxedTableRowData;
-  }
-  return { ...base, kind, children: [] };
+export function convertField(row: BoxedRowData, kind: 'context' | 'relation' | 'list'): BoxedRowData {
+    const base = {depth: row.depth, path: row.path, name: row.name};
+    if (kind === 'relation') {
+        return {...base, kind: 'relation', columns: [], children: []} as BoxedTableRowData;
+    }
+    return {...base, kind, children: []};
 }
 
 /** Converts a container back to an editable scalar field, discarding its children after confirmation. */
 export function convertContainerToField(row: BoxedRowData): BoxedRowData {
-  return {depth: row.depth, path: row.path, name: row.name, kind: 'field', value: BLANK_LITERAL};
+    return {depth: row.depth, path: row.path, name: row.name, kind: 'field', value: BLANK_LITERAL};
 }
 
 // --- Model / Context: Add Function / Add Decision Table / Add Optimisation / Add Relation / Add List --
 
 /** `Add Function` — a fresh inline function, uniquely named, with a blank synthesized result. */
-export function nextFunctionRow(
-  container: Pick<BoxedRowData, 'path'>,
-  existingNames: Set<string>,
-): BoxedTableRowData {
-  const name = uniqueName('function', existingNames);
-  const path = childPath(container.path, name);
-  const depth = pathDepth(path);
-  return {
-    kind: 'function',
-    depth,
-    path,
-    name,
-    parameters: [],
-    children: [
-      {
-        kind: 'function-result',
-        depth: depth + 1,
-        path: childPath(path, 'result'),
-        name: 'result',
-        value: BLANK_LITERAL,
-        readOnly: true,
-        deletable: false,
-      },
-    ],
-  };
+export function nextFunctionRow(container: Pick<BoxedRowData, 'path'>, existingNames: Set<string>): BoxedTableRowData {
+    const name = uniqueName('function', existingNames);
+    const path = childPath(container.path, name);
+    const depth = pathDepth(path);
+    return {
+        kind: 'function',
+        depth,
+        path,
+        name,
+        parameters: [],
+        children: [
+            {
+                kind: 'function-result',
+                depth: depth + 1,
+                path: childPath(path, 'result'),
+                name: 'result',
+                value: BLANK_LITERAL,
+                readOnly: true,
+                deletable: false,
+            },
+        ],
+    };
 }
 
 /** A fresh, empty user-defined type. The engine accepts and links `type X: {}`. */
-export function nextComplexTypeRow(
-  container: Pick<BoxedRowData, 'path'>,
-  existingNames: Set<string>,
-): BoxedRowData {
-  const name = uniqueName('Type', existingNames);
-  const path = childPath(container.path, name);
-  return {
-    kind: 'complexType',
-    depth: pathDepth(path),
-    path,
-    name,
-    children: [],
-  };
+export function nextComplexTypeRow(container: Pick<BoxedRowData, 'path'>, existingNames: Set<string>): BoxedRowData {
+    const name = uniqueName('Type', existingNames);
+    const path = childPath(container.path, name);
+    return {
+        kind: 'complexType',
+        depth: pathDepth(path),
+        path,
+        name,
+        children: [],
+    };
 }
 
 /**
@@ -787,83 +698,70 @@ export function nextComplexTypeRow(
  * (empty) `default` fallback from the start: a ruleset with neither rules nor a default has no way
  * to infer its result type (`E308`), so it would be rejected on the very first commit otherwise.
  */
-export function nextRulesetRow(
-  container: Pick<BoxedRowData, 'path'>,
-  existingNames: Set<string>,
-): BoxedTableRowData {
-  const name = uniqueName('decisionTable', existingNames);
-  const path = childPath(container.path, name);
-  const depth = pathDepth(path);
-  return {
-    kind: 'ruleset',
-    depth,
-    path,
-    name,
-    parameters: [],
-    conditionColumns: [],
-    actionColumns: [],
-    children: [
-      {
-        kind: 'ruleset-hit-policy',
-        depth: depth + 1,
-        path: childPath(path, 'hitPolicy'),
-        name: 'hitPolicy',
-        value: 'first-match',
-        deletable: false,
-      },
-      {
-        kind: 'ruleset-default',
-        depth: depth + 1,
-        path: childPath(path, 'default'),
-        name: 'default',
+export function nextRulesetRow(container: Pick<BoxedRowData, 'path'>, existingNames: Set<string>): BoxedTableRowData {
+    const name = uniqueName('decisionTable', existingNames);
+    const path = childPath(container.path, name);
+    const depth = pathDepth(path);
+    return {
+        kind: 'ruleset',
+        depth,
+        path,
+        name,
+        parameters: [],
+        conditionColumns: [],
         actionColumns: [],
-        actions: [],
-        deletable: false,
-      } as BoxedTableRowData,
-    ],
-  };
+        children: [
+            {
+                kind: 'ruleset-hit-policy',
+                depth: depth + 1,
+                path: childPath(path, 'hitPolicy'),
+                name: 'hitPolicy',
+                value: 'first-match',
+                deletable: false,
+            },
+            {
+                kind: 'ruleset-default',
+                depth: depth + 1,
+                path: childPath(path, 'default'),
+                name: 'default',
+                actionColumns: [],
+                actions: [],
+                deletable: false,
+            } as BoxedTableRowData,
+        ],
+    };
 }
 
 /** `Add Relation` — a fresh, empty homogeneous collection. */
-export function nextRelationRow(
-  container: Pick<BoxedRowData, 'path'>,
-  existingNames: Set<string>,
-): BoxedTableRowData {
-  const name = uniqueName('relation', existingNames);
-  const path = childPath(container.path, name);
-  // The portable format represents both an empty relation and an empty scalar list as `[]`; after
-  // an engine round-trip there is no kind marker with which to recover the user's choice. Seed one
-  // empty record so `get(..., ALL)` infers `array<{}>` and the editor keeps rendering relation
-  // affordances. It remains a no-column relation and the user can immediately add columns/records.
-  const firstPath = indexedPath(path, 0);
-  return {
-    kind: 'relation',
-    depth: pathDepth(path),
-    path,
-    name,
-    columns: [],
-    children: [
-      {
-        ...(rowFactories['relation-item']!(
-          firstPath,
-          'Item 1',
-          pathDepth(firstPath),
-        ) as BoxedTableRowData),
+export function nextRelationRow(container: Pick<BoxedRowData, 'path'>, existingNames: Set<string>): BoxedTableRowData {
+    const name = uniqueName('relation', existingNames);
+    const path = childPath(container.path, name);
+    // The portable format represents both an empty relation and an empty scalar list as `[]`; after
+    // an engine round-trip there is no kind marker with which to recover the user's choice. Seed one
+    // empty record so `get(..., ALL)` infers `array<{}>` and the editor keeps rendering relation
+    // affordances. It remains a no-column relation and the user can immediately add columns/records.
+    const firstPath = indexedPath(path, 0);
+    return {
+        kind: 'relation',
+        depth: pathDepth(path),
+        path,
+        name,
         columns: [],
-        cells: [],
-      } as BoxedTableRowData,
-    ],
-  };
+        children: [
+            {
+                ...(rowFactories['relation-item']!(firstPath, 'Item 1', pathDepth(firstPath)) as BoxedTableRowData),
+                columns: [],
+                cells: [],
+            } as BoxedTableRowData,
+        ],
+    };
 }
 
 /** `Add List` — a fresh, empty scalar list. */
-export function nextListRow(
-  container: Pick<BoxedRowData, 'path'>,
-  existingNames: Set<string>,
-): BoxedRowData {
-  const name = uniqueName('list', existingNames);
-  const path = childPath(container.path, name);
-  return { kind: 'list', depth: pathDepth(path), path, name, children: [] };
+export function nextListRow(container: Pick<BoxedRowData, 'path'>, existingNames: Set<string>): BoxedRowData {
+    const name = uniqueName('list', existingNames);
+    const path = childPath(container.path, name);
+    return {kind: 'list', depth: pathDepth(path), path, name, children: []};
 }
 
 /**
@@ -873,68 +771,68 @@ export function nextListRow(
  * `optimisation-variable-group` would never commit.
  */
 export function nextOptimisationRow(
-  container: Pick<BoxedRowData, 'path'>,
-  existingNames: Set<string>,
+    container: Pick<BoxedRowData, 'path'>,
+    existingNames: Set<string>,
 ): BoxedTableRowData {
-  const name = uniqueName('optimisation', existingNames);
-  const path = childPath(container.path, name);
-  const depth = pathDepth(path);
-  const variablesPath = childPath(path, 'variables');
-  const constraintsPath = childPath(path, 'constraints');
-  return {
-    kind: 'optimisation',
-    depth,
-    path,
-    name,
-    parameters: [],
-    children: [
-      {
-        kind: 'optimisation-setting',
-        depth: depth + 1,
-        path: childPath(path, 'using'),
-        name: 'using',
-        value: 'highs',
-      },
-      {
-        kind: 'optimisation-variable-group',
-        depth: depth + 1,
-        path: variablesPath,
-        name: 'variables',
-        deletable: false,
+    const name = uniqueName('optimisation', existingNames);
+    const path = childPath(container.path, name);
+    const depth = pathDepth(path);
+    const variablesPath = childPath(path, 'variables');
+    const constraintsPath = childPath(path, 'constraints');
+    return {
+        kind: 'optimisation',
+        depth,
+        path,
+        name,
+        parameters: [],
         children: [
-          {
-            kind: 'optimisation-variable',
-            depth: depth + 2,
-            path: childPath(variablesPath, 'x'),
-            name: 'x',
-            value: '<number, min: 0>',
-          },
+            {
+                kind: 'optimisation-setting',
+                depth: depth + 1,
+                path: childPath(path, 'using'),
+                name: 'using',
+                value: 'highs',
+            },
+            {
+                kind: 'optimisation-variable-group',
+                depth: depth + 1,
+                path: variablesPath,
+                name: 'variables',
+                deletable: false,
+                children: [
+                    {
+                        kind: 'optimisation-variable',
+                        depth: depth + 2,
+                        path: childPath(variablesPath, 'x'),
+                        name: 'x',
+                        value: '<number, min: 0>',
+                    },
+                ],
+            },
+            {
+                kind: 'optimisation-objective',
+                depth: depth + 1,
+                path: childPath(path, 'maximise'),
+                name: 'maximise',
+                value: 'x',
+                deletable: false,
+            },
+            {
+                kind: 'optimisation-constraint-group',
+                depth: depth + 1,
+                path: constraintsPath,
+                name: 'constraints',
+                deletable: false,
+                children: [
+                    {
+                        kind: 'optimisation-constraint',
+                        depth: depth + 2,
+                        path: childPath(constraintsPath, 'limit'),
+                        name: 'limit',
+                        value: 'x <= 100',
+                    },
+                ],
+            },
         ],
-      },
-      {
-        kind: 'optimisation-objective',
-        depth: depth + 1,
-        path: childPath(path, 'maximise'),
-        name: 'maximise',
-        value: 'x',
-        deletable: false,
-      },
-      {
-        kind: 'optimisation-constraint-group',
-        depth: depth + 1,
-        path: constraintsPath,
-        name: 'constraints',
-        deletable: false,
-        children: [
-          {
-            kind: 'optimisation-constraint',
-            depth: depth + 2,
-            path: childPath(constraintsPath, 'limit'),
-            name: 'limit',
-            value: 'x <= 100',
-          },
-        ],
-      },
-    ],
-  };
+    };
 }

@@ -1,0 +1,65 @@
+import type {XYPosition} from '@xyflow/react';
+import type {ChartConfig} from '../chart-node/types';
+import type {CodeEditorService} from '../../code-editor-cell';
+import type {DocumentationService} from '../../documentation-service';
+import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
+
+export interface FlowEditorProps {
+    service: FlowEditorService; // engine-backed node service from createFlowEditorService()
+    documentation?: DocumentationService; // stores node descriptions; omit to hide description UI
+    languageService?: CodeEditorService; // diagnostics and completions of value cells; omit to show values read-only
+    readOnly?: boolean; // hides the palette and disables wiring and removal; nodes still move
+    onOpenNode?: (target: FlowEditorOpenTarget) => void; // routes "Open in…", "Open tests", "View as code" to the host
+    defaultLayout?: FlowLayout; // positions and output nodes to start from; read on mount only
+    onLayoutChange?: (layout: FlowLayout) => void; // after a node is moved, added or removed, or an output is rewired
+}
+
+/** Presentation data of the canvas (`flow.json`); the model holds the semantics. */
+export interface FlowLayout {
+    positions: Record<string, XYPosition>; // node id -> top-left canvas position
+    outputs: FlowOutput[]; // output nodes exist on the canvas only
+    charts?: FlowChart[]; // chart nodes exist on the canvas only; reported only when there are some
+}
+
+export interface FlowOutput {
+    id: string; // node id, for example 'output' or 'output2'
+    label?: string; // title; falls back to 'Output'
+    source?: {node: string; handle: string}; // the result pin wired into the output
+}
+
+export interface FlowChart {
+    id: string; // node id, for example 'chart' or 'chart2'
+    label?: string; // title; falls back to 'Chart'
+    source?: {node: string; handle: string}; // the result pin wired into the chart
+    config?: ChartConfig; // undefined: configured automatically; a new wire clears it
+    size?: {width: number; height: number}; // px; the default size when absent
+}
+
+export type PaletteGroup = 'input' | 'function' | 'output' | 'chart';
+
+/** What a palette item creates. */
+export type PaletteAction =
+    | {kind: 'new-input'}
+    | {kind: 'input'; record: string} // annotate an existing record
+    | {kind: 'function'; callee?: string} // a draft node, with its callee picked when given
+    | {kind: 'output'}
+    | {kind: 'chart'};
+
+export type PaletteIcon = 'input' | 'function' | 'ruleset' | 'output' | 'chart';
+
+export interface PaletteItem {
+    id: string; // stable key, also the drag payload
+    group: PaletteGroup;
+    icon: PaletteIcon;
+    title: string;
+    detail: string; // second line: signature or hint
+    label: string; // accessible name, for example 'Add ruleset risk'
+    action: PaletteAction;
+}
+
+export interface NodePaletteProps {
+    items: PaletteItem[];
+    collapsed: boolean;
+    onCollapsedChange: (collapsed: boolean) => void;
+    onAdd: (item: PaletteItem) => void; // click or Enter
+}

@@ -1,14 +1,12 @@
 import type {Meta, StoryObj} from '@storybook/react-vite';
 import {userEvent, within} from 'storybook/test';
-import {init, MutableDecisionService} from '@edgerules/web/mutable';
 import {ProjectExplorer} from '../../../src/components/project-explorer';
 import {MODEL_DSL} from '../../../src/components/project-explorer/testing/model.dsl';
+import {openStoryProject} from '../../support/storyProject';
 
-// Real `@edgerules/web` in an actual browser (Storybook), not a mock — see the plan's "WASM
-// loading" note for why Vitest/Node uses `@edgerules/node` instead for the same reason.
+// The engine facade of a project session over real `@edgerules/web` in an actual browser, not a mock.
 async function buildService(code: string) {
-    await init();
-    return MutableDecisionService.fromCode(code);
+    return (await openStoryProject(code)).engine;
 }
 
 const meta: Meta<typeof ProjectExplorer> = {

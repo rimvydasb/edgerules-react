@@ -1,0 +1,15 @@
+.root {
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-sm);
+  overflow: hidden;
+}
+
+.root :global(.cm-editor) {
+  min-height: 180px;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.9rem;
+}
+
+.root :global(.cm-scroller) {
+  min-height: 180px;
+}

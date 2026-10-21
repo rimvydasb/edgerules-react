@@ -1,14 +1,15 @@
-import Box from '@mui/material/Box';
-import Tooltip from '@mui/material/Tooltip';
-import type {SxProps, Theme} from '@mui/material/styles';
-import {useState, type ReactElement, type ReactNode} from 'react';
+import {Tooltip} from '@mantine/core';
+import type {CSSProperties, ReactElement, ReactNode} from 'react';
+import {cx} from '../../../ui/cx';
 import {useAltHeld} from '../hooks/useAltHeld';
+import * as classes from '../boxedEditor.module.css';
 
 export interface TypeNameProps {
     /** Undefined suppresses the tooltip entirely — used to honour `showType={false}`. */
     type?: string;
     children: ReactNode;
-    sx?: SxProps<Theme>;
+    className?: string;
+    style?: CSSProperties;
 }
 
 /**
@@ -16,33 +17,17 @@ export interface TypeNameProps {
  * that one tooltip, holding Alt anywhere opens every `TypeName` tooltip in the tree at once
  * (Resolved Decision #9).
  */
-export function TypeName({type, children, sx}: TypeNameProps): ReactElement {
+export function TypeName({type, children, className, style}: TypeNameProps): ReactElement {
     const altHeld = useAltHeld();
-    const [hovered, setHovered] = useState(false);
     const span = (
-        <Box
-            component="span"
-            sx={{
-                minWidth: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                ...sx,
-            }}
-        >
+        <span className={cx(classes.ellipsis, className)} style={style}>
             {children}
-        </Box>
+        </span>
     );
     if (!type) return span;
+    // `opened` is only forced open while Alt is held; otherwise Mantine's own hover handling applies.
     return (
-        <Tooltip
-            describeChild
-            title={type}
-            arrow
-            open={hovered || altHeld}
-            onOpen={() => setHovered(true)}
-            onClose={() => setHovered(false)}
-        >
+        <Tooltip label={type} withArrow opened={altHeld ? true : undefined} withinPortal>
             {span}
         </Tooltip>
     );

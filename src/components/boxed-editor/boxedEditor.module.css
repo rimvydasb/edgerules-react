@@ -1,0 +1,483 @@
+/*
+ * Boxed Editor drawing model — a ruled sheet with a strict 40px step (see primitives/layout.ts).
+ *
+ * 1. Every line is a CSS border, never a filled box: browsers snap border widths to whole device
+ *    pixels, so a 1px line looks the same on every row at any zoom. A filled 1px box does not.
+ * 2. Every line has exactly one owner, drawn on the owner's own last pixel (box-sizing: border-box):
+ *      - the grid frame owns the outer top and left edges;
+ *      - a row owns its bottom line (`.row`);
+ *      - a cell or nested `.track` owns its right line;
+ *      - a tall header's upper sub-grid line owns its bottom line (`.subGridDivided`).
+ *    Nothing else draws a line. Children fill their row with `height: 100%`, never a fixed 40px,
+ *    so no background can paint over the row's line.
+ * 3. Every width and height is a whole number of steps, so every line falls on a step line.
+ * 4. A block (`isBlock` in layout.ts: a row that opens a nested level) ends with a double line,
+ *    `.block::after`, drawn inside its last row. That is the only place a double line appears.
+ */
+.root {
+  --bx-border: var(--mantine-color-default-border);
+  --bx-muted: var(--mantine-color-default-hover);
+  min-width: 0;
+}
+
+.root,
+.root * {
+  box-sizing: border-box;
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  border: 1px solid var(--bx-border);
+  /* Every row draws its own bottom line, so the last row's line is the frame's bottom edge. */
+  border-bottom: 0;
+  background-color: var(--mantine-color-body);
+}
+
+/* ---------------------------------------------------------------- rows */
+.row {
+  position: relative;
+  display: grid;
+  border-bottom: 1px solid var(--bx-border);
+  background-color: var(--mantine-color-body);
+}
+
+.rowClickable {
+  cursor: pointer;
+}
+
+.rowDragging {
+  opacity: 0.4;
+}
+
+.dropOk {
+  outline: 2px solid var(--mantine-color-green-6);
+  outline-offset: -2px;
+}
+
+.dropBad {
+  outline: 2px solid var(--mantine-color-red-6);
+  outline-offset: -2px;
+}
+
+/* A block's rows (primitives/Block.tsx), closed by a double line over its last row's bottom 3px. */
+.block {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* One `double` border (two 1px lines, 1px apart), so the browser snaps it as a single border box;
+ * its lower line coincides with the last row's own line. */
+.block::after {
+  content: '';
+  position: absolute;
+  left: var(--block-indent, 0);
+  right: 0;
+  bottom: 0;
+  height: 0;
+  border-bottom: 3px double var(--bx-border);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.nameColumn {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  border-right: 1px solid var(--bx-border);
+  background-color: var(--bx-muted);
+}
+
+.span2 {
+  grid-column: span 2;
+}
+
+.indent {
+  width: 40px;
+  flex-shrink: 0;
+  align-self: stretch;
+  border-right: 1px solid var(--bx-border);
+}
+
+.cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  border-right: 1px solid var(--bx-border);
+  background-color: var(--mantine-color-body);
+  padding-inline: 8px;
+}
+
+.cellDescription {
+  background-color: color-mix(in srgb, var(--mantine-color-yellow-6) 6%, var(--mantine-color-body));
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--mantine-color-dimmed);
+}
+
+.cellTestResults {
+  background-color: color-mix(in srgb, var(--mantine-color-blue-6) 6%, var(--mantine-color-body));
+  font-size: 0.8125rem;
+  border-right: none;
+}
+
+.handle {
+  display: flex;
+  width: 40px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  border-right: 1px solid var(--bx-border);
+  color: var(--mantine-color-dimmed);
+}
+
+.dragCell {
+  height: 100%;
+  background-color: var(--bx-muted);
+}
+
+.draggable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
+.columnDragHandle {
+  display: flex;
+  width: 24px;
+  height: 100%;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: var(--mantine-color-dimmed);
+}
+
+.actionsButton {
+  display: flex;
+  width: 40px;
+  height: 100%;
+  align-self: stretch;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-right: 1px solid var(--bx-border);
+  background-color: var(--bx-muted);
+  color: var(--mantine-color-dimmed);
+  cursor: pointer;
+}
+
+.actionsButton:hover {
+  background-color: var(--mantine-color-default-border);
+}
+
+.actionsFiller {
+  width: 40px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--bx-border);
+  background-color: var(--bx-muted);
+}
+
+/* ---------------------------------------------------------------- text */
+.ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typeName {
+  composes: ellipsis;
+  padding-inline: 8px;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.placeholder {
+  font-style: italic;
+  color: var(--mantine-color-dimmed);
+}
+
+.editableText {
+  display: block;
+  line-height: 1.4;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 1em;
+  cursor: default;
+}
+
+.editableText:empty::before {
+  content: '\00a0';
+}
+
+.editableTextActive {
+  cursor: text;
+}
+
+.nameInput {
+  width: 100%;
+  font: inherit;
+  font-size: 0.875rem;
+  color: inherit;
+  border: 1px solid var(--mantine-primary-color-filled);
+  border-radius: 2px;
+  padding: 1px 5px;
+  background-color: var(--mantine-color-body);
+  outline: none;
+}
+
+.descriptionInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.descriptionInput:not(:placeholder-shown) {
+  font-style: normal;
+}
+
+.descriptionInput:disabled {
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------- inline row error */
+.rowError {
+  position: absolute;
+  inset-inline-end: 4px;
+  bottom: 2px;
+  z-index: 3;
+  max-width: 60%;
+  font-size: 0.75rem;
+}
+
+/* ---------------------------------------------------------------- nested sub-grids (primitives/SubGrid.tsx) */
+/* A value cell hosting a sub-grid: no padding, so tracks start on the cell's own step line. */
+.cellFlush {
+  padding-inline: 0;
+  align-items: stretch;
+}
+
+.subGridStack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* One sub-grid line: fills the row, or — in a tall header's stack — the space below the upper line. */
+.subGrid {
+  display: flex;
+  width: 100%;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* The upper line of a tall header: exactly one step, its line on its own last pixel. */
+.subGridDivided {
+  flex: 0 0 40px;
+  border-bottom: 1px solid var(--bx-border);
+}
+
+/* Whole-step nested column; `flex-basis` is set inline to `units * 40px`. */
+.track {
+  display: flex;
+  align-items: center;
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--bx-border);
+}
+
+/* The host cell already draws the line on its last pixel — the last track ends there instead. */
+.track:last-child {
+  flex: 1 1 0;
+  border-right: none;
+}
+
+.pad {
+  padding-inline: 8px;
+}
+
+.bandLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mantine-color-dimmed);
+}
+
+.bandActions {
+  background-color: color-mix(in srgb, var(--mantine-color-green-6) 8%, transparent);
+}
+
+.bandActionsLabel {
+  color: var(--mantine-color-green-8);
+}
+
+.otherwise {
+  font-style: italic;
+  color: var(--mantine-color-dimmed);
+}
+
+/* ---------------------------------------------------------------- editable column header */
+.columnHeader {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  position: relative;
+}
+
+.columnHeaderBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  padding-inline: 4px;
+}
+
+.textButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: text;
+  min-width: 0;
+  font: inherit;
+}
+
+.typeButton {
+  composes: textButton;
+  color: var(--mantine-color-dimmed);
+  font-size: 0.6875rem;
+}
+
+.headerInput {
+  width: 100%;
+  font: inherit;
+  border: 1px solid var(--mantine-primary-color-filled);
+  border-radius: 2px;
+  padding: 1px 4px;
+  background-color: var(--mantine-color-body);
+  color: inherit;
+}
+
+.headerInput[aria-invalid='true'] {
+  border-color: var(--mantine-color-error);
+}
+
+.fieldError {
+  color: var(--mantine-color-error);
+  font-size: 0.6875rem;
+}
+
+/* ---------------------------------------------------------------- setting row */
+.settingIcon {
+  display: flex;
+  width: 40px;
+  height: 100%;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--bx-border);
+  color: var(--mantine-color-dimmed);
+}
+
+/* ---------------------------------------------------------------- dropdown chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  color: inherit;
+  background-color: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px 2px 8px;
+  font-size: 0.75rem;
+}
+
+/* ---------------------------------------------------------------- test results */
+.nav {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  font-size: 1rem;
+  color: var(--mantine-color-dimmed);
+}
+
+.nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.resultHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.resultName {
+  composes: ellipsis;
+  flex: 1;
+  font-size: 0.75rem;
+}
+
+.resultCount {
+  font-size: 0.6875rem;
+  color: var(--mantine-color-dimmed);
+  flex-shrink: 0;
+}
+
+.disabledText {
+  color: var(--mantine-color-dimmed);
+}
+
+.italic {
+  font-style: italic;
+}
+
+.stale {
+  font-style: italic;
+  color: var(--mantine-color-dimmed);
+}
+
+.runError {
+  color: var(--mantine-color-error);
+  flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------- dialogs / menus */
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.menuDanger {
+  color: var(--mantine-color-error);
+}

@@ -19,7 +19,9 @@ async function editTableCell(page: import('@playwright/test').Page, row: string,
 }
 
 test.describe('Boxed Editor / business flow', () => {
-    test('builds a loan origination and portfolio decisioning model from a blank start, surviving parse/link/argument failures along the way', async ({page}) => {
+    test('builds a loan origination and portfolio decisioning model from a blank start, surviving parse/link/argument failures along the way', async ({
+        page,
+    }) => {
         test.setTimeout(240_000);
         await openBoxedEditorStory(page, 'blank-model');
 
@@ -65,7 +67,8 @@ test.describe('Boxed Editor / business flow', () => {
         await test.step('3 — collateral properties', async () => {
             await chooseRowAction(page, '*', 'Add relation');
             await renameRow(page, 'relation', 'collateralProperties');
-            for (let index = 0; index < 3; index += 1) await chooseRowAction(page, 'collateralProperties', 'Add column');
+            for (let index = 0; index < 3; index += 1)
+                await chooseRowAction(page, 'collateralProperties', 'Add column');
             await renameHeader(page, 'collateralProperties', 'column', 'address');
             await renameHeader(page, 'collateralProperties', 'column2', 'value');
             await renameHeader(page, 'collateralProperties', 'column3', 'propertyType');
@@ -85,15 +88,15 @@ test.describe('Boxed Editor / business flow', () => {
             await chooseRowAction(page, 'monthlyPayment', 'Add argument');
             await chooseRowAction(page, 'monthlyPayment', 'Add argument');
             await chooseRowAction(page, 'monthlyPayment', 'Add argument');
-            for (const [from, to] of [['arg', 'amount'], ['arg2', 'annualRate'], ['arg3', 'years']] as const) {
+            for (const [from, to] of [
+                ['arg', 'amount'],
+                ['arg2', 'annualRate'],
+                ['arg3', 'years'],
+            ] as const) {
                 await renameHeader(page, 'monthlyPayment', from, to);
                 await retypeHeader(page, 'monthlyPayment', to, 'number');
             }
-            await commitExpression(
-                page,
-                'monthlyPayment.result',
-                'amount * (1 + annualRate * years) / (12 * years)',
-            );
+            await commitExpression(page, 'monthlyPayment.result', 'amount * (1 + annualRate * years) / (12 * years)');
             await chooseRowAction(page, '*', 'Add function');
             await renameRow(page, 'function', 'originationFee');
             await commitExpression(page, 'originationFee.result', '350');
@@ -101,7 +104,10 @@ test.describe('Boxed Editor / business flow', () => {
             await renameRow(page, 'function', 'affordabilityScore');
             await chooseRowAction(page, 'affordabilityScore', 'Add argument');
             await chooseRowAction(page, 'affordabilityScore', 'Add argument');
-            for (const [from, to] of [['arg', 'income'], ['arg2', 'payment']] as const) {
+            for (const [from, to] of [
+                ['arg', 'income'],
+                ['arg2', 'payment'],
+            ] as const) {
                 await renameHeader(page, 'affordabilityScore', from, to);
                 await retypeHeader(page, 'affordabilityScore', to, 'number');
             }
@@ -149,7 +155,11 @@ test.describe('Boxed Editor / business flow', () => {
             await renameRow(page, 'decisionTable', 'riskTier');
             for (let index = 0; index < 3; index += 1) await chooseRowAction(page, 'riskTier', 'Add condition column');
             for (let index = 0; index < 3; index += 1) await chooseRowAction(page, 'riskTier', 'Add action column');
-            for (const [from, to] of [['condition', 'age'], ['condition2', 'income'], ['condition3', 'ltv']] as const) {
+            for (const [from, to] of [
+                ['condition', 'age'],
+                ['condition2', 'income'],
+                ['condition3', 'ltv'],
+            ] as const) {
                 await renameHeader(page, 'riskTier', from, to);
                 await retypeHeader(page, 'riskTier', to, 'number');
             }
@@ -157,7 +167,8 @@ test.describe('Boxed Editor / business flow', () => {
                 ['action', 'tier'],
                 ['action2', 'maxExposure'],
                 ['action3', 'expectedYield'],
-            ] as const) await renameHeader(page, 'riskTier', from, to);
+            ] as const)
+                await renameHeader(page, 'riskTier', from, to);
             for (let index = 0; index < 3; index += 1) await page.getByTestId('append-riskTier').click();
             for (const [row, values] of [
                 ['riskTier.rules[0]', ['18..25', '< 30000', '> 0.8', '"high"', '1000000', '0.11']],
@@ -196,7 +207,8 @@ test.describe('Boxed Editor / business flow', () => {
                 ['x', 'highTierLoans'],
                 ['variable', 'mediumTierLoans'],
                 ['variable2', 'lowTierLoans'],
-            ] as const) await renameRow(page, `portfolioMix.variables.${from}`, to);
+            ] as const)
+                await renameRow(page, `portfolioMix.variables.${from}`, to);
             await commitExpression(
                 page,
                 'portfolioMix.maximise',
@@ -206,7 +218,8 @@ test.describe('Boxed Editor / business flow', () => {
                 ['limit', 'capitalAdequacy'],
                 ['variableBound', 'highExposure'],
                 ['variable2Bound', 'mediumExposure'],
-            ] as const) await renameRow(page, `portfolioMix.constraints.${from}`, to);
+            ] as const)
+                await renameRow(page, `portfolioMix.constraints.${from}`, to);
             await commitExpression(
                 page,
                 'portfolioMix.constraints.capitalAdequacy',
@@ -247,7 +260,8 @@ test.describe('Boxed Editor / business flow', () => {
             await chooseRowAction(page, 'riskTier', 'Delete "ltv" column');
             await renameHeader(page, 'riskTier', addedCondition!, 'regionScore');
             await retypeHeader(page, 'riskTier', 'regionScore', 'number');
-            await page.getByTestId('column-riskTier-regionScore').getByLabel('Move regionScore left').click();
+            await page.getByTestId('column-riskTier-regionScore').getByLabel('Column actions regionScore').click();
+            await page.getByRole('menuitem', {name: 'Move left'}).click();
             await chooseRowAction(page, '*', 'Add field');
             await renameRow(page, 'field', 'riskResult');
             await commitExpression(page, 'riskResult', 'riskTier(age: 20, income: 25000, regionScore: 0.9)');
@@ -303,7 +317,8 @@ test.describe('Boxed Editor / business flow', () => {
                 'portfolioMix.variables',
                 'portfolioMix.maximise',
                 'portfolioMix.constraints',
-            ]) await expect(page.getByTestId(`row-${path}`)).toBeVisible();
+            ])
+                await expect(page.getByTestId(`row-${path}`)).toBeVisible();
             await expect(page.getByTestId('live-result')).toContainText('loanApplication');
         });
     });

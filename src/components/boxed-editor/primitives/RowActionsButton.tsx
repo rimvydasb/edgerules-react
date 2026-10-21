@@ -1,39 +1,27 @@
-import Box from '@mui/material/Box';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import type {MouseEvent, ReactElement} from 'react';
-import {ACTIONS_COLUMN_WIDTH, ROW_HEIGHT, TALL_ROW_HEIGHT} from './layout';
+import {IconDotsVertical} from '@tabler/icons-react';
+import {forwardRef, type ButtonHTMLAttributes} from 'react';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
 
-export interface RowActionsButtonProps {
-    tall?: boolean;
-    /** Menu wiring lands in Phase 5 — this button is visual-only until then. */
-    onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
-}
+export type RowActionsButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
 
-/** The vertical three-dot context-menu button, one `ActionsColumn` cell wide. */
-export function RowActionsButton({tall = false, onClick}: RowActionsButtonProps): ReactElement {
+/**
+ * The vertical three-dot context-menu button, one `ActionsColumn` cell wide. It forwards its ref and
+ * remaining props so it can be the target of a `RowActionsMenu`.
+ */
+export const RowActionsButton = forwardRef<HTMLButtonElement, RowActionsButtonProps>(function RowActionsButton(
+    {className, ...rest},
+    ref,
+) {
     return (
-        <Box
-            component="button"
+        <button
+            ref={ref}
             type="button"
             aria-label="Open row actions"
-            onClick={onClick}
-            sx={{
-                display: 'flex',
-                width: ACTIONS_COLUMN_WIDTH,
-                height: tall ? TALL_ROW_HEIGHT : ROW_HEIGHT,
-                alignSelf: 'stretch',
-                flexShrink: 0,
-                alignItems: 'center',
-                justifyContent: 'center',
-                p: 0,
-                border: 'none',
-                borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                bgcolor: 'action.hover',
-                cursor: 'pointer',
-                '&:hover': {bgcolor: 'action.selected'},
-            }}
+            className={cx(classes.actionsButton, className)}
+            {...rest}
         >
-            <MoreVertIcon sx={{fontSize: 21, color: 'text.secondary'}} />
-        </Box>
+            <IconDotsVertical size={20} />
+        </button>
     );
-}
+});

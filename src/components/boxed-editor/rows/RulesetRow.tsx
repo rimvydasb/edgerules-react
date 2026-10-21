@@ -1,7 +1,5 @@
-import Box from '@mui/material/Box';
-import {alpha} from '@mui/material/styles';
-import RuleIcon from '@mui/icons-material/Rule';
-import {Fragment, type ReactElement} from 'react';
+import {IconListCheck} from '@tabler/icons-react';
+import type {ReactElement} from 'react';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
 import {
     moveActionColumn,
@@ -12,8 +10,11 @@ import {
 } from '../commands/rowFactories';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import {useRowActions} from '../hooks/useRowActions';
-import {CELL, TALL_ROW_HEIGHT} from '../primitives';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
+import {rulesetTracks, SubGrid, SubGridStack, sum, Track, type RulesetTracks} from '../primitives';
 import {EditableColumnHeader} from '../primitives/EditableColumnHeader';
 import {GenericRow} from './GenericRow';
 import {NewRow} from './NewRow';
@@ -32,16 +33,10 @@ interface HeaderColumn {
 
 /**
  * Two-tier condition/action header block a `ruleset` header row owns — a "conditions"/"actions"
- * label row, then one cell per condition and action column, proportioned so the data rows below
- * (`RuleRow`) line up exactly (same `flex` weights per group).
+ * band line, then one track per condition and action column. Track widths come from the ruleset's
+ * shared `RulesetTracks`, so the rule and default rows below line up on the same step lines.
  */
-function RulesetColumnHeaders({
-    row,
-    showPriority,
-}: {
-    row: BoxedTableRowData;
-    showPriority: boolean;
-}): ReactElement {
+function RulesetColumnHeaders({row, tracks}: {row: BoxedTableRowData; tracks: RulesetTracks}): ReactElement {
     const conditions: HeaderColumn[] = (row.parameters ?? []).map((parameter) => ({
         name: parameter.name,
         type: parameter.type,
@@ -50,162 +45,74 @@ function RulesetColumnHeaders({
     const commands = useRowCommands();
     const commit = (next: BoxedTableRowData): string | undefined =>
         commands.setBoxedRowData(row.path, next, row.path)?.message;
-    const conditionWeight = conditions.length || 1;
-    const actionWeight = actions.length || 1;
-    const priorityWeight = 1;
 
     return (
-        <Box sx={{display: 'flex', flexDirection: 'column', width: '100%', height: TALL_ROW_HEIGHT}}>
-            <Box
-                sx={{
-                    display: 'flex',
-                    height: CELL,
-                    borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-                }}
-            >
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flex: conditionWeight,
-                        minWidth: 0,
-                        px: 1,
-                        fontSize: '0.6875rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                        color: 'text.secondary',
-                        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                    }}
-                >
+        <SubGridStack>
+            <SubGrid divided>
+                <Track units={sum(tracks.conditions)} className={classes.bandLabel}>
                     conditions
-                </Box>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flex: actionWeight,
-                        minWidth: 0,
-                        px: 1,
-                        fontSize: '0.6875rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                        color: 'success.dark',
-                        bgcolor: (theme) =>
-                            alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.12 : 0.08),
-                        borderRight: showPriority ? (theme) => `1px solid ${theme.palette.divider}` : 'none',
-                    }}
+                </Track>
+                <Track
+                    units={sum(tracks.actions)}
+                    className={cx(classes.bandLabel, classes.bandActions, classes.bandActionsLabel)}
                 >
                     actions
-                </Box>
-                {showPriority && (
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flex: priorityWeight,
-                            minWidth: 0,
-                            px: 1,
-                            fontSize: '0.6875rem',
-                            fontWeight: 600,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                            color: 'text.secondary',
-                        }}
-                    >
+                </Track>
+                {tracks.priority !== undefined && (
+                    <Track units={tracks.priority} className={classes.bandLabel}>
                         priority
-                    </Box>
+                    </Track>
                 )}
-            </Box>
-            <Box sx={{display: 'flex', height: CELL}}>
-                <Box sx={{display: 'flex', flex: conditionWeight, minWidth: 0}}>
-                    {conditions.map((column, index) => (
-                        <Box
-                            key={column.name}
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                flex: 1,
-                                minWidth: 0,
-                                borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                                '&:last-of-type': {borderRight: 'none'},
+            </SubGrid>
+            <SubGrid>
+                {conditions.length === 0 && <Track units={tracks.conditions[0]} aria-hidden />}
+                {conditions.map((column, index) => (
+                    <Track key={column.name} units={tracks.conditions[index]} pad={false}>
+                        <EditableColumnHeader
+                            rowPath={row.path}
+                            name={column.name}
+                            type={column.type}
+                            typeEditable
+                            index={index}
+                            count={conditions.length}
+                            onRename={(name) => {
+                                if (name !== column.name && conditions.some((item) => item.name === name)) {
+                                    return `A column named "${name}" already exists.`;
+                                }
+                                return commit(renameConditionColumn(row, column.name, name));
                             }}
-                        >
-                            <EditableColumnHeader
-                                rowPath={row.path}
-                                name={column.name}
-                                type={column.type}
-                                typeEditable
-                                index={index}
-                                count={conditions.length}
-                                onRename={(name) => {
-                                    if (name !== column.name && conditions.some((item) => item.name === name)) {
-                                        return `A column named "${name}" already exists.`;
-                                    }
-                                    return commit(renameConditionColumn(row, column.name, name));
-                                }}
-                                onRetype={(type) => commit(retypeConditionColumn(row, column.name, type))}
-                                onMove={(to) => {
-                                    commit(moveConditionColumn(row, index, to));
-                                }}
-                            />
-                        </Box>
-                    ))}
-                </Box>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flex: actionWeight,
-                        minWidth: 0,
-                        borderLeft: (theme) => `2px solid ${theme.palette.divider}`,
-                    }}
-                >
-                    {actions.map((column, index) => (
-                        <Box
-                            key={column.name}
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                flex: 1,
-                                minWidth: 0,
-                                borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                                '&:last-of-type': {borderRight: 'none'},
+                            onRetype={(type) => commit(retypeConditionColumn(row, column.name, type))}
+                            onMove={(to) => {
+                                commit(moveConditionColumn(row, index, to));
                             }}
-                        >
-                            <EditableColumnHeader
-                                rowPath={row.path}
-                                name={column.name}
-                                index={index}
-                                count={actions.length}
-                                onRename={(name) => {
-                                    if (name !== column.name && actions.some((item) => item.name === name)) {
-                                        return `A column named "${name}" already exists.`;
-                                    }
-                                    return commit(renameActionColumn(row, column.name, name));
-                                }}
-                                onMove={(to) => {
-                                    commit(moveActionColumn(row, index, to));
-                                }}
-                            />
-                        </Box>
-                    ))}
-                </Box>
-                {showPriority && (
-                    <Box
-                        aria-hidden="true"
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flex: priorityWeight,
-                            minWidth: 0,
-                            px: 1,
-                            borderLeft: (theme) => `2px solid ${theme.palette.divider}`,
-                        }}
-                    />
+                        />
+                    </Track>
+                ))}
+                {actions.length === 0 && (
+                    <Track units={tracks.actions[0]} className={classes.bandActions} aria-hidden />
                 )}
-            </Box>
-        </Box>
+                {actions.map((column, index) => (
+                    <Track key={column.name} units={tracks.actions[index]} pad={false} className={classes.bandActions}>
+                        <EditableColumnHeader
+                            rowPath={row.path}
+                            name={column.name}
+                            index={index}
+                            count={actions.length}
+                            onRename={(name) => {
+                                if (name !== column.name && actions.some((item) => item.name === name)) {
+                                    return `A column named "${name}" already exists.`;
+                                }
+                                return commit(renameActionColumn(row, column.name, name));
+                            }}
+                            onMove={(to) => {
+                                commit(moveActionColumn(row, index, to));
+                            }}
+                        />
+                    </Track>
+                ))}
+                {tracks.priority !== undefined && <Track units={tracks.priority} aria-hidden />}
+            </SubGrid>
+        </SubGridStack>
     );
 }
 
@@ -216,9 +123,11 @@ export function RulesetRow({row}: RulesetRowProps): ReactElement {
     const menuActions = useRowActions(row);
     const hitPolicy = (row.children ?? []).find((child) => child.kind === 'ruleset-hit-policy')?.value;
     const showPriority = hitPolicy === 'best-match';
+    const {valueUnits} = useBoxedLayout();
+    const tracks = rulesetTracks(row, valueUnits, showPriority);
 
     return (
-        <Fragment>
+        <>
             <GenericRow
                 row={row}
                 name={row.name}
@@ -226,24 +135,24 @@ export function RulesetRow({row}: RulesetRowProps): ReactElement {
                 tall
                 strong
                 iconActsAsDragHandle
-                icon={<RuleIcon sx={{fontSize: 19, color: '#fff'}} />}
+                icon={<IconListCheck size={19} color="#fff" />}
                 iconBgColor="#6a1b9a"
-                value={<RulesetColumnHeaders row={row} showPriority={showPriority} />}
-                valueIsInteractive
+                value={<RulesetColumnHeaders row={row} tracks={tracks} />}
+                valueIsSubGrid
                 actions={menuActions}
             />
-            {expanded && row.children?.map((child) => renderChild(child, showPriority))}
+            {expanded && row.children?.map((child) => renderChild(child, tracks))}
             <NewRow row={row} />
-        </Fragment>
+        </>
     );
 }
 
-function renderChild(child: BoxedRowData, showPriority: boolean): ReactElement | null {
+function renderChild(child: BoxedRowData, tracks: RulesetTracks): ReactElement | null {
     switch (child.kind) {
         case 'rule':
-            return <RuleRow key={child.path} row={child as BoxedTableRowData} showPriority={showPriority} />;
+            return <RuleRow key={child.path} row={child as BoxedTableRowData} tracks={tracks} />;
         case 'ruleset-default':
-            return <RulesetDefaultRow key={child.path} row={child as BoxedTableRowData} />;
+            return <RulesetDefaultRow key={child.path} row={child as BoxedTableRowData} tracks={tracks} />;
         case 'ruleset-hit-policy':
             return <RulesetHitPolicyRow key={child.path} row={child} />;
         default:

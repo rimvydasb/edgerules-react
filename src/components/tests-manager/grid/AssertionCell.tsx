@@ -1,11 +1,12 @@
-import Tooltip from '@mui/material/Tooltip';
-import TextField from '@mui/material/TextField';
+import {Tooltip} from '@mantine/core';
 import {useState, type KeyboardEvent, type ReactElement} from 'react';
 import type {TestRow} from '../../test-cases-service';
+import {CellInput} from '../../../ui/grid';
+import {cx} from '../../../ui/cx';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {useCell} from '../hooks/useCell';
-import {FILL_CELL_SX} from './gridStyle';
 import {formatValue} from '../model/values';
+import * as classes from './testsGrid.module.css';
 
 // Editable expected value. A cell whose expected value does not equal the computed value is
 // highlighted in red and its tooltip shows the actual value; a stale result never highlights.
@@ -21,32 +22,22 @@ export function AssertionCell({testCaseId, row}: {testCaseId: string; row: TestR
         setDraft(undefined);
     };
 
-    // Always wrapped in the same `Tooltip`, with an empty (non-shown) title when there is no
-    // mismatch — conditionally wrapping only when `mismatch` is true would change the element tree
-    // shape on every toggle, remounting the input and dropping focus mid-edit.
+    // Always wrapped in the same `Tooltip`, disabled when there is no mismatch — conditionally
+    // wrapping only when `mismatch` is true would change the element tree shape on every toggle,
+    // remounting the input and dropping focus mid-edit.
     return (
-        <Tooltip title={mismatch ? formatValue(cell.result?.value) : ''}>
-            <TextField
-                variant="standard"
-                size="small"
-                fullWidth
+        <Tooltip label={formatValue(cell.result?.value)} disabled={!mismatch} withinPortal>
+            <CellInput
+                className={cx(mismatch && classes.mismatch)}
                 value={value}
                 disabled={readOnly}
-                slotProps={{
-                    htmlInput: {
-                        'aria-label': `assertion ${row.path}`,
-                        'data-mismatch': mismatch,
-                    },
-                }}
+                aria-label={`assertion ${row.path}`}
+                data-mismatch={mismatch}
                 onChange={(event) => setDraft(event.target.value)}
                 onBlur={commit}
                 onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
                     if (event.key === 'Enter') event.currentTarget.blur();
                 }}
-                sx={[
-                    FILL_CELL_SX,
-                    mismatch ? {'& .MuiInputBase-input': {color: 'error.main', fontWeight: 600}} : false,
-                ]}
             />
         </Tooltip>
     );

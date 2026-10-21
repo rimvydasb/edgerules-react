@@ -1,5 +1,6 @@
 import type {ReactElement} from 'react';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
+import {Block} from '../primitives';
 import {ComplexTypeRow} from './ComplexTypeRow';
 import {ContextRow} from './ContextRow';
 import {FieldRow} from './FieldRow';
@@ -38,8 +39,15 @@ export interface RowSwitchProps {
  * `RuleRow`'s `showPriority`) rather than through this generic dispatch — the cases below exist so
  * every kind still has a standalone entry point (e.g. a `BoxedEditor` pointed directly at a rule's
  * own path).
+ *
+ * Every row goes through `Block`, which closes the row's group with a double line when the row
+ * opens a nested level (`isBlock`).
  */
 export function RowSwitch({row}: RowSwitchProps): ReactElement {
+    return <Block row={row}>{renderRow(row)}</Block>;
+}
+
+function renderRow(row: BoxedRowData): ReactElement {
     switch (row.kind) {
         case 'model':
             return <ModelHeaderRow row={row} />;

@@ -1,18 +1,18 @@
 import {useEffect, useState, type ReactElement} from 'react';
+import {Box, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import {init, MutableDecisionService} from '@edgerules/web/mutable';
+import {MutableDecisionService} from '@edgerules/web/mutable';
 import {DecisionTableEditor} from '../../../src/components/decision-table';
+import type {ProjectEngine} from '../../../src/components/project-session';
 import {
     BEST_MATCH_MODEL_DSL,
     RISK_MODEL_DSL,
     SCORECARD_MODEL_DSL,
 } from '../../../src/components/decision-table/testing/model.dsl';
+import {openStoryProject} from '../../support/storyProject';
 
-async function buildService(code: string) {
-    await init();
-    return MutableDecisionService.fromCode(code);
+async function buildService(code: string): Promise<ProjectEngine> {
+    return (await openStoryProject(code)).engine;
 }
 
 function EditorHarness({
@@ -21,7 +21,7 @@ function EditorHarness({
     resultPath,
     readOnly = false,
 }: {
-    service: MutableDecisionService;
+    service: ProjectEngine;
     path: string;
     resultPath: string;
     readOnly?: boolean;
@@ -47,7 +47,7 @@ function EditorHarness({
     }, [service, resultPath, version]);
 
     return (
-        <Box sx={{maxWidth: 980}}>
+        <Box maw={980}>
             <DecisionTableEditor
                 service={service}
                 path={path}
@@ -55,9 +55,9 @@ function EditorHarness({
                 readOnly={readOnly}
                 onChange={() => setVersion((current) => current + 1)}
             />
-            <Typography variant="caption" data-testid="live-result" sx={{display: 'block', mt: 1}}>
+            <Text size="xs" data-testid="live-result" mt="xs">
                 {resultPath}: {result}
-            </Typography>
+            </Text>
         </Box>
     );
 }
@@ -86,27 +86,27 @@ type Story = StoryObj<typeof DecisionTableEditor>;
 export const DecisionTable: Story = {
     loaders: [async () => ({service: await buildService(RISK_MODEL_DSL)})],
     render: (_args, {loaded}) => (
-        <EditorHarness service={loaded.service as MutableDecisionService} path="risk" resultPath="decision" />
+        <EditorHarness service={loaded.service as ProjectEngine} path="risk" resultPath="decision" />
     ),
 };
 
 export const Scorecard: Story = {
     loaders: [async () => ({service: await buildService(SCORECARD_MODEL_DSL)})],
     render: (_args, {loaded}) => (
-        <EditorHarness service={loaded.service as MutableDecisionService} path="scoreFactors" resultPath="total" />
+        <EditorHarness service={loaded.service as ProjectEngine} path="scoreFactors" resultPath="total" />
     ),
 };
 
 export const BestMatchPriorities: Story = {
     loaders: [async () => ({service: await buildService(BEST_MATCH_MODEL_DSL)})],
     render: (_args, {loaded}) => (
-        <EditorHarness service={loaded.service as MutableDecisionService} path="tier" resultPath="result" />
+        <EditorHarness service={loaded.service as ProjectEngine} path="tier" resultPath="result" />
     ),
 };
 
 export const ReadOnly: Story = {
     loaders: [async () => ({service: await buildService(RISK_MODEL_DSL)})],
     render: (_args, {loaded}) => (
-        <EditorHarness service={loaded.service as MutableDecisionService} path="risk" resultPath="decision" readOnly />
+        <EditorHarness service={loaded.service as ProjectEngine} path="risk" resultPath="decision" readOnly />
     ),
 };

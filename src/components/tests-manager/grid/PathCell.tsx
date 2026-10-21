@@ -1,11 +1,12 @@
-import Box from '@mui/material/Box';
-import Tooltip from '@mui/material/Tooltip';
+import {Tooltip} from '@mantine/core';
 import {useMemo, useState, type ReactElement} from 'react';
 import type {TestRow} from '../../test-cases-service';
 import {CodeEditorCell} from '../../code-editor-cell/CodeEditorCell';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {isKnownPath} from '../model/paths';
 import {createPathLanguageService} from '../model/pathLanguage';
+import {cx} from '../../../ui/cx';
+import * as classes from './testsGrid.module.css';
 
 // Self-contained Path-column sizing/truncation: `computePathColumnWidth` sizes the column from the
 // longest row path (capped), `PathCell` then cuts the *front* of any path that still overflows —
@@ -116,7 +117,11 @@ export function PathCell({
 
     if (editing) {
         return (
-            <Box data-testid={`path-editor-${row.path || '(result)'}`}>
+            <div
+                data-testid={`path-editor-${row.path || '(result)'}`}
+                data-invalid={problem ? 'true' : undefined}
+                className={cx(problem && classes.pathEditorInvalid)}
+            >
                 <CodeEditorCell
                     value={row.path}
                     service={languageService}
@@ -124,16 +129,8 @@ export function PathCell({
                     onChange={setDraft}
                     onCommit={commit}
                     onCancel={() => setDraft(undefined)}
-                    sx={
-                        problem
-                            ? {
-                                  borderColor: 'error.main',
-                                  '&:focus-within': {borderColor: 'error.main'},
-                              }
-                            : undefined
-                    }
                 />
-            </Box>
+            </div>
         );
     }
 
@@ -141,22 +138,17 @@ export function PathCell({
     const tooltip = problem ? `${label}${typeSuffix} — ${problem}` : `${label}${typeSuffix}`;
 
     return (
-        <Tooltip title={display === label && !row.type && !problem ? '' : tooltip}>
-            <Box
-                component="span"
+        <Tooltip label={tooltip} disabled={display === label && !row.type && !problem} withinPortal>
+            <span
                 aria-label={`path ${label}`}
                 role={editable ? 'button' : undefined}
                 tabIndex={editable ? 0 : undefined}
+                data-invalid={problem ? 'true' : undefined}
                 onClick={editable ? () => setDraft(row.path) : undefined}
-                sx={{
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    cursor: editable ? 'text' : 'default',
-                    color: problem ? 'error.main' : undefined,
-                }}
+                className={cx(classes.path, editable && classes.pathEditable, problem && classes.pathInvalid)}
             >
                 {display}
-            </Box>
+            </span>
         </Tooltip>
     );
 }

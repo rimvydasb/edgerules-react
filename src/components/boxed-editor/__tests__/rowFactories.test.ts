@@ -2,12 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {MutableDecisionService} from '@edgerules/node/mutable';
 import {isPortableError} from '../../../lib/portable';
 import type {BoxedTableRowData} from '../boxed-editor-types';
-import {
-    addRelationColumn,
-    appendRelationItem,
-    nextComplexTypeRow,
-    nextRelationRow,
-} from '../commands/rowFactories';
+import {addRelationColumn, appendRelationItem, nextComplexTypeRow, nextRelationRow} from '../commands/rowFactories';
 import {createBoxedEditorService} from '../service/createBoxedEditorService';
 
 describe('row factories', () => {
@@ -60,27 +55,33 @@ describe('row factories', () => {
             path: 'records',
             name: 'records',
             columns: ['address', 'value'],
-            children: [{
-                kind: 'relation-item',
-                depth: 1,
-                path: 'records[0]',
-                name: 'Item 1',
-                columns: ['address', 'value'],
-                cells: ['', '7'],
-                children: [{
-                    kind: 'context',
-                    depth: 2,
-                    path: 'records[0].address',
-                    name: 'address',
-                    children: [{
-                        kind: 'field',
-                        depth: 3,
-                        path: 'records[0].address.city',
-                        name: 'city',
-                        value: '"Vilnius"',
-                    }],
-                }],
-            } as BoxedTableRowData],
+            children: [
+                {
+                    kind: 'relation-item',
+                    depth: 1,
+                    path: 'records[0]',
+                    name: 'Item 1',
+                    columns: ['address', 'value'],
+                    cells: ['', '7'],
+                    children: [
+                        {
+                            kind: 'context',
+                            depth: 2,
+                            path: 'records[0].address',
+                            name: 'address',
+                            children: [
+                                {
+                                    kind: 'field',
+                                    depth: 3,
+                                    path: 'records[0].address.city',
+                                    name: 'city',
+                                    value: '"Vilnius"',
+                                },
+                            ],
+                        },
+                    ],
+                } as BoxedTableRowData,
+            ],
         };
 
         const appended = appendRelationItem(row);
@@ -97,9 +98,7 @@ describe('row factories', () => {
         const service = createBoxedEditorService(mutable);
         const created = nextRelationRow({path: '*'}, new Set());
         expect(isPortableError(service.setBoxedRowData(created.path, created))).toBe(false);
-        expect(isPortableError(service.setBoxedRowData('relation', addRelationColumn(created, 'column')))).toBe(
-            false,
-        );
+        expect(isPortableError(service.setBoxedRowData('relation', addRelationColumn(created, 'column')))).toBe(false);
         const relation = service.getBoxedRowData('relation') as BoxedTableRowData;
         const children = service.getBoxedRowsData('relation');
         const first = children[0] as BoxedTableRowData;

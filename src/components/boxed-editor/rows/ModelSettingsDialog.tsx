@@ -1,15 +1,10 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import TextField from '@mui/material/TextField';
+import {Button, Group, Modal, Text, TextInput} from '@mantine/core';
 import {useEffect, useState, type ReactElement} from 'react';
 import type {BoxedRowData} from '../boxed-editor-types';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
+import * as classes from '../boxedEditor.module.css';
 
 export interface ModelSettingsDialogProps {
     row: BoxedRowData;
@@ -57,34 +52,22 @@ export function ModelSettingsDialog({row}: ModelSettingsDialogProps): ReactEleme
     };
 
     return (
-        <Dialog open={modelSettingsOpen} onClose={closeModelSettings} maxWidth="xs" fullWidth>
-            <DialogTitle>Model settings</DialogTitle>
-            <DialogContent sx={{display: 'flex', flexDirection: 'column', gap: 2, pt: 1}}>
-                <TextField
-                    label="Name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    autoFocus
-                    fullWidth
-                />
-                <TextField
-                    label="Version"
-                    value={version}
-                    onChange={(event) => setVersion(event.target.value)}
-                    fullWidth
-                />
+        <Modal opened={modelSettingsOpen} onClose={closeModelSettings} title="Model settings" size="sm" centered>
+            <div className={classes.dialogBody}>
+                <TextInput data-autofocus label="Name" value={name} onChange={(event) => setName(event.target.value)} />
+                <TextInput label="Version" value={version} onChange={(event) => setVersion(event.target.value)} />
                 {error && (
-                    <Box role="alert" sx={{color: 'error.main', fontSize: '0.8rem'}}>
+                    <Text role="alert" size="sm" c="red">
                         {error}
-                    </Box>
+                    </Text>
                 )}
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={closeModelSettings}>Cancel</Button>
-                <Button onClick={save} variant="contained">
-                    Save
-                </Button>
-            </DialogActions>
-        </Dialog>
+                <Group justify="flex-end" gap="xs">
+                    <Button variant="default" onClick={closeModelSettings}>
+                        Cancel
+                    </Button>
+                    <Button onClick={save}>Save</Button>
+                </Group>
+            </div>
+        </Modal>
     );
 }

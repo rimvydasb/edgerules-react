@@ -5,6 +5,7 @@ import {EditorView} from '@codemirror/view';
 import {MutableDecisionService} from '@edgerules/node/mutable';
 import {BoxedEditor} from '../BoxedEditor';
 import {createBoxedEditorService} from '../service/createBoxedEditorService';
+import {byCode} from './queries';
 
 const languageService = MutableDecisionService;
 
@@ -52,7 +53,7 @@ describe('complexType field editing', () => {
         const service = buildService();
         render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
-        await user.click(screen.getByText('<string>'));
+        await user.click(screen.getByText(byCode('<string>')));
         await user.keyboard('{Enter}');
 
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -64,7 +65,7 @@ describe('complexType field editing', () => {
         const service = buildService();
         const {container} = render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
-        await user.click(screen.getByText('<string>'));
+        await user.click(screen.getByText(byCode('<string>')));
         await user.click(queryEditable(container));
         replaceDoc(container, '<string, required: true>');
         await user.keyboard('{Enter}');
@@ -198,7 +199,7 @@ describe('expression editing feedback', () => {
         const service = buildExpressionService();
         const {container} = render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
-        await user.click(screen.getByText('application.loanAmount / 12'));
+        await user.click(screen.getByText(byCode('application.loanAmount / 12')));
         replaceDoc(container, 'application.loanAmount /');
         await user.keyboard('{Enter}');
 
@@ -213,7 +214,7 @@ describe('expression editing feedback', () => {
         const service = buildExpressionService();
         const {container} = render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
-        await user.click(screen.getByText('application.loanAmount / 12'));
+        await user.click(screen.getByText(byCode('application.loanAmount / 12')));
         replaceDoc(container, '');
         await user.keyboard('{Enter}');
 
@@ -227,12 +228,12 @@ describe('expression editing feedback', () => {
         const service = buildExpressionService();
         const {container} = render(<BoxedEditor service={service} path="*" languageService={languageService} />);
 
-        await user.click(screen.getByText('application.loanAmount / 12'));
+        await user.click(screen.getByText(byCode('application.loanAmount / 12')));
         replaceDoc(container, '999');
         await user.keyboard('{Escape}');
 
         expect(container.querySelector('.cm-editor')).toBeNull();
-        expect(screen.getByText('application.loanAmount / 12')).toBeInTheDocument();
+        expect(screen.getByText(byCode('application.loanAmount / 12'))).toBeInTheDocument();
         expect(service.getBoxedRowData('payment')).toMatchObject({value: 'application.loanAmount / 12'});
     });
 });

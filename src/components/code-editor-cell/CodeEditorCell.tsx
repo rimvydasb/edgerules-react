@@ -1,10 +1,10 @@
-import {useEffect, useMemo, useRef, type ReactElement} from 'react';
-import Box from '@mui/material/Box';
-import type {SxProps, Theme} from '@mui/material/styles';
+import {useEffect, useMemo, useRef, type CSSProperties, type ReactElement} from 'react';
 import {EditorState, Prec, type Extension} from '@codemirror/state';
 import {forceLinting} from '@codemirror/lint';
 import {EditorView, keymap, placeholder as cmPlaceholder, tooltips} from '@codemirror/view';
+import * as classes from './codeEditorCell.module.css';
 import {edgeRulesExtensions} from '../code-editor/language/extensions';
+import {cx} from '../../ui/cx';
 import {embedService, type CodeEditorEmbedContext, type CodeEditorService} from '../code-editor/language/service';
 
 export type {CodeEditorEmbedContext, CodeEditorService} from '../code-editor/language/service';
@@ -30,7 +30,7 @@ export interface CodeEditorCellProps {
     placeholder?: string;
     readOnly?: boolean;
     className?: string;
-    sx?: SxProps<Theme>;
+    style?: CSSProperties;
 }
 
 /**
@@ -39,11 +39,14 @@ export interface CodeEditorCellProps {
  * A cell editor lives in a grid: its own wrapper clips overflow, the scroll container clips again,
  * and the sticky/positioned cells around it are painted in a stacking order the popup cannot win
  * from inside — the rows *below* the edited one paint over a downward-opening list. Hosting the
- * popup at the document root takes it out of all of that; the z-index sits above MUI's app-bar
- * range and below its modal range, so a dialog containing an editor still covers it.
+ * popup at the document root takes it out of all of that; it uses Mantine's popover layer, so it also
+ * stays visible when the editor sits inside a Mantine modal.
  */
 function cellTooltips(): Extension {
-    return [tooltips({parent: document.body}), EditorView.theme({'.cm-tooltip': {zIndex: '1250'}})];
+    return [
+        tooltips({parent: document.body}),
+        EditorView.theme({'.cm-tooltip': {zIndex: 'var(--mantine-z-index-popover, 300)'}}),
+    ];
 }
 
 /** Flattens any multi-line document into a single line (paste included). */
@@ -84,7 +87,7 @@ export function CodeEditorCell({
     placeholder,
     readOnly = false,
     className,
-    sx,
+    style,
 }: CodeEditorCellProps): ReactElement {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const viewRef = useRef<EditorView | null>(null);
@@ -214,33 +217,8 @@ export function CodeEditorCell({
     }, [value]);
 
     return (
-        <Box
-            className={className}
-            sx={{
-                border: (theme) => `1px solid ${theme.palette.divider}`,
-                borderRadius: 0.5,
-                overflow: 'hidden',
-                width: '100%',
-                '&:focus-within': {
-                    borderColor: (theme) => theme.palette.primary.main,
-                },
-                '& .cm-editor': {
-                    fontFamily: 'monospace',
-                    fontSize: '0.85rem',
-                },
-                '& .cm-editor.cm-focused': {
-                    outline: 'none',
-                },
-                '& .cm-content': {
-                    padding: '2px 0',
-                },
-                '& .cm-line': {
-                    padding: '0 6px',
-                },
-                ...sx,
-            }}
-        >
+        <div className={cx(classes.root, className)} style={style}>
             <div ref={hostRef} />
-        </Box>
+        </div>
     );
 }

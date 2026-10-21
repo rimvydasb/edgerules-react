@@ -1,7 +1,9 @@
-import Box from '@mui/material/Box';
 import type {ReactElement} from 'react';
+import * as classes from '../boxedEditor.module.css';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import {EditableColumnHeader} from './EditableColumnHeader';
-import {CELL, TALL_ROW_HEIGHT} from './layout';
+import {splitUnits} from './layout';
+import {SubGrid, SubGridStack, Track} from './SubGrid';
 
 export interface Argument {
     name: string;
@@ -17,9 +19,9 @@ export interface ArgumentHeadersProps {
 }
 
 /**
- * The argument/column header block under a tall (80 px) container header row's `ValueColumn` —
- * `function`, `ruleset`, `optimisation`. Not consumed until Phase 4, built now alongside the
- * rest of the shared primitive set.
+ * The argument header block under a tall (80 px) `function`/`optimisation` header row's value
+ * cell (render it with `valueIsSubGrid`): an "arguments" band, then one whole-step track per
+ * argument.
  */
 export function ArgumentHeaders({
     rowPath,
@@ -28,37 +30,18 @@ export function ArgumentHeaders({
     onRetype,
     onMove,
 }: ArgumentHeadersProps): ReactElement {
+    const {valueUnits} = useBoxedLayout();
+    const units = splitUnits(args.length, valueUnits);
     return (
-        <Box sx={{display: 'flex', flexDirection: 'column', width: '100%', height: TALL_ROW_HEIGHT}}>
-            <Box
-                sx={{
-                    display: 'flex',
-                    height: CELL,
-                    alignItems: 'center',
-                    px: 1,
-                    borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-                    fontSize: '0.6875rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    color: 'text.secondary',
-                }}
-            >
-                arguments
-            </Box>
-            <Box sx={{display: 'flex', height: CELL}}>
+        <SubGridStack>
+            <SubGrid divided>
+                <Track units={valueUnits} className={classes.bandLabel}>
+                    arguments
+                </Track>
+            </SubGrid>
+            <SubGrid>
                 {args.map((argument, index) => (
-                    <Box
-                        key={argument.name}
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flex: 1,
-                            minWidth: 0,
-                            borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                            '&:last-of-type': {borderRight: 'none'},
-                        }}
-                    >
+                    <Track key={argument.name} units={units[index]} pad={false}>
                         <EditableColumnHeader
                             rowPath={rowPath}
                             name={argument.name}
@@ -70,9 +53,9 @@ export function ArgumentHeaders({
                             onRetype={(type) => onRetype(argument.name, type)}
                             onMove={(to) => onMove(index, to)}
                         />
-                    </Box>
+                    </Track>
                 ))}
-            </Box>
-        </Box>
+            </SubGrid>
+        </SubGridStack>
     );
 }

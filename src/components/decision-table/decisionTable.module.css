@@ -1,0 +1,168 @@
+/* Decision Table. Cell borders/metrics come from src/ui/grid; this file holds the table's own layout. */
+.root {
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-md);
+  margin-bottom: var(--mantine-spacing-xs);
+}
+
+.title {
+  font-weight: 600;
+  font-size: var(--mantine-font-size-md);
+}
+
+.signature {
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.badge {
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: var(--mantine-font-size-xs);
+  background-color: color-mix(in srgb, var(--mantine-color-grape-6) 12%, transparent);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.hitPolicy {
+  min-width: 220px;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.iconCell {
+  width: 34px;
+}
+
+.priorityCell {
+  width: 70px;
+}
+
+.inputHeader {
+  background-color: color-mix(in srgb, var(--mantine-primary-color-filled) 8%, transparent);
+}
+
+.outputHeader {
+  background-color: color-mix(in srgb, var(--mantine-color-grape-6) 8%, transparent);
+}
+
+.band {
+  color: var(--mantine-color-dimmed);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 400;
+}
+
+.muted {
+  color: var(--mantine-color-dimmed);
+}
+
+.italic {
+  font-style: italic;
+}
+
+.typeLabel {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  margin-left: 4px;
+  font-weight: 400;
+}
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.columnLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+.columnMenu {
+  opacity: 0.7;
+}
+
+.columnMenu:hover,
+.columnMenu:focus-visible {
+  opacity: 1;
+}
+
+.cellError {
+  display: block;
+  margin-top: 2px;
+  line-height: 1.2;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-error);
+}
+
+.displayCell {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 2px;
+  outline: none;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.displayCell:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--mantine-primary-color-filled);
+}
+
+.editable {
+  cursor: cell;
+}
+
+.warning {
+  background-color: color-mix(in srgb, var(--mantine-color-yellow-6) 18%, transparent);
+}
+
+.pre {
+  white-space: pre-wrap;
+}
+
+.empty {
+  color: var(--mantine-color-dimmed);
+}
+
+.plainEditor {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.plainEditor:focus {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.danger {
+  color: var(--mantine-color-error);
+}
+
+.dialogFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-md);
+}

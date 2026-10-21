@@ -1,0 +1,28 @@
+.root {
+  border: 1px solid var(--cell-border-color, var(--mantine-color-default-border));
+  border-radius: 2px;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.root:focus-within {
+  border-color: var(--cell-focus-color, var(--mantine-primary-color-filled));
+}
+
+.root :global(.cm-editor) {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.85rem;
+}
+
+.root :global(.cm-editor.cm-focused) {
+  outline: none;
+}
+
+.root :global(.cm-content) {
+  padding: 2px 0;
+}
+
+.root :global(.cm-line) {
+  padding: 0 6px;
+}

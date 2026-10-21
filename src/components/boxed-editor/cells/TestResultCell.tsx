@@ -1,32 +1,14 @@
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import ErrorOutlineIcon from '@mui/icons-material/Error';
-import Tooltip from '@mui/material/Tooltip';
+import {Loader, Tooltip} from '@mantine/core';
+import {IconAlertCircleFilled} from '@tabler/icons-react';
 import type {ReactElement} from 'react';
+import {cx} from '../../../ui/cx';
+import * as classes from '../boxedEditor.module.css';
 import {useBoxedEditorTestContext} from '../context/BoxedEditorTestContext';
 import {useRowTestResult} from '../hooks/useRowTestResult';
 
 export interface TestResultCellProps {
     path: string;
 }
-
-const ELLIPSIS_SX = {
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-} as const;
-
-const NAV_BUTTON_SX = {
-    border: 'none',
-    background: 'none',
-    cursor: 'pointer',
-    p: 0,
-    lineHeight: 1,
-    fontSize: '1rem',
-    color: 'text.secondary',
-    '&:disabled': {opacity: 0.3, cursor: 'default'},
-} as const;
 
 function formatResultValue(value: unknown): {text: string; tooltip?: string} {
     if (value === undefined) return {text: ''};
@@ -49,50 +31,42 @@ function TestResultsHeader(): ReactElement {
     const isRunning = currentCase !== undefined && running.includes(currentCase.id);
 
     if (cases.length === 0) {
-        return (
-            <Box component="span" sx={{...ELLIPSIS_SX, color: 'text.disabled', fontStyle: 'italic'}}>
-                No test cases
-            </Box>
-        );
+        return <span className={cx(classes.ellipsis, classes.disabledText, classes.italic)}>No test cases</span>;
     }
 
     return (
-        <Box sx={{display: 'flex', alignItems: 'center', gap: 0.5, width: '100%', minWidth: 0}}>
-            <Box
-                component="button"
+        <div className={classes.resultHeader}>
+            <button
                 type="button"
                 aria-label="Previous test case"
                 disabled={currentIndex === 0}
                 onClick={prev}
-                sx={NAV_BUTTON_SX}
+                className={classes.nav}
             >
                 ‹
-            </Box>
-            <Tooltip title={currentCase?.name ?? ''}>
-                <Box component="span" sx={{...ELLIPSIS_SX, flex: 1, fontSize: '0.75rem'}}>
-                    {currentCase?.name}
-                </Box>
+            </button>
+            <Tooltip label={currentCase?.name ?? ''} disabled={!currentCase} withinPortal>
+                <span className={classes.resultName}>{currentCase?.name}</span>
             </Tooltip>
-            <Box component="span" sx={{fontSize: '0.6875rem', color: 'text.secondary', flexShrink: 0}}>
+            <span className={classes.resultCount}>
                 {currentIndex + 1}/{cases.length}
-            </Box>
-            <Box
-                component="button"
+            </span>
+            <button
                 type="button"
                 aria-label="Next test case"
                 disabled={currentIndex >= cases.length - 1}
                 onClick={next}
-                sx={NAV_BUTTON_SX}
+                className={classes.nav}
             >
                 ›
-            </Box>
-            {isRunning && <CircularProgress aria-label="Running" size={12} />}
+            </button>
+            {isRunning && <Loader aria-label="Running" size={12} />}
             {!isRunning && runError && (
-                <Tooltip title={runError}>
-                    <ErrorOutlineIcon aria-label="Run error" color="error" sx={{fontSize: 14}} />
+                <Tooltip label={runError} withinPortal>
+                    <IconAlertCircleFilled aria-label="Run error" size={14} className={classes.runError} />
                 </Tooltip>
             )}
-        </Box>
+        </div>
     );
 }
 
@@ -106,19 +80,13 @@ export function TestResultCell({path}: TestResultCellProps): ReactElement {
     if (path === '*') return <TestResultsHeader />;
 
     if (pending) {
-        return (
-            <Box component="span" sx={{...ELLIPSIS_SX, color: 'text.disabled', fontStyle: 'italic'}}>
-                …
-            </Box>
-        );
+        return <span className={cx(classes.ellipsis, classes.disabledText, classes.italic)}>…</span>;
     }
 
     if (result?.status === 'error') {
         return (
-            <Tooltip title={result.error ?? ''}>
-                <Box component="span" sx={{...ELLIPSIS_SX, color: 'text.disabled'}}>
-                    {result.error}
-                </Box>
+            <Tooltip label={result.error ?? ''} disabled={!result.error} withinPortal>
+                <span className={cx(classes.ellipsis, classes.disabledText)}>{result.error}</span>
             </Tooltip>
         );
     }
@@ -126,17 +94,10 @@ export function TestResultCell({path}: TestResultCellProps): ReactElement {
     const {text, tooltip} = formatResultValue(result?.value);
 
     return (
-        <Tooltip title={tooltip ?? ''}>
-            <Box
-                component="span"
-                sx={{
-                    ...ELLIPSIS_SX,
-                    fontStyle: stale ? 'italic' : 'normal',
-                    color: stale ? 'text.disabled' : 'inherit',
-                }}
-            >
+        <Tooltip label={tooltip ?? ''} disabled={!tooltip} withinPortal>
+            <span className={cx(classes.ellipsis, stale && classes.stale)} data-stale={stale || undefined}>
                 {text}
-            </Box>
+            </span>
         </Tooltip>
     );
 }

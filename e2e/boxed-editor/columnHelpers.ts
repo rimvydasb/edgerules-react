@@ -25,7 +25,8 @@ export async function moveHeader(
     name: string,
     direction: 'left' | 'right',
 ): Promise<void> {
-    await columnHeader(page, rowPath, name).getByLabel(`Move ${name} ${direction}`).click();
+    await columnHeader(page, rowPath, name).getByLabel(`Column actions ${name}`).click();
+    await page.getByRole('menuitem', {name: `Move ${direction}`}).click();
 }
 
 export async function expectHeaders(page: Page, rowPath: string, expected: string[]): Promise<void> {

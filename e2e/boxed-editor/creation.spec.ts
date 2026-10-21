@@ -1,11 +1,5 @@
 import {expect, test} from '@playwright/test';
-import {
-    chooseRowAction,
-    commitExpression,
-    expectLiveModel,
-    expectRowError,
-    openBoxedEditorStory,
-} from './helpers';
+import {chooseRowAction, commitExpression, expectLiveModel, expectRowError, openBoxedEditorStory} from './helpers';
 
 test.describe('Boxed Editor / creation', () => {
     test('creates a complex type at the model root and links', async ({page}) => {
@@ -129,9 +123,7 @@ test.describe('Boxed Editor / creation', () => {
         await page.getByTestId('append-relation').click();
 
         await expect(page.getByTestId('row-relation[1]')).toBeVisible();
-        await expect(page.getByTestId('live-result')).toHaveText(
-            '{"relation":[{"column":true},{"column":false}]}',
-        );
+        await expect(page.getByTestId('live-result')).toHaveText('{"relation":[{"column":true},{"column":false}]}');
 
         await chooseRowAction(page, '*', 'Add relation');
         await chooseRowAction(page, 'relation2', 'Add column');

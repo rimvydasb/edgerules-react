@@ -35,10 +35,11 @@ test.describe('Boxed Editor / naming', () => {
         ['rejects a digit-prefixed name', '1bad'],
         ['rejects a metadata-prefixed name', '@kind'],
         ['rejects a DSL keyword', 'func'],
-    ]) test(title, async ({page}) => {
-        await openBoxedEditorStory(page, 'editable-expression');
-        await rejectedRename(page, 'payment', name);
-    });
+    ])
+        test(title, async ({page}) => {
+            await openBoxedEditorStory(page, 'editable-expression');
+            await rejectedRename(page, 'payment', name);
+        });
     test('accepts a non-ASCII name and keeps it addressable', async ({page}) => {
         await openBoxedEditorStory(page, 'blank-model');
         await page.getByTestId('append-*').click();
@@ -97,7 +98,9 @@ test.describe('Boxed Editor / boundaries', () => {
         await openBoxedEditorStory(page, 'blank-model');
         await page.getByTestId('append-*').click();
         const path = await renameRow(page, 'field', `long${'Name'.repeat(30)}`);
-        await expect(page.getByTestId(`row-${path}`).evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).resolves.toBe(true);
+        await expect(
+            page.getByTestId(`row-${path}`).evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
+        ).resolves.toBe(true);
     });
     test('keeps a very long expression editable', async ({page}) => {
         await openBoxedEditorStory(page, 'editable-expression');
@@ -126,12 +129,13 @@ test.describe('Boxed Editor / editing', () => {
         await page.keyboard.press('Escape');
         await expect(valueCell(page, 'payment')).toHaveText('application.loanAmount / 12');
     });
-    for (const key of ['Enter', 'F2']) test(`activates a focused static cell with ${key}`, async ({page}) => {
-        await openBoxedEditorStory(page, 'editable-expression');
-        await valueCell(page, 'payment').locator('span[tabindex="0"]').focus();
-        await page.keyboard.press(key);
-        await expect(page.locator('.cm-editor')).toHaveCount(1);
-    });
+    for (const key of ['Enter', 'F2'])
+        test(`activates a focused static cell with ${key}`, async ({page}) => {
+            await openBoxedEditorStory(page, 'editable-expression');
+            await valueCell(page, 'payment').locator('span[tabindex="0"]').focus();
+            await page.keyboard.press(key);
+            await expect(page.locator('.cm-editor')).toHaveCount(1);
+        });
     test('requires a plain-field value when cleared', async ({page}) => {
         await openBoxedEditorStory(page, 'editable-expression');
         await valueCell(page, 'payment').click();
@@ -210,6 +214,7 @@ test.describe('Boxed Editor / modes', () => {
             await page.getByTestId(`row-${path}`).getByRole('button', {name: 'Open row actions'}).click();
             await expect(page.getByRole('menuitem', {name: 'View as code'})).toBeVisible();
             await page.keyboard.press('Escape');
+            await expect(page.getByRole('menuitem', {name: 'View as code'})).toHaveCount(0);
         }
     });
     test('collapses and expands a ruleset', async ({page}) => {

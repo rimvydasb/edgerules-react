@@ -1,0 +1,43 @@
+/* The value cell of an InputNode row: the field value as code, a CodeEditorCell while editing. */
+.value {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 10px 14px;
+  overflow: hidden;
+  border: 0;
+  background: var(--mantine-color-body);
+  color: inherit;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editable {
+  cursor: text;
+}
+
+.editable:hover {
+  background: var(--fn-muted);
+}
+
+.editable:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.editor {
+  padding-inline: 4px 10px;
+}
+
+.record {
+  color: var(--mantine-color-dimmed);
+}

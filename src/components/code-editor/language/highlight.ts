@@ -1,10 +1,10 @@
-import { highlightCode } from '@lezer/highlight';
-import { edgeRulesHighlighter, edgeRulesLanguage } from './language';
+import {highlightCode} from '@lezer/highlight';
+import {edgeRulesHighlighter, edgeRulesLanguage} from './language';
 
 export interface HighlightedSpan {
-  text: string;
-  /** Space-separated `tok-*` classes; empty for plain text (whitespace, unstyled tokens). */
-  className: string;
+    text: string;
+    /** Space-separated `tok-*` classes; empty for plain text (whitespace, unstyled tokens). */
+    className: string;
 }
 
 /**
@@ -14,13 +14,13 @@ export interface HighlightedSpan {
  * table cell.
  */
 export function highlightEdgeRules(code: string): HighlightedSpan[] {
-  const spans: HighlightedSpan[] = [];
-  highlightCode(
-    code,
-    edgeRulesLanguage.parser.parse(code),
-    edgeRulesHighlighter,
-    (text, className) => spans.push({ text, className }),
-    () => spans.push({ text: '\n', className: '' }),
-  );
-  return spans;
+    const spans: HighlightedSpan[] = [];
+    highlightCode(
+        code,
+        edgeRulesLanguage.parser.parse(code),
+        edgeRulesHighlighter,
+        (text, className) => spans.push({text, className}),
+        () => spans.push({text: '\n', className: ''}),
+    );
+    return spans;
 }

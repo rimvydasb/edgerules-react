@@ -1,10 +1,11 @@
-import Box from '@mui/material/Box';
-import {Fragment, type ReactElement} from 'react';
+import type {ReactElement} from 'react';
 import type {BoxedTableRowData} from '../boxed-editor-types';
 import {moveRelationColumn, renameRelationColumn} from '../commands/rowFactories';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useRowActions} from '../hooks/useRowActions';
 import {EditableColumnHeader} from '../primitives/EditableColumnHeader';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
+import {splitUnits, SubGrid, Track} from '../primitives';
 import {GenericRow} from './GenericRow';
 import {NewRow} from './NewRow';
 import {RowSwitch} from './RowSwitch';
@@ -16,24 +17,14 @@ export interface RelationRowProps {
 /** The column-header sub-grid a `relation` header row owns — one cell per entry in `columns`. */
 function RelationColumnHeaders({row}: {row: BoxedTableRowData}): ReactElement {
     const columns = row.columns ?? [];
+    const units = splitUnits(columns.length, useBoxedLayout().valueUnits);
     const commands = useRowCommands();
     const commit = (next: BoxedTableRowData): string | undefined =>
         commands.setBoxedRowData(row.path, next, row.path)?.message;
     return (
-        <Box sx={{display: 'flex', width: '100%', height: '100%'}}>
+        <SubGrid>
             {columns.map((column, index) => (
-                <Box
-                    key={column}
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        flex: 1,
-                        minWidth: 0,
-                        height: '100%',
-                        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-                        '&:last-of-type': {borderRight: 'none'},
-                    }}
-                >
+                <Track key={column} units={units[index]} pad={false}>
                     <EditableColumnHeader
                         rowPath={row.path}
                         name={column}
@@ -49,9 +40,9 @@ function RelationColumnHeaders({row}: {row: BoxedTableRowData}): ReactElement {
                             commit(moveRelationColumn(row, index, to));
                         }}
                     />
-                </Box>
+                </Track>
             ))}
-        </Box>
+        </SubGrid>
     );
 }
 
@@ -59,20 +50,20 @@ function RelationColumnHeaders({row}: {row: BoxedTableRowData}): ReactElement {
 export function RelationRow({row}: RelationRowProps): ReactElement {
     const actions = useRowActions(row);
     return (
-        <Fragment>
+        <>
             <GenericRow
                 row={row}
                 name={row.name}
                 depth={row.depth}
                 strong
                 value={<RelationColumnHeaders row={row} />}
-                valueIsInteractive
+                valueIsSubGrid
                 actions={actions}
             />
             {row.children?.map((child) => (
                 <RowSwitch key={child.path} row={child} />
             ))}
             <NewRow row={row} />
-        </Fragment>
+        </>
     );
 }
