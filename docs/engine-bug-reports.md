@@ -4,7 +4,8 @@ Open engine defects only. A report is deleted once the engine fixes it; behaviou
 [Clarified behaviour](#clarified-behaviour--not-bugs) as a short note so it is not re-filed.
 
 All entries below were last re-verified against `@edgerules/node` / `@edgerules/web`
-**`0.0.6-alpha.202607291629`** on **2026-07-29** with throwaway Node scripts — no React, no mocks.
+**`0.0.7-alpha.202610201841`** on **2026-10-21** with throwaway Node scripts — no React, no mocks. Every entry still
+reproduces on that version.
 
 ## Empty zero-column relations round-trip as lists
 

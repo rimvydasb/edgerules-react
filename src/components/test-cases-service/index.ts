@@ -15,6 +15,7 @@ export type {
   TestRow,
   TestSectionId,
   TestSubjectId,
+  TestSuite,
   TestValuesByPath,
   Unsubscribe,
 } from './test-cases-service-types';

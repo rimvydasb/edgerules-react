@@ -1,13 +1,31 @@
 import type { CSSProperties } from 'react';
-import type { TestResultSet } from '../test-cases-service';
+import type { TestCasesService, TestResultSet } from '../test-cases-service';
 import type { DocumentationService } from './context/TestsManagerContext';
 import type { MutableDecisionService, TestSubjectId } from './tests-manager-types';
 
-export interface TestsManagerProps {
+// Hands out one subject's tests — a project session's `tests` store fits.
+export interface TestCasesSource {
+  forSubject(subjectId: TestSubjectId): TestCasesService;
+}
+
+// Where the tests live: a hidden IndexedDB store keyed by `modelName`, or a host-owned source.
+export type TestsManagerStorage =
+  | {
+      // IndexedDB namespace for this model's test data.
+      modelName: string;
+      testCases?: never;
+    }
+  | {
+      // Host-owned tests, already loaded; TestsManager neither hydrates nor disposes them.
+      testCases: TestCasesSource;
+      modelName?: never;
+    };
+
+export type TestsManagerProps = TestsManagerStorage & TestsManagerBaseProps;
+
+export interface TestsManagerBaseProps {
   // The model authority. TestRunner executes against it; TestsManager never mutates it.
   service: MutableDecisionService;
-  // IndexedDB namespace for this model's test data and descriptions.
-  modelName: string;
   // Supplies the Description column; the column is read-only without it.
   documentationService?: DocumentationService;
   // Controlled subject selection. Uncontrolled and defaulting to '*' when omitted.

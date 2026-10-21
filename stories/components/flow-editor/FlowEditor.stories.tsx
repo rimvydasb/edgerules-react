@@ -2,9 +2,16 @@ import '@xyflow/react/dist/style.css';
 import {useMemo, useState, type ReactElement} from 'react';
 import type {Meta, StoryObj} from '@storybook/react-vite';
 import {expect, userEvent, within} from 'storybook/test';
-import {init, MutableDecisionService} from '@edgerules/web/mutable';
-import {createDocumentationService} from '../../../src/components/documentation-service';
+import {MutableDecisionService} from '@edgerules/web/mutable';
 import {createFlowEditorService, FlowEditor, type FlowLayout} from '../../../src/components/flow-editor';
+import {
+    ProjectProvider,
+    useProjectSession,
+    useProjectSlice,
+    useProjectSnapshot,
+    type ProjectSession,
+} from '../../../src/components/project-session';
+import {openStoryProject} from '../../support/storyProject';
 
 // The sample model of the FunctionNode design proposal.
 const SAMPLE_MODEL = `{
@@ -36,17 +43,31 @@ const FLOW_LAYOUT: FlowLayout = {
     ],
 };
 
-function Editor({
-    seeded = false,
-    readOnly = false,
-    showLayout = false,
-}: {
+interface EditorArgs {
     seeded?: boolean; // the applicant input, the decision and score functions and two outputs are on the canvas
     readOnly?: boolean;
-    showLayout?: boolean; // prints the last layout that onLayoutChange reported
-}): ReactElement {
+    showLayout?: boolean; // prints the layout the session's flow store holds once onLayoutChange changed it
+}
+
+// The story's project: the seeded variant starts with a description and the outputs in its flow layout.
+function openProject({seeded = false}: EditorArgs): Promise<ProjectSession> {
+    return openStoryProject({
+        name: 'Flow story',
+        model: {dsl: SAMPLE_MODEL},
+        ...(seeded && {
+            documentation: {
+                schemaVersion: 1,
+                byPath: {decision: 'Assess the applicant risk band from age, income and segment'},
+            },
+            flow: {schemaVersion: 1, layout: FLOW_LAYOUT},
+        }),
+    });
+}
+
+function Editor({seeded = false, readOnly = false, showLayout = false}: EditorArgs): ReactElement {
+    const session = useProjectSession();
     const service = useMemo(() => {
-        const created = createFlowEditorService(MutableDecisionService.fromCode(SAMPLE_MODEL) as never);
+        const created = createFlowEditorService(session.engine);
         if (seeded) {
             created.addInputNode('applicant');
             // Writes the same invocations with @node: FunctionNode, keeping their bindings.
@@ -54,35 +75,34 @@ function Editor({
             created.setCallee('score', 'creditScore');
         }
         return created;
-    }, [seeded]);
-    const documentation = useMemo(() => {
-        const created = createDocumentationService(`flow-editor-story-${Math.random()}`);
-        if (seeded) created.setDescription('decision', 'Assess the applicant risk band from age, income and segment');
-        return created;
-    }, [seeded]);
-    const [layout, setLayout] = useState<FlowLayout | undefined>();
+    }, [session, seeded]);
+    // Read on mount only, like FlowEditor's own `defaultLayout`.
+    const [defaultLayout] = useState<FlowLayout>(() => session.flow.getLayout());
 
     return (
         <div style={{height: '100vh', display: 'flex', flexDirection: 'column'}}>
             <div style={{flex: 1, minHeight: 0}}>
                 <FlowEditor
                     service={service}
-                    documentation={documentation}
+                    documentation={session.documentation}
                     languageService={MutableDecisionService}
                     readOnly={readOnly}
-                    defaultLayout={seeded ? FLOW_LAYOUT : undefined}
-                    onLayoutChange={setLayout}
+                    defaultLayout={defaultLayout}
+                    onLayoutChange={session.flow.setLayout}
                 />
             </div>
-            {showLayout && (
-                <pre
-                    data-testid="layout-json"
-                    style={{margin: 0, padding: 8, maxHeight: 120, overflow: 'auto', fontSize: 11}}
-                >
-                    {layout ? JSON.stringify(layout) : 'no layout change yet'}
-                </pre>
-            )}
+            {showLayout && <LayoutReport />}
         </div>
+    );
+}
+
+function LayoutReport(): ReactElement {
+    const {layout} = useProjectSlice('flow');
+    const {dirtySlices} = useProjectSnapshot();
+    return (
+        <pre data-testid="layout-json" style={{margin: 0, padding: 8, maxHeight: 120, overflow: 'auto', fontSize: 11}}>
+            {dirtySlices.includes('flow') ? JSON.stringify(layout) : 'no layout change yet'}
+        </pre>
     );
 }
 
@@ -90,12 +110,12 @@ const meta: Meta<typeof Editor> = {
     title: 'Flow Editor/FlowEditor',
     component: Editor,
     parameters: {layout: 'fullscreen'},
-    loaders: [
-        async () => {
-            await init();
-            return {};
-        },
-    ],
+    loaders: [async ({args}) => ({session: await openProject(args)})],
+    render: (args, {loaded}) => (
+        <ProjectProvider session={loaded.session as ProjectSession}>
+            <Editor {...args} />
+        </ProjectProvider>
+    ),
 };
 export default meta;
 

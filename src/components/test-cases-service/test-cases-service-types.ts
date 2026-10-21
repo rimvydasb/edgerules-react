@@ -31,6 +31,12 @@ export interface TestCase {
   assertions: TestValuesByPath; // Expected values; only `assertions`-section paths.
 }
 
+// Everything authored for one subject: its columns and its rows. Results are derived and never part of it.
+export interface TestSuite {
+  cases: TestCase[];
+  rows: TestRow[];
+}
+
 export type TestResultStatus = 'ok' | 'error' | 'missing' | 'pending';
 
 // One path's computed outcome. Carries no run metadata — that belongs to the run, not to each value.

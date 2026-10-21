@@ -30,6 +30,38 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
   `TestRunner` execution service)
 - [ ] EdgeRules Types Editor
 - [EdgeRules Project Explorer](docs/PROJECT_EXPLORER_STORY.md)
+- [x] [EdgeRules Project Session](docs/PROJECT_SESSION_STORY.md) (`edgerules-react/project-session`, no GUI): loads a
+  project bundle — model DSL, documentation, tests and flow layout — into one `ProjectSession` that owns the engine
+  and the slice stores, and saves it back as one revision. `LocalProjectRepository` keeps device-local projects in
+  IndexedDB; `ProjectProvider` and `useProjectSlice` hand the session to a React subtree.
+
+## Preview
+
+**Flow Editor:**
+![img_1.png](img_1.png)
+
+**Simple Decision Table:**
+![img_2.png](img_2.png)
+
+## Opening a project in a story
+
+Stories build their model through a project session, as a host application would. `openStoryProject` in
+`stories/support/storyProject.ts` runs `ProjectFactory` → `LocalProjectRepository.create` →
+`ProjectSessionManager.open` against the real `@edgerules/web` engine and returns the session. Every call creates a new
+project in the `edgerules-storybook-projects` IndexedDB database, so a story always starts from its fixture:
+
+```tsx
+export const Default: Story = {
+    loaders: [async () => ({session: await openStoryProject(MODEL_DSL)})],
+    render: (_args, {loaded}) => (
+        <TestsManager service={loaded.session.engine} testCases={loaded.session.tests} />
+    ),
+};
+```
+
+Pass a `ProjectBundleInput` instead of a DSL string to seed documentation, tests or a flow layout. Wrap the story in
+`<ProjectProvider session={…}>` when it reads the session through `useProjectSession`, `useProjectSnapshot` or
+`useProjectSlice`.
 
 ## Other Links
 
@@ -76,6 +108,8 @@ components they actually import — a project that only uses the Code Editor nev
 │   │   │                          #   DOCUMENTATION_SERVICE_STORY.md; shared by boxed-editor, decision-table, etc.
 │   │   ├── flow-editor/           # Flow Editor (ReactFlow-based)
 │   │   ├── project-explorer/      # Project Explorer
+│   │   ├── project-session/       # Project bundle, repositories, ProjectSession and its React provider (no GUI) —
+│   │   │                          #   see PROJECT_SESSION_STORY.md
 │   │   ├── test-cases-service/    # Persistence for test cases/rows/results (no engine, no GUI) — see
 │   │   │                          #   TESTS_MANAGER_SPEC.md; used by tests-manager, designed for boxed-editor too
 │   │   ├── tests-manager/         # Tests Manager grid + TestRunner (the execution service; see
@@ -84,7 +118,7 @@ components they actually import — a project that only uses the Code Editor nev
 │   ├── hooks/                     # Custom React hooks for EdgeRules
 │   ├── lib/                       # Core logic and utilities shared across components
 │   └── index.ts                   # Root barrel re-exporting the full public API
-├── stories/                        # Storybook stories, mirroring the src/components layout
+├── stories/                        # Storybook stories, mirroring the src/components layout; support/ holds helpers
 ├── e2e/                            # Playwright end-to-end/visual tests
 ├── docs/                           # Design notes and feature specs (e.g. PROJECT_EXPLORER_STORY.md)
 ├── dist/                           # Build output (ESM + CJS + .d.ts), git-ignored, published to npm

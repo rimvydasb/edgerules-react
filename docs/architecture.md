@@ -134,7 +134,11 @@ Portable model nodes and errors cross this boundary using `@edgerules/portable` 
 
 ## Project state architecture
 
-> Project State Architecture is in development and not completed
+> Project State Architecture is in development and not completed. The first slices — bundle schema, `ProjectRepository`
+> with the device-local `LocalProjectRepository`, session-backed slice stores, `ProjectEngine`, `ProjectSession`,
+> `ProjectSessionManager`, `ProjectFactory` and `ProjectProvider` — are implemented in `src/components/project-session`
+> (`edgerules-react/project-session`); see [PROJECT_SESSION_STORY.md](PROJECT_SESSION_STORY.md). Undo/redo, the
+> `ProjectDraftStore`, `TestRunCache`, conflict resolution and the GitHub/S3 adapters are not.
 
 ### Primary decision
 
@@ -589,7 +593,7 @@ classDiagram
 ```mermaid
 classDiagram
   class ProjectSessionManager {
-    +open(ref) Promise~ProjectSession~
+    +open(locator, revision) Promise~ProjectSession~
     +get(projectId) ProjectSession
     +listOpen() ProjectSession[]
     +close(projectId) Promise~void~
@@ -600,7 +604,8 @@ classDiagram
     +subscribe(listener) Unsubscribe
     +execute(command) CommandResult
     +transaction(label, work) CommandResult
-    +commitDsl(source) ValidationResult
+    +getDslDraft() string
+    +setDslDraft(text) void
     +save(message) Promise~SaveResult~
     +reload() Promise~void~
     +resolveConflict(resolution) Promise~void~
@@ -619,8 +624,6 @@ classDiagram
   }
 
   class ProjectEngine {
-    +getDslDraft() string
-    +commitDsl(source) ValidationResult
     +get(path, filter) PortableNode
     +set(path, node) PortableNode
     +remove(path) void
@@ -648,8 +651,8 @@ classDiagram
   }
 
   class FlowMetadataStore {
-    +getNode(nodeId) NodeLayout
-    +patchNode(nodeId, patch) void
+    +getLayout() FlowLayout
+    +setLayout(layout) void
     +renamePath(from, to) void
     +exportDocument() FlowMetadataDocument
     +replaceDocument(document) void
@@ -698,7 +701,7 @@ API invariants:
 | `ProjectSession.transaction` | Cross-slice changes either all commit in memory or all roll back; slice notifications flush afterward. |
 | `getSnapshot`                | Returns the same immutable object until observable session status changes.                             |
 | `exportBundle`               | Fails while DSL is invalid or a transaction is open.                                                   |
-| `commitDsl`                  | Replaces the semantic engine only after full parse/link validation succeeds.                           |
+| `commitDsl` command          | Replaces the semantic engine only after full parse/link validation succeeds.                           |
 | `exportDsl`                  | Serializes the engine AST after structured edits; it must not return the stale editor input.           |
 | `save`                       | Exports one aggregate, validates it, performs compare-and-swap and clears dirty state only on success. |
 | `resolveConflict`            | Uses base/local/remote inputs; it never chooses last-writer-wins silently.                             |
@@ -910,18 +913,19 @@ Encrypt drafts when project sensitivity requires it; clear them on logout accord
 ## Required service evolution
 
 The current services persist independently. That is acceptable for standalone component demos, but not for an atomic
-project aggregate.
+project aggregate. [PROJECT_SESSION_STORY.md](PROJECT_SESSION_STORY.md) sets the order of this work (its task 3) and
+records what is done.
 
-| Current limitation                                              | Required change                                                              | Reason                                                                    |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `DocumentationService` has no bulk read/import API.             | Add `exportDocument()` and `replaceDocument()`.                              | A project load/save must move all descriptions as one versioned document. |
-| `DocumentationService` owns hidden IndexedDB persistence.       | Inject a persistence adapter; use an in-memory/session adapter in the Shell. | Avoid two durable authorities.                                            |
-| `TestCasesService` is constructed per `(modelName, subjectId)`. | Add `ProjectTestsStore` owning every subject and returning subject facades.  | `tests.json` must contain the complete project test definition.           |
-| `TestCasesService` owns hidden IndexedDB persistence.           | Inject persistence and route authored changes to `ProjectSession`.           | Project save and rename must be atomic across slices.                     |
-| `TestsManager` constructs its own `TestCasesService`.           | Accept a session-owned service/factory as a prop.                            | The Shell must supply the loaded project's test state.                    |
-| Authored tests and execution results share one service.         | Persist authored tests; move results to `TestRunCache`.                      | Results are derived, staleable and reproducible.                          |
-| Engine DSL serialization.                                       | Done in `0.0.7`: use `getCode('*')`; no work required.                       | Structured edits update `model.edge`.                                     |
-| No React Flow store exists.                                     | Add `FlowMetadataStore` with snapshot, replace, rename and subscribe APIs.   | Flow layout must participate in load/save/undo.                           |
+| Current limitation                                              | Required change                                                              | Reason                                                                    | Status                                                                                               |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `DocumentationService` has no bulk read/import API.             | Add `exportDocument()` and `replaceDocument()`.                              | A project load/save must move all descriptions as one versioned document. | Done: `DocumentationStore`.                                                                          |
+| `DocumentationService` owns hidden IndexedDB persistence.       | Inject a persistence adapter; use an in-memory/session adapter in the Shell. | Avoid two durable authorities.                                            | Done: the session-owned `DocumentationStore` is in memory; the IndexedDB factory stays standalone.  |
+| `TestCasesService` is constructed per `(modelName, subjectId)`. | Add `ProjectTestsStore` owning every subject and returning subject facades.  | `tests.json` must contain the complete project test definition.           | Done: `ProjectTestsStore.forSubject`, sharing `createTestCasesCore` with the IndexedDB factory.      |
+| `TestCasesService` owns hidden IndexedDB persistence.           | Inject persistence and route authored changes to `ProjectSession`.           | Project save and rename must be atomic across slices.                     | Done for the session store.                                                                          |
+| `TestsManager` constructs its own `TestCasesService`.           | Accept a session-owned service/factory as a prop.                            | The Shell must supply the loaded project's test state.                    | Done: `testCases` prop (a `TestCasesSource`) instead of `modelName`.                                 |
+| Authored tests and execution results share one service.         | Persist authored tests; move results to `TestRunCache`.                      | Results are derived, staleable and reproducible.                          | Partly: results are never exported, but stay in the subject facade; `TestRunCache` is not built.    |
+| Engine DSL serialization.                                       | Done in `0.0.7`: use `getCode('*')`; no work required.                       | Structured edits update `model.edge`.                                     | Done: `ProjectEngine.exportDsl()`.                                                                   |
+| No React Flow store exists.                                     | Add `FlowMetadataStore` with snapshot, replace, rename and subscribe APIs.   | Flow layout must participate in load/save/undo.                           | Done: `FlowMetadataStore` holds `FlowLayout`; it fits `FlowEditor`'s `defaultLayout`/`onLayoutChange`. |
 
 Compatibility rule: standalone components may keep their current IndexedDB-backed factories. The application Shell must
 use the new injected/session-backed variants.
