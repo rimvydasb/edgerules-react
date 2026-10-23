@@ -14,8 +14,8 @@ model, so the user switches between views without conversion or data loss.
 - **Flow Component annotation:** a field annotation with a value that ends with `Node`. In Portable, it is
   `@node: '<Name>Node'`, for example `@node: 'InputNode'`. The annotation name in a DSL path is `@<Name>Node`.
 - **Optional `@node-name`:** the node title in the Flow Editor. The title falls back to the field name.
-- **Flow node discovery:** the Flow Editor walks the model in field order. It descends into a context without a Flow
-  Component annotation. An annotated context is one node, and the Flow Editor does not descend into it.
+- **Flow node discovery:** the Flow Editor reads the direct fields of the opened context in field order. Each direct
+  field with a Flow Component annotation is one node. The Flow Editor does not descend into a child context.
 
 ## Views Share One Model Without Conflict
 
