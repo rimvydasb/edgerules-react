@@ -80,7 +80,7 @@ describe('ProjectTestsStore', () => {
 describe('FlowMetadataStore', () => {
     it('moves positions and the sources of outputs and charts', () => {
         const store = createFlowMetadataStore(context());
-        store.setLayout({
+        store.setLayout('*', {
             positions: {risk: {x: 1, y: 1}, riskier: {x: 2, y: 2}},
             outputs: [{id: 'output', source: {node: 'risk', handle: 'level'}}, {id: 'output2'}],
             charts: [{id: 'chart', source: {node: 'riskier', handle: 'level'}}],
@@ -88,7 +88,7 @@ describe('FlowMetadataStore', () => {
 
         store.renamePath('risk', 'score');
 
-        expect(store.getLayout()).toEqual({
+        expect(store.getLayout('*')).toEqual({
             positions: {score: {x: 1, y: 1}, riskier: {x: 2, y: 2}},
             outputs: [{id: 'output', source: {node: 'score', handle: 'level'}}, {id: 'output2'}],
             charts: [{id: 'chart', source: {node: 'riskier', handle: 'level'}}],
@@ -98,9 +98,44 @@ describe('FlowMetadataStore', () => {
     it('ignores a rename that touches nothing', () => {
         const ctx = context();
         const store = createFlowMetadataStore(ctx);
-        const layout = store.getLayout();
+        const layout = store.getLayout('*');
         store.renamePath('absent', 'other');
-        expect(store.getLayout()).toBe(layout);
+        expect(store.getLayout('*')).toBe(layout);
         expect(ctx.onChange).not.toHaveBeenCalled();
+    });
+
+    it('keeps one layout per root', () => {
+        const store = createFlowMetadataStore(context());
+        store.setLayout('*', {positions: {limit: {x: 1, y: 1}}, outputs: []});
+        store.setLayout('applicant', {positions: {'applicant.score': {x: 2, y: 2}}, outputs: [{id: 'output'}]});
+
+        expect(store.getLayout('*').positions).toEqual({limit: {x: 1, y: 1}});
+        expect(store.getLayout('applicant').outputs).toEqual([{id: 'output'}]);
+        expect(store.getLayout('applicant.address')).toEqual({positions: {}, outputs: []});
+        expect(Object.keys(store.exportDocument().layouts)).toEqual(['*', 'applicant']);
+    });
+
+    it('moves the layout keys and the node keys of a renamed path', () => {
+        const store = createFlowMetadataStore(context());
+        store.setLayout('applicant', {
+            positions: {'applicant.score': {x: 1, y: 1}},
+            outputs: [{id: 'output', source: {node: 'applicant.score', handle: 'out:result'}}],
+        });
+        store.setLayout('applicant.calculateAge', {
+            positions: {'applicant.calculateAge.age': {x: 2, y: 2}},
+            outputs: [],
+        });
+        store.setLayout('*', {positions: {applicant: {x: 3, y: 3}, applicantNote: {x: 4, y: 4}}, outputs: []});
+
+        store.renamePath('applicant', 'person');
+
+        expect(store.exportDocument().layouts).toEqual({
+            person: {
+                positions: {'person.score': {x: 1, y: 1}},
+                outputs: [{id: 'output', source: {node: 'person.score', handle: 'out:result'}}],
+            },
+            'person.calculateAge': {positions: {'person.calculateAge.age': {x: 2, y: 2}}, outputs: []},
+            '*': {positions: {person: {x: 3, y: 3}, applicantNote: {x: 4, y: 4}}, outputs: []},
+        });
     });
 });

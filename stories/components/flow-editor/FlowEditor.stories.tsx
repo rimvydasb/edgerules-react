@@ -59,7 +59,7 @@ function openProject({seeded = false}: EditorArgs): Promise<ProjectSession> {
                 schemaVersion: 1,
                 byPath: {decision: 'Assess the applicant risk band from age, income and segment'},
             },
-            flow: {schemaVersion: 1, layout: FLOW_LAYOUT},
+            flow: {schemaVersion: 2, layouts: {'*': FLOW_LAYOUT}},
         }),
     });
 }
@@ -77,7 +77,7 @@ function Editor({seeded = false, readOnly = false, showLayout = false}: EditorAr
         return created;
     }, [session, seeded]);
     // Read on mount only, like FlowEditor's own `defaultLayout`.
-    const [defaultLayout] = useState<FlowLayout>(() => session.flow.getLayout());
+    const [defaultLayout] = useState<FlowLayout>(() => session.flow.getLayout('*'));
 
     return (
         <div style={{height: '100vh', display: 'flex', flexDirection: 'column'}}>
@@ -88,7 +88,7 @@ function Editor({seeded = false, readOnly = false, showLayout = false}: EditorAr
                     languageService={MutableDecisionService}
                     readOnly={readOnly}
                     defaultLayout={defaultLayout}
-                    onLayoutChange={session.flow.setLayout}
+                    onLayoutChange={(layout) => session.flow.setLayout('*', layout)}
                 />
             </div>
             {showLayout && <LayoutReport />}
@@ -97,11 +97,11 @@ function Editor({seeded = false, readOnly = false, showLayout = false}: EditorAr
 }
 
 function LayoutReport(): ReactElement {
-    const {layout} = useProjectSlice('flow');
+    const {layouts} = useProjectSlice('flow');
     const {dirtySlices} = useProjectSnapshot();
     return (
         <pre data-testid="layout-json" style={{margin: 0, padding: 8, maxHeight: 120, overflow: 'auto', fontSize: 11}}>
-            {dirtySlices.includes('flow') ? JSON.stringify(layout) : 'no layout change yet'}
+            {dirtySlices.includes('flow') ? JSON.stringify(layouts['*']) : 'no layout change yet'}
         </pre>
     );
 }

@@ -1,7 +1,7 @@
 import type {TestSubjectId, TestSuite} from '../../test-cases-service';
 import type {FlowLayout} from '#lib/flowLayout';
 
-export const PROJECT_FORMAT_VERSION = 1;
+export const PROJECT_FORMAT_VERSION = 2;
 export const PROJECT_MANIFEST_FILE = 'edgerules.project.json';
 export const DEFAULT_MODEL_SOURCE = 'model/main.edge';
 
@@ -36,9 +36,10 @@ export interface TestSuitesDocument {
     subjects: Record<TestSubjectId, TestSuite>; // authored tests only; results are never persisted
 }
 
+// One canvas per flow root: '*', a context path or a function path. Presentation only; the model holds the semantics.
 export interface FlowMetadataDocument {
-    schemaVersion: 1;
-    layout: FlowLayout; // presentation only; the model holds the semantics
+    schemaVersion: 2;
+    layouts: Record<string, FlowLayout>; // root path -> layout; a root without a layout has no entry
 }
 
 // One durable revision: everything authored for a project, saved and loaded together.
@@ -79,7 +80,7 @@ export function emptyTests(): TestSuitesDocument {
 }
 
 export function emptyFlow(): FlowMetadataDocument {
-    return {schemaVersion: 1, layout: {positions: {}, outputs: []}};
+    return {schemaVersion: 2, layouts: {}};
 }
 
 export function describeProject(bundle: ProjectBundle, locator: ProjectLocator, revision: string): ProjectDescriptor {

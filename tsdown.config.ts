@@ -75,6 +75,7 @@ export default defineConfig({
         'components/tests-manager/index': 'src/components/tests-manager/index.ts',
         'components/flow-editor/index': 'src/components/flow-editor/index.ts',
         'components/project-session/index': 'src/components/project-session/index.ts',
+        'components/shell/index': 'src/components/shell/index.ts',
     },
     format: ['esm', 'cjs'],
     platform: 'neutral',

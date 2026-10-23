@@ -35,6 +35,9 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
       project bundle — model DSL, documentation, tests and flow layout — into one `ProjectSession` that owns the engine
       and the slice stores, and saves it back as one revision. `LocalProjectRepository` keeps device-local projects in
       IndexedDB; `ProjectProvider` and `useProjectSlice` hand the session to a React subtree.
+- [x] [EdgeRules Shell](docs/specs/shell-spec.md) (`edgerules-react/shell`): one part of the open project's model — the
+      whole model, a context or a function — in the Code, Boxed or Flow view, with a breadcrumb of the root path and
+      drill-down from the editors. Renders inside a `ProjectProvider`.
 
 ## Preview
 
@@ -107,6 +110,7 @@ they actually import — a project that only uses the Code Editor never has to i
 │   │   ├── project-explorer/      # Project Explorer
 │   │   ├── project-session/       # Project bundle, repositories, ProjectSession and its React provider (no GUI) —
 │   │   │                          #   see project-session-story.md
+│   │   ├── shell/                 # Shell: Code, Boxed and Flow views of one root path of the session model
 │   │   ├── test-cases-service/    # Persistence for test cases/rows/results (no engine, no GUI) — see
 │   │   │                          #   tests-manager-spec.md (docs/specs); used by tests-manager, designed for boxed-editor too
 │   │   ├── tests-manager/         # Tests Manager grid + TestRunner (the execution service; see

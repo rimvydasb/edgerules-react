@@ -674,3 +674,72 @@ describe('FlowEditorService flow nodes', () => {
         expect(listener).toHaveBeenCalledTimes(2);
     });
 });
+
+describe('FlowEditorService root', () => {
+    const ROOTED_MODEL = `{
+        func riskScore(income: number): { score: income / 100 }
+        applicant: {
+            income: 5000
+            address: { city: "Vilnius" }
+            profile: { tier: 1 }
+            score: riskScore(income)
+            func adjust(rate: number): { base: 10; result: base * rate }
+        }
+        limit: riskScore(applicant.income).score
+    }`;
+
+    function rooted(root?: string) {
+        const mutable = MutableDecisionService.fromCode(ROOTED_MODEL);
+        mutable.link();
+        return {mutable, service: createFlowEditorService(mutable, {root})};
+    }
+
+    it('lists only the direct fields of the root as nodes', () => {
+        const {mutable, service} = rooted('applicant');
+        createFlowEditorService(mutable).addInputNode('applicant');
+        service.addInputNode('applicant.profile');
+        service.setCallee('applicant.score', 'riskScore');
+
+        expect(service.listNodes()).toEqual([
+            {field: 'applicant.profile', kind: 'input'},
+            {field: 'applicant.score', kind: 'function'},
+        ]);
+        // The model root shows `applicant` and does not descend into it.
+        expect(createFlowEditorService(mutable).listNodes()).toEqual([{field: 'applicant', kind: 'input'}]);
+    });
+
+    it('offers the records of the root context as input candidates', () => {
+        const {service} = rooted('applicant');
+        expect(service.listInputCandidates()).toEqual(['applicant.address', 'applicant.profile']);
+        expect(rooted().service.listInputCandidates()).toEqual(['applicant']);
+    });
+
+    it('creates drafts and inputs as fields of the root', () => {
+        const {mutable, service} = rooted('applicant');
+        expect(service.createDraftNode()).toBe('applicant.node');
+        expect(service.createDraftNode()).toBe('applicant.node2');
+        expect(service.createInputNode()).toBe('applicant.input');
+        expect(mutable.toPortable()).not.toHaveProperty('input');
+        expect(service.listNodes().map((node) => node.field)).toEqual([
+            'applicant.input',
+            'applicant.node',
+            'applicant.node2',
+        ]);
+    });
+
+    it('uses the body of a function root', () => {
+        const {mutable, service} = rooted('applicant.adjust');
+        expect(service.createInputNode()).toBe('applicant.adjust.input');
+        const body = (mutable.toPortable() as any).applicant.adjust['@body'];
+        expect(body.input).toMatchObject({'@kind': 'context', '@node': 'InputNode', value: 0});
+        expect(service.listNodes()).toEqual([{field: 'applicant.adjust.input', kind: 'input'}]);
+    });
+
+    it('renames a nested draft in place', () => {
+        const {service} = rooted('applicant');
+        const draft = service.createDraftNode();
+        expect(service.renameField(draft, 'step')).toBeUndefined();
+        expect(service.listNodes()).toEqual([{field: 'applicant.step', kind: 'function'}]);
+        expect(isPortableError(service.renameField('applicant.step', 'income'))).toBe(true);
+    });
+});

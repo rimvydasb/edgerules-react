@@ -265,20 +265,20 @@ current model on mount, so it shows the changes of the other views.
 
 ## Implementation Tasks
 
-- [ ] Add the `root` option to `createFlowEditorService`. `listNodes` reads the direct fields of the root only.
-- [ ] Make `createDraftNode`, `createInputNode` and `listInputCandidates` use the `root` option.
-- [ ] Key `FlowMetadataDocument` layouts by root path. Add the `root` argument to `getLayout` and `setLayout`.
-- [ ] Make `FlowMetadataStore.renamePath` move the layout keys and the node position keys.
-- [ ] Create `src/components/shell` with `Shell`, `ShellBreadcrumbs`, `ShellViewSwitch` and the three view adapters.
-- [ ] Implement root path validation: no index, nothing below a function, nearest valid ancestor.
-- [ ] Implement the Code view commit with the idle timer and the per-path draft.
-- [ ] Implement the `onOpenNode` routing and the fallback to the nearest existing path.
-- [ ] Add the `shell` subpath export to `package.json` and `tsdown.config.ts`.
-- [ ] Add the `shell` allowlist to `.dependency-cruiser.cjs` and to [architecture.md](../architecture.md).
-- [ ] Add RTL tests with the real `@edgerules/node` engine. Cover the breadcrumb, view switch, drill-down and Code view
+- [x] Add the `root` option to `createFlowEditorService`. `listNodes` reads the direct fields of the root only.
+- [x] Make `createDraftNode`, `createInputNode` and `listInputCandidates` use the `root` option.
+- [x] Key `FlowMetadataDocument` layouts by root path. Add the `root` argument to `getLayout` and `setLayout`.
+- [x] Make `FlowMetadataStore.renamePath` move the layout keys and the node position keys.
+- [x] Create `src/components/shell` with `Shell`, `ShellBreadcrumbs`, `ShellViewSwitch` and the three view adapters.
+- [x] Implement root path validation: no index, nothing below a function, nearest valid ancestor.
+- [x] Implement the Code view commit with the idle timer and the per-path draft.
+- [x] Implement the `onOpenNode` routing and the fallback to the nearest existing path.
+- [x] Add the `shell` subpath export to `package.json` and `tsdown.config.ts`.
+- [x] Add the `shell` allowlist to `.dependency-cruiser.cjs` and to [architecture.md](../architecture.md).
+- [x] Add RTL tests with the real `@edgerules/node` engine. Cover the breadcrumb, view switch, drill-down and Code view
       commit.
-- [ ] Add RTL tests for the invalid draft, the invalid root path, the path fallback and the per-root Flow layout.
-- [ ] Add a Storybook story with the sample model of [model-decomposition.md](../model-decomposition.md).
+- [x] Add RTL tests for the invalid draft, the invalid root path, the path fallback and the per-root Flow layout.
+- [x] Add a Storybook story with the sample model of [model-decomposition.md](../model-decomposition.md).
 
 ## Limitations
 

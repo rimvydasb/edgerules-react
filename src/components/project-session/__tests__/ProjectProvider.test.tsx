@@ -49,7 +49,7 @@ describe('ProjectProvider', () => {
         const {result} = renderHook(() => useProjectSnapshot(), {wrapper: wrapperFor(session)});
         expect(result.current.dirtySlices).toEqual([]);
 
-        act(() => session.flow.setLayout({positions: {decision: {x: 1, y: 1}}, outputs: []}));
+        act(() => session.flow.setLayout('*', {positions: {decision: {x: 1, y: 1}}, outputs: []}));
         expect(result.current.dirtySlices).toEqual(['flow']);
 
         await act(() => session.save());

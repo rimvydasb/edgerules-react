@@ -28,8 +28,9 @@ export interface ProjectTestsStore extends SliceStore<TestSuitesDocument> {
     forSubject(subjectId: TestSubjectId): TestCasesService;
 }
 
-// Flow canvas presentation data: positions, output nodes and chart nodes.
+// Flow canvas presentation data: positions, output nodes and chart nodes, one layout per flow root ('*', a context
+// path or a function path). `renamePath` moves the root keys, the position keys and the output and chart sources.
 export interface FlowMetadataStore extends SliceStore<FlowMetadataDocument> {
-    getLayout(): FlowLayout; // same reference until the layout changes
-    setLayout(layout: FlowLayout): void; // fits `FlowEditor`'s `onLayoutChange`; an equal layout is no change
+    getLayout(root: string): FlowLayout; // same reference until that layout changes; empty for a root without one
+    setLayout(root: string, layout: FlowLayout): void; // an equal layout is no change
 }

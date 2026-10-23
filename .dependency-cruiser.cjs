@@ -108,6 +108,11 @@ module.exports = {
       ['documentation-service', 'test-cases-service'],
       'Project state architecture',
     ),
+    componentAllowlist(
+      'shell',
+      ['code-editor', 'boxed-editor', 'flow-editor', 'project-session', 'documentation-service', 'test-cases-service'],
+      'Main React components',
+    ),
     {
       name: 'no-circular',
       comment:

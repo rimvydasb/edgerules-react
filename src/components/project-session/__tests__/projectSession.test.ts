@@ -25,7 +25,7 @@ describe('ProjectSession — open', () => {
         const {session, bundle, locator} = await openFixtureProject({
             documentation: {schemaVersion: 1, byPath: {decision: 'Final decision'}},
             tests: RISK_TESTS,
-            flow: {schemaVersion: 1, layout: {positions: {decision: {x: 1, y: 2}}, outputs: []}},
+            flow: {schemaVersion: 2, layouts: {'*': {positions: {decision: {x: 1, y: 2}}, outputs: []}}},
         });
 
         expect(session.projectId).toBe(bundle.manifest.projectId);
@@ -50,7 +50,7 @@ describe('ProjectSession — open', () => {
                 .listTestCases()
                 .map((c) => c.name),
         ).toEqual(['Young']);
-        expect(session.flow.getLayout().positions).toEqual({decision: {x: 1, y: 2}});
+        expect(session.flow.getLayout('*').positions).toEqual({decision: {x: 1, y: 2}});
         expect(session.getSlice('tests')).toEqual(RISK_TESTS);
     });
 });
@@ -94,7 +94,7 @@ describe('ProjectSession — changes and notifications', () => {
             documentation: {schemaVersion: 1, byPath: {decision: 'Why'}},
         });
         session.documentation.setDescription('decision', 'Why');
-        session.flow.setLayout({positions: {}, outputs: []});
+        session.flow.setLayout('*', {positions: {}, outputs: []});
         const service = session.tests.forSubject('*');
         service.syncRows([]);
         expect(session.getSnapshot().dirtySlices).toEqual([]);
@@ -127,7 +127,7 @@ describe('ProjectSession — changes and notifications', () => {
             session.engine.set('unused', {'@kind': 'expression', expression: '3'});
             session.documentation.setDescription('unused', 'One');
             session.documentation.setDescription('decision', 'Two');
-            session.flow.setLayout({positions: {decision: {x: 5, y: 5}}, outputs: []});
+            session.flow.setLayout('*', {positions: {decision: {x: 5, y: 5}}, outputs: []});
             expect(sessionListener).not.toHaveBeenCalled();
         });
 
@@ -153,7 +153,7 @@ describe('ProjectSession — changes and notifications', () => {
             session.engine.set('unused', {'@kind': 'expression', expression: '99'});
             session.documentation.setDescription('unused', 'Lost');
             session.tests.forSubject('risk').addTestCase('Lost');
-            session.flow.setLayout({positions: {unused: {x: 0, y: 0}}, outputs: []});
+            session.flow.setLayout('*', {positions: {unused: {x: 0, y: 0}}, outputs: []});
             throw new Error('boom');
         });
 
@@ -181,10 +181,12 @@ describe('ProjectSession — commands', () => {
             documentation: {schemaVersion: 1, byPath: {risk: 'Risk rule', 'risk.level': 'Band'}},
             tests: RISK_TESTS,
             flow: {
-                schemaVersion: 1,
-                layout: {
-                    positions: {risk: {x: 1, y: 1}},
-                    outputs: [{id: 'output', source: {node: 'risk', handle: 'level'}}],
+                schemaVersion: 2,
+                layouts: {
+                    '*': {
+                        positions: {risk: {x: 1, y: 1}},
+                        outputs: [{id: 'output', source: {node: 'risk', handle: 'level'}}],
+                    },
                 },
             },
         });
@@ -203,7 +205,7 @@ describe('ProjectSession — commands', () => {
                 .listTestCases()
                 .map((c) => c.name),
         ).toEqual(['Young']);
-        expect(session.getSlice('flow').layout).toEqual({
+        expect(session.getSlice('flow').layouts['*']).toEqual({
             positions: {score: {x: 1, y: 1}},
             outputs: [{id: 'output', source: {node: 'score', handle: 'level'}}],
         });
@@ -299,7 +301,7 @@ describe('ProjectSession — save', () => {
         session.subscribe(() => phases.push(session.getSnapshot().phase));
 
         const saving = session.save();
-        session.flow.setLayout({positions: {decision: {x: 3, y: 3}}, outputs: []});
+        session.flow.setLayout('*', {positions: {decision: {x: 3, y: 3}}, outputs: []});
         await saving;
 
         expect(phases[0]).toBe('saving');

@@ -100,7 +100,7 @@ flowchart TB
 | `ProjectExplorer`     | `src/components/project-explorer`; package root and `edgerules-react/project-explorer` | Lazily loaded tree navigation for contexts, variables, functions, decision tables and types.                                                                                                                                                                                                                                                                                                                                                                   | None. It reports navigation intent through callbacks instead of importing editors.                                              |
 | `FlowEditor`          | `src/components/flow-editor`; `edgerules-react/flow-editor`                            | React Flow-based visual editor. `FunctionNode` is implemented: it shows one `@FunctionNode` invocation with a pin per argument and result, a callee picker, menus and inline edits over a `FlowEditorService`. `InputNode` is implemented: it shows one `@InputNode` record with a pin per field. `OutputNode` is implemented: one value row that evaluates the wired path through `FlowEditorService.readOutput`. Ruleset, terms and chart nodes are planned. | Uses the shared `RowActionsMenu`, `listCallables`, `setWithLinkCheck`, `BoxedEditorService` helpers and `DocumentationService`. |
 | `TypesEditor`         | Not present and not exported.                                                          | Planned editor for EdgeRules type definitions.                                                                                                                                                                                                                                                                                                                                                                                                                 | No source dependency can be asserted until it is implemented.                                                                   |
-| `Shell`               | Not present and not exported.                                                          | Planned application integration layer that owns workspace layout, active-editor routing, shared engine/service instances and navigation callback wiring.                                                                                                                                                                                                                                                                                                       | Composes the public components; it belongs to a host application unless later added as a library component.                     |
+| `Shell`               | `src/components/shell`; `edgerules-react/shell`                                        | One part of the model of the open `ProjectSession`, from a root path (`'*'`, a context or a function), in the Code, Boxed or Flow view, with a breadcrumb and drill-down routing. See [shell-spec.md](specs/shell-spec.md). The host workspace (session ID, tabs, session lifetime) stays in the host application.                                                                                                                                             | Renders `CodeEditor`, `BoxedEditor` and `FlowEditor` with the session facades from `ProjectProvider`.                           |
 
 ## Dependency rules
 
@@ -159,18 +159,19 @@ A change to a rule MUST update this section and the config together.
 | `component-has-story`                    | A Storybook story reaches the `index.ts` of each component, directly or through another component.             |
 | `markdown-file-name`                     | Markdown file names are lowercase kebab-case. `README.md`, `CLAUDE.md`, `AGENTS.md` and `SKILL.md` are exempt. |
 
-| Component               | Allowed component dependencies                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| `code-editor`           | None                                                                                              |
-| `code-editor-cell`      | `code-editor`                                                                                     |
-| `project-explorer`      | None                                                                                              |
-| `documentation-service` | None                                                                                              |
-| `test-cases-service`    | None                                                                                              |
-| `decision-table`        | `code-editor`, `code-editor-cell`                                                                 |
-| `tests-manager`         | `code-editor`, `code-editor-cell`, `test-cases-service`                                           |
-| `boxed-editor`          | `code-editor`, `code-editor-cell`, `documentation-service`, `test-cases-service`, `tests-manager` |
-| `flow-editor`           | `boxed-editor`, `code-editor-cell`, `documentation-service`                                       |
-| `project-session`       | `documentation-service`, `test-cases-service`                                                     |
+| Component               | Allowed component dependencies                                                                                 |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `code-editor`           | None                                                                                                           |
+| `code-editor-cell`      | `code-editor`                                                                                                  |
+| `project-explorer`      | None                                                                                                           |
+| `documentation-service` | None                                                                                                           |
+| `test-cases-service`    | None                                                                                                           |
+| `decision-table`        | `code-editor`, `code-editor-cell`                                                                              |
+| `tests-manager`         | `code-editor`, `code-editor-cell`, `test-cases-service`                                                        |
+| `boxed-editor`          | `code-editor`, `code-editor-cell`, `documentation-service`, `test-cases-service`, `tests-manager`              |
+| `flow-editor`           | `boxed-editor`, `code-editor-cell`, `documentation-service`                                                    |
+| `project-session`       | `documentation-service`, `test-cases-service`                                                                  |
+| `shell`                 | `code-editor`, `boxed-editor`, `flow-editor`, `project-session`, `documentation-service`, `test-cases-service` |
 
 `.dependency-cruiser-known-violations.json` records the existing violations. The check ignores them and fails on each
 new violation.

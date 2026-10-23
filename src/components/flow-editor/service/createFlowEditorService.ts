@@ -18,7 +18,7 @@ import {
     uniqueName,
 } from '../../boxed-editor/internal';
 import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor';
-import {formatPortableValue, isRecord, parentPath, portableAtPath, typeText} from '#lib/portableUtils';
+import {childPath, formatPortableValue, isRecord, parentPath, portableAtPath, typeText} from '#lib/portableUtils';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
 import type {InputField, InputNodeModel} from '../input-node/types';
@@ -102,7 +102,16 @@ function argumentTexts(node: Record<string, unknown>): Record<string, string> {
     return args;
 }
 
-export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorService {
+export interface FlowEditorServiceOptions {
+    // The context whose direct fields are the nodes: '*' (the default), a context path or a function path, whose
+    // body is the context. New nodes are fields of it.
+    root?: string;
+}
+
+export function createFlowEditorService(
+    engine: FlowEditorEngine,
+    {root = '*'}: FlowEditorServiceOptions = {},
+): FlowEditorService {
     const boxed = createBoxedEditorService(engine as never);
     const drafts = new Map<string, InvocationState>();
     const errors = new Map<string, {parameter: string; message: string}>();
@@ -175,14 +184,27 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         notify();
     };
 
-    const siblingNames = (field: string): Set<string> => {
-        const parent = parentPath(field);
-        const siblings =
-            parent && parent !== '*'
-                ? portableAtPath(engine.toPortable() as PortableNode, parent)
-                : engine.toPortable();
-        return new Set([...(isRecord(siblings) ? Object.keys(siblings) : []), ...drafts.keys()]);
+    // The context at `path`: the model for '*', the body of a function.
+    const contextAt = (path: string): Record<string, unknown> | undefined => {
+        const model = engine.toPortable() as PortableNode;
+        const node: unknown = path === '*' ? model : portableAtPath(model, path);
+        const context = isRecord(node) && node['@kind'] === 'function' ? node['@body'] : node;
+        return isRecord(context) ? context : undefined;
     };
+
+    // The field names next to `field`, drafts included.
+    const siblingNames = (field: string): Set<string> => {
+        const parent = parentPath(field) ?? '*';
+        const draftNames = [...drafts.keys()].filter((draft) => (parentPath(draft) ?? '*') === parent);
+        return new Set([
+            ...Object.keys(contextAt(parent) ?? {}),
+            ...draftNames.map((draft) => draft.split('.').at(-1)!),
+        ]);
+    };
+
+    // A new field of the root context, named `base`, `base2`…
+    const newRootField = (base: string): string =>
+        childPath(root, uniqueName(base, siblingNames(childPath(root, base))));
 
     const stateOf = (field: string): InvocationState | undefined => {
         const draft = drafts.get(field);
@@ -266,20 +288,14 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
     return {
         listNodes(): FlowNodeRef[] {
             const nodes: FlowNodeRef[] = [];
-            const walk = (node: unknown, path: string) => {
-                if (!isRecord(node)) return;
-                for (const [key, child] of Object.entries(node)) {
-                    if (key.startsWith('@') || !isRecord(child)) continue;
-                    const childPath = path ? `${path}.${key}` : key;
-                    if (isInvocation(child)) {
-                        if (child['@node'] === 'FunctionNode') nodes.push({field: childPath, kind: 'function'});
-                    } else if (child['@kind'] === 'context') {
-                        if (child['@node'] === 'InputNode') nodes.push({field: childPath, kind: 'input'});
-                        else walk(child, childPath);
-                    }
-                }
-            };
-            walk(engine.toPortable(), '');
+            // Direct fields only: a node of a child context belongs to the flow of that context.
+            for (const [key, child] of Object.entries(contextAt(root) ?? {})) {
+                if (key.startsWith('@') || !isRecord(child)) continue;
+                const field = childPath(root, key);
+                if (isInvocation(child) && child['@node'] === 'FunctionNode') nodes.push({field, kind: 'function'});
+                else if (child['@kind'] === 'context' && child['@node'] === 'InputNode')
+                    nodes.push({field, kind: 'input'});
+            }
             const listed = new Set(nodes.map((node) => node.field));
             for (const field of drafts.keys()) {
                 if (!listed.has(field)) nodes.push({field, kind: 'function'});
@@ -314,8 +330,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         },
 
         createDraftNode() {
-            const existing = new Set([...Object.keys(engine.toPortable()), ...drafts.keys()]);
-            const field = uniqueName('node', existing);
+            const field = newRootField('node');
             drafts.set(field, {args: {}});
             notify();
             return field;
@@ -383,19 +398,13 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
 
         renameField(field, newName) {
             if (!IDENTIFIER.test(newName)) return failure(`'${newName}' is not a valid field name`);
-            const parent = parentPath(field);
-            const siblings =
-                parent && parent !== '*'
-                    ? portableAtPath(engine.toPortable() as PortableNode, parent)
-                    : engine.toPortable();
             if (newName === field.split('.').at(-1)) return;
-            if ((isRecord(siblings) && newName in siblings) || drafts.has(newName)) {
-                return failure(`'${newName}' already exists`, 'DuplicateName');
-            }
+            if (siblingNames(field).has(newName)) return failure(`'${newName}' already exists`, 'DuplicateName');
+            const renamed = childPath(parentPath(field) ?? '*', newName);
             const draft = drafts.get(field);
             if (draft && !committedAt(field)) {
                 drafts.delete(field);
-                drafts.set(newName, draft);
+                drafts.set(renamed, draft);
             } else {
                 boxed.invalidate(field);
                 const error = boxed.rename(field, newName);
@@ -403,10 +412,10 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
                 const moved = drafts.get(field);
                 if (moved) {
                     drafts.delete(field);
-                    drafts.set(newName, moved);
+                    drafts.set(renamed, moved);
                 }
                 if (errors.has(field)) {
-                    errors.set(newName, errors.get(field)!);
+                    errors.set(renamed, errors.get(field)!);
                     errors.delete(field);
                 }
             }
@@ -414,12 +423,10 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         },
 
         duplicate(field) {
+            const base = field.split('.').at(-1)!;
+            const copy = childPath(parentPath(field) ?? '*', uniqueName(base, siblingNames(field)));
             const input = inputAt(field);
             if (input) {
-                const base = field.split('.').at(-1)!;
-                const parent = parentPath(field);
-                const name = uniqueName(base, siblingNames(field));
-                const copy = parent && parent !== '*' ? `${parent}.${name}` : name;
                 const result = setWithLinkCheck(
                     engine,
                     copy,
@@ -432,15 +439,6 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
             }
             const state = stateOf(field);
             if (!state) return failure(`node '${field}' does not exist`);
-            const parent = parentPath(field);
-            const siblings =
-                parent && parent !== '*'
-                    ? portableAtPath(engine.toPortable() as PortableNode, parent)
-                    : engine.toPortable();
-            const names = new Set([...(isRecord(siblings) ? Object.keys(siblings) : []), ...drafts.keys()]);
-            const base = field.split('.').at(-1)!;
-            const name = uniqueName(base, names);
-            const copy = parent && parent !== '*' ? `${parent}.${name}` : name;
             const error = commit(copy, {...state, args: {...state.args}});
             if (error) return error;
             notify();
@@ -594,18 +592,10 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         },
 
         listInputCandidates() {
-            const candidates: string[] = [];
-            const walk = (node: unknown, path: string) => {
-                if (!isRecord(node)) return;
-                for (const [key, child] of Object.entries(node)) {
-                    if (key.startsWith('@') || !isRecord(child) || child['@kind'] !== 'context') continue;
-                    const childPath = path ? `${path}.${key}` : key;
-                    if (child['@node'] === undefined) candidates.push(childPath);
-                    walk(child, childPath);
-                }
-            };
-            walk(engine.toPortable(), '');
-            return candidates;
+            return Object.entries(contextAt(root) ?? {})
+                .filter(([key, child]) => !key.startsWith('@') && isRecord(child) && child['@kind'] === 'context')
+                .filter(([, child]) => (child as Record<string, unknown>)['@node'] === undefined)
+                .map(([key]) => childPath(root, key));
         },
 
         addInputNode(field) {
@@ -622,7 +612,7 @@ export function createFlowEditorService(engine: FlowEditorEngine): FlowEditorSer
         },
 
         createInputNode() {
-            const field = uniqueName('input', siblingNames('input'));
+            const field = newRootField('input');
             const record = {'@kind': 'context', '@node': 'InputNode', value: 0} as unknown as PortableNode;
             const result = setWithLinkCheck(engine, field, record, undefined);
             if (isPortableError(result)) return result;

@@ -120,6 +120,16 @@
         "types": "./dist/components/project-session/index.d.cts",
         "default": "./dist/components/project-session/index.cjs"
       }
+    },
+    "./shell": {
+      "import": {
+        "types": "./dist/components/shell/index.d.ts",
+        "default": "./dist/components/shell/index.js"
+      },
+      "require": {
+        "types": "./dist/components/shell/index.d.cts",
+        "default": "./dist/components/shell/index.cjs"
+      }
     }
   },
   "imports": {

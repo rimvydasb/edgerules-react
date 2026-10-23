@@ -16,7 +16,7 @@ describe('ProjectFactory.createBundle', () => {
         expect(bundle).toEqual({
             manifest: {
                 kind: 'EdgeRulesProject',
-                formatVersion: 1,
+                formatVersion: 2,
                 projectId: expect.stringMatching(/^[0-9a-f-]{36}$/),
                 name: 'Loans',
                 description: 'Credit',
@@ -26,7 +26,7 @@ describe('ProjectFactory.createBundle', () => {
             model: LOAN_MODEL,
             documentation: {schemaVersion: 1, byPath: {}},
             tests: {schemaVersion: 1, subjects: {}},
-            flow: {schemaVersion: 1, layout: {positions: {}, outputs: []}},
+            flow: {schemaVersion: 2, layouts: {}},
         });
     });
 
@@ -49,11 +49,11 @@ describe('ProjectFactory.createBundle', () => {
             model: {dsl: LOAN_MODEL},
             documentation: {schemaVersion: 1, byPath: {decision: 'Final'}},
             tests: {schemaVersion: 1, subjects: {'*': {cases: [], rows: []}}},
-            flow: {schemaVersion: 1, layout: {positions: {decision: {x: 0, y: 0}}, outputs: []}},
+            flow: {schemaVersion: 2, layouts: {'*': {positions: {decision: {x: 0, y: 0}}, outputs: []}}},
         });
         expect(bundle.documentation.byPath).toEqual({decision: 'Final'});
         expect(bundle.tests.subjects).toEqual({'*': {cases: [], rows: []}});
-        expect(bundle.flow.layout.positions).toEqual({decision: {x: 0, y: 0}});
+        expect(bundle.flow.layouts['*'].positions).toEqual({decision: {x: 0, y: 0}});
     });
 
     it('rejects a model that does not parse or link', () => {

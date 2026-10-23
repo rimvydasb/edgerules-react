@@ -6,8 +6,13 @@ type Raw = Record<string, unknown>;
 // Upgrades a bundle of format version N (the key) to N + 1. Pure and ordered.
 export type ProjectMigrations = Record<number, (bundle: Record<string, unknown>) => Record<string, unknown>>;
 
-// Empty until format 2 exists.
-const MIGRATIONS: ProjectMigrations = {};
+const MIGRATIONS: ProjectMigrations = {
+    // Format 2 keys the flow layout by its root path; the one canvas of format 1 showed the whole model.
+    1: ({flow, ...bundle}) => ({
+        ...bundle,
+        flow: isRecord(flow) ? {schemaVersion: 2, layouts: flow.layout === undefined ? {} : {'*': flow.layout}} : flow,
+    }),
+};
 
 const SECTIONS = new Set(['inputs', 'assertions', 'validations']);
 const PROVIDERS = new Set(['indexeddb', 'github', 's3']);
@@ -126,20 +131,24 @@ function checkCanvasNodes(c: Checker, nodes: unknown, at: string): void {
     });
 }
 
-function checkFlow(c: Checker, flow: unknown): void {
-    if (!c.record(flow, 'flow')) return;
-    c.equals(flow.schemaVersion, 1, 'flow.schemaVersion');
-    const layout = flow.layout;
-    if (!c.record(layout, 'flow.layout')) return;
-    if (c.record(layout.positions, 'flow.layout.positions')) {
+function checkLayout(c: Checker, layout: unknown, at: string): void {
+    if (!c.record(layout, at)) return;
+    if (c.record(layout.positions, `${at}.positions`)) {
         for (const [id, position] of Object.entries(layout.positions)) {
-            if (!c.record(position, `flow.layout.positions.${id}`)) continue;
-            c.number(position.x, `flow.layout.positions.${id}.x`);
-            c.number(position.y, `flow.layout.positions.${id}.y`);
+            if (!c.record(position, `${at}.positions.${id}`)) continue;
+            c.number(position.x, `${at}.positions.${id}.x`);
+            c.number(position.y, `${at}.positions.${id}.y`);
         }
     }
-    checkCanvasNodes(c, layout.outputs, 'flow.layout.outputs');
-    if (layout.charts !== undefined) checkCanvasNodes(c, layout.charts, 'flow.layout.charts');
+    checkCanvasNodes(c, layout.outputs, `${at}.outputs`);
+    if (layout.charts !== undefined) checkCanvasNodes(c, layout.charts, `${at}.charts`);
+}
+
+function checkFlow(c: Checker, flow: unknown): void {
+    if (!c.record(flow, 'flow')) return;
+    c.equals(flow.schemaVersion, 2, 'flow.schemaVersion');
+    if (!c.record(flow.layouts, 'flow.layouts')) return;
+    for (const [root, layout] of Object.entries(flow.layouts)) checkLayout(c, layout, `flow.layouts.${root}`);
 }
 
 function migrate(bundle: Raw, migrations: ProjectMigrations, currentVersion: number): Raw {
