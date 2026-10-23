@@ -61,10 +61,18 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
                 <BoxedLayoutProvider rows={rows}>
                     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
                         {showHeader && rootRow.kind === 'model' && <ModelHeaderRow row={rootRow} />}
-                        {rows.map((row) => (
-                            <RowSwitch key={row.path} row={row} />
-                        ))}
-                        <NewRow row={{...rootRow, children: rows}} />
+                        {rootRow.kind === 'context' ? (
+                            // An opened context keeps its own name row (with its menu); the row renders its
+                            // children and its trailing new-item row itself.
+                            <RowSwitch row={{...rootRow, children: rows}} />
+                        ) : (
+                            <>
+                                {rows.map((row) => (
+                                    <RowSwitch key={row.path} row={row} />
+                                ))}
+                                <NewRow row={{...rootRow, children: rows}} />
+                            </>
+                        )}
                     </DndContext>
                 </BoxedLayoutProvider>
             </div>
