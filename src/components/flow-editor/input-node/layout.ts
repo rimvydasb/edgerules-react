@@ -16,9 +16,12 @@ export function computeInputNodeLayout(model: InputNodeModel): TrackLayout {
     return computeTrackLayout({
         titleWidth: titleLineWidth(model.label ?? model.field, model.field),
         summaryWidth: summaryLineWidth('input', measureText(recordSummary(model), FONTS.ret) + 28),
-        // The row kebab sits at the end of the name cell.
-        inputNameWidths: model.fields.map((item) => measureText(item.name, FONTS.name) + 28),
-        outputNameWidths: model.fields.map((item) => measureText(item.value ?? RECORD_VALUE, FONTS.value)),
+        // The row kebab sits at the end of the name cell, and a declaration kind icon at its start.
+        inputNameWidths: model.fields.map((item) => measureText(item.name, FONTS.name) + (item.declaration ? 48 : 28)),
+        // A declaration has no value to show.
+        outputNameWidths: model.fields.map((item) =>
+            item.declaration ? 0 : measureText(item.value ?? RECORD_VALUE, FONTS.value),
+        ),
     });
 }
 

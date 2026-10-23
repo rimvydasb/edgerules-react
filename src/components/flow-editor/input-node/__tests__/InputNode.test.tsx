@@ -29,6 +29,17 @@ describe('InputNode', () => {
         expect(screen.getByRole('button', {name: 'Value of segment'})).toHaveTextContent("'retail'");
     });
 
+    it('shows a declaration with a kind icon, no value and no output pin', () => {
+        renderInput({
+            model: '{\n  applicant: {\n    age: 23\n    func double(x: number): x * 2\n  }\n}',
+        });
+        expect(screen.getByRole('img', {name: 'Function'})).toBeInTheDocument();
+        expect(document.querySelector('[data-handleid="out:double"]')).toBeNull();
+        expect(document.querySelector('[data-handleid="out:age"]')).not.toBeNull();
+        expect(screen.queryByRole('button', {name: 'Value of double'})).toBeNull();
+        expect(screen.queryByText('{ … }')).toBeNull();
+    });
+
     describe('value cell', () => {
         // Replaces the editor text as a user would, then commits with Enter.
         const typeValue = async (name: string, text: string) => {

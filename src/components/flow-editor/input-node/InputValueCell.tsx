@@ -7,6 +7,7 @@ import styles from './inputNode.module.css';
 export interface InputValueCellProps {
     name: string; // field name, for the accessible labels
     value?: string; // expression text; undefined for a nested record
+    declaration?: boolean; // a function, ruleset, optimisation or type declaration: the cell stays blank
     editing: boolean;
     languageService?: CodeEditorService; // without it the value is read-only
     readOnly: boolean;
@@ -25,6 +26,7 @@ export interface InputValueCellProps {
 export function InputValueCell({
     name,
     value,
+    declaration,
     editing,
     languageService,
     readOnly,
@@ -37,6 +39,8 @@ export function InputValueCell({
     // Built once per edit: the model does not change while the editor is open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const context = useMemo(() => (editing ? embedContext() : undefined), [editing]);
+
+    if (declaration) return <div className={styles.value} />;
 
     if (value === undefined) {
         return (

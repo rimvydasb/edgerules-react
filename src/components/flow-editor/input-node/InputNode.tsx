@@ -18,6 +18,7 @@ import {
     useSyncPins,
 } from '../core-node';
 import {inputFieldMenuFooter, inputFieldMenuItems, inputNodeMenuItems} from './inputNodeMenus';
+import {DeclarationIcon} from './DeclarationIcon';
 import {InputValueCell} from './InputValueCell';
 import {recordSummary, useInputNodeLayout} from './layout';
 import type {InputField, InputNodeRowEditing, InputNodeType} from './types';
@@ -33,7 +34,7 @@ export function InputNode({id, data, selected}: NodeProps<InputNodeType>): React
         useCoreNode<InputNodeRowEditing>(data.field);
     const model = useServiceRead(service, data.field, () => service.getInputNode(data.field));
     const layout = useInputNodeLayout(model);
-    useSyncPins(id, `${layout.width}|${model.fields.map((item) => item.name).join(',')}`);
+    useSyncPins(id, `${layout.width}|${model.fields.map((item) => (item.declaration ? '' : item.name)).join(',')}`);
     const [valueError, setValueError] = useState<{name: string; message: string} | undefined>();
     const {field} = model;
     const stopEditing = () => setEditing(null);
@@ -50,6 +51,7 @@ export function InputNode({id, data, selected}: NodeProps<InputNodeType>): React
     const renderField = (item: InputField) => (
         <Track width={layout.inputTrack}>
             <TrackName side="in">
+                {item.declaration && <DeclarationIcon kind={item.declaration} />}
                 <EditableName
                     name={item.name}
                     editing={editing?.kind === 'input-field' && editing.name === item.name}
@@ -86,6 +88,7 @@ export function InputNode({id, data, selected}: NodeProps<InputNodeType>): React
             <InputValueCell
                 name={item.name}
                 value={item.value}
+                declaration={item.declaration !== undefined}
                 editing={editing?.kind === 'input-value' && editing.name === item.name}
                 languageService={languageService}
                 readOnly={readOnly}
@@ -95,7 +98,14 @@ export function InputNode({id, data, selected}: NodeProps<InputNodeType>): React
                 onClose={stopEditing}
                 onErrorChange={(message) => setValueError(message ? {name: item.name, message} : undefined)}
             />
-            <Pin id={`out:${item.name}`} side="out" type={item.type} title={`${field}.${item.name} : ${item.type}`} />
+            {!item.declaration && (
+                <Pin
+                    id={`out:${item.name}`}
+                    side="out"
+                    type={item.type}
+                    title={`${field}.${item.name} : ${item.type}`}
+                />
+            )}
         </Track>
     );
 

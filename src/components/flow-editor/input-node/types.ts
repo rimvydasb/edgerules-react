@@ -13,10 +13,14 @@ export type InputNodeData = CoreNodeData;
 
 export type InputNodeType = Node<InputNodeData, 'inputNode'>;
 
+/** A declaration inside the record: it defines something callable or a type, so it has no value and no output pin. */
+export type InputDeclarationKind = 'function' | 'ruleset' | 'optimisation' | 'type';
+
 export interface InputField {
     name: string;
     type: string; // 'number', 'string[]', 'object' for a nested record
     value?: string; // expression text, for example '23' or "'retail'"; undefined for a nested record
+    declaration?: InputDeclarationKind; // set for a function, ruleset, optimisation or type declaration
     used: boolean; // an expression elsewhere in the model reads it; Delete field is disabled
 }
 

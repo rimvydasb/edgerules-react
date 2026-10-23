@@ -21,7 +21,7 @@ import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor';
 import {childPath, formatPortableValue, isRecord, parentPath, portableAtPath, typeText} from '#lib/portableUtils';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
-import type {InputField, InputNodeModel} from '../input-node/types';
+import type {InputDeclarationKind, InputField, InputNodeModel} from '../input-node/types';
 
 type GetFilter = 'FIELDS' | 'ALL' | 'EXTERNAL_DEFINITIONS';
 
@@ -614,6 +614,7 @@ export function createFlowEditorService(
                           name,
                           type: typeText(type) ?? 'object',
                           value: valueText(input[name]),
+                          declaration: declarationKind(input[name]),
                           used: isRead(field, name),
                       }))
                 : [];
@@ -752,8 +753,21 @@ export function createFlowEditorService(
     };
 }
 
+const DECLARATION_KINDS: Record<string, InputDeclarationKind> = {
+    function: 'function',
+    ruleset: 'ruleset',
+    optimise: 'optimisation',
+    'type-definition': 'type',
+};
+
+// The declaration kind of a record field value; undefined for an ordinary value or nested record.
+function declarationKind(value: unknown): InputDeclarationKind | undefined {
+    return isRecord(value) && typeof value['@kind'] === 'string' ? DECLARATION_KINDS[value['@kind']] : undefined;
+}
+
 // The expression text of a record field value; undefined for a nested record, which has no single expression.
 function valueText(value: unknown): string | undefined {
+    if (declarationKind(value)) return undefined;
     return isRecord(value) && value['@kind'] === 'context' ? undefined : formatPortableValue(value);
 }
 
