@@ -1,10 +1,11 @@
 import {IconListCheck, IconMathFunction} from '@tabler/icons-react';
 import type {ReactElement} from 'react';
+import {KIND_COLORS} from '#ui/kindColors';
 import type {CalleeKind, KindIconProps} from './types';
 
 export const KIND_COLOR: Record<CalleeKind, string> = {
-    function: '#1976d2',
-    ruleset: '#6a1b9a',
+    function: KIND_COLORS.function,
+    ruleset: KIND_COLORS.ruleset,
 };
 
 /** The Boxed Editor icon of a callee kind on its kind color. */

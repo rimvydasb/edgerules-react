@@ -1,5 +1,6 @@
 import {IconBraces, IconChevronRight, IconMathFunction, IconSitemap} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
+import {KIND_COLORS} from '#ui/kindColors';
 import type {ShellPathSegment} from './shell-path';
 import * as classes from './shell.module.css';
 
@@ -8,19 +9,19 @@ export interface ShellBreadcrumbsProps {
     onNavigate: (path: string) => void;
 }
 
-// The icon square of the root path kind, in the colors of the Boxed Editor header rows (`ModelHeaderRow`,
-// `FunctionRow`). A context row of the Boxed Editor has no colored icon, so a context gets a muted one.
+// The icon square of the root path kind, in the shared kind colors of the Boxed Editor header rows. A context row of
+// the Boxed Editor has no colored icon, so a context gets a muted one.
 function KindIcon({kind}: {kind: 'model' | ShellPathSegment['kind']}): ReactElement {
     if (kind === 'model') {
         return (
-            <div aria-hidden="true" className={classes.kindIcon} style={{backgroundColor: '#17191c'}}>
+            <div aria-hidden="true" className={classes.kindIcon} style={{backgroundColor: KIND_COLORS.model}}>
                 <IconSitemap size={20} color="#fff" />
             </div>
         );
     }
     if (kind === 'function') {
         return (
-            <div aria-hidden="true" className={classes.kindIcon} style={{backgroundColor: '#1976d2'}}>
+            <div aria-hidden="true" className={classes.kindIcon} style={{backgroundColor: KIND_COLORS.function}}>
                 <IconMathFunction size={19} color="#fff" />
             </div>
         );

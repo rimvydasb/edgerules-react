@@ -1,5 +1,6 @@
 import {IconMathFunction} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
+import {KIND_COLORS} from '#ui/kindColors';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
 import {moveArgument, renameArgument, retypeArgument} from '../commands/rowFactories';
 import {useRowCommands} from '../commands/useRowCommands';
@@ -41,7 +42,7 @@ export function FunctionRow({row}: FunctionRowProps): ReactElement {
                 strong
                 iconActsAsDragHandle
                 icon={<IconMathFunction size={19} color="#fff" />}
-                iconBgColor="#1976d2"
+                iconBgColor={KIND_COLORS.function}
                 value={
                     <ArgumentHeaders
                         rowPath={row.path}

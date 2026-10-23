@@ -13,6 +13,7 @@ import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import {useRowActions} from '../hooks/useRowActions';
 import {cx} from '#ui/cx';
+import {KIND_COLORS} from '#ui/kindColors';
 import * as classes from '../boxedEditor.module.css';
 import {rulesetTracks, SubGrid, SubGridStack, sum, Track, type RulesetTracks} from '../primitives';
 import {EditableColumnHeader} from '../primitives/EditableColumnHeader';
@@ -136,7 +137,7 @@ export function RulesetRow({row}: RulesetRowProps): ReactElement {
                 strong
                 iconActsAsDragHandle
                 icon={<IconListCheck size={19} color="#fff" />}
-                iconBgColor="#6a1b9a"
+                iconBgColor={KIND_COLORS.ruleset}
                 value={<RulesetColumnHeaders row={row} tracks={tracks} />}
                 valueIsSubGrid
                 actions={menuActions}

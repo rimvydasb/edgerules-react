@@ -136,6 +136,7 @@
     "#lib/*": "./src/lib/*.ts",
     "#ui/cx": "./src/ui/cx.ts",
     "#ui/grid": "./src/ui/grid/index.ts",
+    "#ui/kindColors": "./src/ui/kindColors.ts",
     "#ui/ErrorPopover": "./src/ui/ErrorPopover.tsx",
     "#ui/RowActionsMenu": "./src/ui/RowActionsMenu.tsx",
     "#ui/Toast": "./src/ui/Toast.tsx"

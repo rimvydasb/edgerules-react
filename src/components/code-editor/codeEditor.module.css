@@ -1,10 +1,21 @@
 .root {
+  /* A sharp 1px frame in the border color of the other components (Boxed Editor, Flow Editor). */
   border: 1px solid var(--mantine-color-default-border);
-  border-radius: var(--mantine-radius-sm);
   overflow: hidden;
+  /* A height set on the root (`className`, `style`) goes to the editor, which then scrolls inside it. */
+  display: flex;
+  flex-direction: column;
+}
+
+.host {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
 }
 
 .root :global(.cm-editor) {
+  flex: 1 1 auto;
   min-height: 180px;
   font-family: var(--mantine-font-family-monospace);
   font-size: 0.9rem;

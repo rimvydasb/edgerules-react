@@ -112,7 +112,7 @@ export function CodeEditor({
 
     return (
         <div className={cx(classes.root, className)} style={style}>
-            <div ref={hostRef} />
+            <div ref={hostRef} className={classes.host} />
         </div>
     );
 }

@@ -1,5 +1,6 @@
 import {IconSitemap} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
+import {KIND_COLORS} from '#ui/kindColors';
 import type {BoxedRowData} from '../boxed-editor-types';
 import {useRowActions} from '../hooks/useRowActions';
 import {GenericRow} from './GenericRow';
@@ -23,7 +24,7 @@ export function ModelHeaderRow({row}: ModelHeaderRowProps): ReactElement {
                 strong
                 showDragHandle={false}
                 icon={<IconSitemap size={20} color="#fff" />}
-                iconBgColor="#17191c"
+                iconBgColor={KIND_COLORS.model}
                 actions={actions}
             />
             <ModelSettingsDialog row={row} />

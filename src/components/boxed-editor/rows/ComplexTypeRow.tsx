@@ -1,5 +1,6 @@
 import {IconBox} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
+import {KIND_COLORS} from '#ui/kindColors';
 import type {BoxedRowData} from '../boxed-editor-types';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {useRowActions} from '../hooks/useRowActions';
@@ -27,7 +28,7 @@ export function ComplexTypeRow({row}: ComplexTypeRowProps): ReactElement {
                 strong
                 iconActsAsDragHandle
                 icon={<IconBox size={19} color="#fff" />}
-                iconBgColor="#ed6c02"
+                iconBgColor={KIND_COLORS.complexType}
                 actions={actions}
             />
             {expanded && (

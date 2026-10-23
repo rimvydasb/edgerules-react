@@ -1,6 +1,7 @@
 /*
  * The Shell: a one-step header row on the same ruled sheet as the Boxed Editor (40px step, 1px border lines,
- * muted header fill), and the active editor filling the body below it.
+ * muted header fill), and the active editor filling the body below it. The body has no gap to the header: it moves
+ * up by one pixel, so the top frame line of the editor lies on the bottom line of the header — one line, not two.
  */
 .root {
   --sh-border: var(--mantine-color-default-border);
@@ -9,7 +10,6 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  gap: var(--mantine-spacing-xs);
 }
 
 .root *,
@@ -124,9 +124,11 @@
 .body {
   flex: 1;
   min-height: 0;
+  margin-top: -1px;
   overflow: auto;
 }
 
 .status {
   flex: none;
+  margin-top: var(--mantine-spacing-xs);
 }

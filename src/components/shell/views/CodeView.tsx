@@ -83,5 +83,13 @@ export function CodeView({
         timer.current = setTimeout(() => commit.current(), COMMIT_DELAY_MS);
     };
 
-    return <CodeEditor value={text} onChange={onChange} service={languageService} readOnly={readOnly} />;
+    return (
+        <CodeEditor
+            value={text}
+            onChange={onChange}
+            service={languageService}
+            readOnly={readOnly}
+            style={{height: '100%'}} // fills the Shell body
+        />
+    );
 }

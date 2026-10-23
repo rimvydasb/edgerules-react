@@ -1,5 +1,6 @@
 import {IconChartLine} from '@tabler/icons-react';
 import type {ReactElement} from 'react';
+import {KIND_COLORS} from '#ui/kindColors';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
 import {moveArgument, renameArgument, retypeArgument} from '../commands/rowFactories';
 import {useRowCommands} from '../commands/useRowCommands';
@@ -40,7 +41,7 @@ export function OptimisationRow({row}: OptimisationRowProps): ReactElement {
                 strong
                 iconActsAsDragHandle
                 icon={<IconChartLine size={19} color="#fff" />}
-                iconBgColor="#1e88e5"
+                iconBgColor={KIND_COLORS.optimisation}
                 value={
                     <ArgumentHeaders
                         rowPath={row.path}
