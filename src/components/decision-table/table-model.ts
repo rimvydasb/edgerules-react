@@ -466,7 +466,7 @@ export function withInputColumnRemoved(definition: PortableRulesetDefinition, na
  * references it. This is a **fallback** for services without `rename` support — prefer
  * `service.rename('<path>.parameters.<name>', '<path>.parameters.<newName>')`, which the engine
  * now relinks fully (cell-map `when`, boolean-expression `when`, and named-argument call sites
- * anywhere in the model; see docs/BUG_REPORTS.md history). This client-side rewrite only covers
+ * anywhere in the model; see docs/engine-bug-reports.md history). This client-side rewrite only covers
  * `@parameters` and cell-map `when` rows: boolean-expression `when` rows and any external
  * named-argument call site that still references the old name are **not** rewritten and must be
  * fixed manually (the engine will report an unresolved-reference/link error on the next write

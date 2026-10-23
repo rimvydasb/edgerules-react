@@ -5,7 +5,7 @@ their last computed results are persisted through `TestCasesService`; execution 
 model's `MutableDecisionService`.
 
 The three concerns are deliberately separate, mirroring how `DocumentationService` is separated from its consumers (see
-[`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md)):
+[`documentation-service-story.md`](documentation-service-story.md)):
 
 - `TestCasesService` — persistence only. It knows nothing about the engine and nothing about any component that reads
   it; its whole vocabulary is test cases, rows, values, and results.
@@ -14,7 +14,7 @@ The three concerns are deliberately separate, mirroring how `DocumentationServic
 - `TestsManager` — the React grid.
 
 Because persistence is engine-free, any component can display results without running anything.
-[`BOXED_EDITOR_STORY.md`](../BOXED_EDITOR_STORY.md#testcasesservice-api)'s `TestResultsColumn` is the designed consumer
+[`boxed-editor-story.md`](../boxed-editor-story.md#testcasesservice-api)'s `TestResultsColumn` is the designed consumer
 of that split. The dependency runs one way only: consumers import from `edgerules-react/test-cases-service`, never the
 reverse.
 
@@ -544,7 +544,7 @@ keeps `TestCase` atomic: a case and its values can never be half-persisted. `ren
 model with the same prefix-bound cursor technique.
 
 Compound array keys avoid inventing (and escaping) a delimiter that cannot appear in an EdgeRules path — the same
-reasoning as [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md)'s Resolved Decision #5.
+reasoning as [`documentation-service-story.md`](documentation-service-story.md)'s Resolved Decision #5.
 
 ### Cell values
 
@@ -578,9 +578,9 @@ dumped as JSON, since a cell has no room for one.
 Binding rules:
 
 - Only `Inputs` rows the model still declares are bound. Sending a value for a computed path does not override it — the
-  engine ignores it while echoing it back into the result, which is recorded in [`BUG_REPORTS.md`](BUG_REPORTS.md).
-  Restricting the payload to writable paths is what keeps `Validations` cells showing computed values rather than the
-  user's own input.
+  engine ignores it while echoing it back into the result, which is recorded in
+  [`engine-bug-reports.md`](../engine-bug-reports.md). Restricting the payload to writable paths is what keeps
+  `Validations` cells showing computed values rather than the user's own input.
 - Dotted subject-relative paths are expanded into a **nested** input object (`credit.balance` →
   `{credit: {balance: …}}`). A dotted key passed literally binds nothing. An indexed segment nests through an array
   instead (`applicant[0].name` → `{applicant: [{name: …}]}`). Shallower paths bind first, so a list typed wholesale into
@@ -800,13 +800,13 @@ not ship). The engine is never mocked, per [`CLAUDE.md`](../CLAUDE.md).
   it.
 - **`fake-indexeddb`** is a spec-compliant in-memory implementation of the browser API, imported locally in the files
   that need it rather than globally in `vitest.setup.ts`, so the no-`indexedDB` fallback test can still observe a
-  genuinely absent global. Same arrangement as [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md)'s
+  genuinely absent global. Same arrangement as [`documentation-service-story.md`](documentation-service-story.md)'s
   Testing Strategy.
 - **The solver stub** returns a fixed `LpOutcome` for a known small problem. It substitutes a component EdgeRules
   deliberately does not ship (the host wires one — see [Optimise Testing](#optimise-testing)); the engine still verifies
   the returned solution itself, so the stub cannot fake a passing test. `highs` is not a dependency of this repo.
-- If a run exposes a WASM/DSL gap, append a reproducible entry to [`BUG_REPORTS.md`](BUG_REPORTS.md) rather than
-  compensating in React.
+- If a run exposes a WASM/DSL gap, append a reproducible entry to [`engine-bug-reports.md`](../engine-bug-reports.md)
+  rather than compensating in React.
 - **Anything about painting or stacking is an e2e test**, not an RTL one: jsdom has no layout, so a popup being covered
   by the rows below it is invisible to it. `e2e/tests-manager.spec.ts` drives the real Storybook build in Chromium and
   hit-tests the open completion popup — see [`TEST_MANAGER_BUGS.md`](TEST_MANAGER_BUGS.md).
@@ -839,7 +839,7 @@ Stories live in `stories/tests-manager/TestsManager.stories.tsx`, each building 
 | 4   | Results are persisted, not recomputed on read                      | Results live in IndexedDB so a component can display them without an engine dependency. `ranAt` and `modelRevision` sit on the `TestResultSet` — properties of the run, not of each value — and let any consumer detect a set produced against a since-edited model.                                                                     |
 | 5   | Subject-relative paths in storage                                  | Rows and results store paths relative to the subject; `qualifyPath` derives the model-level form. Keeps a callable's `approved` from colliding with a root field of the same name.                                                                                                                                                       |
 | 6   | Type-directed cell parsing                                         | Cells store raw text parsed via the row's declared type, rather than requiring the user to type JSON. The engine coerces some mistyped input silently (a `"5"` string still arithmetics as `5`) but echoes the original string back in the result, which would make assertions confusing.                                                |
-| 7   | Only writable paths are bound                                      | Inputs are restricted to typed holes and callable parameters. Overriding a computed field is not supported by the engine and is silently ignored — see [Future Improvements](#future-improvements) and the entry in [`BUG_REPORTS.md`](BUG_REPORTS.md).                                                                                  |
+| 7   | Only writable paths are bound                                      | Inputs are restricted to typed holes and callable parameters. Overriding a computed field is not supported by the engine and is silently ignored — see [Future Improvements](#future-improvements) and the entry in [`engine-bug-reports.md`](../engine-bug-reports.md).                                                                 |
 | 8   | Rulesets and optimisations are subjects too                        | All callable metaphors execute identically (`execute(name, args)`), so all are subjects. Excluding `ruleset` would leave decision tables untestable, and excluding `optimise` would leave it with no test surface at all, since it has no standalone editor either.                                                                      |
 | 9   | `TestResult.value` is `unknown`, not `string`                      | `execute` returns real JS values — numbers, booleans, arrays, nested objects — and only dates, durations, and special values arrive as strings. Typing `value` as `string` would force every producer to stringify and every consumer to parse back.                                                                                     |
 | 10  | Run results are a second row source                                | A `@kind: 'invocation'` field is opaque in every `get` view, so a schema-only derivation would leave every call site as one unusable row. Reconciling the flattened run result through the same `syncRows` path covers that generically, instead of special-casing invocations.                                                          |
@@ -877,9 +877,9 @@ Stories live in `stories/tests-manager/TestsManager.stories.tsx`, each building 
   row can only exist for a writable path. Once the engine can honour a value supplied for any path, the `Inputs` section
   can widen to arbitrary computed paths and a test case becomes able to pin an intermediate derivation directly. Blocked
   on the engine — the current behavior (silently ignoring and echoing such input) is filed in
-  [`BUG_REPORTS.md`](BUG_REPORTS.md).
+  [`engine-bug-reports.md`](../engine-bug-reports.md).
 - **Purging orphaned test data.** Rows for paths the model no longer declares are flagged, never deleted. A purge
   belongs with the future project-saving story.
 - **`BoxedEditor`'s `TestResultsColumn`.** The engine-free split exists precisely so a Boxed Editor column can display a
   case's results without running anything; that column is specified in
-  [`BOXED_EDITOR_STORY.md`](../BOXED_EDITOR_STORY.md#testcasesservice-api) but not yet built.
+  [`boxed-editor-story.md`](../boxed-editor-story.md#testcasesservice-api) but not yet built.

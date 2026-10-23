@@ -96,7 +96,7 @@ describe('createTestRunner — binding', () => {
         testCasesService.dispose();
     });
 
-    // Known engine gap (`docs/BUG_REPORTS.md`, "A nested-object `execute()` input silently drops
+    // Known engine gap (`docs/engine-bug-reports.md`, "A nested-object `execute()` input silently drops
     // every sibling field of that context not present in the given object"): `buildExecuteInput`
     // binds a nested field the only way `API_SPEC.md` documents — a model-shaped nested object
     // (`{credit: {balance: 1000, limit: 2000}}`) — the engine now always returns a nested context in

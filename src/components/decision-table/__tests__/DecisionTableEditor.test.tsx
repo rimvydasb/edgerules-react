@@ -185,7 +185,7 @@ describe('DecisionTableEditor editing', () => {
         await waitFor(() => {
             expect(screen.getByRole('alert')).toBeDefined();
         });
-        // The failed edit must not poison the model (docs/BUG_REPORTS.md #2).
+        // The failed edit must not poison the model (docs/engine-bug-reports.md #2).
         await expect(service.execute('decision')).resolves.toEqual({
             level: 'high',
             limit: 1000,

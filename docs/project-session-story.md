@@ -5,7 +5,7 @@ hidden IndexedDB stores by `modelName`. Nothing loads a project, holds the engin
 services together. This story adds that layer, starting with a device-local IndexedDB project source.
 
 It implements the first slices of `docs/architecture.md` ("Project state architecture") and
-`docs/GLOBAL_PROJECT_MANAGEMENT.md` §5 and §15. It does not replace them; where this story is more specific, the
+`docs/global-project-management.md` §5 and §15. It does not replace them; where this story is more specific, the
 architecture documents are updated (see [Reconciliation](#reconciliation-with-the-architecture-docs)).
 
 ## Decisions

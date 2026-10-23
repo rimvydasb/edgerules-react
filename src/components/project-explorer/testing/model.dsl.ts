@@ -1,5 +1,5 @@
 /**
- * The exact example model from docs/PROJECT_EXPLORER_STORY.md's "Implementation Details" section
+ * The exact example model from docs/stories/completed/project-explorer-story.md's "Implementation Details" section
  * (ruleset syntax adjusted to the confirmed-working form from edgerules-v2's own
  * tests/wasm/rulesets.test.ts — decision tables are now first-class `ruleset` declarations, not
  * the deprecated `firstMatch(...)` call form). Shared by ProjectExplorer.test.tsx (via

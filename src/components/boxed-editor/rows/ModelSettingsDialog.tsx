@@ -13,7 +13,7 @@ export interface ModelSettingsDialogProps {
 /**
  * `Model Settings` — the model-level name/version form opened from the `model` row's menu.
  * Commits through the same `setBoxedRowData('*', …)` every other whole-row edit uses; see
- * `docs/BUG_REPORTS.md` ("Root metadata … is silently dropped by `set('*', …)`") for why neither
+ * `docs/engine-bug-reports.md` ("Root metadata … is silently dropped by `set('*', …)`") for why neither
  * field persists past the next reload yet — the form itself is fully wired for when it does.
  */
 export function ModelSettingsDialog({row}: ModelSettingsDialogProps): ReactElement {

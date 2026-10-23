@@ -15,8 +15,8 @@ UI story only**: rows, cells, primitives, menus, drag-and-drop, and the descript
 | GUI wireframe (authoritative) | `/Users/rimvydasbingelis/Projects/EdgeRules/edgerules-react-frames/src` — `App.tsx` (composition/occupancy), `boxed/actions.ts` (row kinds + menus), `boxed/*.tsx` (per-construct rendering), `hooks/useAltHeld.ts` (type reveal) |
 | Reference screenshot          | ![reference.png](screenshots/reference.png)                                                                                                                                                                                       |
 | Actions with icons            | `edgerules-react-frames/src/boxed/actions.ts`                                                                                                                                                                                     |
-| Test data contract            | [`specs/TESTS_MANAGER_SPEC.md`](specs/TESTS_MANAGER_SPEC.md) — owns `TestCasesService`, `TestRunner`, `TestCase`, `TestResultSet`                                                                                                 |
-| Descriptions overlay          | [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md)                                                                                                                                                                |
+| Test data contract            | [`specs/tests-manager-spec.md`](specs/tests-manager-spec.md) — owns `TestCasesService`, `TestRunner`, `TestCase`, `TestResultSet`                                                                                                 |
+| Descriptions overlay          | [`documentation-service-story.md`](documentation-service-story.md)                                                                                                                                                                |
 | Engine CRUD / DSL             | `../edgerules/doc/architecture/CRUD_SPEC.md`, `.../dsl/RULESET_METAPHOR_SPEC.md`, `.../dsl/OPTIMISATION_METAPHOR_SPEC.md`, `../edgerules/doc/reference/RULESETS_REFERENCE.md`, `.../OPTIMISE_REFERENCE.md`                        |
 
 ## Implementation Status
@@ -27,7 +27,7 @@ UI story only**: rows, cells, primitives, menus, drag-and-drop, and the descript
 | `BoxedRowData` / `BoxedTableRowData` / `SignatureParameter`   | `boxed-editor/boxed-editor-types.ts`    | ✅ **Done**                                                                                                                    |
 | `TestCasesService`, `useTestCases`, `useTestResult`           | `src/components/test-cases-service/`    | ✅ **Done**                                                                                                                    |
 | `TestRunner` (`createTestRunner`), `TestsManager`             | `src/components/tests-manager/`         | ✅ **Done** — `createTestRunner` / `qualifyPath` need exporting (Task 0)                                                       |
-| `DocumentationService`, `useDescription`                      | `src/components/documentation-service/` | ✅ **Done** — see [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md); consumed here through its interface only |
+| `DocumentationService`, `useDescription`                      | `src/components/documentation-service/` | ✅ **Done** — see [`documentation-service-story.md`](documentation-service-story.md); consumed here through its interface only |
 | **`BoxedEditor` React UI** (rows, cells, menus, DnD, columns) | `src/components/boxed-editor/`          | ⬜ **This story**                                                                                                              |
 
 **Do not re-implement anything marked ✅.** The service is the model's only surface; the UI is a pure renderer plus a
@@ -530,8 +530,8 @@ its result summary. Loops have no `BoxedRowKind` — loop text is opaque express
 
 Portable metadata (`@kind`, `@description`, `@node`, `@node-name`, `@model-name`, `@model-version`) is never rendered as
 a child row. The `model` row presents applicable model metadata. `set` only preserves annotation keys present in the
-same write (a confirmed engine behavior, see [`BUG_REPORTS.md`](BUG_REPORTS.md)) — which is why descriptions live in an
-IndexedDB overlay, not in `@description` (Resolved Decision #10).
+same write (a confirmed engine behavior, see [`engine-bug-reports.md`](engine-bug-reports.md)) — which is why
+descriptions live in an IndexedDB overlay, not in `@description` (Resolved Decision #10).
 
 ### Cell value mapping
 
@@ -585,7 +585,7 @@ Both overlays are **owned elsewhere**; `BoxedEditor` only consumes them and decl
 
 ### `DocumentationService` API
 
-Defined and implemented by [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md) (package
+Defined and implemented by [`documentation-service-story.md`](documentation-service-story.md) (package
 `edgerules-react/documentation-service`), together with `DocumentationServiceOptions`, `Unsubscribe`, and
 `useDescription`. From `BoxedEditor`'s point of view it is a path-keyed free-text overlay: `DescriptionColumn` reads and
 writes it, and the command layer calls `renamePath` after a successful rename/move. The methods used:
@@ -601,7 +601,7 @@ When no `documentationService` is provided the `DescriptionColumn` renders empty
 
 ### `TestCasesService` API
 
-Defined and implemented by [`specs/TESTS_MANAGER_SPEC.md`](specs/TESTS_MANAGER_SPEC.md) (package
+Defined and implemented by [`specs/tests-manager-spec.md`](specs/tests-manager-spec.md) (package
 `edgerules-react/test-cases-service`), together with `TestCase`, `TestResultSet`, `TestResult`, `useTestCases`, and
 `useTestResult`. From `BoxedEditor`'s point of view it is a **read-only reader plus a run target**: `TestRunner` writes
 results, `BoxedEditor` reads them and asks for a re-run — it never imports the engine or `TestsManager`.
@@ -618,7 +618,7 @@ Decision #17.
 
 ## Live test results
 
-`TESTS_MANAGER_SPEC.md` is implemented, so `BoxedEditor` gets **live** results rather than whatever a host happened to
+`tests-manager-spec.md` is implemented, so `BoxedEditor` gets **live** results rather than whatever a host happened to
 have run: after every committed model change the selected test case is re-run immediately, and paging through cases runs
 whichever case the user lands on if its results are missing or stale.
 
@@ -794,8 +794,8 @@ EdgeRules does not ship.
 | `test-results.test.tsx`      | auto-run after commit (debounced/coalesced), previous/next re-run only when absent or stale, pending and stale rendering, run-level error, subject-relative `qualifyPath` lookup, formatting table |
 | existing service `__tests__` | unchanged — normalization, mutation, move                                                                                                                                                          |
 
-If a mutation or normalization exposes a WASM/DSL bug, append a reproducible entry to [`BUG_REPORTS.md`](BUG_REPORTS.md)
-rather than compensating in React.
+If a mutation or normalization exposes a WASM/DSL bug, append a reproducible entry to
+[`engine-bug-reports.md`](engine-bug-reports.md) rather than compensating in React.
 
 ### Storybook stories
 
@@ -810,8 +810,8 @@ rather than compensating in React.
 
 - `BoxedEditorService`, `normalize`/`denormalize`, `rowCache` — **already implemented**; touch only if a UI need exposes
   a real gap, and record the change here.
-- `DocumentationService`'s own implementation — [`DOCUMENTATION_SERVICE_STORY.md`](DOCUMENTATION_SERVICE_STORY.md).
-- `TestCasesService`, `TestRunner`, `TestsManager` — [`specs/TESTS_MANAGER_SPEC.md`](specs/TESTS_MANAGER_SPEC.md).
+- `DocumentationService`'s own implementation — [`documentation-service-story.md`](documentation-service-story.md).
+- `TestCasesService`, `TestRunner`, `TestsManager` — [`specs/tests-manager-spec.md`](specs/tests-manager-spec.md).
 - Flow Editor, Types Editor, Loop Editor — reached only via `onOpenNode`.
 - Paging / virtualization for large bodies (Resolved Decision #11 → [Follow-up Stories](#follow-up-stories)).
 - Repo-wide `ARCHITECTURE.md` (none exists in this checkout).
@@ -840,9 +840,9 @@ rather than compensating in React.
 | 14  | Expand/Collapse                                                  | A context-menu toggle (MUI expand/collapse icon) on `function`, `context`, `complexType`, `ruleset`, `optimisation`.                                                                                                                                                                                                                                                                                                                                                                    |
 | 15  | `View as code`                                                   | A per-knowledge-element context-menu action on `model`, `function`, `ruleset`, `optimisation`, emitting `onOpenNode({kind: 'code-editor'})`. Where the code text comes from is the host's concern. (Architect decision, replacing Open Question "Where does View as code live?".)                                                                                                                                                                                                       |
 | 16  | `@node` / `@node-name` annotations                               | Ignored by `BoxedEditorService` — neither read nor written. A future Flow Editor gets its own normalized view over the same `MutableDecisionService`; `BoxedEditor` builds no UI on annotations. (Was the service story's Open Question #1.)                                                                                                                                                                                                                                            |
-| 17  | `qualifyPath` ownership                                          | Moves into `edgerules-react/test-cases-service` (which owns subject-relative paths) and is re-exported from `tests-manager`. Resolves `specs/TESTS_MANAGER_SPEC.md` Open Question #1, needed now that `TestResultsColumn` is being built.                                                                                                                                                                                                                                               |
+| 17  | `qualifyPath` ownership                                          | Moves into `edgerules-react/test-cases-service` (which owns subject-relative paths) and is re-exported from `tests-manager`. Resolves `specs/tests-manager-spec.md` Open Question #1, needed now that `TestResultsColumn` is being built.                                                                                                                                                                                                                                               |
 | 18  | Non-deduplicating facade factory                                 | `createBoxedEditorService(mutable)` returns a fresh facade per call — no identity-keyed memoization. A host wanting two editors to share one cache/subscribe bus constructs the facade once and passes it down; a second GUI editing the same engine calls `invalidate()`. Revisit when the Flow Editor exists. (Was the service story's Open Question #2.)                                                                                                                             |
-| 19  | Who triggers test execution                                      | `BoxedEditor` triggers runs but never executes: the **host** constructs `TestRunner` and passes it in, and `BoxedEditor` calls `run(testCaseId)` per the [Triggers](#triggers) table. This keeps the component free of any engine dependency while still showing live results, and reuses `TestRunner`'s generation guard for overlapping runs. (Supersedes the earlier "recomputation is entirely the host's responsibility" stance, now that `TESTS_MANAGER_SPEC.md` is implemented.) |
+| 19  | Who triggers test execution                                      | `BoxedEditor` triggers runs but never executes: the **host** constructs `TestRunner` and passes it in, and `BoxedEditor` calls `run(testCaseId)` per the [Triggers](#triggers) table. This keeps the component free of any engine dependency while still showing live results, and reuses `TestRunner`'s generation guard for overlapping runs. (Supersedes the earlier "recomputation is entirely the host's responsibility" stance, now that `tests-manager-spec.md` is implemented.) |
 | 20  | `ruleset` gets `Duplicate`; `optimisation` gets argument actions | `Duplicate` is offered on `ruleset` with the same auto-rename rule as every other named kind, and `optimisation` gets `Add Argument` / `Delete "‹argument›" Argument` matching `function`. (Architect decisions on the previous Open Questions #2 and #3.)                                                                                                                                                                                                                              |
 
 ## Follow-up Stories

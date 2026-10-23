@@ -137,7 +137,7 @@ Portable model nodes and errors cross this boundary using `@edgerules/portable` 
 > Project State Architecture is in development and not completed. The first slices — bundle schema, `ProjectRepository`
 > with the device-local `LocalProjectRepository`, session-backed slice stores, `ProjectEngine`, `ProjectSession`,
 > `ProjectSessionManager`, `ProjectFactory` and `ProjectProvider` — are implemented in `src/components/project-session`
-> (`edgerules-react/project-session`); see [PROJECT_SESSION_STORY.md](PROJECT_SESSION_STORY.md). Undo/redo, the
+> (`edgerules-react/project-session`); see [project-session-story.md](project-session-story.md). Undo/redo, the
 > `ProjectDraftStore`, `TestRunCache`, conflict resolution and the GitHub/S3 adapters are not.
 
 ### Primary decision
@@ -348,7 +348,7 @@ permitted.
 `UserProjectsRepository` should normally be account-backed for cross-device access. A user-owned GitHub/S3 index can
 implement the same port. IndexedDB alone is suitable only for an explicitly device-local product. Such a product uses a
 `ProjectLocator` with `provider: 'indexeddb'` (`resource` = database name, `projectPath` = project key), where IndexedDB
-is the canonical store of that project. See [PROJECT_SESSION_STORY.md](PROJECT_SESSION_STORY.md).
+is the canonical store of that project. See [project-session-story.md](project-session-story.md).
 
 ### Open-project sequence
 
@@ -913,7 +913,7 @@ Encrypt drafts when project sensitivity requires it; clear them on logout accord
 ## Required service evolution
 
 The current services persist independently. That is acceptable for standalone component demos, but not for an atomic
-project aggregate. [PROJECT_SESSION_STORY.md](PROJECT_SESSION_STORY.md) sets the order of this work (its task 3) and
+project aggregate. [project-session-story.md](project-session-story.md) sets the order of this work (its task 3) and
 records what is done.
 
 | Current limitation                                              | Required change                                                              | Reason                                                                    | Status                                                                                                 |

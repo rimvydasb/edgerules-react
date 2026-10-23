@@ -124,7 +124,7 @@ A project persisted from `getCode('*')` loses all authored comments on the first
 model produces one very long line, which makes Git diffs poor.
 
 Expected behavior: preserve comments as trivia, or reject the operation instead of deleting them silently
-(`GLOBAL_PROJECT_MANAGEMENT.md` §4.5); ideally offer a multi-line canonical printer.
+(`global-project-management.md` §4.5); ideally offer a multi-line canonical printer.
 
 ---
 

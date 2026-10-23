@@ -41,7 +41,7 @@ Props follow Project Explorer: `service` (a `MutableDecisionService` instance, s
 cell. Cell analysis runs through `CodeEditorEmbedContext`s synthesized from the ruleset signature, so unary tests
 (`18..25`), boolean `when` expressions, and `then` expressions lint against the right parameter types.
 
-Write strategy (validated against the engine — see `BUG_REPORTS.md` ruleset findings):
+Write strategy (validated against the engine — see `engine-bug-reports.md` ruleset findings):
 
 - **Row edits → whole-rule `set`** (`risk.rules[2]`): the only write path that accepts unary-test sugar; cell-level
   `when` writes are rejected by the current engine (#1).
@@ -53,8 +53,8 @@ Write strategy (validated against the engine — see `BUG_REPORTS.md` ruleset fi
 - **Reads re-sugar the echo**: `get` denormalizes `18..25` to `... >= 18 and ... <= 25` (#5); `prettyUnaryTest` restores
   the compact form for display and editing.
 
-Known engine-imposed limits (tracked in `BUG_REPORTS.md`): adding an input column to a ruleset with existing call sites
-fails until the call sites pass the new argument (#7 — the engine error is surfaced verbatim); `Missing` cannot be
+Known engine-imposed limits (tracked in `engine-bug-reports.md`): adding an input column to a ruleset with existing call
+sites fails until the call sites pass the new argument (#7 — the engine error is surfaced verbatim); `Missing` cannot be
 written as an output cell (#8 — new columns/rows fill with `''`/`0`/`false` by output type).
 
 ## Files

@@ -656,7 +656,7 @@ describe('commands: Model Settings', () => {
         // as-is would silently wipe the whole model).
         expect(mutable.toPortable()).toMatchObject({amount: 10});
         // Root metadata writes are accepted (no PortableError) but not yet persisted by the engine —
-        // see docs/BUG_REPORTS.md ("Root metadata … is silently dropped by `set('*', …)`").
+        // see docs/engine-bug-reports.md ("Root metadata … is silently dropped by `set('*', …)`").
         expect(onChange).toHaveBeenCalledTimes(1);
     });
 

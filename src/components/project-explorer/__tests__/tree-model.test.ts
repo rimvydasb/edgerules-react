@@ -73,7 +73,7 @@ describe('classifyFieldNode', () => {
 });
 
 describe('groupContextChildren', () => {
-    // Mirrors docs/PROJECT_EXPLORER_STORY.md's example model. `risk` is hand-built as an
+    // Mirrors docs/stories/completed/project-explorer-story.md's example model. `risk` is hand-built as an
     // `@kind: 'ruleset-schema'` node here to verify our own classify/group logic is spec-correct —
     // that's covered separately by ProjectExplorer's real-service test.
     const nestedContext: PortableContext = {

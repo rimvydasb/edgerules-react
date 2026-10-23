@@ -129,12 +129,13 @@
     "lint": "oxlint --type-aware --quiet",
     "lint:all": "oxlint --type-aware",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint && npm test",
+    "check": "npm run typecheck && npm run lint && npm run depcruise && npm test",
     "test": "vitest run",
     "test:watch": "vitest",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "depcruise": "depcruise . --config .dependency-cruiser.cjs"
   },
   "peerDependencies": {
     "@codemirror/autocomplete": "^6.0.0",
@@ -213,6 +214,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@xyflow/react": "^12.12.0",
+    "dependency-cruiser": "^18.7.0",
     "esbuild": "0.28.1",
     "fake-indexeddb": "^6.2.5",
     "highs": "^1.15.3",

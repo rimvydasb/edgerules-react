@@ -1279,7 +1279,7 @@ flowchart LR
 ### EdgeRules
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- [`docs/BUG_REPORTS.md`](docs/BUG_REPORTS.md)
+- [`docs/engine-bug-reports.md`](engine-bug-reports.md)
 - [`../edgerules/doc/architecture/ARCHITECTURE.md`](../edgerules/doc/architecture/ARCHITECTURE.md)
 - [`../edgerules/doc/architecture/API_SPEC.md`](../edgerules/doc/architecture/API_SPEC.md)
 - [`../edgerules/doc/architecture/EBNF.md`](../edgerules/doc/architecture/EBNF.md)

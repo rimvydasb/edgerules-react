@@ -164,7 +164,7 @@ export function denormalize(row: BoxedRowData): PortableNode {
     switch (row.kind) {
         case 'model':
             // `@model-version` round-trips through the engine; `@model-name` is accepted on parse but
-            // not yet persisted or re-emitted (`API_SPEC.md` Limitations #3, `docs/BUG_REPORTS.md`) — set
+            // not yet persisted or re-emitted (`API_SPEC.md` Limitations #3, `docs/engine-bug-reports.md`) — set
             // regardless so the write is a no-op for that key rather than a silent drop of user intent.
             return {
                 ...contextFromChildren(row.children),

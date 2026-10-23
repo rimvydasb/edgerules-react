@@ -84,7 +84,7 @@ describe('ProjectExplorer', () => {
         expect(getSpy).toHaveBeenCalledWith('nested');
 
         // `get('nested')` now nests `deep()`'s function schema under `nested` correctly (see
-        // docs/BUG_REPORTS.md, Bug 2 — fixed upstream), so expanding `nested` reveals it as a
+        // docs/engine-bug-reports.md, Bug 2 — fixed upstream), so expanding `nested` reveals it as a
         // `[func]` leaf.
         expect(screen.getByText('deep()')).toBeInTheDocument();
 
@@ -140,7 +140,7 @@ describe('ProjectExplorer', () => {
         const user = userEvent.setup();
         render(<ProjectExplorer service={service} />);
 
-        // A real CRUD edit that leaves the AST dirty (docs/PROJECT_EXPLORER_STORY.md's Error
+        // A real CRUD edit that leaves the AST dirty (docs/stories/completed/project-explorer-story.md's Error
         // Handling section) — not a mock. The broken reference only surfaces on the next `get()`.
         service.remove('box.a');
 

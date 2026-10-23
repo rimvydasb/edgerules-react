@@ -84,7 +84,7 @@ function renderNode(
 }
 
 /**
- * Renders a tree view of an EdgeRules Portable Format model (docs/PROJECT_EXPLORER_STORY.md).
+ * Renders a tree view of an EdgeRules Portable Format model (docs/stories/completed/project-explorer-story.md).
  * `[ctx]` nodes are fetched lazily (one `service.get(path)` call per expansion); `[types]`/`[vars]`
  * group expansion is client-side only since their children arrive with the containing fetch.
  */

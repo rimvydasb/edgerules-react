@@ -10,10 +10,10 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 - [x] EdgeRules Code Editor Cell (the same language tooling in a compact cell control for the Boxed and Decision Table
       editors; commits on Enter/blur, cancels on Escape, analyzes the cell in the scope of its surrounding model via an
       embed context)
-- [x] EdgeRules Boxed Editor ([spec and story](docs/BOXED_EDITOR_STORY.md); a single flat treegrid over every
+- [x] EdgeRules Boxed Editor ([spec and story](docs/boxed-editor-story.md); a single flat treegrid over every
       `BoxedRowKind` — fields, collections, `func`/`ruleset`/`optimise` — with inline editing, drag-and-drop,
       context-menu actions, and optional description/live-test-result overlay columns)
-- [x] [EdgeRules Decision Table Editor](docs/DECISION_TABLE_STORY.md) (DMN-style grid over a `ruleset`: decision tables,
+- [x] [EdgeRules Decision Table Editor](docs/decision-table-story.md) (DMN-style grid over a `ruleset`: decision tables,
       boolean-expression rules, and scorecards; statically highlighted display cells with a single CodeEditorCell on the
       active cell)
 - [ ] EdgeRules Flow Editor (ReactFlow-based)
@@ -31,7 +31,7 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
       `TestRunner` execution service)
 - [ ] EdgeRules Types Editor
 - [EdgeRules Project Explorer](docs/stories/completed/project-explorer-story.md)
-- [x] [EdgeRules Project Session](docs/PROJECT_SESSION_STORY.md) (`edgerules-react/project-session`, no GUI): loads a
+- [x] [EdgeRules Project Session](docs/project-session-story.md) (`edgerules-react/project-session`, no GUI): loads a
       project bundle — model DSL, documentation, tests and flow layout — into one `ProjectSession` that owns the engine
       and the slice stores, and saves it back as one revision. `LocalProjectRepository` keeps device-local projects in
       IndexedDB; `ProjectProvider` and `useProjectSlice` hand the session to a React subtree.
@@ -102,11 +102,11 @@ they actually import — a project that only uses the Code Editor never has to i
 │   │   ├── code-editor-cell/      # Compact cell editor sharing the code-editor language modules
 │   │   ├── decision-table/        # Decision Table Editor
 │   │   ├── documentation-service/ # Persistence for path-keyed free-text descriptions (no engine, no GUI) — see
-│   │   │                          #   DOCUMENTATION_SERVICE_STORY.md; shared by boxed-editor, decision-table, etc.
+│   │   │                          #   documentation-service-story.md; shared by boxed-editor, decision-table, etc.
 │   │   ├── flow-editor/           # Flow Editor (ReactFlow-based)
 │   │   ├── project-explorer/      # Project Explorer
 │   │   ├── project-session/       # Project bundle, repositories, ProjectSession and its React provider (no GUI) —
-│   │   │                          #   see PROJECT_SESSION_STORY.md
+│   │   │                          #   see project-session-story.md
 │   │   ├── test-cases-service/    # Persistence for test cases/rows/results (no engine, no GUI) — see
 │   │   │                          #   tests-manager-spec.md (docs/specs); used by tests-manager, designed for boxed-editor too
 │   │   ├── tests-manager/         # Tests Manager grid + TestRunner (the execution service; see

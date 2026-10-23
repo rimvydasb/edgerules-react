@@ -1,5 +1,5 @@
 // Demonstrates DocumentationService used alongside test-cases-service on the same model, per
-// DOCUMENTATION_SERVICE_STORY.md's Resolved Decision #8: the two overlays are decoupled — neither
+// documentation-service-story.md's Resolved Decision #8: the two overlays are decoupled — neither
 // package imports the other — but a host (e.g. BoxedEditor) attaches both to the same paths. This
 // test writes a few descriptions for paths that also carry test cases, disposes both services, and
 // re-creates fresh instances to confirm every description persisted to IndexedDB independently of

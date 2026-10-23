@@ -164,7 +164,7 @@ describe('row kinds: list', () => {
 
 describe('row kinds: relation', () => {
     // Homogeneous on purpose: the real engine currently requires every array element to share one
-    // identical structural type (see `docs/BUG_REPORTS.md` — "Array-typed fields reject elements
+    // identical structural type (see `docs/engine-bug-reports.md` — "Array-typed fields reject elements
     // with differing optional-field shapes"), so a genuinely heterogeneous record can only be
     // constructed and rendered directly (below), not round-tripped through `MutableDecisionService`.
     const MODEL = `{
