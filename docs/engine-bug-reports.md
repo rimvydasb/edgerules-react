@@ -3,8 +3,11 @@
 Open engine defects only. A report is deleted once the engine fixes it; behaviour ruled _by design_ upstream moves to
 [Clarified behaviour](#clarified-behaviour--not-bugs) as a short note so it is not re-filed.
 
-All entries below were last re-verified against `@edgerules/node` / `@edgerules/web` **`0.0.7-alpha.202610201841`** on
-**2026-10-21** with throwaway Node scripts — no React, no mocks. Every entry still reproduces on that version.
+Entries were last re-verified against `@edgerules/web` **`0.0.8-alpha.202610231845`** on **2026-10-23** with throwaway
+Node scripts — no React, no mocks. The test suite runs against `@edgerules/node` `0.0.8-alpha.202610231845`. Still
+reproducing on `0.0.8`: root `set('*', …)` dropping `@model-version`, lossy built-in signatures, and `getCode('*')`
+dropping comments. Not re-run on `0.0.8` (last seen on `0.0.7`): empty zero-column relations, root optimisation
+`set('*', …)`, argument type-mismatch message.
 
 ## Empty zero-column relations round-trip as lists
 
@@ -112,19 +115,19 @@ assuming the row the user just edited caused it.
 
 ## `getCode('*')` drops source comments and formatting
 
-Found on `@edgerules/node` **`0.0.7-alpha.202610201841`** (2026-10-20). `fromCode` followed by `getCode('*')` returns a
-single-line canonical form and silently deletes comments:
+Found on `@edgerules/node` **`0.0.7-alpha.202610201841`** (2026-10-20). `fromCode` followed by `getCode('*')` silently
+deletes comments. Output formatting is fixed in `@edgerules/web` `0.0.8-alpha.202610231845` (multi-line); comments are
+still dropped there:
 
 ```ts
 MutableDecisionService.fromCode('{\n  // keep me\n  a: 1\n  b: a + 1\n}').getCode('*');
-// "{ a: 1; b: a + 1 }"
+// 0.0.8: "{\n    a: 1\n    b: a + 1\n}"
 ```
 
-A project persisted from `getCode('*')` loses all authored comments on the first save, and every save of a multi-line
-model produces one very long line, which makes Git diffs poor.
+A project persisted from `getCode('*')` loses all authored comments on the first save.
 
 Expected behavior: preserve comments as trivia, or reject the operation instead of deleting them silently
-(`global-project-management.md` §4.5); ideally offer a multi-line canonical printer.
+(`global-project-management.md` §4.5).
 
 ---
 

@@ -257,7 +257,7 @@ describe('ProjectSession — commands', () => {
 
         expect(session.execute({type: 'commitDsl', source: '{ a: 5 }'})).toEqual({ok: true});
         expect(session.getSnapshot()).toMatchObject({hasDslDraft: false, dslValidity: {status: 'valid'}});
-        expect(session.getDslDraft()).toBe('{ a: 5 }');
+        expect(session.getDslDraft()).toBe('{\n    a: 5\n}');
     });
 
     it('keeps a registered solver across a DSL commit', async () => {
