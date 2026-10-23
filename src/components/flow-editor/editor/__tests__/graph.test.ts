@@ -2,7 +2,7 @@ import {MutableDecisionService} from '@edgerules/node/mutable';
 import {describe, expect, it} from 'vitest';
 import {createFlowEditorService} from '../../service/createFlowEditorService';
 import {SAMPLE_MODEL} from '../../testing/sampleModel';
-import {autoLayout, findFreeSpot, modelWires, outputWires, resolveSource} from '../graph';
+import {autoLayout, findFreeSpot, modelWires, outputWires, qualifyBinding, resolveSource} from '../graph';
 
 describe('resolveSource', () => {
     const nodes = new Map<string, {results?: string[]}>([
@@ -39,6 +39,68 @@ describe('modelWires', () => {
             ['decision:age', 'applicant', 'out:age', 'in:age', 'number'],
             ['decision:income', 'applicant', 'out:income', 'in:income', 'number'],
             ['decision:segment', 'applicant', 'out:segment', 'in:segment', 'string'],
+        ]);
+    });
+});
+
+describe('qualifyBinding', () => {
+    const nodes = new Map([
+        ['applicant.profile', {}],
+        ['applicant.score', {}],
+    ]);
+
+    it('reads a short name of a sibling node in the scope of the field', () => {
+        expect(qualifyBinding('profile.tier', 'applicant.score', nodes)).toBe('applicant.profile.tier');
+        expect(qualifyBinding('profile', 'applicant.score', nodes)).toBe('applicant.profile');
+        expect(qualifyBinding('profile[0]', 'applicant.score', nodes)).toBe('applicant.profile[0]');
+    });
+
+    it('keeps a path from the model root and a name that is not a sibling node', () => {
+        expect(qualifyBinding('applicant.profile.tier', 'applicant.score', nodes)).toBe('applicant.profile.tier');
+        expect(qualifyBinding('income', 'applicant.score', nodes)).toBe('income');
+        expect(qualifyBinding('profile.tier', 'score', nodes)).toBe('profile.tier');
+    });
+});
+
+describe('modelWires in a nested root', () => {
+    it('draws the wires of short names and of paths from the model root', () => {
+        const mutable = MutableDecisionService.fromCode(`{
+            func riskScore(income: number): { score: income / 100 }
+            func band(score: number, tier: number): score * tier
+            applicant: {
+                @InputNode
+                profile: { income: 5000; tier: 2 }
+                @FunctionNode
+                risk: riskScore(income: profile.income)
+                @FunctionNode
+                level: band(score: risk.score, tier: applicant.profile.tier)
+            }
+        }`);
+        mutable.link();
+        const service = createFlowEditorService(mutable, {root: 'applicant'});
+        const wires = modelWires(service.listNodes(), (field) => service.getFunctionNode(field));
+        expect(wires.map((wire) => [wire.id, wire.source, wire.sourceHandle])).toEqual([
+            ['applicant.risk:income', 'applicant.profile', 'out:income'],
+            ['applicant.level:score', 'applicant.risk', 'out:score'],
+            ['applicant.level:tier', 'applicant.profile', 'out:tier'],
+        ]);
+    });
+
+    it('draws the wires of a function body root', () => {
+        const mutable = MutableDecisionService.fromCode(`{
+            func double(x: number): x * 2
+            func adjust(rate: number): {
+                @InputNode
+                base: { amount: 10 }
+                @FunctionNode
+                doubled: double(x: base.amount)
+            }
+        }`);
+        mutable.link();
+        const service = createFlowEditorService(mutable, {root: 'adjust'});
+        const wires = modelWires(service.listNodes(), (field) => service.getFunctionNode(field));
+        expect(wires.map((wire) => [wire.id, wire.source, wire.sourceHandle])).toEqual([
+            ['adjust.doubled:x', 'adjust.base', 'out:amount'],
         ]);
     });
 });

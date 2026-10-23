@@ -202,6 +202,23 @@ export function createFlowEditorService(
         ]);
     };
 
+    // `path` as the argument of a node at `field`. A function body cannot read a path through its own function, so a
+    // field of that body is read by its short name; elsewhere the path from the model root stays.
+    const bindingPath = (field: string, path: string): string => {
+        const scope = parentPath(field) ?? '*';
+        if (scope === '*' || !path.startsWith(`${scope}.`)) return path;
+        const owner: unknown = portableAtPath(engine.toPortable() as PortableNode, scope);
+        return isRecord(owner) && owner['@kind'] === 'function' ? path.slice(scope.length + 1) : path;
+    };
+
+    // True when an expression reads `<field>.<name>`: by its path anywhere in the model, or by its short name in the
+    // scope of `field`.
+    const isRead = (field: string, name: string): boolean => {
+        if (readsPath(engine.toPortable(), `${field}.${name}`)) return true;
+        const scope = parentPath(field) ?? '*';
+        return scope !== '*' && readsPath(contextAt(scope), `${field.slice(scope.length + 1)}.${name}`);
+    };
+
     // A new field of the root context, named `base`, `base2`…
     const newRootField = (base: string): string =>
         childPath(root, uniqueName(base, siblingNames(childPath(root, base))));
@@ -358,7 +375,8 @@ export function createFlowEditorService(
             const callee = calleeOf(state?.method);
             if (!state || !callee) return noCallee(field);
             errors.delete(field);
-            const error = commit(field, {...state, args: {...state.args, [parameter]: sourcePath}});
+            const args = {...state.args, [parameter]: bindingPath(field, sourcePath)};
+            const error = commit(field, {...state, args});
             if (error) {
                 errors.set(field, {parameter, message: error.message});
                 notify();
@@ -560,7 +578,7 @@ export function createFlowEditorService(
             const row = fullRow(callee.path);
             if (!row) return failure(`'${callee.path}' does not exist`);
             const renamed = replaceAt(previous, callee.path, denormalize(renameActionColumn(row, from, to)));
-            const migrated = rewriteResultReferences(renamed, callers, from, to) as PortableRootContext;
+            const migrated = rewriteMemberReads(renamed, callers, from, to) as PortableRootContext;
             const written = setWithLinkCheck(
                 engine,
                 '*',
@@ -584,7 +602,7 @@ export function createFlowEditorService(
                           name,
                           type: typeText(type) ?? 'object',
                           value: valueText(input[name]),
-                          used: readsField(engine.toPortable(), field, name),
+                          used: isRead(field, name),
                       }))
                 : [];
             const label = input['@node-name'];
@@ -657,7 +675,7 @@ export function createFlowEditorService(
             const renamed = Object.fromEntries(
                 Object.entries(record).map(([key, value]) => [key === from ? to : key, value]),
             );
-            const next = rewriteResultReferences(
+            const next = rewriteMemberReads(
                 replaceAt(previous, field, renamed as unknown as PortableNode),
                 [field],
                 from,
@@ -733,10 +751,10 @@ function valueType(value: unknown): string {
     return typeof value === 'object' ? 'object' : typeof value;
 }
 
-// True when an expression anywhere in the model reads `<field>.<name>`.
-function readsField(root: unknown, field: string, name: string): boolean {
-    const pattern = new RegExp(`(?<![\\w.])${escapeRegExp(`${field}.${name}`)}\\b`);
-    return pattern.test(JSON.stringify(root));
+// True when an expression anywhere in `node` reads `path`.
+function readsPath(node: unknown, path: string): boolean {
+    const pattern = new RegExp(`(?<![\\w.])${escapeRegExp(path)}\\b`);
+    return pattern.test(JSON.stringify(node));
 }
 
 function unknownCallee(method: string): PortableError {
@@ -759,31 +777,97 @@ function escapeRegExp(text: string): string {
     return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Rewrites `<caller>.<from>` to `<caller>.<to>` in every expression text of the model.
-function rewriteResultReferences(node: unknown, callers: string[], from: string, to: string): unknown {
+/**
+ * Rewrites the reads of member `from` of each field in `targets` to `to`: `<target>.<from>` in every expression text
+ * of the model, and `<name>.<from>` (the short name of the target) in the context that holds the target.
+ */
+function rewriteMemberReads(root: unknown, targets: string[], from: string, to: string): unknown {
+    let next = rewriteReads(root, targets, from, to, false);
+    for (const target of targets) {
+        const scope = parentPath(target) ?? '*';
+        if (scope === '*') continue;
+        const keys = contextKeys(next, scope);
+        if (!keys) continue;
+        const context = valueAt(next, keys);
+        next = setAt(next, keys, rewriteReads(context, [target.slice(scope.length + 1)], from, to, true));
+    }
+    return next;
+}
+
+/**
+ * Rewrites `<name>.<from>` to `<name>.<to>` in every expression text of `node` for each name. With `scoped`, `node` is
+ * the context that defines the names: a nested context that defines one of them again shadows it, and a nested
+ * function cannot read them, so neither is rewritten.
+ */
+function rewriteReads(node: unknown, names: string[], from: string, to: string, scoped: boolean, top = true): unknown {
     if (typeof node === 'string') {
         let text = node;
-        for (const caller of callers) {
+        for (const name of names) {
             text = text.replace(
-                new RegExp(`(?<![\\w.])${escapeRegExp(caller)}\\.${escapeRegExp(from)}\\b`, 'g'),
-                `${caller}.${to}`,
+                new RegExp(`(?<![\\w.])${escapeRegExp(name)}\\.${escapeRegExp(from)}\\b`, 'g'),
+                `${name}.${to}`,
             );
         }
         return text;
     }
-    if (Array.isArray(node)) return node.map((child) => rewriteResultReferences(child, callers, from, to));
+    if (Array.isArray(node)) return node.map((child) => rewriteReads(child, names, from, to, scoped, false));
     if (!isRecord(node)) return node;
+    if (scoped && !top) {
+        if (node['@kind'] === 'function') return node;
+        const visible = node['@kind'] === 'context' ? names.filter((name) => !(name in node)) : names;
+        if (visible.length === 0) return node;
+        names = visible;
+    }
     return Object.fromEntries(
-        Object.entries(node).map(([key, child]) => [key, rewriteResultReferences(child, callers, from, to)]),
+        Object.entries(node).map(([key, child]) => [key, rewriteReads(child, names, from, to, scoped, false)]),
     );
 }
 
+// The fields that invoke `method`, by path; the fields of a function body are addressed through the function.
 function invocationFields(node: unknown, method: string, path = ''): string[] {
     if (!isRecord(node)) return [];
     if (isInvocation(node)) return node['@method'] === method && path ? [path] : [];
+    if (node['@kind'] === 'function') return invocationFields(node['@body'], method, path);
     return Object.entries(node).flatMap(([key, child]) =>
         key.startsWith('@') ? [] : invocationFields(child, method, path ? `${path}.${key}` : key),
     );
+}
+
+// The keys that lead to the field at `path` in the Portable tree: the fields of a function live in its '@body'.
+function portableKeys(root: unknown, path: string): string[] {
+    const keys: string[] = [];
+    let node = root;
+    for (const name of path.split('.')) {
+        if (isRecord(node) && node['@kind'] === 'function') {
+            keys.push('@body');
+            node = node['@body'];
+        }
+        keys.push(name);
+        node = isRecord(node) ? node[name] : undefined;
+    }
+    return keys;
+}
+
+// The keys of the context at `path`: the body of a function.
+function contextKeys(root: unknown, path: string): string[] | undefined {
+    const keys = portableKeys(root, path);
+    const node = valueAt(root, keys);
+    if (!isRecord(node)) return undefined;
+    return node['@kind'] === 'function' ? [...keys, '@body'] : keys;
+}
+
+function valueAt(root: unknown, keys: string[]): unknown {
+    let node = root;
+    for (const key of keys) node = isRecord(node) ? node[key] : undefined;
+    return node;
+}
+
+function setAt<T>(root: T, keys: string[], value: unknown): T {
+    const next = structuredClone(root) as Record<string, unknown>;
+    let current = next;
+    for (const key of keys.slice(0, -1)) current = current[key] as Record<string, unknown>;
+    current[keys.at(-1)!] = value;
+    return next as T;
 }
 
 // Writes only the top-level entries that differ, then links; a failed link restores them. `set('*')` is avoided
@@ -814,10 +898,5 @@ function writeChangedEntries(
 }
 
 function replaceAt(root: PortableRootContext, path: string, value: PortableNode): PortableRootContext {
-    const next = structuredClone(root) as unknown as Record<string, unknown>;
-    const keys = path.split('.');
-    let current = next;
-    for (const key of keys.slice(0, -1)) current = current[key] as Record<string, unknown>;
-    current[keys.at(-1)!] = value;
-    return next as unknown as PortableRootContext;
+    return setAt(root, portableKeys(root, path), value);
 }

@@ -735,11 +735,144 @@ describe('FlowEditorService root', () => {
         expect(service.listNodes()).toEqual([{field: 'applicant.adjust.input', kind: 'input'}]);
     });
 
+    it('binds a field of a function body by its short name, which the engine links', () => {
+        const mutable = MutableDecisionService.fromCode(`{
+            func double(x: number): x * 2
+            func adjust(rate: number): {
+                @InputNode
+                base: { amount: 10 }
+                doubled: double(x: 1)
+            }
+        }`);
+        mutable.link();
+        const service = createFlowEditorService(mutable, {root: 'adjust'});
+        service.setCallee('adjust.doubled', 'double');
+
+        expect(service.bindArgument('adjust.doubled', 'x', 'adjust.base.amount')).toBeUndefined();
+        expect(service.getFunctionNode('adjust.doubled').arguments[0].binding).toEqual({
+            kind: 'path',
+            text: 'base.amount',
+        });
+        expect(() => mutable.link()).not.toThrow();
+        expect(service.getInputNode('adjust.base').fields[0]).toMatchObject({name: 'amount', used: true});
+    });
+
+    it('keeps the path from the model root when binding in a nested context', () => {
+        const {service} = rooted('applicant');
+        service.addInputNode('applicant.profile');
+        service.setCallee('applicant.score', 'riskScore');
+        expect(service.bindArgument('applicant.score', 'income', 'applicant.profile.tier')).toBeUndefined();
+        expect(service.getFunctionNode('applicant.score').arguments[0].binding?.text).toBe('applicant.profile.tier');
+    });
+
+    it('counts a short-name read of an input field as used', () => {
+        const mutable = MutableDecisionService.fromCode(`{
+            func riskScore(income: number): { score: income / 100 }
+            applicant: {
+                @InputNode
+                profile: { income: 5000; tier: 1 }
+                score: riskScore(profile.income)
+            }
+        }`);
+        mutable.link();
+        const fields = createFlowEditorService(mutable, {root: 'applicant'}).getInputNode('applicant.profile').fields;
+        expect(fields.map((field) => [field.name, field.used])).toEqual([
+            ['income', true],
+            ['tier', false],
+        ]);
+    });
+
     it('renames a nested draft in place', () => {
         const {service} = rooted('applicant');
         const draft = service.createDraftNode();
         expect(service.renameField(draft, 'step')).toBeUndefined();
         expect(service.listNodes()).toEqual([{field: 'applicant.step', kind: 'function'}]);
         expect(isPortableError(service.renameField('applicant.step', 'income'))).toBe(true);
+    });
+});
+
+describe('FlowEditorService renames in a function body', () => {
+    const BODY_MODEL = `{
+        func double(x: number): { result: x * 2; half: x / 2 }
+        ruleset band(score: number): {
+            hitPolicy: "first-match"
+            rules: [{ when: { score: < 10 }, then: { level: "low" } }]
+            default: { level: "high" }
+        }
+        func adjust(rate: number): {
+            @InputNode
+            base: { amount: 10 }
+            @FunctionNode
+            doubled: double(x: base.amount)
+            @FunctionNode
+            banded: band(score: doubled.result)
+            total: doubled.half + base.amount
+            other: { base: { amount: 1 }; reads: base.amount }
+        }
+        @InputNode
+        base: { amount: 3 }
+        outer: base.amount
+    }`;
+
+    function bodyService() {
+        const mutable = MutableDecisionService.fromCode(BODY_MODEL);
+        mutable.link();
+        return {mutable, service: createFlowEditorService(mutable, {root: 'adjust'})};
+    }
+
+    const code = (mutable: MutableDecisionService, path: string) => mutable.getCode(path) as string;
+
+    it('renames an input field and its short-name reads in the scope only', () => {
+        const {mutable, service} = bodyService();
+        expect(service.renameInputField('adjust.base', 'amount', 'value')).toBeUndefined();
+        expect(code(mutable, 'adjust')).toContain('double(x: base.value)');
+        expect(code(mutable, 'adjust')).toContain('doubled.half + base.value');
+        // A nested context with its own `base`, and the model-root `base`, keep their reads.
+        expect(code(mutable, 'adjust')).toContain('reads: base.amount');
+        expect(code(mutable, 'outer')).toBe('base.amount');
+        expect(() => mutable.link()).not.toThrow();
+    });
+
+    it('renames a result of a function callee read by its short name', () => {
+        const {mutable, service} = bodyService();
+        expect(service.renameResult('adjust.doubled', 'half', 'part')).toBeUndefined();
+        expect(code(mutable, 'adjust')).toContain('doubled.part + base.amount');
+        expect(() => mutable.link()).not.toThrow();
+    });
+
+    it('renames a result of a ruleset callee read by its short name', () => {
+        const {mutable, service} = bodyService();
+        mutable.set('adjust.label', 'banded.level' as never);
+        mutable.link();
+        expect(service.renameResult('adjust.banded', 'level', 'tier')).toBeUndefined();
+        expect(code(mutable, 'adjust.label')).toBe('banded.tier');
+        expect(() => mutable.link()).not.toThrow();
+    });
+
+    it('renames a node field and its short-name reads', () => {
+        const {mutable, service} = bodyService();
+        expect(service.renameField('adjust.doubled', 'twice')).toBeUndefined();
+        expect(code(mutable, 'adjust')).toContain('band(score: twice.result)');
+        expect(code(mutable, 'adjust')).toContain('twice.half + base.amount');
+        expect(() => mutable.link()).not.toThrow();
+    });
+});
+
+describe('FlowEditorService renames in a nested context', () => {
+    it('renames an input field read by its short name and by its full path', () => {
+        const mutable = MutableDecisionService.fromCode(`{
+            applicant: {
+                @InputNode
+                profile: { income: 5000 }
+                short: profile.income / 2
+                full: applicant.profile.income * 2
+            }
+        }`);
+        mutable.link();
+        const service = createFlowEditorService(mutable, {root: 'applicant'});
+        expect(service.renameInputField('applicant.profile', 'income', 'salary')).toBeUndefined();
+        expect(mutable.getCode('applicant.short')).toBe('profile.salary / 2');
+        expect(mutable.getCode('applicant.full')).toBe('applicant.profile.salary * 2');
+        expect(() => mutable.link()).not.toThrow();
     });
 });

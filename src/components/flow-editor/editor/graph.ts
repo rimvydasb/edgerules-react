@@ -1,4 +1,5 @@
 import type {XYPosition} from '@xyflow/react';
+import {parentPath} from '#lib/portableUtils';
 import {typeKind} from '../core-node';
 import type {FlowNodeRef} from '../flow-editor-types';
 import type {FunctionNodeModel} from '../function-node/types';
@@ -59,6 +60,18 @@ export function resolveSource(
     return rest.includes('.') || rest.includes('[') ? undefined : {node: best, handle: `out:${rest}`};
 }
 
+/**
+ * The binding `text` of an argument of `field` as a node path. Inside a nested context or a function body a short name
+ * reads the field of that scope, and it shadows an outer field of the same name: `income` in `applicant.score` reads
+ * `applicant.income` when that is a node. Any other text is a path from the model root.
+ */
+export function qualifyBinding(text: string, field: string, nodes: ReadonlyMap<string, unknown>): string {
+    const scope = parentPath(field);
+    if (!scope || scope === '*') return text;
+    const first = text.split(/[.[]/, 1)[0];
+    return nodes.has(`${scope}.${first}`) ? `${scope}.${text}` : text;
+}
+
 /** The wires of every path-bound argument whose source is a node on the canvas. */
 export function modelWires(refs: FlowNodeRef[], functionModel: (field: string) => FunctionNodeModel): Wire[] {
     const models = new Map(
@@ -71,7 +84,7 @@ export function modelWires(refs: FlowNodeRef[], functionModel: (field: string) =
     for (const [field, model] of models) {
         for (const argument of model.arguments) {
             if (argument.binding?.kind !== 'path') continue;
-            const source = resolveSource(argument.binding.text.trim(), sources);
+            const source = resolveSource(qualifyBinding(argument.binding.text.trim(), field, sources), sources);
             if (!source || source.node === field) continue;
             wires.push({
                 id: `${field}:${argument.name}`,
