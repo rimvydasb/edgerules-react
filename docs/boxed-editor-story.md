@@ -386,7 +386,7 @@ classDiagram
 | Errors come back verbatim                | Mutations return the engine's `PortableError` and leave the cache untouched for that path, so the last-good row stays visible. Bad `path` reads return `undefined`/`[]`.                                                                                                                                                                                                                                                                        |
 | Link breakage after structural mutations | `rename` now snapshots linkability and rolls itself back when it introduces a dangling reference, surfacing the failure on the edited row. `remove`/`move` retain Resolved Decision #12's deferred model-error behaviour because those destructive operations may intentionally leave a reference dangling. `setBoxedRowData` likewise rolls back newly introduced faults while accepting unrelated writes when the same fault already existed. |
 | Referential stability                    | `getBoxedRowsData(path)` returns the same array identity while nothing under `path` changed, and the cache is cleared **before** `subscribe` listeners fire — safe for `useSyncExternalStore`.                                                                                                                                                                                                                                                  |
-| Annotations are ignored                  | `@node` / `@node-name` are neither read nor written by the facade (Resolved Decision #16). Do not build UI on them.                                                                                                                                                                                                                                                                                                                             |
+| Annotations are read-only                | The facade never writes `@node` / `@node-name`. It reads `@node` only to hide `ChartNode` and `OutputNode` contexts (Resolved Decision #16). Do not build UI on them.                                                                                                                                                                                                                                                                           |
 | Factory is not deduplicating             | `createBoxedEditorService(mutable)` returns a fresh facade (fresh cache, fresh bus) per call. The host constructs **one** instance and passes it down; a second GUI over the same engine must be told to `invalidate()`.                                                                                                                                                                                                                        |
 
 ### Edit ➜ persist ➜ refresh
@@ -507,6 +507,8 @@ Implemented in `service/normalize.ts` / `denormalize.ts` — listed here as the 
    last within that function. This order is read off the wireframe's `App.tsx` composition (Applicant type →
    monthly/creditScore functions → risk ruleset → factoryProduction optimisation → application context → reviewStages
    list → relations → plain expressions).
+3. A context with `@node: 'ChartNode'` or `@node: 'OutputNode'` produces no row. It has no Boxed Expression Component
+   (see [`model-decomposition.md`](model-decomposition.md)).
 
 ### BoxedEditor ➜ DSL
 
@@ -533,6 +535,9 @@ Portable metadata (`@kind`, `@description`, `@node`, `@node-name`, `@model-name`
 a child row. The `model` row presents applicable model metadata. `set` only preserves annotation keys present in the
 same write (a confirmed engine behavior, see [`engine-bug-reports.md`](engine-bug-reports.md)) — which is why
 descriptions live in an IndexedDB overlay, not in `@description` (Resolved Decision #10).
+
+A context with `@node: 'ChartNode'` or `@node: 'OutputNode'` is hidden: it produces no row. All other `@node` values do
+not change the row.
 
 ### Cell value mapping
 
@@ -819,7 +824,9 @@ If a mutation or normalization exposes a WASM/DSL bug, append a reproducible ent
 
 ## Tasks
 
-> All tasks are completed.
+- [ ] `normalize.ts`: skip contexts with `@node: 'ChartNode'` or `@node: 'OutputNode'`.
+- [ ] A real-engine test: a `ChartNode` and an `OutputNode` context produce no row, and an `InputNode` context renders
+      as a `context` row.
 
 ## Resolved Decisions
 
@@ -840,7 +847,7 @@ If a mutation or normalization exposes a WASM/DSL bug, append a reproducible ent
 | 13  | Ruleset inline editing vs. `DecisionTableEditor`                 | Both coexist: full inline decision-table CRUD here, and the standalone editor reachable via `onOpenNode({kind: 'ruleset'})`. The division of responsibility may be revisited later.                                                                                                                                                                                                                                                                                                     |
 | 14  | Expand/Collapse                                                  | A context-menu toggle (MUI expand/collapse icon) on `function`, `context`, `complexType`, `ruleset`, `optimisation`.                                                                                                                                                                                                                                                                                                                                                                    |
 | 15  | `View as code`                                                   | A per-knowledge-element context-menu action on `model`, `function`, `ruleset`, `optimisation`, emitting `onOpenNode({kind: 'code-editor'})`. Where the code text comes from is the host's concern. (Architect decision, replacing Open Question "Where does View as code live?".)                                                                                                                                                                                                       |
-| 16  | `@node` / `@node-name` annotations                               | Ignored by `BoxedEditorService` — neither read nor written. A future Flow Editor gets its own normalized view over the same `MutableDecisionService`; `BoxedEditor` builds no UI on annotations. (Was the service story's Open Question #1.)                                                                                                                                                                                                                                            |
+| 16  | `@node` / `@node-name` annotations                               | `BoxedEditorService` never writes them. It reads `@node` only to hide `ChartNode` and `OutputNode` contexts, which have no Boxed Expression Component. Every other context renders whatever its annotation. The Flow Editor owns all annotation writes. See [`model-decomposition.md`](model-decomposition.md).                                                                                                                                                                         |
 | 17  | `qualifyPath` ownership                                          | Moves into `edgerules-react/test-cases-service` (which owns subject-relative paths) and is re-exported from `tests-manager`. Resolves `specs/tests-manager-spec.md` Open Question #1, needed now that `TestResultsColumn` is being built.                                                                                                                                                                                                                                               |
 | 18  | Non-deduplicating facade factory                                 | `createBoxedEditorService(mutable)` returns a fresh facade per call — no identity-keyed memoization. A host wanting two editors to share one cache/subscribe bus constructs the facade once and passes it down; a second GUI editing the same engine calls `invalidate()`. Revisit when the Flow Editor exists. (Was the service story's Open Question #2.)                                                                                                                             |
 | 19  | Who triggers test execution                                      | `BoxedEditor` triggers runs but never executes: the **host** constructs `TestRunner` and passes it in, and `BoxedEditor` calls `run(testCaseId)` per the [Triggers](#triggers) table. This keeps the component free of any engine dependency while still showing live results, and reuses `TestRunner`'s generation guard for overlapping runs. (Supersedes the earlier "recomputation is entirely the host's responsibility" stance, now that `tests-manager-spec.md` is implemented.) |
