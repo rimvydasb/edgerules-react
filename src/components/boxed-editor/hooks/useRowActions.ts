@@ -31,7 +31,7 @@ import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import type {RowActionId} from '../menu/actions';
 import {rowActionIcons} from '../menu/actions';
 import type {RowMenuItem} from '../../../ui/RowActionsMenu';
-import {parentPath as parentPathOf} from '../service/portable-utils';
+import {parentPath as parentPathOf} from '../../../lib/portableUtils';
 
 interface ActionDraft {
     id: RowActionId;

@@ -1,18 +1,7 @@
 import type {Node} from '@xyflow/react';
+import type {ChartConfig} from '../../../lib/flowLayout';
 
-/** The chart kinds a ChartNode draws. */
-export type ChartKind = 'line' | 'area' | 'bar';
-
-/**
- * What a ChartNode paints. Plain data: the flow layout stores it. A node without a config is configured
- * automatically from the data wired into it.
- */
-export interface ChartConfig {
-    kind: ChartKind;
-    x: string; // column of the horizontal axis, or ROW_NUMBER for the row position
-    series: string[]; // numeric columns, one series each, in legend order
-    stacked?: boolean; // area and bar only: stack the series instead of overlaying or grouping them
-}
+export type {ChartConfig, ChartKind} from '../../../lib/flowLayout';
 
 /** ReactFlow node data of a ChartNode. The data comes from the wire into the node, not from the node data. */
 export type ChartNodeData = {

@@ -4,7 +4,14 @@ import {isPortableError} from '../../../lib/portable';
 import type {BoxedEditorService, BoxedRowData} from '../boxed-editor-types';
 import {denormalize, denormalizeTypeField} from './denormalize';
 import {normalizeNode, normalizeRoot} from './normalize';
-import {authoredEntries, childPath, isRecord, lastPathName, parentPath, portableAtPath} from './portable-utils';
+import {
+    authoredEntries,
+    childPath,
+    isRecord,
+    lastPathName,
+    parentPath,
+    portableAtPath,
+} from '../../../lib/portableUtils';
 import {createRowCache, type CachedRows} from './rowCache';
 
 type GetFilter = 'FIELDS' | 'TYPE_DEFINITIONS' | 'FUNCTION_DEFINITIONS' | 'EXTERNAL_DEFINITIONS' | 'ALL';

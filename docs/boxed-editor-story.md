@@ -225,11 +225,12 @@ flowchart TD
 ```
 src/components/boxed-editor/
 ├─ index.ts                            — (exists) add BoxedEditor + props exports
+├─ internal.ts                         — row model and service helpers shared with flow-editor (not published)
 ├─ BoxedEditor.tsx                     — root: validates `path`, mounts providers, header row, root row list
 ├─ BoxedEditorProps.ts                 — BoxedEditorProps, BoxedEditorOpenTarget, BoxedEditorTargetKind (public)
 ├─ boxed-editor-types.ts               — (exists) service + row data types
 ├─ service/                            — (exists, done) createBoxedEditorService, normalize, denormalize,
-│                                         rowCache, portable-utils
+│                                         rowCache (Portable helpers: src/lib/portableUtils.ts)
 ├─ context/
 │  ├─ BoxedEditorContext.tsx           — services, readOnly, column visibility, revision
 │  ├─ BoxedEditorUiContext.tsx         — per-row expand/collapse, active editing cell path, Alt-held

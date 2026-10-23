@@ -25,9 +25,9 @@ import {cx} from '../../ui/cx';
 import {GridBody, GridCell, GridHead, GridRow, GridTable} from '../../ui/grid';
 import {Toast} from '../../ui/Toast';
 import * as classes from './decisionTable.module.css';
-import {CodeEditorCell} from '../code-editor-cell/CodeEditorCell';
+import {CodeEditorCell} from '../code-editor-cell';
 import type {CodeEditorService} from '../code-editor/language/service';
-import {HighlightedCode} from '../code-editor-cell/HighlightedCode';
+import {HighlightedCode} from '../code-editor-cell/internal';
 import {
     HIT_POLICIES,
     SCALAR_OUTPUT,

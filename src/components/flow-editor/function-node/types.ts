@@ -1,7 +1,13 @@
 import type {Node} from '@xyflow/react';
-import type {SignatureParameter} from '../../boxed-editor/boxed-editor-types';
-import type {CoreNodeData, CoreNodeMenuContext, MoveDirection, NodeEditing, RowEditing} from '../core-node';
-import type {FlowEditorOpenTarget} from '../flow-editor-types';
+import type {SignatureParameter} from '../../boxed-editor';
+import type {
+    CoreNodeData,
+    CoreNodeMenuContext,
+    FlowEditorOpenTarget,
+    MoveDirection,
+    NodeEditing,
+    RowEditing,
+} from '../core-node/types';
 
 /** ReactFlow node data of a FunctionNode; the node id is the field path. */
 export type FunctionNodeData = CoreNodeData;

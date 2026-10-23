@@ -1,6 +1,12 @@
 import type {Node} from '@xyflow/react';
-import type {CoreNodeData, CoreNodeMenuContext, MoveDirection, NodeEditing, RowEditing} from '../core-node';
-import type {FlowEditorOpenTarget} from '../flow-editor-types';
+import type {
+    CoreNodeData,
+    CoreNodeMenuContext,
+    FlowEditorOpenTarget,
+    MoveDirection,
+    NodeEditing,
+    RowEditing,
+} from '../core-node/types';
 
 /** ReactFlow node data of an InputNode; the node id is the field path. */
 export type InputNodeData = CoreNodeData;

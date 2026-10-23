@@ -1,3 +1,4 @@
+// oxlint-disable-next-line no-restricted-imports -- one header cell per grid, not repeated per row
 import {Select} from '@mantine/core';
 import type {ReactElement} from 'react';
 import type {TestSubject, TestSubjectId} from '../tests-manager-types';

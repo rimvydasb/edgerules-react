@@ -1,7 +1,7 @@
 import {Tooltip} from '@mantine/core';
 import {useMemo, useState, type ReactElement} from 'react';
 import type {TestRow} from '../../test-cases-service';
-import {CodeEditorCell} from '../../code-editor-cell/CodeEditorCell';
+import {CodeEditorCell} from '../../code-editor-cell';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {isKnownPath} from '../model/paths';
 import {createPathLanguageService} from '../model/pathLanguage';

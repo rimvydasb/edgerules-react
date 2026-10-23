@@ -1,5 +1,4 @@
-import type {XYPosition} from '@xyflow/react';
-import type {ChartConfig} from '../chart-node/types';
+import type {FlowLayout} from '../../../lib/flowLayout';
 import type {CodeEditorService} from '../../code-editor-cell';
 import type {DocumentationService} from '../../documentation-service';
 import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
@@ -14,26 +13,7 @@ export interface FlowEditorProps {
     onLayoutChange?: (layout: FlowLayout) => void; // after a node is moved, added or removed, or an output is rewired
 }
 
-/** Presentation data of the canvas (`flow.json`); the model holds the semantics. */
-export interface FlowLayout {
-    positions: Record<string, XYPosition>; // node id -> top-left canvas position
-    outputs: FlowOutput[]; // output nodes exist on the canvas only
-    charts?: FlowChart[]; // chart nodes exist on the canvas only; reported only when there are some
-}
-
-export interface FlowOutput {
-    id: string; // node id, for example 'output' or 'output2'
-    label?: string; // title; falls back to 'Output'
-    source?: {node: string; handle: string}; // the result pin wired into the output
-}
-
-export interface FlowChart {
-    id: string; // node id, for example 'chart' or 'chart2'
-    label?: string; // title; falls back to 'Chart'
-    source?: {node: string; handle: string}; // the result pin wired into the chart
-    config?: ChartConfig; // undefined: configured automatically; a new wire clears it
-    size?: {width: number; height: number}; // px; the default size when absent
-}
+export type {FlowChart, FlowLayout, FlowOutput} from '../../../lib/flowLayout';
 
 export type PaletteGroup = 'input' | 'function' | 'output' | 'chart';
 

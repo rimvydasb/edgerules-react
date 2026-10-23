@@ -4,7 +4,7 @@ import type {BoxedTableRowData} from '../boxed-editor-types';
 import {ExpressionCell} from '../cells/ExpressionCell';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useRowActions} from '../hooks/useRowActions';
-import {childPath} from '../service/portable-utils';
+import {childPath} from '../../../lib/portableUtils';
 import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import {rulesetTracks, SubGrid, sum, Track, type RulesetTracks} from '../primitives';
 import {GenericRow} from './GenericRow';

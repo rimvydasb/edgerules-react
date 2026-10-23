@@ -70,15 +70,16 @@ module.exports = {
     {
       name: 'component-public-api',
       comment:
-        'Import another component only through its index.ts (its npm subpath), never its internal files. ' +
-        "Export what you need from that component's index.ts, or, if it is shared plumbing rather than " +
-        'public API, move it to src/lib or src/ui. Exception: code-editor/language/ is the documented shared ' +
-        'language tooling.',
+        'Import another component only through its index.ts (the npm subpath API) or its internal.ts (shared ' +
+        'with other components of this package, not published), never its other files. Export what you need from ' +
+        "that component's internal.ts; use index.ts only for what consumers of the npm package need. Generic " +
+        'helpers with no component knowledge belong in src/lib or src/ui. Exception: code-editor/language/ is ' +
+        'the documented shared language tooling.',
       severity: 'error',
       from: {path: `${COMPONENT}([^/]+)/`, pathNot: TEST_CODE},
       to: {
         path: `${COMPONENT}[^/]+/`,
-        pathNot: [`${COMPONENT}$1/`, `${COMPONENT}[^/]+/index\\.tsx?$`, `${COMPONENT}code-editor/language/`],
+        pathNot: [`${COMPONENT}$1/`, `${COMPONENT}[^/]+/(index|internal)\\.tsx?$`, `${COMPONENT}code-editor/language/`],
       },
     },
     componentAllowlist('code-editor', [], 'Main React components'),
@@ -185,6 +186,19 @@ module.exports = {
       severity: 'error',
       from: {path: '^src/', pathNot: [TEST_CODE, '\\.stories\\.tsx?$']},
       to: {dependencyTypes: ['npm-dev'], dependencyTypesNot: ['npm-peer', 'type-only']},
+    },
+
+    // --- Required coverage ---------------------------------------------------------------------------------------
+    {
+      name: 'component-has-story',
+      comment:
+        'No Storybook story reaches this component, but every component needs one (AGENTS.md, "Coding ' +
+        'Standards"). Add stories/components/<component>/<Component>.stories.tsx that imports the component ' +
+        'from its index.ts.',
+      severity: 'error',
+      // Transitive: a component that only another component's story renders also passes.
+      from: {path: '^stories/.+\\.stories\\.tsx$'},
+      to: {path: `${COMPONENT}[^/]+/index\\.ts$`, reachable: false},
     },
 
     // --- Hygiene -------------------------------------------------------------------------------------------------

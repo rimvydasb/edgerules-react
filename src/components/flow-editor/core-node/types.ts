@@ -1,6 +1,13 @@
 import type {ReactNode} from 'react';
+import type {BoxedEditorTargetKind} from '../../boxed-editor';
 import type {DocumentationService} from '../../documentation-service';
 import type {RowMenuItem} from '../../../ui/RowActionsMenu';
+
+/** Host routing target; reuses the Boxed Editor kinds and adds 'tests'. */
+export interface FlowEditorOpenTarget {
+    path: string; // callee path ('risk') or node field path ('decision')
+    kind: BoxedEditorTargetKind | 'tests';
+}
 
 /** ReactFlow data shared by every node kind; the node id is the field path. */
 // A type alias, not an interface: xyflow requires node data to be assignable to Record<string, unknown>.

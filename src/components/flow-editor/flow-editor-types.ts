@@ -1,14 +1,14 @@
 import type {PortableError} from '@edgerules/portable';
 import type {ReactNode} from 'react';
-import type {BoxedEditorTargetKind} from '../boxed-editor/BoxedEditorProps';
 import type {CodeEditorEmbedContext, CodeEditorService} from '../code-editor-cell';
-import type {Unsubscribe} from '../boxed-editor/boxed-editor-types';
+import type {Unsubscribe} from '../../lib/changeBatch';
 import type {DocumentationService} from '../documentation-service';
+import type {FlowEditorOpenTarget} from './core-node/types';
 import type {CalleeRef, FunctionNodeModel} from './function-node/types';
 import type {InputNodeModel} from './input-node/types';
 import type {OutputReading} from './output-node/types';
 
-export type {Unsubscribe};
+export type {FlowEditorOpenTarget, Unsubscribe};
 
 export interface FlowEditorProviderProps {
     service: FlowEditorService; // engine-backed node service from createFlowEditorService()
@@ -17,12 +17,6 @@ export interface FlowEditorProviderProps {
     readOnly?: boolean; // disables every mutation; menus show only non-mutating items
     onOpenNode?: (target: FlowEditorOpenTarget) => void; // routes "Open in…", "Open tests", "View as code" to the host
     children: ReactNode; // the ReactFlow canvas
-}
-
-/** Host routing target; reuses the Boxed Editor kinds and adds 'tests'. */
-export interface FlowEditorOpenTarget {
-    path: string; // callee path ('risk') or node field path ('decision')
-    kind: BoxedEditorTargetKind | 'tests';
 }
 
 /** One model field that the canvas draws as a node; the node id is the field path. */

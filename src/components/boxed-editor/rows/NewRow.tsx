@@ -13,7 +13,7 @@ import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {isValidDrop, type DragPayload} from '../dnd/dropRules';
 import {buildContainerDropPayload} from '../dnd/useRowDrop';
-import {indexedPath, parentPath, pathDepth} from '../service/portable-utils';
+import {indexedPath, parentPath, pathDepth} from '../../../lib/portableUtils';
 import {cx} from '../../../ui/cx';
 import * as classes from '../boxedEditor.module.css';
 import {GenericRow} from './GenericRow';

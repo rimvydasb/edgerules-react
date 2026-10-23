@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState, type ReactElement} from 'react';
 import type {PortableError} from '@edgerules/portable';
 import {CodeEditorCell} from '../../code-editor-cell';
-import {HighlightedCode} from '../../code-editor-cell/HighlightedCode';
+import {HighlightedCode} from '../../code-editor-cell/internal';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';

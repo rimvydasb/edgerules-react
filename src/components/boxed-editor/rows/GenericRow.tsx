@@ -1,3 +1,4 @@
+// oxlint-disable-next-line no-restricted-imports -- shown only for the row whose edit failed, like an error popover
 import {Alert} from '@mantine/core';
 import type {KeyboardEvent, ReactElement, ReactNode} from 'react';
 import {DescriptionCell} from '../cells/DescriptionCell';

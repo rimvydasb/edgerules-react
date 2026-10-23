@@ -5,6 +5,9 @@ import {isPortableError} from '../../../lib/portable';
 import {
     addArgument as addFunctionArgument,
     addConditionColumn,
+    buildExpressionEmbedContext,
+    createBoxedEditorService,
+    denormalize,
     moveArgument as moveFunctionArgument,
     moveConditionColumn,
     removeArgument as removeFunctionArgument,
@@ -13,18 +16,9 @@ import {
     renameConditionColumn,
     renameActionColumn,
     uniqueName,
-} from '../../boxed-editor/commands/rowFactories';
-import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor/boxed-editor-types';
-import {createBoxedEditorService} from '../../boxed-editor/service/createBoxedEditorService';
-import {denormalize} from '../../boxed-editor/service/denormalize';
-import {buildExpressionEmbedContext} from '../../boxed-editor/service/embedContext';
-import {
-    formatPortableValue,
-    isRecord,
-    parentPath,
-    portableAtPath,
-    typeText,
-} from '../../boxed-editor/service/portable-utils';
+} from '../../boxed-editor/internal';
+import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor';
+import {formatPortableValue, isRecord, parentPath, portableAtPath, typeText} from '../../../lib/portableUtils';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
 import type {InputField, InputNodeModel} from '../input-node/types';

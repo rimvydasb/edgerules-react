@@ -112,6 +112,12 @@ Boxed Editor are plain elements styled with CSS Modules that read Mantine CSS va
 MUST NOT use a UI library component; a library component MAY sit in a cell only as an overlay (menu, tooltip, error
 popover). Shared primitives live in `src/ui/`. See `docs/architecture-adr.md`.
 
+The oxlint rule `no-restricted-imports` in `.oxlintrc.json` enforces the cell rule. It applies to the row and cell files
+of `boxed-editor`, `tests-manager` and `src/ui/grid`.
+
+In those files, `@mantine/core` supplies only `Tooltip`, `Menu`, `Popover`, `HoverCard`, `Modal` and `Portal`. An
+exception MUST have an `oxlint-disable-next-line` comment that states its reason.
+
 ### Shell owns cross-editor navigation
 
 Major editors remain independently renderable. `ProjectExplorer` exposes `onOpenVariables`, `onOpenFunction`,
@@ -142,7 +148,7 @@ A change to a rule MUST update this section and the config together.
 | Rule                                     | Constraint                                                                                                     |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `shared-code-not-to-components`          | `src/lib` and `src/ui` MUST NOT import `src/components`.                                                       |
-| `component-public-api`                   | A component imports another component only through its `index.ts`. `code-editor/language/` is shared.          |
+| `component-public-api`                   | A component imports another component only through its `index.ts` or `internal.ts`.                            |
 | `component-deps-<component>`             | Each component imports only the components in its allowlist. The allowlists follow the table below.            |
 | `no-circular`                            | Modules MUST NOT form import cycles. The recursive `boxed-editor/rows/` rendering cycle is exempt.             |
 | `engine-web-only-in-project-session`     | Only `project-session/engine/` imports `@edgerules/web`.                                                       |
@@ -150,6 +156,7 @@ A change to a rule MUST update this section and the config together.
 | `peer-*`, `dnd-kit-only-in-grid-editors` | Each optional peer package stays inside the component of its subpath export.                                   |
 | `not-to-test-code`, `not-to-dev-dep`     | Shipped code MUST NOT import tests, fixtures, test libraries or packages that are only `devDependencies`.      |
 | `not-to-unresolvable`                    | Each import resolves. Vite asset imports (`?url`, `?raw`) are exempt.                                          |
+| `component-has-story`                    | A Storybook story reaches the `index.ts` of each component, directly or through another component.             |
 | `markdown-file-name`                     | Markdown file names are lowercase kebab-case. `README.md`, `CLAUDE.md`, `AGENTS.md` and `SKILL.md` are exempt. |
 
 | Component               | Allowed component dependencies                                                                    |
@@ -169,6 +176,13 @@ A change to a rule MUST update this section and the config together.
 new violation.
 
 Fix a recorded violation, then run `npm run depcruise:baseline` to remove it from the file.
+
+Each component has two entry points for imports from other modules:
+
+- **`index.ts`:** the npm subpath export. It contains only the API that package consumers use.
+- **`internal.ts`:** the API that other components of this package share. `tsdown.config.ts` does not publish it.
+
+`code-editor/language/` is the shared language tooling. Other components MAY import its files directly.
 
 ## Project state architecture
 

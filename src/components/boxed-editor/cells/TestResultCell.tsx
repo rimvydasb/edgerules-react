@@ -1,3 +1,5 @@
+// Known violation: `Loader` renders in every running row; replace it with a CSS Module spinner.
+// oxlint-disable-next-line no-restricted-imports -- known violation, see above
 import {Loader, Tooltip} from '@mantine/core';
 import {IconAlertCircleFilled} from '@tabler/icons-react';
 import type {ReactElement} from 'react';

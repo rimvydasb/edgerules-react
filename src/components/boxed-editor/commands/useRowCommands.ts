@@ -7,7 +7,7 @@ import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorTestContext} from '../context/BoxedEditorTestContext';
 import {useOptionalBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import type {BoxedEditorService, BoxedRowData} from '../boxed-editor-types';
-import {childPath, indexedPath, parentPath, unqualifyPath} from '../service/portable-utils';
+import {childPath, indexedPath, parentPath, unqualifyPath} from '../../../lib/portableUtils';
 
 export interface RowCommands {
     /**

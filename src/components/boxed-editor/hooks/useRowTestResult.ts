@@ -2,7 +2,7 @@ import {useCallback, useSyncExternalStore} from 'react';
 import type {TestResult} from '../../test-cases-service';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorTestContext} from '../context/BoxedEditorTestContext';
-import {unqualifyPath} from '../service/portable-utils';
+import {unqualifyPath} from '../../../lib/portableUtils';
 
 export interface RowTestResultState {
     result: TestResult | undefined;

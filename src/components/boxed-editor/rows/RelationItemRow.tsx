@@ -4,7 +4,7 @@ import {ExpressionCell} from '../cells/ExpressionCell';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useRowActions} from '../hooks/useRowActions';
-import {childPath, parentPath, pathDepth} from '../service/portable-utils';
+import {childPath, parentPath, pathDepth} from '../../../lib/portableUtils';
 import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import {splitUnits, SubGrid, Track} from '../primitives';
 import {GenericRow} from './GenericRow';

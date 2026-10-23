@@ -1,6 +1,6 @@
 import {useMemo, type ReactElement} from 'react';
 import {CodeEditorCell, type CodeEditorEmbedContext, type CodeEditorService} from '../../code-editor-cell';
-import {HighlightedCode} from '../../code-editor-cell/HighlightedCode';
+import {HighlightedCode} from '../../code-editor-cell/internal';
 import {RECORD_VALUE} from './layout';
 import styles from './inputNode.module.css';
 

@@ -1,0 +1,29 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "overrides": [
+        {
+            "files": [
+                "src/components/boxed-editor/cells/**",
+                "src/components/boxed-editor/rows/*Row.tsx",
+                "src/components/tests-manager/grid/*Cell.tsx",
+                "src/components/tests-manager/grid/*Row*.tsx",
+                "src/ui/grid/**"
+            ],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "paths": [
+                            {
+                                "name": "@mantine/core",
+                                "allowImportNames": ["Tooltip", "Menu", "Popover", "HoverCard", "Modal", "Portal"],
+                                "allowTypeImports": true,
+                                "message": "Grid rows and cells are plain elements styled with CSS Modules that read Mantine CSS variables; a Mantine component may sit in a cell only as an overlay (Tooltip, Menu, Popover, HoverCard, Modal, Portal). See docs/architecture.md \"UI library\" and docs/architecture-adr.md. Use a plain element with a CSS Module class instead, or a primitive from src/ui/."
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

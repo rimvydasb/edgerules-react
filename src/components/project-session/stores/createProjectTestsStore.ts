@@ -1,5 +1,5 @@
-import {createTestCasesCore, type TestCasesCore} from '../../test-cases-service/createTestCasesCore';
-import type {TestCasesService, TestSubjectId, TestSuite} from '../../test-cases-service/test-cases-service-types';
+import {createTestCasesCore, type TestCasesCore} from '../../test-cases-service/internal';
+import type {TestCasesService, TestSubjectId, TestSuite} from '../../test-cases-service';
 import type {TestSuitesDocument} from '../bundle/types';
 import {isAtOrUnder, movePath, sameJson, type StoreContext} from './storeSupport';
 import type {ProjectTestsStore} from './types';

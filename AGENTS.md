@@ -43,3 +43,5 @@ detected bugs, append `docs/engine-bug-reports.md` with a new entry describing t
   says how to fix it. Never silence a new violation by editing the rules or the baseline
   (`.dependency-cruiser-known-violations.json`) — fix the import; after fixing a recorded one, run
   `npm run depcruise:baseline` so the baseline only shrinks.
+- A component's `index.ts` is its npm public API; `internal.ts` is what other components of this package may import (not
+  published). Grid row/cell files may use only overlay Mantine components (`.oxlintrc.json`).

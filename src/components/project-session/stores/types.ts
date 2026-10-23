@@ -1,7 +1,7 @@
 import type {Unsubscribe} from '../../../lib/changeBatch';
-import type {DocumentationService} from '../../documentation-service/documentation-service-types';
-import type {FlowLayout} from '../../flow-editor/editor/types';
-import type {TestCasesService, TestSubjectId} from '../../test-cases-service/test-cases-service-types';
+import type {DocumentationService} from '../../documentation-service';
+import type {FlowLayout} from '../../../lib/flowLayout';
+import type {TestCasesService, TestSubjectId} from '../../test-cases-service';
 import type {DocumentationDocument, FlowMetadataDocument, TestSuitesDocument} from '../bundle/types';
 
 /**
