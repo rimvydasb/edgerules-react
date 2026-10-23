@@ -173,12 +173,85 @@ Realistic outcome: a differentiating showcase; a niche, not a market.
 
 ---
 
-## 7. Realistic trajectories
+## 7. Showcase examples for the studio pitch
+
+Every example below uses only shipped engine features: rulesets and scorecards, loops (`while` and fold), finance
+functions, dates and business days, `optimise`, `explain()` with special values, user types, list functions such as
+`groupBy`, and host-provided external functions.
+
+**Selection rule:** an example earns a place only if it shows something a spreadsheet or plain TypeScript cannot do well
+— an explanation per decision, typed handling of missing data, tests inside the model, or the same model running in the
+browser and on the backend.
+
+**Existing material:** `../edgerules/tests/wasm/models/` already holds loan origination, a scorecard, order pricing, a
+temporal model and optimisation; `OPTIMISE_EXAMPLES.md` adds factory production, feed blending and order sourcing. They
+are written as engine tests, not as stories, but they are the starting point.
+
+### 7.1 Tier 1 — strongest pitch value
+
+1. **"Can I afford this home?"** Mortgage affordability with an amortization chart, an affordability decision table,
+   stress-test scenarios and a plain-language reason for each verdict.
+   - **Shows:** finance functions, Flow with charts, decision tables, `explain()`.
+   - **Why it fits:** anyone understands it, and it is the consumer face of the credit (CCD2) wedge. The loan screenshot
+     in the README is already 60% of it.
+2. **Sales commission plan** _(new candidate)_. Tiered rates, accelerators above quota, caps and clawbacks, and a "why
+   is my payout €X?" breakdown per rep.
+   - **Shows:** `groupBy`/`sumBy` over deal lists, rulesets, `explain()`, one test case per rep.
+   - **Why it fits:** commission plans are a well-known spreadsheet pain. Payout disputes are exactly the "explain this
+     number" problem, and the dedicated SaaS tools are expensive. Probably the best fit not considered before.
+3. **Payroll / tax calculator as "rules as code"** _(new candidate)_. For example, a Lithuanian net-to-gross salary
+   calculator (income-tax brackets, social-insurance contributions, tax-free allowance) or a benefit-eligibility check.
+   - **Why it fits:** governments and the OECD-backed "Rules as Code" movement publish laws as executable models.
+     OpenFisca, the main reference tool, is Python and server-based. EdgeRules runs entirely in the browser, so a
+     citizen's data never leaves the device — a privacy pitch no server-based tool can make.
+   - **Caveat:** effective-dated rules do not exist yet, so tax years must be modelled as a ruleset keyed on year.
+4. **Refund guardrail for an AI agent.** "May the support agent refund €X to this customer?" The answer comes from order
+   age, customer tier, refund history and amount limits, and returns approve, escalate or deny with a reason.
+   - **Why it fits:** it is the concrete demo behind the agent-guardrail and human-review thesis (§6.3). It works
+     without an MCP server and gets stronger once one exists.
+
+### 7.2 Tier 2 — strong, more specialised
+
+5. **Production / sourcing plan.** Rules produce costs and compliance gates; the LP solver picks the mix. The Boxed view
+   shows binding constraints and slack. The data already exists. The most distinctive demo, for a technical audience.
+6. **Solar + battery ROI or EV charging plan.** NPV/IRR over a multi-year loop, time-of-use tariff rules, optionally an
+   LP for the charging schedule. Chart-heavy and topical in the EU; combines finance, loops and optimisation in one
+   story.
+7. **Debt payoff simulator (avalanche vs snowball)** or a **retirement / financial-independence projection.** A
+   month-by-month simulation with a fold loop and a chart comparing the strategies. Month-by-month simulations are where
+   spreadsheets get messy with dragged formulas; here the loop is typed and checked.
+8. **Insurance premium rating.** Rating tables, scorecard loadings, discounts and a premium breakdown. The second
+   vertical and a classic decision-table shape.
+
+### 7.3 Tier 3 — memorable, use with care
+
+9. **Clinical risk score with missing data** (CHA₂DS₂-VASc-style). The best possible demo of `Missing` vs
+   `NotApplicable`: "no lab result" and "does not apply to this patient" are different, and most engines treat both as
+   null. Present it strictly as a language demo, never as medical software, because of regulatory risk.
+10. **Cap table liquidation waterfall / vesting schedule.** Liquidation preferences confuse even founders; explaining
+    who gets what and why lands well with a startup audience. Uses dates for vesting cliffs.
+11. **Cart promotions with stacking rules.** The same WASM runs in the cart preview and at checkout, so the price shown
+    always equals the price charged. The clearest demo of browser/backend parity, in a crowded market.
+
+### 7.4 Pitch structure
+
+- **One hero demo:** #1 (affordability) for a fintech audience, or #2 (commissions) for a broader business audience.
+- **A gallery of four to five more:** #3, #4, #5, #7 and #9 together cover every engine capability.
+- **The same three-step walkthrough in each:** change an input, see the result and chart update live, click the result
+  to see why. The third step needs the explain/trace view (§9, item 3), which does not exist yet; the gallery makes it
+  more urgent.
+
+A good gallery makes EdgeRules look capable but does not prove anyone wants it. Treat commissions (#2) and rules-as-code
+calculators (#3) as hypotheses worth one conversation each with potential users before building them in full.
+
+---
+
+## 8. Realistic trajectories
 
 | Scenario                    | What it looks like in 12–18 months                                                                                            | Likelihood (judgement)                                               |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | **Engine studio**           | Hosted studio and playground; the components mainly power EdgeRules' own tools; npm package has a few downloads               | **Most likely** — mostly in own control                              |
-| **Studio + early adopters** | Studio drives a small number of external engine users; one or two embed a component; a credit-domain reference project exists | Plausible if §8 items 1–4 ship soon                                  |
+| **Studio + early adopters** | Studio drives a small number of external engine users; one or two embed a component; a credit-domain reference project exists | Plausible if §9 items 1–4 ship soon                                  |
 | **Commercial studio**       | The suite becomes the hosted studio of the engine prospect's commercial path (lifecycle plane, approvals, evidence packs)     | Possible but distant; needs design partners and more than one person |
 | **Stall**                   | Engine adoption does not come; the suite stays a well-built private tool                                                      | Real base rate for DSL ecosystems                                    |
 
@@ -187,12 +260,12 @@ one of the cheapest ways to get the engine run.
 
 ---
 
-## 8. Recommendations, ranked by leverage
+## 9. Recommendations, ranked by leverage
 
 1. **Make it visible.** Add CI (typecheck, lint, depcruise, tests). Deploy Storybook to GitHub Pages. Record a short GIF
    of the three views editing one model. Cheap and overdue.
-2. **Ship the hosted studio** (§6.1) with share-by-link and three to five curated example projects. Merge it with, or
-   link it from, the existing examples page instead of keeping two playgrounds.
+2. **Ship the hosted studio** (§6.1) with share-by-link and three to five curated example projects (§7). Merge it with,
+   or link it from, the existing examples page instead of keeping two playgrounds.
 3. **Build an explain/trace view.** Click a result and see why: the contributing fields, the matched rule, and the
    origin of any special value. It is the feature that makes every demo show the engine's real differentiator.
 4. **Build one vertical reference project** — credit affordability with tests and explanations (§6.2).
@@ -210,7 +283,7 @@ already ahead of what any user has seen.
 
 ---
 
-## 9. Signals to watch
+## 10. Signals to watch
 
 - **Positive:** someone outside the project shares a studio link; an issue or question from a stranger; a fintech
   developer asks to embed a decision table; the engine's LLM authoring eval reports good results (which strengthens
@@ -222,7 +295,7 @@ already ahead of what any user has seen.
 
 ---
 
-## 10. Bottom line
+## 11. Bottom line
 
 The suite is good — well-architected, well-tested, and with one genuinely uncommon idea at its centre: one typed model,
 shown as code, grid and canvas at once, running live in the browser. That idea is worth something **only as the engine's
