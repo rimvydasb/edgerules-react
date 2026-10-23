@@ -45,7 +45,7 @@ async function renderShell(props: Partial<ShellProps> = {}, session?: ProjectSes
 
 function breadcrumbItems(): string[] {
     const nav = screen.getByRole('navigation', {name: 'Model path'});
-    return Array.from(nav.querySelectorAll('a, button, p')).map((item) => item.textContent ?? '');
+    return Array.from(nav.querySelectorAll('button, [aria-current]')).map((item) => item.textContent ?? '');
 }
 
 function codeView(): EditorView {
@@ -116,6 +116,20 @@ describe('Shell view switch', () => {
         const {onViewChange} = await renderShell({defaultView: 'code'});
         await user.click(screen.getByRole('radio', {name: 'Code'}));
         expect(onViewChange).not.toHaveBeenCalled();
+    });
+
+    it('moves the view with the arrow keys, like a radio group', async () => {
+        const user = userEvent.setup();
+        const {onViewChange} = await renderShell({defaultView: 'code'});
+        expect(screen.getByRole('radio', {name: 'Code'})).toHaveAttribute('aria-checked', 'true');
+
+        await user.tab();
+        expect(screen.getByRole('radio', {name: 'Code'})).toHaveFocus();
+        await user.keyboard('{ArrowRight}');
+        expect(onViewChange).toHaveBeenLastCalledWith('boxed');
+        expect(screen.getByRole('radio', {name: 'Boxed'})).toHaveFocus();
+        await user.keyboard('{ArrowLeft}{ArrowLeft}');
+        expect(onViewChange).toHaveBeenLastCalledWith('flow');
     });
 });
 

@@ -1,5 +1,10 @@
-/* The Shell: the breadcrumb and the view switch in the header, the active editor filling the body. */
+/*
+ * The Shell: a one-step header row on the same ruled sheet as the Boxed Editor (40px step, 1px border lines,
+ * muted header fill), and the active editor filling the body below it.
+ */
 .root {
+  --sh-border: var(--mantine-color-default-border);
+  --sh-muted: var(--mantine-color-default-hover);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -7,15 +12,115 @@
   gap: var(--mantine-spacing-xs);
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--mantine-spacing-md);
-  padding: var(--mantine-spacing-xs) 0;
-  border-bottom: 1px solid var(--mantine-color-default-border);
+.root *,
+.root *::before,
+.root *::after {
+  box-sizing: border-box;
 }
 
+/* ---------------------------------------------------------------- header row */
+.header {
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  height: 41px; /* the frame lines and one 39px step, like the first row of a Boxed Editor grid */
+  border: 1px solid var(--sh-border);
+  background-color: var(--sh-muted);
+  font-size: var(--mantine-font-size-sm);
+}
+
+/* The icon square of the root path kind, like the icon of a Boxed Editor header row. */
+.kindIcon {
+  display: flex;
+  width: 40px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--sh-border);
+  color: var(--mantine-color-dimmed);
+}
+
+.breadcrumbs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  padding-inline: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.separator {
+  flex-shrink: 0;
+  color: var(--mantine-color-dimmed);
+}
+
+.crumb {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--mantine-color-dimmed);
+  font: inherit;
+  cursor: pointer;
+}
+
+.crumb:hover {
+  background-color: var(--sh-border);
+  color: var(--mantine-color-text);
+}
+
+.crumb:focus-visible,
+.viewButton:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.current {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-inline: 4px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- view switch: one cell per view */
+.viewSwitch {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.viewButton {
+  display: flex;
+  width: 120px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--sh-border);
+  background-color: var(--sh-muted);
+  color: var(--mantine-color-dimmed);
+  font: inherit;
+  cursor: pointer;
+}
+
+.viewButton:hover {
+  background-color: var(--sh-border);
+}
+
+/* The active view reads as an open cell of the sheet, underlined in the primary color. */
+.viewButtonActive,
+.viewButtonActive:hover {
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--mantine-primary-color-filled);
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------- body and status */
 .body {
   flex: 1;
   min-height: 0;

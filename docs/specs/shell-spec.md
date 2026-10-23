@@ -20,11 +20,13 @@
 
 ### Shell layout
 
-The header has the breadcrumb navigation on the left and the view switch on the right. The active editor fills the body.
+The header is one row of the Boxed Editor ruled sheet: 40px tall, 1px border lines, the muted header fill. It has the
+icon of the root path kind and the breadcrumb navigation on the left, and the view switch on the right. The active
+editor fills the body.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ Model › applicant › calculateAge(...)              [ Code | Boxed | Flow ] │
+│ ƒx │ Model › applicant › calculateAge(...)    │  Code  │ Boxed  │  Flow  │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │                         active editor (one at a time)                    │
@@ -34,12 +36,12 @@ The header has the breadcrumb navigation on the left and the view switch on the 
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Element            | Implementation                                          | Behavior                                                                     |
-| ------------------ | ------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `ShellBreadcrumbs` | Mantine `Breadcrumbs` with one `Anchor` per item        | The first item is `Model` and opens `'*'`. The last item is text.            |
-| `ShellViewSwitch`  | Mantine `SegmentedControl` with `Code`, `Boxed`, `Flow` | Changes the active view. The root path does not change.                      |
-| Editor body        | One of `CodeEditor`, `BoxedEditor`, `FlowEditor`        | Only the active editor is mounted.                                           |
-| `ShellStatus`      | Mantine `Alert`                                         | Shows the last commit error of the Code view. It is hidden without an error. |
+| Element            | Implementation                                   | Behavior                                                                     |
+| ------------------ | ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `ShellBreadcrumbs` | Kind icon square, then one `button` per item     | The first item is `Model` and opens `'*'`. The last item is text.            |
+| `ShellViewSwitch`  | `radiogroup` of three 3-step header cells        | Changes the active view. The root path does not change.                      |
+| Editor body        | One of `CodeEditor`, `BoxedEditor`, `FlowEditor` | Only the active editor is mounted.                                           |
+| `ShellStatus`      | Mantine `Alert`                                  | Shows the last commit error of the Code view. It is hidden without an error. |
 
 ### Component dependencies
 
@@ -160,6 +162,8 @@ The breadcrumb has one item for the model and one item for each path segment.
 - A context segment shows the field name.
 - A function segment shows the function name and `(...)`. It is always the last item.
 - A click on an item sets the root path to the path of that item.
+- The kind icon shows the kind of the root path, in the colors of the Boxed Editor rows: the model (`IconSitemap` on
+  dark), a function (`IconMathFunction` on blue), a context (muted `IconBraces`).
 - A segment with a `@node-name` annotation shows the field name. The breadcrumb shows model paths, not node titles.
 
 ### Navigation changes the root path or the view
