@@ -31,6 +31,20 @@ describe('FlowEditorService reads', () => {
         expect(callees.find((callee) => callee.path === 'monthly')?.returnLabel).toBe('number');
     });
 
+    it('reads the arguments of a positional call by parameter position', () => {
+        const mutable = MutableDecisionService.fromCode(`{
+            @InputNode
+            applicant: { age: 21 }
+            func riskScore(age: number): age * 2
+            @FunctionNode
+            risk: riskScore(applicant.age)
+        }`);
+        const node = createFlowEditorService(mutable).getFunctionNode('risk');
+        expect(node.arguments.map((arg) => [arg.name, arg.binding])).toEqual([
+            ['age', {kind: 'path', text: 'applicant.age'}],
+        ]);
+    });
+
     it('reads a committed ruleset invocation', () => {
         const {service} = build();
         const node = service.getFunctionNode('decision');

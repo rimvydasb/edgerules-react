@@ -90,11 +90,17 @@ function bindingOf(text: string | undefined): NodeArgument['binding'] {
     return {kind: PATH_PATTERN.test(text.trim()) ? 'path' : 'value', text};
 }
 
-function argumentTexts(node: Record<string, unknown>): Record<string, string> {
+// A positional call `f(a, b)` stores its arguments as a list; `parameters` names them by position.
+function argumentTexts(node: Record<string, unknown>, parameters: string[]): Record<string, string> {
     const raw = node['@arguments'];
     const args: Record<string, string> = {};
-    if (!isRecord(raw)) return args;
-    for (const [name, value] of Object.entries(raw)) {
+    const entries: [string | undefined, unknown][] = Array.isArray(raw)
+        ? raw.map((value, index) => [parameters[index], value])
+        : isRecord(raw)
+          ? Object.entries(raw)
+          : [];
+    for (const [name, value] of entries) {
+        if (name === undefined) continue;
         if (typeof value === 'string') args[name] = value;
         else if (isRecord(value) && typeof value.expression === 'string') args[name] = value.expression;
         else if (value !== undefined) args[name] = JSON.stringify(value);
@@ -231,7 +237,13 @@ export function createFlowEditorService(
         return {
             method: typeof committed['@method'] === 'string' ? committed['@method'] : undefined,
             label: typeof committed['@node-name'] === 'string' ? committed['@node-name'] : undefined,
-            args: argumentTexts(committed),
+            args: argumentTexts(
+                committed,
+                (
+                    calleeOf(typeof committed['@method'] === 'string' ? committed['@method'] : undefined)?.parameters ??
+                    []
+                ).map((parameter) => parameter.name),
+            ),
         };
     };
 
