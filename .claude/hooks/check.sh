@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stop and SubagentStop: run dependency-cruiser and `npm run check` (typecheck, lint, depcruise, unit tests) before the
 # agent finishes.
-# - dependency-cruiser (markdown file naming, etc.) always runs: it takes under a second.
+# - dependency-cruiser (architecture and markdown naming rules) always runs: it takes under a second.
 # - The full check skips when no code file differs from HEAD, or when this exact change set already passed.
 # - On failure, exit 2 sends the output back to the agent, which keeps working.
 # - After MAX_ATTEMPTS failures in one session, it lets the agent stop and tells the user.

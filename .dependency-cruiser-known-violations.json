@@ -1,0 +1,867 @@
+[
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/bundle/types.ts",
+    "to": "src/components/flow-editor/editor/types.ts",
+    "unresolvedTo": "../../flow-editor/editor/types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-deps-project-session"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/stores/createFlowMetadataStore.ts",
+    "to": "src/components/flow-editor/editor/types.ts",
+    "unresolvedTo": "../../flow-editor/editor/types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-deps-project-session"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/stores/types.ts",
+    "to": "src/components/flow-editor/editor/types.ts",
+    "unresolvedTo": "../../flow-editor/editor/types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-deps-project-session"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/boxed-editor/cells/ExpressionCell.tsx",
+    "to": "src/components/code-editor-cell/HighlightedCode.tsx",
+    "unresolvedTo": "../../code-editor-cell/HighlightedCode",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/decision-table/DecisionTableEditor.tsx",
+    "to": "src/components/code-editor-cell/CodeEditorCell.tsx",
+    "unresolvedTo": "../code-editor-cell/CodeEditorCell",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/decision-table/DecisionTableEditor.tsx",
+    "to": "src/components/code-editor-cell/HighlightedCode.tsx",
+    "unresolvedTo": "../code-editor-cell/HighlightedCode",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/flow-editor-types.ts",
+    "to": "src/components/boxed-editor/boxed-editor-types.ts",
+    "unresolvedTo": "../boxed-editor/boxed-editor-types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/flow-editor-types.ts",
+    "to": "src/components/boxed-editor/BoxedEditorProps.ts",
+    "unresolvedTo": "../boxed-editor/BoxedEditorProps",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/function-node/types.ts",
+    "to": "src/components/boxed-editor/boxed-editor-types.ts",
+    "unresolvedTo": "../../boxed-editor/boxed-editor-types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/input-node/InputValueCell.tsx",
+    "to": "src/components/code-editor-cell/HighlightedCode.tsx",
+    "unresolvedTo": "../../code-editor-cell/HighlightedCode",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/service/createFlowEditorService.ts",
+    "to": "src/components/boxed-editor/boxed-editor-types.ts",
+    "unresolvedTo": "../../boxed-editor/boxed-editor-types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/service/createFlowEditorService.ts",
+    "to": "src/components/boxed-editor/commands/rowFactories.ts",
+    "unresolvedTo": "../../boxed-editor/commands/rowFactories",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/service/createFlowEditorService.ts",
+    "to": "src/components/boxed-editor/service/createBoxedEditorService.ts",
+    "unresolvedTo": "../../boxed-editor/service/createBoxedEditorService",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/service/createFlowEditorService.ts",
+    "to": "src/components/boxed-editor/service/denormalize.ts",
+    "unresolvedTo": "../../boxed-editor/service/denormalize",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/service/createFlowEditorService.ts",
+    "to": "src/components/boxed-editor/service/embedContext.ts",
+    "unresolvedTo": "../../boxed-editor/service/embedContext",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/flow-editor/service/createFlowEditorService.ts",
+    "to": "src/components/boxed-editor/service/portable-utils.ts",
+    "unresolvedTo": "../../boxed-editor/service/portable-utils",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/bundle/types.ts",
+    "to": "src/components/flow-editor/editor/types.ts",
+    "unresolvedTo": "../../flow-editor/editor/types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/bundle/types.ts",
+    "to": "src/components/test-cases-service/test-cases-service-types.ts",
+    "unresolvedTo": "../../test-cases-service/test-cases-service-types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/stores/createFlowMetadataStore.ts",
+    "to": "src/components/flow-editor/editor/types.ts",
+    "unresolvedTo": "../../flow-editor/editor/types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/stores/createProjectTestsStore.ts",
+    "to": "src/components/test-cases-service/createTestCasesCore.ts",
+    "unresolvedTo": "../../test-cases-service/createTestCasesCore",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/stores/createProjectTestsStore.ts",
+    "to": "src/components/test-cases-service/test-cases-service-types.ts",
+    "unresolvedTo": "../../test-cases-service/test-cases-service-types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/stores/types.ts",
+    "to": "src/components/documentation-service/documentation-service-types.ts",
+    "unresolvedTo": "../../documentation-service/documentation-service-types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/stores/types.ts",
+    "to": "src/components/flow-editor/editor/types.ts",
+    "unresolvedTo": "../../flow-editor/editor/types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/project-session/stores/types.ts",
+    "to": "src/components/test-cases-service/test-cases-service-types.ts",
+    "unresolvedTo": "../../test-cases-service/test-cases-service-types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/components/tests-manager/grid/PathCell.tsx",
+    "to": "src/components/code-editor-cell/CodeEditorCell.tsx",
+    "unresolvedTo": "../../code-editor-cell/CodeEditorCell",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "component-public-api"
+    }
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/core-node/hooks.ts",
+    "to": "src/components/flow-editor/flow-editor-types.ts",
+    "unresolvedTo": "../flow-editor-types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/function-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/index.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/hooks.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/core-node/index.ts",
+    "to": "src/components/flow-editor/core-node/NodeFrame.tsx",
+    "unresolvedTo": "./NodeFrame",
+    "dependencyTypes": [
+      "local",
+      "export"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/core-node/NodeFrame.tsx",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/FlowEditorProvider.tsx",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/function-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/index.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/core-node/index.ts",
+    "to": "src/components/flow-editor/core-node/useCoreNode.ts",
+    "unresolvedTo": "./useCoreNode",
+    "dependencyTypes": [
+      "local",
+      "export"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/core-node/useCoreNode.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/FlowEditorProvider.tsx",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/function-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/index.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/core-node/index.ts",
+    "to": "src/components/flow-editor/core-node/useWiredReading.ts",
+    "unresolvedTo": "./useWiredReading",
+    "dependencyTypes": [
+      "local",
+      "export"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/core-node/useWiredReading.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/function-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/index.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/core-node/NodeFrame.tsx",
+    "to": "src/components/flow-editor/core-node/useCoreNode.ts",
+    "unresolvedTo": "./useCoreNode",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/core-node/useCoreNode.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/FlowEditorProvider.tsx",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/function-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/index.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/NodeFrame.tsx",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/core-node/useCoreNode.ts",
+    "to": "src/components/flow-editor/core-node/hooks.ts",
+    "unresolvedTo": "./hooks",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/core-node/hooks.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/function-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/index.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/useCoreNode.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/core-node/useWiredReading.ts",
+    "to": "src/components/flow-editor/FlowEditorProvider.tsx",
+    "unresolvedTo": "../FlowEditorProvider",
+    "dependencyTypes": [
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/FlowEditorProvider.tsx",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/function-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/index.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/useWiredReading.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/flow-editor-types.ts",
+    "to": "src/components/flow-editor/function-node/types.ts",
+    "unresolvedTo": "./function-node/types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/function-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/flow-editor-types.ts",
+    "to": "src/components/flow-editor/input-node/types.ts",
+    "unresolvedTo": "./input-node/types",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/input-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/components/flow-editor/input-node/types.ts",
+    "to": "src/components/flow-editor/core-node/index.ts",
+    "unresolvedTo": "../core-node",
+    "dependencyTypes": [
+      "local",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-circular"
+    },
+    "cycle": [
+      {
+        "name": "src/components/flow-editor/core-node/index.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/core-node/hooks.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/flow-editor-types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      },
+      {
+        "name": "src/components/flow-editor/input-node/types.ts",
+        "dependencyTypes": [
+          "local",
+          "import",
+          "type-only"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "dependency",
+    "from": "tsdown.config.ts",
+    "to": "node_modules/rolldown/dist/index.mjs",
+    "unresolvedTo": "rolldown",
+    "dependencyTypes": [
+      "npm-no-pkg",
+      "import",
+      "type-only"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-non-package-json"
+    }
+  }
+]

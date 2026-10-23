@@ -35,6 +35,11 @@ detected bugs, append `docs/engine-bug-reports.md` with a new entry describing t
 - Format with Prettier (`.prettierrc.json`): `npm run format` to write, `npm run format:check` to verify (CI-style). A
   project `PostToolUse` hook (`.claude/settings.json`) runs `prettier --write` on every file you edit/write.
 - Markdown file names are lowercase, words separated by `-` (e.g. `flow-editor-story.md`, never `FLOW_EDITOR_STORY.md`);
-  only tool-mandated names (`README.md`, `CLAUDE.md`, `AGENTS.md`, `SKILL.md`, `CHANGELOG.md`) are exempt. Enforced by
-  dependency-cruiser (`.dependency-cruiser.cjs`, `npm run depcruise`, part of `npm run check`); the
-  `Stop`/`SubagentStop` hook (`.claude/hooks/check.sh`) runs it every time an agent finishes.
+  only tool-mandated names (`README.md`, `CLAUDE.md`, `AGENTS.md`, `SKILL.md`, `CHANGELOG.md`) are exempt.
+- Architecture rules (layers, component public API and allowlists, no cycles, engine boundary, optional peer
+  dependencies, test isolation, markdown names) are enforced by dependency-cruiser — see `docs/architecture.md`
+  "Dependency-cruiser enforces the dependency rules". `npm run depcruise` checks them (part of `npm run check`); the
+  `Stop`/`SubagentStop` hook (`.claude/hooks/check.sh`) runs it every time an agent finishes. Each violation message
+  says how to fix it. Never silence a new violation by editing the rules or the baseline
+  (`.dependency-cruiser-known-violations.json`) — fix the import; after fixing a recorded one, run
+  `npm run depcruise:baseline` so the baseline only shrinks.

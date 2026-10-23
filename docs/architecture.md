@@ -132,6 +132,44 @@ supplies a service compatible with the required subset of `MutableDecisionServic
 
 Portable model nodes and errors cross this boundary using `@edgerules/portable` types.
 
+### Dependency-cruiser enforces the dependency rules
+
+`.dependency-cruiser.cjs` encodes the rules in this section. The `Stop` and `SubagentStop` hooks run `npm run depcruise`
+after each agent task.
+
+A change to a rule MUST update this section and the config together.
+
+| Rule                                     | Constraint                                                                                                     |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `shared-code-not-to-components`          | `src/lib` and `src/ui` MUST NOT import `src/components`.                                                       |
+| `component-public-api`                   | A component imports another component only through its `index.ts`. `code-editor/language/` is shared.          |
+| `component-deps-<component>`             | Each component imports only the components in its allowlist. The allowlists follow the table below.            |
+| `no-circular`                            | Modules MUST NOT form import cycles. The recursive `boxed-editor/rows/` rendering cycle is exempt.             |
+| `engine-web-only-in-project-session`     | Only `project-session/engine/` imports `@edgerules/web`.                                                       |
+| `engine-node-only-in-tests`              | Only tests, `testing/` fixtures and stories import `@edgerules/node`.                                          |
+| `peer-*`, `dnd-kit-only-in-grid-editors` | Each optional peer package stays inside the component of its subpath export.                                   |
+| `not-to-test-code`, `not-to-dev-dep`     | Shipped code MUST NOT import tests, fixtures, test libraries or packages that are only `devDependencies`.      |
+| `not-to-unresolvable`                    | Each import resolves. Vite asset imports (`?url`, `?raw`) are exempt.                                          |
+| `markdown-file-name`                     | Markdown file names are lowercase kebab-case. `README.md`, `CLAUDE.md`, `AGENTS.md` and `SKILL.md` are exempt. |
+
+| Component               | Allowed component dependencies                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `code-editor`           | None                                                                                              |
+| `code-editor-cell`      | `code-editor`                                                                                     |
+| `project-explorer`      | None                                                                                              |
+| `documentation-service` | None                                                                                              |
+| `test-cases-service`    | None                                                                                              |
+| `decision-table`        | `code-editor`, `code-editor-cell`                                                                 |
+| `tests-manager`         | `code-editor`, `code-editor-cell`, `test-cases-service`                                           |
+| `boxed-editor`          | `code-editor`, `code-editor-cell`, `documentation-service`, `test-cases-service`, `tests-manager` |
+| `flow-editor`           | `boxed-editor`, `code-editor-cell`, `documentation-service`                                       |
+| `project-session`       | `documentation-service`, `test-cases-service`                                                     |
+
+`.dependency-cruiser-known-violations.json` records the existing violations. The check ignores them and fails on each
+new violation.
+
+Fix a recorded violation, then run `npm run depcruise:baseline` to remove it from the file.
+
 ## Project state architecture
 
 > Project State Architecture is in development and not completed. The first slices — bundle schema, `ProjectRepository`
