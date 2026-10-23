@@ -1,6 +1,6 @@
 /**
  * The exact example model from docs/stories/completed/project-explorer-story.md's "Implementation Details" section
- * (ruleset syntax adjusted to the confirmed-working form from edgerules-v2's own
+ * (ruleset syntax adjusted to the confirmed-working form from edgerules's own
  * tests/wasm/rulesets.test.ts — decision tables are now first-class `ruleset` declarations, not
  * the deprecated `firstMatch(...)` call form). Shared by ProjectExplorer.test.tsx (via
  * `@edgerules/node`, a real Node-loadable build of the engine) and the Storybook stories (via

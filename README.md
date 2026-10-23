@@ -3,7 +3,7 @@
 This repository defines reusable React components and hooks for building applications that integrate with the EdgeRules
 decision engine. Rule evaluation itself is not implemented here — components delegate to the EdgeRules WASM decision
 engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), published from the
-[`edgerules-v2`](../edgerules-v2) repository. It includes:
+[`edgerules`](../edgerules) repository. It includes:
 
 - [x] EdgeRules Code Editor (syntax highlighting, engine diagnostics, Ctrl+Space completion, Ctrl+Click / F12
       go-to-definition, Shift-Alt-F formatting)
@@ -62,7 +62,7 @@ Pass a `ProjectBundleInput` instead of a DSL string to seed documentation, tests
 
 ## Other Links
 
-[EdgeRules Flow Editor GUI](/Users/rimvydasbingelis/Projects/EdgeRules/edgerules-v2/doc/research/MODELER_GUI_RESEARCH.md)
+[EdgeRules Flow Editor GUI](/Users/rimvydasbingelis/Projects/EdgeRules/edgerules/doc/research/MODELER_GUI_RESEARCH.md)
 
 ## General Notes
 

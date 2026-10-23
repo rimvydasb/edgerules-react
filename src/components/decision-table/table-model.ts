@@ -541,7 +541,7 @@ export function duplicatePriorities(rows: DecisionTableRow[]): Set<number> {
 // ── `when` cells ↔ boolean expression ───────────────────────────────────────
 //
 // Converting between the two `when` forms without changing what a rule matches is only possible
-// for a bounded subset of the unary-test grammar (see `../../../edgerules-v2/doc/architecture/EBNF.md`
+// for a bounded subset of the unary-test grammar (see `../../../edgerules/doc/architecture/EBNF.md`
 // `UnaryTest`) — a bare identifier cell (`age: isCore`) is genuinely ambiguous without knowing
 // whether the model declares `isCore` as a one-parameter function (a named unary test call) or a
 // field (a same-named equality target), which this component cannot resolve. Rather than guess and

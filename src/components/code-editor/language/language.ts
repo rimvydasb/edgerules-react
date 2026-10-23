@@ -4,7 +4,7 @@ import {tagHighlighter, tags as t} from '@lezer/highlight';
 
 /**
  * EdgeRules DSL tokenizer for CodeMirror, derived from the language EBNF
- * (edgerules-v2 `doc/architecture/EBNF.md`): line comments, single/double quoted strings
+ * (edgerules `doc/architecture/EBNF.md`): line comments, single/double quoted strings
  * without escapes, int/float numbers, `..` ranges, the `...`/`it` context variable, and the
  * reserved-word categories (control flow, definitions, logical, booleans, special values,
  * primitive types).
