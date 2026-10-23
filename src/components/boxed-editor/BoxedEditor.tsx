@@ -10,7 +10,7 @@ import {BoxedLayoutProvider} from './context/BoxedLayoutContext';
 import {useBoxedEditorUi} from './context/BoxedEditorUiContext';
 import {isValidDrop, type DragPayload, type DropTargetPayload} from './dnd/dropRules';
 import * as classes from './boxedEditor.module.css';
-import {cx} from '../../ui/cx';
+import {cx} from '#ui/cx';
 import {useBoxedEditorService} from './hooks/useBoxedEditorService';
 import {useBoxedRows} from './hooks/useBoxedRows';
 import {ModelHeaderRow} from './rows/ModelHeaderRow';

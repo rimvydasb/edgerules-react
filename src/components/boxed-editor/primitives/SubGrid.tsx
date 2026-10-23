@@ -1,5 +1,5 @@
 import type {CSSProperties, ReactElement, ReactNode} from 'react';
-import {cx} from '../../../ui/cx';
+import {cx} from '#ui/cx';
 import * as classes from '../boxedEditor.module.css';
 import {CELL} from './layout';
 

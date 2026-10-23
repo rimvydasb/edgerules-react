@@ -1,6 +1,6 @@
 import {useState, type KeyboardEvent, type ReactElement} from 'react';
 import type {TestRow} from '../../test-cases-service';
-import {CellInput} from '../../../ui/grid';
+import {CellInput} from '#ui/grid';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {useCell} from '../hooks/useCell';
 import {CellParseError, parseCell} from '../model/values';

@@ -2,8 +2,8 @@ import {useMemo, useRef, useState, type CSSProperties, type ReactElement, type R
 import {Alert, Tree, useTree, type RenderTreeNodePayload, type TreeNodeData} from '@mantine/core';
 import {IconChevronRight} from '@tabler/icons-react';
 import type {PortableContext, PortableError, PortableNode} from '@edgerules/portable';
-import {cx} from '../../ui/cx';
-import {isPortableError} from '../../lib/portable';
+import {cx} from '#ui/cx';
+import {isPortableError} from '#lib/portable';
 import {groupContextChildren, listTypeEntries, ROOT_FETCH_PATH, ROOT_PATH, type NamedEntry} from './tree-model';
 import {KindIcon, type IconKind} from './icons';
 import * as classes from './projectExplorer.module.css';

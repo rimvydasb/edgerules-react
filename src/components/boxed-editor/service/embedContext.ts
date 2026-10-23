@@ -1,6 +1,6 @@
 import type {PortableNode, PortableRootContext} from '@edgerules/portable';
 import type {CodeEditorEmbedContext} from '../../code-editor-cell';
-import {authoredEntries, childPath, formatPortableValue, indexedPath, isRecord} from '../../../lib/portableUtils';
+import {authoredEntries, childPath, formatPortableValue, indexedPath, isRecord} from '#lib/portableUtils';
 
 const ACTIVE_CELL_MARKER = '__boxed_editor_active_cell__';
 

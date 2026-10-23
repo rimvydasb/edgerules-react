@@ -4,7 +4,7 @@ import {forceLinting} from '@codemirror/lint';
 import {EditorView, keymap, placeholder as cmPlaceholder, tooltips} from '@codemirror/view';
 import * as classes from './codeEditorCell.module.css';
 import {edgeRulesExtensions} from '../code-editor/language/extensions';
-import {cx} from '../../ui/cx';
+import {cx} from '#ui/cx';
 import {embedService, type CodeEditorEmbedContext, type CodeEditorService} from '../code-editor/language/service';
 
 export type {CodeEditorEmbedContext, CodeEditorService} from '../code-editor/language/service';

@@ -1,5 +1,5 @@
 import type {TestSubjectId, TestSuite} from '../../test-cases-service';
-import type {FlowLayout} from '../../../lib/flowLayout';
+import type {FlowLayout} from '#lib/flowLayout';
 
 export const PROJECT_FORMAT_VERSION = 1;
 export const PROJECT_MANIFEST_FILE = 'edgerules.project.json';

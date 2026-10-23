@@ -1,7 +1,7 @@
 import type {PortableError} from '@edgerules/portable';
 import type {ReactNode} from 'react';
 import type {CodeEditorEmbedContext, CodeEditorService} from '../code-editor-cell';
-import type {Unsubscribe} from '../../lib/changeBatch';
+import type {Unsubscribe} from '#lib/changeBatch';
 import type {DocumentationService} from '../documentation-service';
 import type {FlowEditorOpenTarget} from './core-node/types';
 import type {CalleeRef, FunctionNodeModel} from './function-node/types';

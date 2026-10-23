@@ -4,7 +4,7 @@ import {render, screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {EditorView} from '@codemirror/view';
 import {MutableDecisionService} from '@edgerules/node/mutable';
-import {isPortableError} from '../../../lib/portable';
+import {isPortableError} from '#lib/portable';
 import {BoxedEditor} from '../BoxedEditor';
 import type {BoxedRowData, BoxedTableRowData} from '../boxed-editor-types';
 import {addRelationColumn, appendOptimisationVariable, removeRelationColumn} from '../commands/rowFactories';

@@ -7,8 +7,8 @@ import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {buildExpressionEmbedContext} from '../service/embedContext';
 import type {BoxedRowData} from '../boxed-editor-types';
-import {cx} from '../../../ui/cx';
-import {ErrorPopover} from '../../../ui/ErrorPopover';
+import {cx} from '#ui/cx';
+import {ErrorPopover} from '#ui/ErrorPopover';
 import * as classes from '../boxedEditor.module.css';
 
 function expressionErrorMessage(error: PortableError, value: string): string {

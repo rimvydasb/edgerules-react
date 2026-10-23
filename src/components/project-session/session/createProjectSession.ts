@@ -1,4 +1,4 @@
-import {createChangeBatch, type ListenerSet} from '../../../lib/changeBatch';
+import {createChangeBatch, type ListenerSet} from '#lib/changeBatch';
 import {parseProjectBundle} from '../bundle/parseProjectBundle';
 import type {LoadedProject, ProjectBundle, ProjectLocator} from '../bundle/types';
 import {createProjectEngine} from '../engine/createProjectEngine';

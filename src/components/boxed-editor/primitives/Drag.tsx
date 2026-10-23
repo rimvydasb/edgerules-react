@@ -1,7 +1,7 @@
 import {IconGripVertical} from '@tabler/icons-react';
 import type {DraggableAttributes, DraggableSyntheticListeners} from '@dnd-kit/core';
 import type {ReactElement} from 'react';
-import {cx} from '../../../ui/cx';
+import {cx} from '#ui/cx';
 import * as classes from '../boxedEditor.module.css';
 
 export interface DragProps {

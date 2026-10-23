@@ -3,7 +3,7 @@
 import {Loader, Tooltip} from '@mantine/core';
 import {IconAlertCircleFilled} from '@tabler/icons-react';
 import type {ReactElement} from 'react';
-import {cx} from '../../../ui/cx';
+import {cx} from '#ui/cx';
 import * as classes from '../boxedEditor.module.css';
 import {useBoxedEditorTestContext} from '../context/BoxedEditorTestContext';
 import {useRowTestResult} from '../hooks/useRowTestResult';

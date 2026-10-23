@@ -1,4 +1,4 @@
-import {isPortableError} from '../../../lib/portable';
+import {isPortableError} from '#lib/portable';
 import type {TestCasesService, TestResult, TestRow} from '../../test-cases-service';
 import {buildExecuteInput} from '../model/inputs';
 import {normalizeIndexes} from '../model/paths';

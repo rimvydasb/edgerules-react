@@ -1,12 +1,12 @@
 import {Alert} from '@mantine/core';
 import {IconSettings} from '@tabler/icons-react';
 import type {ReactElement, ReactNode} from 'react';
-import {cx} from '../../../ui/cx';
+import {cx} from '#ui/cx';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import type {BoxedRowData} from '../boxed-editor-types';
 import * as classes from '../boxedEditor.module.css';
-import {RowActionsMenu, type RowMenuItem} from '../../../ui/RowActionsMenu';
+import {RowActionsMenu, type RowMenuItem} from '#ui/RowActionsMenu';
 import {Cell} from './Cell';
 import {CELL} from './layout';
 import {RowActionsButton} from './RowActionsButton';

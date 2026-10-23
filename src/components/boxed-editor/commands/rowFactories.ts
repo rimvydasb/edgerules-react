@@ -1,5 +1,5 @@
 import type {BoxedRowData, BoxedRowKind, BoxedTableRowData} from '../boxed-editor-types';
-import {childPath, indexedPath, parentPath, pathDepth} from '../../../lib/portableUtils';
+import {childPath, indexedPath, parentPath, pathDepth} from '#lib/portableUtils';
 
 export type RowFactory = (path: string, name: string, depth: number) => BoxedRowData;
 

@@ -1,8 +1,8 @@
 import type {ReactElement} from 'react';
 import type {TestCase, TestCasesService, TestRow, TestSectionId} from '../../test-cases-service';
 import {useForceUpdateOn} from '../hooks/useForceUpdate';
-import {cx} from '../../../ui/cx';
-import {GridCell, GridRow} from '../../../ui/grid';
+import {cx} from '#ui/cx';
+import {GridCell, GridRow} from '#ui/grid';
 import * as classes from './testsGrid.module.css';
 import {matches} from '../model/values';
 

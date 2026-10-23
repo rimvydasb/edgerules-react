@@ -1,4 +1,4 @@
-import type {ListenerSet} from '../../../lib/changeBatch';
+import type {ListenerSet} from '#lib/changeBatch';
 
 // What the session hands a store: where its subscribers live, and a hook it calls after every real change.
 export interface StoreContext {

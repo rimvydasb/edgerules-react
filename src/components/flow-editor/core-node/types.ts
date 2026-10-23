@@ -1,7 +1,7 @@
 import type {ReactNode} from 'react';
 import type {BoxedEditorTargetKind} from '../../boxed-editor';
 import type {DocumentationService} from '../../documentation-service';
-import type {RowMenuItem} from '../../../ui/RowActionsMenu';
+import type {RowMenuItem} from '#ui/RowActionsMenu';
 
 /** Host routing target; reuses the Boxed Editor kinds and adds 'tests'. */
 export interface FlowEditorOpenTarget {

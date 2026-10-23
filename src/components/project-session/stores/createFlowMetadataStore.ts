@@ -1,4 +1,4 @@
-import type {FlowLayout} from '../../../lib/flowLayout';
+import type {FlowLayout} from '#lib/flowLayout';
 import {emptyFlow, type FlowMetadataDocument} from '../bundle/types';
 import {isAtOrUnder, movePath, moveKeys, sameJson, type StoreContext} from './storeSupport';
 import type {FlowMetadataStore} from './types';

@@ -1,6 +1,6 @@
 import {IconDotsVertical} from '@tabler/icons-react';
 import type {ReactElement} from 'react';
-import {RowActionsMenu} from '../../../ui/RowActionsMenu';
+import {RowActionsMenu} from '#ui/RowActionsMenu';
 import type {NodeMenuButtonProps} from './types';
 import styles from './coreNode.module.css';
 

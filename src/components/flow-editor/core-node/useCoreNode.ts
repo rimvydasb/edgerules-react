@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {isPortableError} from '../../../lib/portable';
+import {isPortableError} from '#lib/portable';
 import {useFlowEditor} from '../FlowEditorProvider';
 import {useNodeDescription} from './hooks';
 import type {CoreNodeMenuContext, NodeEditing} from './types';

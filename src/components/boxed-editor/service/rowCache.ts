@@ -1,5 +1,5 @@
 import type {BoxedRowData} from '../boxed-editor-types';
-import {parentPath} from '../../../lib/portableUtils';
+import {parentPath} from '#lib/portableUtils';
 
 export interface CachedRows {
     row?: BoxedRowData;

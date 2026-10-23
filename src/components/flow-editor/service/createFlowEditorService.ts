@@ -1,7 +1,7 @@
 import type {PortableError, PortableNode, PortableRootContext} from '@edgerules/portable';
-import {listCallables, type CallableSource} from '../../../lib/callables';
-import {setWithLinkCheck, type LinkCheckService} from '../../../lib/linkCheck';
-import {isPortableError} from '../../../lib/portable';
+import {listCallables, type CallableSource} from '#lib/callables';
+import {setWithLinkCheck, type LinkCheckService} from '#lib/linkCheck';
+import {isPortableError} from '#lib/portable';
 import {
     addArgument as addFunctionArgument,
     addConditionColumn,
@@ -18,7 +18,7 @@ import {
     uniqueName,
 } from '../../boxed-editor/internal';
 import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor';
-import {formatPortableValue, isRecord, parentPath, portableAtPath, typeText} from '../../../lib/portableUtils';
+import {formatPortableValue, isRecord, parentPath, portableAtPath, typeText} from '#lib/portableUtils';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
 import type {InputField, InputNodeModel} from '../input-node/types';

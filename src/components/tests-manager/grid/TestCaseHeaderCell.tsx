@@ -6,7 +6,7 @@ import type {TestCase} from '../../test-cases-service';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {testCaseActionsFor} from '../menu/actions';
 import {TestsMenu} from '../menu/TestsMenu';
-import {cx} from '../../../ui/cx';
+import {cx} from '#ui/cx';
 import * as classes from './testsGrid.module.css';
 
 // Three fixed parts: a 40x40 drag handle (reorders the column via `useColumnDrag`'s

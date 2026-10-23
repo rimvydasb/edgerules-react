@@ -6,7 +6,7 @@
 // different rows can never be offset from each other.
 
 import type {BoxedRowData, BoxedRowKind, BoxedTableRowData} from '../boxed-editor-types';
-import {GRID_STEP} from '../../../ui/grid';
+import {GRID_STEP} from '#ui/grid';
 
 export const CELL = GRID_STEP;
 

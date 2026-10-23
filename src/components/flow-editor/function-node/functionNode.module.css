@@ -12,18 +12,15 @@
   text-transform: uppercase;
 }
 
-
 .required {
   margin-left: 2px;
   color: var(--mantine-color-error);
 }
 
-
 .locked {
   color: var(--mantine-color-dimmed);
   font-style: italic;
 }
-
 
 /* ---------------------------------------------------------------- callee chip */
 .chip {

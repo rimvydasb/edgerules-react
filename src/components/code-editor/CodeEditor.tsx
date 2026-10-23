@@ -4,7 +4,7 @@ import {forceLinting} from '@codemirror/lint';
 import {EditorView} from '@codemirror/view';
 import {edgeRulesExtensions} from './language/extensions';
 import type {CodeEditorService} from './language/service';
-import {cx} from '../../ui/cx';
+import {cx} from '#ui/cx';
 import * as classes from './codeEditor.module.css';
 
 export type {CodeEditorDiagnostic, CodeEditorDiagnosticsService, CodeEditorService} from './language/service';

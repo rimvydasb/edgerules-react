@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {MutableDecisionService} from '@edgerules/node/mutable';
-import {isPortableError} from '../../../lib/portable';
+import {isPortableError} from '#lib/portable';
 import type {BoxedTableRowData} from '../boxed-editor-types';
 import {addRelationColumn, appendRelationItem, nextComplexTypeRow, nextRelationRow} from '../commands/rowFactories';
 import {createBoxedEditorService} from '../service/createBoxedEditorService';

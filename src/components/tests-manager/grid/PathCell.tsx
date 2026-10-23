@@ -5,7 +5,7 @@ import {CodeEditorCell} from '../../code-editor-cell';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {isKnownPath} from '../model/paths';
 import {createPathLanguageService} from '../model/pathLanguage';
-import {cx} from '../../../ui/cx';
+import {cx} from '#ui/cx';
 import * as classes from './testsGrid.module.css';
 
 // Self-contained Path-column sizing/truncation: `computePathColumnWidth` sizes the column from the

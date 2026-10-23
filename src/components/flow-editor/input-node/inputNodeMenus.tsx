@@ -1,6 +1,6 @@
 import {IconCode, IconExternalLink, IconPlus} from '@tabler/icons-react';
 import type {ReactNode} from 'react';
-import type {RowMenuItem} from '../../../ui/RowActionsMenu';
+import type {RowMenuItem} from '#ui/RowActionsMenu';
 import {coreNodeMenuItems, rowMenuItems} from '../core-node';
 import type {InputFieldMenuContext, InputNodeMenuContext, InputNodeModel} from './types';
 

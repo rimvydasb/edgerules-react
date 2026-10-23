@@ -1,4 +1,4 @@
-import {isPortableError} from '../../../lib/portable';
+import {isPortableError} from '#lib/portable';
 import type {TestRow, TestSectionId} from '../../test-cases-service';
 import type {MutableDecisionService, TestSubject} from '../tests-manager-types';
 

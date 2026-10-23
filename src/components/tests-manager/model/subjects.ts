@@ -1,4 +1,4 @@
-import {listCallables} from '../../../lib/callables';
+import {listCallables} from '#lib/callables';
 import type {MutableDecisionService, TestSubject} from '../tests-manager-types';
 
 // `'*'` plus every fully typed callable from `listCallables`.

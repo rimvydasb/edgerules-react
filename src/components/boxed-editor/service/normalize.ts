@@ -8,7 +8,7 @@ import {
     isRecord,
     pathDepth,
     typeText,
-} from '../../../lib/portableUtils';
+} from '#lib/portableUtils';
 
 type PortableRecord = Record<string, unknown>;
 

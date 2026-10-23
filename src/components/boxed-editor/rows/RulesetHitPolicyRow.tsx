@@ -4,7 +4,7 @@ import {compatibleLiteralDefault} from '../commands/rowFactories';
 import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {DropdownChip, SettingRow} from '../primitives';
-import {childPath, parentPath} from '../../../lib/portableUtils';
+import {childPath, parentPath} from '#lib/portableUtils';
 
 export interface RulesetHitPolicyRowProps {
     row: BoxedRowData;

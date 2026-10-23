@@ -20,10 +20,10 @@ import type {
     PortableRulesetSchema,
     PortableTypeReference,
 } from '@edgerules/portable';
-import {isPortableError} from '../../lib/portable';
-import {cx} from '../../ui/cx';
-import {GridBody, GridCell, GridHead, GridRow, GridTable} from '../../ui/grid';
-import {Toast} from '../../ui/Toast';
+import {isPortableError} from '#lib/portable';
+import {cx} from '#ui/cx';
+import {GridBody, GridCell, GridHead, GridRow, GridTable} from '#ui/grid';
+import {Toast} from '#ui/Toast';
 import * as classes from './decisionTable.module.css';
 import {CodeEditorCell} from '../code-editor-cell';
 import type {CodeEditorService} from '../code-editor/language/service';

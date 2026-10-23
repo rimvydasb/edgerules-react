@@ -1,6 +1,6 @@
 import {IconDotsVertical} from '@tabler/icons-react';
 import {forwardRef, type ButtonHTMLAttributes} from 'react';
-import {cx} from '../../../ui/cx';
+import {cx} from '#ui/cx';
 import * as classes from '../boxedEditor.module.css';
 
 export type RowActionsButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;

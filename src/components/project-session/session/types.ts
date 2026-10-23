@@ -1,4 +1,4 @@
-import type {Unsubscribe} from '../../../lib/changeBatch';
+import type {Unsubscribe} from '#lib/changeBatch';
 import type {
     DocumentationDocument,
     FlowMetadataDocument,

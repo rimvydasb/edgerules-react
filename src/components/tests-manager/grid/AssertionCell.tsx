@@ -1,8 +1,8 @@
 import {Tooltip} from '@mantine/core';
 import {useState, type KeyboardEvent, type ReactElement} from 'react';
 import type {TestRow} from '../../test-cases-service';
-import {CellInput} from '../../../ui/grid';
-import {cx} from '../../../ui/cx';
+import {CellInput} from '#ui/grid';
+import {cx} from '#ui/cx';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {useCell} from '../hooks/useCell';
 import {formatValue} from '../model/values';

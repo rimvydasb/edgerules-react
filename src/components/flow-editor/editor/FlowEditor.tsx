@@ -30,7 +30,7 @@ import {
     type DragEvent,
     type ReactElement,
 } from 'react';
-import {isPortableError} from '../../../lib/portable';
+import {isPortableError} from '#lib/portable';
 import {CHART_SIZE, ChartNode} from '../chart-node/ChartNode';
 import type {ChartNodeData} from '../chart-node/types';
 import {FlowEditorProvider, useFlowEditor} from '../FlowEditorProvider';

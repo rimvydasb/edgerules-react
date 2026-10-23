@@ -3,8 +3,8 @@ import {useRowCommands} from '../commands/useRowCommands';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import type {BoxedRowData} from '../boxed-editor-types';
-import {cx} from '../../../ui/cx';
-import {ErrorPopover} from '../../../ui/ErrorPopover';
+import {cx} from '#ui/cx';
+import {ErrorPopover} from '#ui/ErrorPopover';
 import * as classes from '../boxedEditor.module.css';
 
 export interface NameCellProps {

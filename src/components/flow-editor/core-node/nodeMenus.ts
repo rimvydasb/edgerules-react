@@ -11,7 +11,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import type {ReactNode} from 'react';
-import type {RowMenuItem} from '../../../ui/RowActionsMenu';
+import type {RowMenuItem} from '#ui/RowActionsMenu';
 import type {CoreNodeMenuContext, CoreNodeMenuSlots, RowMenuContext} from './types';
 
 /** Labels the first item with `group`; RowActionsMenu starts a group at every labelled item. */

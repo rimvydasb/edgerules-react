@@ -1,6 +1,6 @@
-import type {Unsubscribe} from '../../../lib/changeBatch';
+import type {Unsubscribe} from '#lib/changeBatch';
 import type {DocumentationService} from '../../documentation-service';
-import type {FlowLayout} from '../../../lib/flowLayout';
+import type {FlowLayout} from '#lib/flowLayout';
 import type {TestCasesService, TestSubjectId} from '../../test-cases-service';
 import type {DocumentationDocument, FlowMetadataDocument, TestSuitesDocument} from '../bundle/types';
 

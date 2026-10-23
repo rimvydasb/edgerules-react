@@ -1,6 +1,6 @@
 import {useMemo, type ReactElement} from 'react';
 import {highlightEdgeRules} from '../code-editor/language/highlight';
-import {cx} from '../../ui/cx';
+import {cx} from '#ui/cx';
 import * as classes from './highlightedCode.module.css';
 
 export interface HighlightedCodeProps {

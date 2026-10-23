@@ -6,7 +6,7 @@ import {useRowActions} from '../hooks/useRowActions';
 import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import {rulesetTracks, SettingRow, SubGrid, sum, Track, type RulesetTracks} from '../primitives';
 import * as classes from '../boxedEditor.module.css';
-import {childPath} from '../../../lib/portableUtils';
+import {childPath} from '#lib/portableUtils';
 
 export interface RulesetDefaultRowProps {
     row: BoxedTableRowData;

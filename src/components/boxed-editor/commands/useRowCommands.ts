@@ -1,13 +1,13 @@
 import {useMemo} from 'react';
 import type {PortableError} from '@edgerules/portable';
-import {isPortableError} from '../../../lib/portable';
+import {isPortableError} from '#lib/portable';
 import type {DocumentationService} from '../../documentation-service';
 import type {TestCasesService, TestSubjectId} from '../../test-cases-service';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
 import {useBoxedEditorTestContext} from '../context/BoxedEditorTestContext';
 import {useOptionalBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import type {BoxedEditorService, BoxedRowData} from '../boxed-editor-types';
-import {childPath, indexedPath, parentPath, unqualifyPath} from '../../../lib/portableUtils';
+import {childPath, indexedPath, parentPath, unqualifyPath} from '#lib/portableUtils';
 
 export interface RowCommands {
     /**

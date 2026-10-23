@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from 'vitest';
-import {createChangeBatch} from '../../../lib/changeBatch';
+import {createChangeBatch} from '#lib/changeBatch';
 import {createDocumentationStore} from '../stores/createDocumentationStore';
 import {createFlowMetadataStore} from '../stores/createFlowMetadataStore';
 import {createProjectTestsStore} from '../stores/createProjectTestsStore';

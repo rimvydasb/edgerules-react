@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {MutableDecisionService} from '@edgerules/node/mutable';
-import {isPortableError} from '../../../lib/portable';
+import {isPortableError} from '#lib/portable';
 import {createBoxedEditorService} from '../service/createBoxedEditorService';
 
 describe('BoxedEditorService mutations and cache', () => {

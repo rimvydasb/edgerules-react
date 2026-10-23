@@ -1,5 +1,5 @@
 import type {BoxedRowData, BoxedRowKind} from '../boxed-editor-types';
-import {parentPath} from '../../../lib/portableUtils';
+import {parentPath} from '#lib/portableUtils';
 
 /** Coarse shape of a scalar DSL literal, used to approximate "matching element type" for
  * `list-item` drops — the engine itself is the real type authority (a genuinely mismatched drop

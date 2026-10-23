@@ -1,6 +1,6 @@
 import {Tooltip} from '@mantine/core';
 import type {CSSProperties, ReactElement, ReactNode} from 'react';
-import {cx} from '../../../ui/cx';
+import {cx} from '#ui/cx';
 import {useAltHeld} from '../hooks/useAltHeld';
 import * as classes from '../boxedEditor.module.css';
 

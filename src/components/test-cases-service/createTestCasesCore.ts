@@ -1,4 +1,4 @@
-import {createChangeBatch, type ListenerSet} from '../../lib/changeBatch';
+import {createChangeBatch, type ListenerSet} from '#lib/changeBatch';
 import type {
     TestCase,
     TestCasesService,

@@ -1,7 +1,7 @@
 import type {Node} from '@xyflow/react';
-import type {ChartConfig} from '../../../lib/flowLayout';
+import type {ChartConfig} from '#lib/flowLayout';
 
-export type {ChartConfig, ChartKind} from '../../../lib/flowLayout';
+export type {ChartConfig, ChartKind} from '#lib/flowLayout';
 
 /** ReactFlow node data of a ChartNode. The data comes from the wire into the node, not from the node data. */
 export type ChartNodeData = {

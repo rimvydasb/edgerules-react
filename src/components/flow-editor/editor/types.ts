@@ -1,4 +1,4 @@
-import type {FlowLayout} from '../../../lib/flowLayout';
+import type {FlowLayout} from '#lib/flowLayout';
 import type {CodeEditorService} from '../../code-editor-cell';
 import type {DocumentationService} from '../../documentation-service';
 import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
@@ -13,7 +13,7 @@ export interface FlowEditorProps {
     onLayoutChange?: (layout: FlowLayout) => void; // after a node is moved, added or removed, or an output is rewired
 }
 
-export type {FlowChart, FlowLayout, FlowOutput} from '../../../lib/flowLayout';
+export type {FlowChart, FlowLayout, FlowOutput} from '#lib/flowLayout';
 
 export type PaletteGroup = 'input' | 'function' | 'output' | 'chart';
 

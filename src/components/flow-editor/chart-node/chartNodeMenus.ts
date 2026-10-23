@@ -1,5 +1,5 @@
 import {IconAdjustmentsHorizontal, IconChartLine, IconRestore, IconTrash} from '@tabler/icons-react';
-import type {RowMenuItem} from '../../../ui/RowActionsMenu';
+import type {RowMenuItem} from '#ui/RowActionsMenu';
 import {startGroup} from '../core-node';
 import type {ChartNodeMenuContext} from './types';
 

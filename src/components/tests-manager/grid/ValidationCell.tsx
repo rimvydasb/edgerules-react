@@ -1,6 +1,6 @@
 import type {ReactElement} from 'react';
 import type {TestRow} from '../../test-cases-service';
-import {cx} from '../../../ui/cx';
+import {cx} from '#ui/cx';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {useResult} from '../hooks/useCell';
 import {formatValue} from '../model/values';
