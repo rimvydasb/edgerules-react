@@ -59,7 +59,7 @@ export function RowActionsMenu({items, children, footer}: RowActionsMenuProps): 
     }, [opened]);
 
     return (
-        <Menu position="bottom-end" width={220} withinPortal opened={opened} onChange={setOpened}>
+        <Menu position="bottom-end" width={220} withinPortal returnFocus={false} opened={opened} onChange={setOpened}>
             <Menu.Target>{children}</Menu.Target>
             <Menu.Dropdown ref={dropdownRef}>
                 {items.map((item, index) => (
