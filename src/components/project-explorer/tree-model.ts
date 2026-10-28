@@ -87,12 +87,18 @@ function fields(context: Record<string, unknown>): [string, PortableNode][] {
         .map(([name, value]) => [name, value as PortableNode]);
 }
 
+// A callable reads as a call, as in the Shell breadcrumbs: `name(...)` when it has arguments, `name()` when it has none.
+function methodLabel(path: string, node: Record<string, unknown>): string {
+    const parameters = node['@parameters'];
+    return isRecord(parameters) && Object.keys(parameters).length > 0 ? `${path}(...)` : `${path}()`;
+}
+
 // Every callable of a context, at any depth. A function is atomic and a workbook holds nodes, not methods.
 function collectMethods(contextPath: string, context: Record<string, unknown>, methods: ExplorerEntry[]): void {
     for (const [name, node] of fields(context)) {
         const path = joinPath(contextPath, name);
         const kind = methodKind(node);
-        if (kind) methods.push({kind, path, label: `${path}()`});
+        if (kind) methods.push({kind, path, label: methodLabel(path, node as Record<string, unknown>)});
         else if (isContext(node) && !isWorkbook(node)) collectMethods(path, node, methods);
     }
 }
@@ -119,11 +125,12 @@ function byLabel(a: ExplorerEntry, b: ExplorerEntry): number {
 /**
  * Splits the model into the explorer sections, each sorted by name:
  * - **Types**: the type definitions of the root.
- * - **Methods**: every function, service and ruleset, also inside contexts, by qualified path.
+ * - **Methods**: every function, service and ruleset, also inside contexts, by qualified path: `path(...)` when it has
+ *   arguments, `path()` when it has none.
  * - **Variables**: every other root field, contexts included.
  * - **Workbooks**: every root context with `@Workbook`, with its nodes as children. A model without a `@Workbook`
  *   context but with nodes on the root is one workbook: the root ('*'), and its nodes are not variables.
- * - **Tests**: every test subject that has tests.
+ * - **Tests**: every test subject that has tests, labelled as its method.
  */
 export function buildSections(
     model: PortableContext,
@@ -156,8 +163,10 @@ export function buildSections(
             sections.variables.push({kind: isContext(node) ? 'context' : 'variable', path: name, label: name});
         }
     }
+    const methodLabels = new Map(sections.methods.map((entry) => [entry.path, entry.label]));
     for (const subjectId of testSubjects) {
-        sections.tests.push({kind: 'test', path: subjectId, label: subjectId === '*' ? 'Model' : `${subjectId}()`});
+        const label = subjectId === '*' ? 'Model' : (methodLabels.get(subjectId) ?? `${subjectId}()`);
+        sections.tests.push({kind: 'test', path: subjectId, label});
     }
     // The engine projection does not keep the source order: a section lists its entries by name, the model test first.
     for (const entries of Object.values(sections)) entries.sort(byLabel);

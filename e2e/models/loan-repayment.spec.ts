@@ -17,7 +17,7 @@ test('the Project Explorer lists every entity of the model', async ({page}) => {
     for (const entry of ['LoanRequest', 'Installment', 'samplePayment', 'mortgageBook', 'termComparisonBook']) {
         await expect(nav.getByText(entry, {exact: true}), entry).toBeVisible(SLOW);
     }
-    for (const method of ['pricingTier()', 'loanRepayment()', 'monthlyPayment()', 'yearlySummary()']) {
+    for (const method of ['pricingTier(...)', 'loanRepayment(...)', 'monthlyPayment(...)', 'yearlySummary(...)']) {
         await expect(nav.getByText(method, {exact: true}).first(), method).toBeVisible();
     }
 });

@@ -11,7 +11,7 @@ export interface BoxedViewProps {
     onOpenNode: (target: BoxedEditorOpenTarget) => void;
 }
 
-/** The boxed expression rows of the root path; a function path shows its body. */
+/** The boxed expression rows of the root path; a function path shows its header row with its arguments, then its body. */
 export function BoxedView({root, service, languageService, readOnly, onOpenNode}: BoxedViewProps): ReactElement {
     const session = useProjectSession();
     const {version} = useProjectSlice('model');

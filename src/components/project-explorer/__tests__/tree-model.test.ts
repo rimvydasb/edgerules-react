@@ -21,9 +21,9 @@ describe('buildSections', () => {
         expect(result.types.map((entry) => entry.path)).toEqual(['PeopleList', 'Person']);
         expect(result.methods.map((entry) => [entry.kind, entry.label])).toEqual([
             ['function', 'nested.deep()'],
-            ['service', 'processApplication()'],
-            ['ruleset', 'risk()'],
-            ['function', 'riskScore()'],
+            ['service', 'processApplication(...)'],
+            ['ruleset', 'risk(...)'],
+            ['function', 'riskScore(...)'],
         ]);
         expect(result.variables.map((entry) => [entry.kind, entry.path])).toEqual([
             ['variable', 'globalConst'],
@@ -32,7 +32,7 @@ describe('buildSections', () => {
         ]);
         expect(result.tests.map((entry) => [entry.path, entry.label])).toEqual([
             ['*', 'Model'],
-            ['riskScore', 'riskScore()'],
+            ['riskScore', 'riskScore(...)'],
         ]);
     });
 

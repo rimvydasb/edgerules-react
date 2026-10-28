@@ -18,9 +18,10 @@ import {NewRow} from './rows/NewRow';
 import {RowSwitch} from './rows/RowSwitch';
 
 // Root kinds that keep their own row; the row renders its children and its trailing new-item row itself. An opened
-// context keeps its name row (with its menu), and an opened field has no children. A ruleset and an optimisation lay
-// out the columns of their child rows in their own header row, so their children cannot render without it.
-const OWN_ROW_ROOT_KINDS = new Set(['context', 'field', 'ruleset', 'optimisation']);
+// context keeps its name row (with its menu), and an opened field has no children. An opened function keeps its
+// header row, so its arguments stay editable. A ruleset and an optimisation lay out the columns of their child rows in
+// their own header row, so their children cannot render without it.
+const OWN_ROW_ROOT_KINDS = new Set(['context', 'field', 'function', 'ruleset', 'optimisation']);
 
 interface BoxedEditorGridProps {
     path: string;

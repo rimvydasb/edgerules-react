@@ -31,7 +31,7 @@ describe('ProjectExplorer sections', () => {
         expect(sectionCount('Variables')).toBe('3');
         expect(sectionCount('Workbooks')).toBe('1');
         expect(sectionCount('Tests')).toBe('1');
-        expect(screen.getAllByText('riskScore()')).toHaveLength(1);
+        expect(screen.getAllByText('riskScore(...)')).toHaveLength(1);
     });
 
     it('filters the entries by the search, and hides the sections without matches', async () => {
@@ -56,8 +56,8 @@ describe('ProjectExplorer sections', () => {
     it('shows every method by its qualified path, nested ones included', () => {
         render(<ProjectExplorer service={buildService()} />);
 
-        expect(screen.getByText('riskScore()')).toBeInTheDocument();
-        expect(screen.getByText('risk()')).toBeInTheDocument();
+        expect(screen.getByText('riskScore(...)')).toBeInTheDocument();
+        expect(screen.getByText('risk(...)')).toBeInTheDocument();
         expect(screen.getByText('nested.deep()')).toBeInTheDocument();
         expect(screen.getByTestId('icon-service')).toBeInTheDocument();
     });
@@ -105,7 +105,7 @@ describe('ProjectExplorer open', () => {
     it.each([
         ['Types', 'Person', {kind: 'type', path: 'Person'}],
         ['Methods', 'nested.deep()', {kind: 'function', path: 'nested.deep'}],
-        ['Methods', 'risk()', {kind: 'ruleset', path: 'risk'}],
+        ['Methods', 'risk(...)', {kind: 'ruleset', path: 'risk'}],
         ['Variables', 'nested', {kind: 'context', path: 'nested'}],
         ['Variables', 'globalConst', {kind: 'variable', path: 'globalConst'}],
         ['Workbooks', 'loanBook', {kind: 'workbook', path: 'loanBook'}],
@@ -166,12 +166,10 @@ describe('ProjectExplorer create', () => {
         expect(service.get(name, filter)).toMatchObject(node);
         expect(() => service.link()).not.toThrow();
         expect(onOpen).toHaveBeenCalledWith({kind, path: name});
-        // The section expands and shows the new entry.
-        expect(
-            await screen.findByText(
-                kind === 'function' || kind === 'service' || kind === 'ruleset' ? `${name}()` : name,
-            ),
-        ).toBeInTheDocument();
+        // The section expands and shows the new entry; a new ruleset has a `value` argument.
+        const label =
+            kind === 'ruleset' ? `${name}(...)` : kind === 'function' || kind === 'service' ? `${name}()` : name;
+        expect(await screen.findByText(label)).toBeInTheDocument();
     });
 
     it('offers no input, output or chart node as a method', async () => {
@@ -219,9 +217,9 @@ describe('ProjectExplorer create', () => {
 
         await user.click(screen.getByRole('button', {name: 'Add to Tests'}));
         const subjects = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
-        expect(subjects).toEqual(['Model', 'nested.deep()', 'processApplication()', 'risk()', 'riskScore()']);
+        expect(subjects).toEqual(['Model', 'nested.deep()', 'processApplication(...)', 'risk(...)', 'riskScore(...)']);
 
-        await user.click(screen.getByRole('menuitem', {name: 'risk()'}));
+        await user.click(screen.getByRole('menuitem', {name: 'risk(...)'}));
         expect(onCreateTest).toHaveBeenCalledWith('risk');
         expect(onOpen).toHaveBeenCalledWith({kind: 'test', path: 'risk'});
     });
@@ -263,6 +261,6 @@ describe('ProjectExplorer header', () => {
         rerender(<ProjectExplorer service={service} onCollapsedChange={onCollapsedChange} />);
         expect(screen.getByText('loanBook')).toBeInTheDocument();
         expect(screen.queryByText('Person')).toBeNull();
-        expect(screen.queryByText('riskScore()')).toBeNull();
+        expect(screen.queryByText('riskScore(...)')).toBeNull();
     });
 });

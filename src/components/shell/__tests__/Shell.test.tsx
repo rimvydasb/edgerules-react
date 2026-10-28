@@ -139,7 +139,7 @@ describe('Shell project explorer', () => {
         expect(codeView().state.doc.toString()).toBe(session.engine.getCode('applicant'));
 
         await user.click(screen.getByRole('radio', {name: 'Boxed'}));
-        await user.click(within(explorer).getByText('applicant.calculateAge()'));
+        await user.click(within(explorer).getByText('applicant.calculateAge(...)'));
         expect(onPathChange).toHaveBeenLastCalledWith('applicant.calculateAge');
         expect(breadcrumbItems()).toEqual(['Model', 'applicant', 'calculateAge(...)']);
 
@@ -227,7 +227,7 @@ describe('Shell project explorer', () => {
         const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
 
         // The second `riskScore()` is the entry of the Tests section.
-        await user.click(within(explorer).getAllByText('riskScore()')[1]!);
+        await user.click(within(explorer).getAllByText('riskScore(...)')[1]!);
         expect(onViewChange).toHaveBeenLastCalledWith('tests');
         expect(breadcrumbItems()).toEqual(['Model', 'riskScore(...)']);
         expect(screen.queryByRole('radiogroup', {name: 'View'})).toBeNull();
@@ -246,11 +246,11 @@ describe('Shell project explorer', () => {
         const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
 
         await user.click(within(explorer).getByRole('button', {name: 'Add to Tests'}));
-        await user.click(await screen.findByRole('menuitem', {name: 'riskScore()'}));
+        await user.click(await screen.findByRole('menuitem', {name: 'riskScore(...)'}));
 
         expect(session.tests.forSubject('riskScore').listTestCases()).toHaveLength(1);
         // The Tests section lists the new subject next to the method.
-        expect(within(explorer).getAllByText('riskScore()')).toHaveLength(2);
+        expect(within(explorer).getAllByText('riskScore(...)')).toHaveLength(2);
         expect(breadcrumbItems()).toEqual(['Model', 'riskScore(...)']);
         expect(screen.getByTestId('shell-tests-view')).toBeInTheDocument();
     });

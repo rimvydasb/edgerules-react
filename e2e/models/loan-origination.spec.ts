@@ -1,5 +1,7 @@
 import {test, expect, type Page} from '@playwright/test';
 import {openStory} from '../support/storybook';
+import {chooseRowAction, valueCell} from '../boxed-editor/helpers';
+import {expectHeaders, renameHeader, retypeHeader} from '../boxed-editor/columnHelpers';
 
 // The loan origination project of models/loan-origination in the Shell stories, over the real `@edgerules/web` engine.
 // The model's own behavior is covered by models/loan-origination/__tests__; this checks that every part of it renders.
@@ -24,9 +26,57 @@ test('the Project Explorer lists every entity of the model', async ({page}) => {
     ]) {
         await expect(nav.getByText(entry, {exact: true}), entry).toBeVisible(SLOW);
     }
-    for (const method of ['applicantScorecard()', 'decisionMatrix()', 'originate()', 'policyRules()']) {
+    for (const method of ['applicantScorecard(...)', 'decisionMatrix(...)', 'originate(...)', 'policyRules(...)']) {
         await expect(nav.getByText(method, {exact: true}).first(), method).toBeVisible();
     }
+});
+
+test('the Project Explorer labels a method with arguments as name(...) and one without as name()', async ({page}) => {
+    await openStory(page, 'shell-shell--loan-origination');
+    const nav = explorer(page);
+    await expect(nav.getByText('applicantRecord(...)', {exact: true})).toBeVisible(SLOW);
+    await expect(nav.getByText('creditPolicy()', {exact: true})).toBeVisible();
+    await expect(nav.getByText('applicantRecord()', {exact: true})).toHaveCount(0);
+});
+
+test.describe('a function opened from the Project Explorer', () => {
+    test.beforeEach(async ({page}) => {
+        await openStory(page, 'shell-shell--loan-origination-book');
+        await explorer(page).getByText('applicantRecord(...)', {exact: true}).click(SLOW);
+        await expect(page.getByRole('navigation', {name: 'Model path'})).toContainText('applicantRecord(...)');
+        // The Flow view of the book shows the nodes of the function body; its arguments are edited in the Boxed view.
+        await page.getByRole('radio', {name: 'Boxed'}).click();
+    });
+
+    test('shows its arguments above its body', async ({page}) => {
+        await expect(page.getByTestId('row-applicantRecord')).toBeVisible();
+        await expectHeaders(page, 'applicantRecord', ['applicant', 'applicationDate']);
+        for (const field of ['data', 'age', 'disposableIncome']) {
+            await expect(page.getByTestId(`row-applicantRecord.${field}`), field).toBeVisible();
+        }
+    });
+
+    test('renames an argument and migrates its references in the body', async ({page}) => {
+        await renameHeader(page, 'applicantRecord', 'applicationDate', 'asOf');
+        await expectHeaders(page, 'applicantRecord', ['applicant', 'asOf']);
+        await expect(valueCell(page, 'applicantRecord.age')).toContainText('asOf');
+    });
+
+    // `scoreApplicant` calls `applicantRecord(applicant, applicationDate)` and `calendarDiff` reads a date: the engine
+    // rejects an edit that breaks either, and the editor shows why.
+    test('rejects a retype that breaks the body visibly', async ({page}) => {
+        await retypeHeader(page, 'applicantRecord', 'applicationDate', 'string');
+        await expect(page.getByLabel('Change type of applicationDate')).toHaveAttribute('aria-invalid', 'true');
+        await expect(page.getByTestId('row-applicantRecord').getByRole('alert')).toContainText('type mismatch');
+    });
+
+    test('rejects an argument its callers do not supply visibly', async ({page}) => {
+        await chooseRowAction(page, 'applicantRecord', 'Add argument');
+        await expect(page.getByTestId('row-applicantRecord').getByRole('alert')).toContainText(
+            "function 'applicantRecord' expects 3 argument(s) but 2 argument(s) were supplied",
+        );
+        await expectHeaders(page, 'applicantRecord', ['applicant', 'applicationDate']);
+    });
 });
 
 test('the scorecard decision table shows a column per characteristic', async ({page}) => {

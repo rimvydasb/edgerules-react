@@ -124,7 +124,7 @@ export const CollapsedProjectExplorer: Story = {args: {defaultExplorerOpen: fals
 /** The DSL code of a context path; an edit commits after 500 ms without typing. */
 export const CodeOfAContext: Story = {args: {defaultPath: 'applicant', defaultView: 'code'}};
 
-/** A function path: the breadcrumb ends with `calculateAge(...)`, and the Boxed view shows its body. */
+/** A function path: the breadcrumb ends with `calculateAge(...)`, and the Boxed view shows its arguments and its body. */
 export const FunctionPath: Story = {args: {defaultPath: 'applicant.calculateAge'}};
 
 /** The Flow Component nodes that are direct fields of the model root. */
