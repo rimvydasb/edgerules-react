@@ -6,7 +6,7 @@ export {FunctionNode} from './function-node/FunctionNode';
 export {InputNode} from './input-node/InputNode';
 export {OutputNode} from './output-node/OutputNode';
 export type {ChartConfig, ChartKind, ChartNodeData} from './chart-node/types';
-export type {FlowChart, FlowEditorProps, FlowLayout, FlowOutput} from './editor/types';
+export type {FlowChart, FlowEditorProps, FlowFocusRequest, FlowLayout, FlowOutput} from './editor/types';
 export type {FlowEditorOpenTarget, FlowEditorProviderProps, FlowEditorService, FlowNodeRef} from './flow-editor-types';
 export type {CalleeRef, FunctionNodeData, FunctionNodeModel, NodeArgument, NodeResult} from './function-node/types';
 export type {InputField, InputNodeData, InputNodeModel} from './input-node/types';

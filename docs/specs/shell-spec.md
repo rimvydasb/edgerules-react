@@ -3,16 +3,17 @@
 ## Summary
 
 `Shell` shows one part of the model of the open `ProjectSession`. The part starts at the root path: the whole model
-(`'*'`), a qualified context path, or a qualified function path.
+(`'*'`) or the qualified path of an entity.
 
-`Shell` wraps three editors and shows one of them at a time. Each editor renders a different part of the model, as
+`Shell` wraps four editors and shows one of them at a time. Each editor renders a different part of the model, as
 [model-decomposition.md](../model-decomposition.md) defines.
 
-| View  | Editor        | Renders from the root path                                                                 |
-| ----- | ------------- | ------------------------------------------------------------------------------------------ |
-| Code  | `CodeEditor`  | The DSL code of the root path, `engine.getCode(path)`. All fields and all annotations.     |
-| Boxed | `BoxedEditor` | The boxed expression rows of the root path. It hides `@ChartNode` and `@OutputNode` nodes. |
-| Flow  | `FlowEditor`  | The Flow Component nodes that are direct fields of the root path context.                  |
+| View  | Editor         | Renders from the root path                                                                 |
+| ----- | -------------- | ------------------------------------------------------------------------------------------ |
+| Code  | `CodeEditor`   | The DSL code of the root path, `engine.getCode(path)`. All fields and all annotations.     |
+| Boxed | `BoxedEditor`  | The boxed expression rows of the root path. It hides `@ChartNode` and `@OutputNode` nodes. |
+| Flow  | `FlowEditor`   | The Flow Component nodes that are direct fields of the root path context.                  |
+| Tests | `TestsManager` | The tests of the root path: `'*'`, a function or a ruleset.                                |
 
 `Shell` is a library component at `src/components/shell`, with the npm subpath export `edgerules-react/shell`.
 
@@ -20,33 +21,35 @@
 
 ### Shell layout
 
-The header is one row of the Boxed Editor ruled sheet: 40px tall, 1px border lines, the muted header fill. It has the
-icon of the root path kind and the breadcrumb navigation on the left, and the view switch on the right. The active
-editor fills the body.
+The header is one row of the Boxed Editor ruled sheet: 40px tall, 1px border lines, the muted header fill. The kind icon
+and the breadcrumb are on the left, and the view switch is on the right.
 
-The `ProjectExplorer` side panel is optional. It is full height on the left, 256px wide, and its header row is in line
-with the Shell header row.
+The active editor fills the body.
+
+The `ProjectExplorer` side panel is optional. It is 256px wide, below the header row on the left of the active editor.
 
 ```text
-┌──────────────────┬───────────────────────────────────────────────────────────┐
-│ Project       [«]│ ƒx │ Model › applicant › calculateAge(...) │ Code │ Boxed │
-├──────────────────┼───────────────────────────────────────────────────────────┤
-│ ▸ TYPES       2  │                                                           │
-│ ▸ VARIABLES   1  │               active editor (one at a time)               │
-│ ▾ {} applicant   │                                                           │
-│     ƒx calc…()   ├───────────────────────────────────────────────────────────┤
-│                  │ status line: commit error of the Code view (on error)     │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ƒx │ Model › applicant › calculateAge(...)          │ Code │ Boxed │ Flow    │
+├──────────────────┬───────────────────────────────────────────────────────────┤
+│ Project       [«]│                                                           │
+│ ▸ TYPES       1  │               active editor (one at a time)               │
+│ ▾ METHODS     2  │                                                           │
+│   ƒx riskScore() │                                                           │
+│ ▸ VARIABLES   1  ├───────────────────────────────────────────────────────────┤
+│ ▸ WORKBOOKS   0  │ status line: commit error of the Code view (on error)     │
 └──────────────────┴───────────────────────────────────────────────────────────┘
 ```
 
-| Element            | Implementation                                   | Behavior                                                                     |
-| ------------------ | ------------------------------------------------ | ---------------------------------------------------------------------------- |
-| `ShellBreadcrumbs` | Kind icon square, then one `button` per item     | The first item is `Model` and opens `'*'`. The last item is text.            |
-| Kind icon square   | Toggle `button` with `aria-pressed`              | Shows and hides the `ProjectExplorer` side panel.                            |
-| `ProjectExplorer`  | Side panel left of the header and the body       | Mounted only while open. Its close button hides it.                          |
-| `ShellViewSwitch`  | `radiogroup` of three 3-step header cells        | Changes the active view. The root path does not change.                      |
-| Editor body        | One of `CodeEditor`, `BoxedEditor`, `FlowEditor` | Only the active editor is mounted.                                           |
-| `ShellStatus`      | Mantine `Alert`                                  | Shows the last commit error of the Code view. It is hidden without an error. |
+| Element            | Implementation                                                   | Behavior                                                                     |
+| ------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `ShellBreadcrumbs` | Kind icon square, then one `button` per item                     | The first item is `Model` and opens `'*'`. The last item is text.            |
+| Kind icon square   | Toggle `button` with `aria-pressed`                              | Shows and hides the `ProjectExplorer` side panel.                            |
+| `ProjectExplorer`  | Side panel below the header, left of the body                    | Mounted only while open. Its close button hides it.                          |
+| `ShellViewSwitch`  | `radiogroup` of three 3-step header cells                        | Changes the active view. The root path does not change.                      |
+| Tests view cell    | One fixed header cell                                            | Replaces `ShellViewSwitch` in the Tests view, which has no other view.       |
+| Editor body        | One of `CodeEditor`, `BoxedEditor`, `FlowEditor`, `TestsManager` | Only the active editor is mounted.                                           |
+| `ShellStatus`      | Mantine `Alert`                                                  | Shows the last commit error of the Code view. It is hidden without an error. |
 
 ### Component dependencies
 
@@ -67,6 +70,7 @@ flowchart LR
         CodeEditor
         BoxedEditor
         FlowEditor
+        TestsManager
     end
     subgraph session["project-session"]
         ProjectProvider
@@ -81,17 +85,18 @@ flowchart LR
     Shell -->|renders the active view| CodeEditor
     Shell -->|renders the active view| BoxedEditor
     Shell -->|renders the active view| FlowEditor
+    Shell -->|renders the active view| TestsManager
     Shell -->|execute, setDslDraft, engine.setCode| ProjectSession
-    ProjectExplorer -.->|onOpenContext, onOpenFunction| Shell
+    ProjectExplorer -.->|onOpen, onCreateTest| Shell
     BoxedEditor -.->|onOpenNode| Shell
     FlowEditor -.->|onOpenNode| Shell
 ```
 
 `Shell` adds this row to the dependency-cruiser allowlist in [architecture.md](../architecture.md):
 
-| Component | Allowed component dependencies                                                                                                     |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `shell`   | `code-editor`, `boxed-editor`, `flow-editor`, `project-explorer`, `project-session`, `documentation-service`, `test-cases-service` |
+| Component | Allowed component dependencies                                                                                                                      |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shell`   | `code-editor`, `boxed-editor`, `flow-editor`, `project-explorer`, `project-session`, `documentation-service`, `test-cases-service`, `tests-manager` |
 
 ### Files
 
@@ -101,7 +106,7 @@ src/components/shell/
 ├── Shell.tsx                 # layout, path and view state, onOpenNode routing
 ├── ShellBreadcrumbs.tsx
 ├── ShellViewSwitch.tsx
-├── views/                    # CodeView, BoxedView, FlowView: one adapter per editor
+├── views/                    # CodeView, BoxedView, FlowView, TestsView: one adapter per editor
 ├── shell-path.ts             # path segments, path validation, nearest existing path
 ├── shell.module.css
 └── __tests__/                # RTL tests with the real @edgerules/node engine
@@ -111,11 +116,11 @@ stories/components/shell/     # Storybook story with the sample model
 ## Public API
 
 ```typescript
-type ShellView = 'code' | 'boxed' | 'flow';
+type ShellView = 'code' | 'boxed' | 'flow' | 'tests';
 
 interface ShellProps {
   languageService: CodeEditorService; // diagnostics and completions; the engine class statics fit
-  path?: string; // controlled root path: '*', a context path or a function path
+  path?: string; // controlled root path: '*' or the path of an entity; the test subject in the 'tests' view
   defaultPath?: string; // uncontrolled initial root path; defaults to '*'
   onPathChange?: (path: string) => void; // breadcrumb click, drill-down, or fallback to an existing path
   view?: ShellView; // controlled active view
@@ -137,28 +142,35 @@ interface ShellProps {
 - `Shell` passes `session.documentation` to `BoxedEditor` and `FlowEditor`.
 - `Shell` passes `session.tests.forSubject('*')` as the `testCasesService` of `BoxedEditor`.
 - `Shell` passes `useProjectSlice('model').version` as the `revision` of `BoxedEditor` and `ProjectExplorer`.
-- `Shell` passes `session.engine` as the `service` of `ProjectExplorer`.
+- `Shell` passes `session.engine` as the `service` of `ProjectExplorer` and `TestsManager`.
+- `Shell` passes the subject IDs of `useProjectSlice('tests').subjects` as `testSubjects` of `ProjectExplorer`.
+- `Shell` passes `session.tests` as the `testCases` of `TestsManager`.
 - `Shell` passes `session.flow.getLayout(root)` as `defaultLayout` of `FlowEditor`.
 - `Shell` passes `(layout) => session.flow.setLayout(root, layout)` as `onLayoutChange` of `FlowEditor`.
 
 ## Behavior
 
-### The root path addresses what the Project Explorer shows
+### The root path addresses each entry of the Project Explorer
 
-A valid root path is `'*'`, a context path, or a function path. These are the entries that `ProjectExplorer` opens with
-`onOpenVariables` and `onOpenFunction`.
+A valid root path is `'*'` or the path of an entity. `ProjectExplorer` opens each of its entries with `onOpen`.
 
-| Path segment                  | Valid in a root path | Example                  |
-| ----------------------------- | -------------------- | ------------------------ |
-| Context field                 | Yes, at any position | `applicant`              |
-| Function (`func`)             | Yes, last only       | `applicant.calculateAge` |
-| Index                         | No                   | `loans[0]`               |
-| Field inside a function body  | No                   | `calculateAge.result`    |
-| Plain value, ruleset, or type | No                   | `limit`                  |
+| Path segment                 | Valid in a root path | Views                    | Example                      |
+| ---------------------------- | -------------------- | ------------------------ | ---------------------------- |
+| Context field                | Yes, at any position | Code, Boxed, Flow        | `applicant`                  |
+| Workbook (`@Workbook`)       | Yes, at any position | Code, Boxed, Flow        | `loanBook`                   |
+| Function (`func`)            | Yes, last only       | Code, Boxed, Flow, Tests | `applicant.calculateAge`     |
+| Ruleset                      | Yes, last only       | Code, Boxed, Tests       | `band`                       |
+| Type definition              | Yes, last only       | Code, Boxed              | `Customer`                   |
+| Plain value or invocation    | Yes, last only       | Code, Boxed              | `limit`, `loanBook.decision` |
+| Index                        | No                   | None                     | `loans[0]`                   |
+| Field inside a function body | No                   | None                     | `calculateAge.result`        |
 
 - `Shell` MUST NOT support indexed paths. A path that contains `[` is not a valid root path.
-- A function is an atomic entity. A root path MUST NOT go below a function.
+- A root path MUST NOT go below a function, or below any other entity that is not a context.
 - `Shell` opens the nearest valid ancestor for an invalid root path, and then calls `onPathChange`.
+- The Flow view cell is disabled for a root path without Flow. `Shell` shows the Boxed view and calls `onViewChange`.
+- In the Tests view, a root path that is not a test subject falls back to `'*'`.
+- The Boxed view of a plain value shows the own row of the field.
 
 ### The breadcrumb shows the fully qualified root path
 
@@ -172,24 +184,45 @@ The breadcrumb has one item for the model and one item for each path segment.
 | `applicant.calculateAge` | `Model` › `applicant` › `calculateAge(...)` |
 
 - A context segment shows the field name.
-- A function segment shows the function name and `(...)`. It is always the last item.
+- A function or a ruleset segment shows its name and `(...)`. It is always the last item.
 - A click on an item sets the root path to the path of that item.
-- The kind icon shows the kind of the root path, in the colors of the Boxed Editor rows: the model (`IconSitemap` on
-  dark), a function (`IconMathFunction` on blue), a context (muted `IconBraces`).
+- In the Tests view, a click on an item also sets the view to Boxed.
+- The kind icon shows the root path kind in the colors of the Boxed Editor rows:
+
+| Root path kind  | Icon               | Fill   |
+| --------------- | ------------------ | ------ |
+| Model (`'*'`)   | `IconSitemap`      | Dark   |
+| Workbook        | `IconBook2`        | Dark   |
+| Function        | `IconMathFunction` | Blue   |
+| Ruleset         | `IconListCheck`    | Purple |
+| Type definition | `IconTag`          | Orange |
+| Context         | `IconBraces`       | Muted  |
+| Plain value     | `IconVariable`     | Muted  |
+| Tests view      | `IconFlask`        | Green  |
+
 - The kind icon is the toggle of the Project Explorer. While the panel is open, the icon has the primary-color underline
   of the active view cell.
 
-### The Project Explorer opens entries of the model
+### The Project Explorer opens each entry in the active view
 
-| Explorer callback     | Shell action                                                     |
-| --------------------- | ---------------------------------------------------------------- |
-| `onOpenContext`       | Sets the root path to the context path.                          |
-| `onOpenVariables`     | Sets the root path to the context of the variables (`'*'` root). |
-| `onOpenFunction`      | Sets the root path to the function path.                         |
-| `onOpenDecisionTable` | Forwards `{kind: 'ruleset', path}` to `onOpenNode`.              |
-| `onOpenTypes`         | Forwards `{kind: 'type-definition', path: name ?? '*'}`.         |
+`ProjectExplorer` reports an opened entry as `{kind, path}` through `onOpen`. `explorerRoute` in
+[shell-routing.ts](../../src/components/shell/shell-routing.ts) selects the root path and the view.
 
-- A model change re-reads the loaded contexts of the explorer. The expanded nodes stay expanded.
+| Active view   | Opened entry                                      | Root path     | View                       |
+| ------------- | ------------------------------------------------- | ------------- | -------------------------- |
+| Any           | A test                                            | Subject ID    | Tests                      |
+| Code or Boxed | Any other entry                                   | Entry path    | Unchanged                  |
+| Flow          | A context, a workbook or a function               | Entry path    | Flow                       |
+| Flow          | A node of a workbook, for example `function-node` | Workbook path | Flow, the node is centered |
+| Flow          | A type, a ruleset or a plain value                | Entry path    | Boxed                      |
+| Tests         | A workbook                                        | Entry path    | Flow                       |
+| Tests         | Any other entry                                   | Entry path    | Boxed                      |
+
+- `FlowEditor` selects and centers the node of each new `focusNode` request.
+- The Tests view is the only view of a test.
+- `onCreateTest(subjectId)` calls `session.tests.forSubject(subjectId).addTestCase()`.
+- `readOnly` hides the add buttons of the explorer.
+- A model change re-reads the model in the explorer. The expanded sections stay expanded.
 - A segment with a `@node-name` annotation shows the field name. The breadcrumb shows model paths, not node titles.
 
 ### Navigation changes the root path or the view
@@ -204,9 +237,11 @@ flowchart TD
     Valid -->|yes| Kind{target.kind}
     Kind -->|boxed-editor| Boxed["root path = target.path, view = boxed"]
     Kind -->|code-editor| Code["root path = target.path, view = code"]
-    Kind -->|type-definition, ruleset, loop, tests| Host
+    Kind -->|tests| Tests["root path = target.path, view = tests"]
+    Kind -->|type-definition, ruleset, loop| Host
     Boxed --> Notify["onPathChange, onViewChange"]
     Code --> Notify
+    Tests --> Notify
 ```
 
 - In uncontrolled mode, `Shell` changes its state and then calls `onPathChange` and `onViewChange`.
@@ -309,6 +344,9 @@ current model on mount, so it shows the changes of the other views.
       commit.
 - [x] Add RTL tests for the invalid draft, the invalid root path, the path fallback and the per-root Flow layout.
 - [x] Add a Storybook story with the sample model of [model-decomposition.md](../model-decomposition.md).
+- [x] Accept the path of every entity as a root path. Disable the Flow view cell for a root path without Flow.
+- [x] Add the Tests view with `TestsManager`, and route the `tests` target of the editors to it.
+- [x] Open each Project Explorer entry in the default view of its section.
 
 ## Limitations
 

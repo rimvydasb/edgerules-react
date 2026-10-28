@@ -39,31 +39,34 @@ export const Default: Story = {
     render: (args, {loaded}) => <ProjectExplorer {...args} service={loaded.service} style={{flex: 1}} />,
 };
 
+/** Every section open, the workbook expanded to its nodes, and the tests of two subjects. */
 export const Expanded: Story = {
+    args: {testSubjects: ['*', 'riskScore'], onOpen: fn(), onCreateTest: fn()},
     loaders: [async () => ({service: await buildService(MODEL_DSL)})],
     render: (args, {loaded}) => <ProjectExplorer {...args} service={loaded.service} style={{flex: 1}} />,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement);
-        await userEvent.click(await canvas.findByText('Types'));
-        await userEvent.click(await canvas.findByText('Variables'));
+        for (const section of ['Types', 'Methods', 'Variables', 'Workbooks', 'Tests']) {
+            await userEvent.click(await canvas.findByText(section));
+        }
+        await userEvent.click(await canvas.findByText('loanBook'));
     },
 };
 
-export const WithLinkingError: Story = {
-    // `risk` (a `firstMatch` decision table) currently renders as a plain [ctx], not [dt] — the
-    // real engine does not yet project `@kind: 'invocation'` on read (known gap, see the plan and
-    // tree-model.test.ts). This story instead demonstrates the error-badge/tooltip path: a real
-    // CRUD `remove()` call leaves a dangling reference, and `box`'s next `get()` surfaces it.
-    //
-    // The `remove()` call happens in `play` (after the story has already mounted successfully),
-    // not in the loader — breaking the reference before mount would fail the *root* fetch instead,
-    // showing the top-level error state rather than a single node's badge/tooltip.
-    loaders: [async () => ({service: await buildService('{ box: { a: 1 b: a + 1 } }')})],
+/** The add button of a section header creates a new entity with `service.set` and opens it. */
+export const CreateEntity: Story = {
+    args: {onOpen: fn()},
+    loaders: [async () => ({service: await buildService(MODEL_DSL)})],
     render: (args, {loaded}) => <ProjectExplorer {...args} service={loaded.service} style={{flex: 1}} />,
-    play: async ({canvasElement, loaded}) => {
+    play: async ({canvasElement}) => {
         const canvas = within(canvasElement);
-        await canvas.findByText('box');
-        loaded.service.remove('box.a');
-        await userEvent.click(canvas.getByText('box'));
+        await userEvent.click(await canvas.findByRole('button', {name: 'Add to Methods'}));
     },
+};
+
+/** No add buttons. */
+export const ReadOnly: Story = {
+    args: {readOnly: true, testSubjects: ['*']},
+    loaders: [async () => ({service: await buildService(MODEL_DSL)})],
+    render: (args, {loaded}) => <ProjectExplorer {...args} service={loaded.service} style={{flex: 1}} />,
 };

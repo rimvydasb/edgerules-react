@@ -27,6 +27,27 @@ const SAMPLE_MODEL = `{
   limit: riskScore(applicant.age).score
 }`;
 
+// A project with an entity of every Project Explorer section: a service method, a workbook with its nodes, and tests.
+const PROJECT_MODEL = `{
+  type Customer: { name: <string>; income: <number, 0> }
+  func riskScore(income: number): { score: income / 100 }
+  @Service
+  func processApplication(income: number): { result: riskScore(income).score }
+  ruleset band(age: number): {
+    hitPolicy: "first-match"
+    rules: [{ when: { age: < 30 }, then: { level: "young" } }]
+    default: { level: "none" }
+  }
+  limit: 1000
+  @Workbook
+  loanBook: {
+    @InputNode(name: "Applicant")
+    applicant: { income: 5000 }
+    @FunctionNode
+    decision: riskScore(income: applicant.income)
+  }
+}`;
+
 interface ShellStoryArgs {
     defaultPath?: string;
     defaultView?: ShellView;
@@ -119,5 +140,32 @@ export const Controlled: Story = {
         await expect(canvas.getByTestId('host-state')).toHaveTextContent('path applicant');
         await userEvent.click(canvas.getByText('Code'));
         await expect(canvas.getByTestId('host-state')).toHaveTextContent('view code');
+    },
+};
+
+/**
+ * The Project Explorer of a whole project, in the Flow view. The workbook opens as the Flow root, a click on its
+ * `decision` node centers that node, and the tests of `riskScore` open in the Tests view.
+ */
+export const Project: Story = {
+    args: {defaultExplorerOpen: true, defaultView: 'flow'},
+    loaders: [
+        async () => {
+            const session = await openStoryProject({name: 'Shell project story', model: {dsl: PROJECT_MODEL}});
+            session.tests.forSubject('riskScore').addTestCase();
+            return {session};
+        },
+    ],
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement);
+        const explorer = await canvas.findByRole('navigation', {name: 'Project explorer'});
+        await userEvent.click(within(explorer).getByText('Workbooks'));
+        await userEvent.click(within(explorer).getByText('loanBook'));
+        await expect(canvas.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
+        await userEvent.click(await within(explorer).findByText('decision'));
+        await expect(canvas.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
+        await userEvent.click(within(explorer).getByText('Tests'));
+        await userEvent.click(within(explorer).getByText('riskScore()'));
+        await expect(await canvas.findByTestId('shell-tests-view')).toBeInTheDocument();
     },
 };

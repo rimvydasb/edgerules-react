@@ -7,11 +7,19 @@
   --sh-border: var(--mantine-color-default-border);
   --sh-muted: var(--mantine-color-default-hover);
   display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
 }
 
-/* The header, the active editor and the status line, right of the Project Explorer. */
+/* Everything below the header row: the Project Explorer and the main column. */
+.content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The active editor and the status line, right of the Project Explorer. */
 .main {
   display: flex;
   flex: 1;
@@ -21,11 +29,12 @@
 }
 
 /*
- * The Project Explorer side panel, full height on the left. Its 40px header lies in line with the Shell header row,
- * and its right frame line is the left frame line of the Shell: one line, not two.
+ * The Project Explorer side panel, below the header row on the left. Like the body, it moves up by one pixel onto the
+ * bottom line of the header, and its right frame line is the left frame line of the editor: one line, not two.
  */
 .explorer {
   flex: 0 0 256px;
+  margin-top: -1px;
   margin-right: -1px;
   border: 1px solid var(--sh-border);
 }
@@ -156,6 +165,14 @@
   font-weight: 600;
   box-shadow: inset 0 -2px 0 var(--mantine-primary-color-filled);
   cursor: default;
+}
+
+/* The Flow view of a root path that has no flow: a ruleset, a type or a plain field. */
+.viewButton:disabled,
+.viewButton:disabled:hover {
+  background-color: var(--sh-muted);
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* ---------------------------------------------------------------- body and status */

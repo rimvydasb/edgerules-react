@@ -11,6 +11,12 @@ export interface FlowEditorProps {
     onOpenNode?: (target: FlowEditorOpenTarget) => void; // routes "Open in…", "Open tests", "View as code" to the host
     defaultLayout?: FlowLayout; // positions and output nodes to start from; read on mount only
     onLayoutChange?: (layout: FlowLayout) => void; // after a node is moved, added or removed, or an output is rewired
+    focusNode?: FlowFocusRequest; // a new object selects that node and centers the view on it
+}
+
+/** Asks the canvas to select one node and center it; each new object is a new request. */
+export interface FlowFocusRequest {
+    field: string; // the field path of the node, for example 'loanBook.decision'
 }
 
 export type {FlowChart, FlowLayout, FlowOutput} from '#lib/flowLayout';

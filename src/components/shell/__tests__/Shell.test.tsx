@@ -22,6 +22,18 @@ const SHELL_MODEL = `{
     limit: riskScore(applicant.age).score
 }`;
 
+// A workbook with an input node and a function node.
+const WORKBOOK_MODEL = `{
+    func riskScore(income: number): { score: income / 100 }
+    @Workbook
+    loanBook: {
+        @InputNode
+        applicant: { income: 5000 }
+        @FunctionNode
+        decision: riskScore(income: applicant.income)
+    }
+}`;
+
 async function renderShell(props: Partial<ShellProps> = {}, session?: ProjectSession) {
     const opened = session ?? (await openFixtureProject({model: {dsl: SHELL_MODEL}})).session;
     const onPathChange = vi.fn<(path: string) => void>();
@@ -102,7 +114,7 @@ describe('Shell project explorer', () => {
 
         await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
         const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
-        expect(within(explorer).getByText('applicant')).toBeInTheDocument();
+        expect(within(explorer).getByText('Variables')).toBeInTheDocument();
         expect(screen.getAllByRole('button', {name: 'Hide project explorer'})).toHaveLength(2);
 
         await user.click(within(explorer).getByRole('button', {name: 'Hide project explorer'}));
@@ -113,18 +125,140 @@ describe('Shell project explorer', () => {
         expect(screen.queryByRole('navigation', {name: 'Project explorer'})).toBeNull();
     });
 
-    it('opens the clicked context or function as the root path', async () => {
+    it('opens a clicked entry at its path in the active view', async () => {
         const user = userEvent.setup();
-        const {onPathChange} = await renderShell({defaultExplorerOpen: true});
+        const {session, onPathChange} = await renderShell({defaultExplorerOpen: true, defaultView: 'code'});
         const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
 
+        await user.click(within(explorer).getByText('Variables'));
         await user.click(within(explorer).getByText('applicant'));
         expect(onPathChange).toHaveBeenLastCalledWith('applicant');
         expect(breadcrumbItems()).toEqual(['Model', 'applicant']);
+        expect(codeView().state.doc.toString()).toBe(session.engine.getCode('applicant'));
 
-        await user.click(await within(explorer).findByText('calculateAge()'));
+        await user.click(screen.getByRole('radio', {name: 'Boxed'}));
+        await user.click(within(explorer).getByText('Methods'));
+        await user.click(within(explorer).getByText('applicant.calculateAge()'));
         expect(onPathChange).toHaveBeenLastCalledWith('applicant.calculateAge');
         expect(breadcrumbItems()).toEqual(['Model', 'applicant', 'calculateAge(...)']);
+
+        await user.click(within(explorer).getByText('Types'));
+        await user.click(within(explorer).getByText('Customer'));
+        expect(breadcrumbItems()).toEqual(['Model', 'Customer']);
+        expect(screen.getByRole('treegrid')).toHaveTextContent('income');
+
+        await user.click(within(explorer).getByText('limit'));
+        expect(breadcrumbItems()).toEqual(['Model', 'limit']);
+        expect(screen.getByTestId('row-limit')).toBeInTheDocument();
+    });
+
+    it('keeps the Flow view for an entry with Flow, and shows an entry without Flow in the Boxed view', async () => {
+        const user = userEvent.setup();
+        const {onViewChange} = await renderShell({defaultExplorerOpen: true, defaultView: 'flow'});
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+
+        await user.click(within(explorer).getByText('Variables'));
+        await user.click(within(explorer).getByText('applicant'));
+        expect(breadcrumbItems()).toEqual(['Model', 'applicant']);
+        expect(screen.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
+        expect(onViewChange).not.toHaveBeenCalled();
+
+        await user.click(within(explorer).getByText('Types'));
+        await user.click(within(explorer).getByText('Customer'));
+        expect(onViewChange).toHaveBeenLastCalledWith('boxed');
+        expect(breadcrumbItems()).toEqual(['Model', 'Customer']);
+    });
+
+    it('centers a clicked workbook node on the canvas of its workbook in the Flow view', async () => {
+        const {session} = await openFixtureProject({model: {dsl: WORKBOOK_MODEL}});
+        const user = userEvent.setup();
+        const {onViewChange} = await renderShell({defaultExplorerOpen: true, defaultView: 'flow'}, session);
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+
+        await user.click(within(explorer).getByText('Workbooks'));
+        await user.click(within(explorer).getByText('loanBook'));
+        expect(breadcrumbItems()).toEqual(['Model', 'loanBook']);
+        expect(await screen.findByTestId('function-node-loanBook.decision')).toBeInTheDocument();
+
+        await user.click(within(explorer).getByText('decision'));
+        expect(onViewChange).not.toHaveBeenCalled();
+        expect(breadcrumbItems()).toEqual(['Model', 'loanBook']);
+        await waitFor(() =>
+            expect(screen.getByTestId('function-node-loanBook.decision').closest('.react-flow__node')).toHaveClass(
+                'selected',
+            ),
+        );
+    });
+
+    it('opens a workbook node at its path in the Boxed view', async () => {
+        const {session} = await openFixtureProject({model: {dsl: WORKBOOK_MODEL}});
+        const user = userEvent.setup();
+        await renderShell({defaultExplorerOpen: true}, session);
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+
+        await user.click(within(explorer).getByText('Workbooks'));
+        await user.click(within(explorer).getByText('loanBook'));
+        await user.click(within(explorer).getByText('decision'));
+        expect(breadcrumbItems()).toEqual(['Model', 'loanBook', 'decision']);
+        expect(screen.getByTestId('row-loanBook.decision')).toBeInTheDocument();
+    });
+
+    it('opens the tests of a subject in the Tests view, with no other view', async () => {
+        const {session} = await openFixtureProject({model: {dsl: SHELL_MODEL}});
+        session.tests.forSubject('riskScore').addTestCase();
+        const user = userEvent.setup();
+        const {onViewChange} = await renderShell({defaultExplorerOpen: true}, session);
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+
+        await user.click(within(explorer).getByText('Tests'));
+        await user.click(within(explorer).getByText('riskScore()'));
+        expect(onViewChange).toHaveBeenLastCalledWith('tests');
+        expect(breadcrumbItems()).toEqual(['Model', 'riskScore(...)']);
+        expect(screen.queryByRole('radiogroup', {name: 'View'})).toBeNull();
+        expect(screen.getByTestId('shell-tests-view')).toHaveTextContent('Tests');
+        expect(await screen.findByText('Test Case 1')).toBeInTheDocument();
+
+        // A crumb opens the model entity again, in the Boxed view.
+        await user.click(screen.getByRole('button', {name: 'Model'}));
+        expect(onViewChange).toHaveBeenLastCalledWith('boxed');
+        expect(screen.getByRole('radiogroup', {name: 'View'})).toBeInTheDocument();
+    });
+
+    it('creates a test of a method and opens it', async () => {
+        const user = userEvent.setup();
+        const {session} = await renderShell({defaultExplorerOpen: true});
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+
+        await user.click(within(explorer).getByRole('button', {name: 'Add to Tests'}));
+        await user.click(await screen.findByRole('menuitem', {name: 'riskScore()'}));
+
+        expect(session.tests.forSubject('riskScore').listTestCases()).toHaveLength(1);
+        // The Tests section expands with the new subject; Methods stays collapsed.
+        expect(within(explorer).getByText('riskScore()')).toBeInTheDocument();
+        expect(breadcrumbItems()).toEqual(['Model', 'riskScore(...)']);
+        expect(screen.getByTestId('shell-tests-view')).toBeInTheDocument();
+    });
+
+    it('creates a workbook and opens it', async () => {
+        const user = userEvent.setup();
+        const {session} = await renderShell({defaultExplorerOpen: true});
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+
+        await user.click(within(explorer).getByRole('button', {name: 'Add to Workbooks'}));
+        const name = await screen.findByRole('textbox', {name: 'Name'});
+        await user.clear(name);
+        await user.type(name, 'pricing');
+        await user.click(screen.getByRole('button', {name: 'Create'}));
+
+        expect(session.engine.get('pricing')).toMatchObject({'@kind': 'context', '@node': 'Workbook'});
+        expect(breadcrumbItems()).toEqual(['Model', 'pricing']);
+        expect(within(explorer).getByText('pricing')).toBeInTheDocument();
+    });
+
+    it('hides the add buttons when read-only', async () => {
+        await renderShell({defaultExplorerOpen: true, readOnly: true});
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+        expect(within(explorer).queryByRole('button', {name: /^Add to/})).toBeNull();
     });
 
     it('follows the controlled visibility and only reports a toggle', async () => {
@@ -139,6 +273,19 @@ describe('Shell project explorer', () => {
 });
 
 describe('Shell view switch', () => {
+    it('shows a ruleset, a type or a plain field in the Boxed view, with Flow disabled', async () => {
+        const {onViewChange} = await renderShell({defaultPath: 'Customer', defaultView: 'flow'});
+        await waitFor(() => expect(onViewChange).toHaveBeenCalledWith('boxed'));
+        expect(screen.getByRole('radio', {name: 'Flow'})).toBeDisabled();
+        expect(screen.getByRole('radio', {name: 'Boxed'})).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByRole('treegrid')).toHaveTextContent('income');
+    });
+
+    it('shows the code of a type in the Code view', async () => {
+        const {session} = await renderShell({defaultPath: 'Customer', defaultView: 'code'});
+        expect(codeView().state.doc.toString()).toBe(session.engine.getCode('Customer'));
+    });
+
     it('starts in the Boxed view and switches views at the same root path', async () => {
         const user = userEvent.setup();
         const {session, onViewChange, onPathChange} = await renderShell({defaultPath: 'applicant'});
@@ -224,22 +371,45 @@ describe('Shell drill-down', () => {
         expect(breadcrumbItems()).toEqual(['Model', 'applicant']);
     });
 
-    it('forwards a target that is not a valid root path to the host', async () => {
+    it('opens "View as code" of an invocation node in the Code view at the node path', async () => {
         const {session} = await openFixtureProject({model: {dsl: FLOW_MODEL}});
         const {onPathChange, onViewChange, onOpenNode} = await renderShell({defaultView: 'flow'}, session);
-        // An invocation is not a context: its "View as code" goes to the host.
         await openNodeMenu('function-node-decision', 'View as code');
 
-        expect(onOpenNode).toHaveBeenCalledWith({path: 'decision', kind: 'code-editor'});
-        expect(onPathChange).not.toHaveBeenCalled();
-        expect(onViewChange).not.toHaveBeenCalled();
+        expect(onOpenNode).not.toHaveBeenCalled();
+        expect(onPathChange).toHaveBeenCalledWith('decision');
+        expect(onViewChange).toHaveBeenCalledWith('code');
+        expect(codeView().state.doc.toString()).toBe(session.engine.getCode('decision'));
+    });
+
+    it('opens "Open tests" of a node in the Tests view of the callee', async () => {
+        const {session} = await openFixtureProject({model: {dsl: FLOW_MODEL}});
+        const {onPathChange, onViewChange, onOpenNode} = await renderShell({defaultView: 'flow'}, session);
+        await openNodeMenu('function-node-decision', 'Open tests');
+
+        expect(onOpenNode).not.toHaveBeenCalled();
+        expect(onPathChange).toHaveBeenCalledWith('riskScore');
+        expect(onViewChange).toHaveBeenCalledWith('tests');
+        expect(screen.getByTestId('shell-tests-view')).toBeInTheDocument();
     });
 
     it('forwards the target kinds it does not open', async () => {
-        const {session} = await openFixtureProject({model: {dsl: FLOW_MODEL}});
+        const {session} = await openFixtureProject({
+            model: {
+                dsl: `{
+                    ruleset band(age: number): {
+                        hitPolicy: "first-match"
+                        rules: [{ when: { age: < 30 }, then: { level: "young" } }]
+                        default: { level: "none" }
+                    }
+                    @FunctionNode
+                    decision: band(age: 20)
+                }`,
+            },
+        });
         const {onOpenNode} = await renderShell({defaultView: 'flow'}, session);
-        await openNodeMenu('function-node-decision', 'Open tests');
-        expect(onOpenNode).toHaveBeenCalledWith({path: 'riskScore', kind: 'tests'});
+        await openNodeMenu('function-node-decision', 'Open in decision table editor');
+        expect(onOpenNode).toHaveBeenCalledWith({path: 'band', kind: 'ruleset'});
     });
 });
 
@@ -341,9 +511,8 @@ describe('Shell root path', () => {
     it.each([
         ['loans[0]', '*'],
         ['applicant.calculateAge.result', 'applicant.calculateAge'],
-        ['limit', '*'],
-        ['Customer', '*'],
-        ['applicant.age', 'applicant'],
+        ['Customer.name', 'Customer'],
+        ['applicant.age.value', 'applicant.age'],
         ['applicant.missing.deeper', 'applicant'],
     ])('opens the nearest valid ancestor of %s', async (requested, expected) => {
         const {onPathChange} = await renderShell({defaultPath: requested});
@@ -352,7 +521,7 @@ describe('Shell root path', () => {
     });
 
     it('reports the fallback of a controlled path', async () => {
-        const {onPathChange} = await renderShell({path: 'applicant.address.city'});
+        const {onPathChange} = await renderShell({path: 'applicant.address.missing'});
         await waitFor(() => expect(onPathChange).toHaveBeenCalledWith('applicant.address'));
         expect(breadcrumbItems()).toEqual(['Model', 'applicant', 'address']);
     });

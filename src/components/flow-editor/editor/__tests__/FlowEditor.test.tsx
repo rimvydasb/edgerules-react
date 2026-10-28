@@ -41,6 +41,13 @@ describe('FlowEditor', () => {
         expect(screen.queryByTestId('flow-editor-empty')).toBeNull();
     });
 
+    it('selects the node of each new focus request', async () => {
+        renderEditor({seeded: true, focusNode: {field: 'decision'}});
+        const frame = (testId: string) => screen.getByTestId(testId).closest('.react-flow__node');
+        await waitFor(() => expect(frame('function-node-decision')).toHaveClass('selected'));
+        expect(frame('input-node-applicant')).not.toHaveClass('selected');
+    });
+
     it('clicking a callee creates a draft node with that callee', async () => {
         const {service} = renderEditor();
         fireEvent.click(palette().getByRole('button', {name: 'Add ruleset risk'}));

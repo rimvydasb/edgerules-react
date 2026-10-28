@@ -97,7 +97,7 @@
   font-size: 12px;
 }
 
-/* A Types or Variables group reads as a palette group label, with its member count. */
+/* A section header reads as a palette group label, with its member count. */
 .group {
   color: var(--mantine-color-dimmed);
   font-size: 11px;
@@ -144,4 +144,22 @@
 
 .chevronHidden {
   visibility: hidden;
+}
+
+/* The add button of a section header: shown on hover and focus of the row, like a row menu of the Boxed Editor. */
+.add {
+  flex: 0 0 auto;
+  opacity: 0;
+}
+
+.node:hover .add,
+.node:focus-within .add,
+.add[data-expanded] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .add {
+    opacity: 1;
+  }
 }

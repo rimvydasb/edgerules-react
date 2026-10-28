@@ -1,1046 +1,2991 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>FunctionNode Design Proposal</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<style>
-/* Layout: a spec sheet. One live canvas up top, then states, wiring rules and the Portable mapping.
-   The node itself uses the Boxed Editor's own drawing model: 40px step, 1px ruled lines, Mantine greys. */
-:root {
-  --body: #ffffff;
-  --page: #f8f9fa;
-  --fg: #212529;
-  --dimmed: #868e96;
-  --border: #dee2e6;
-  --muted: #f1f3f5;
-  --primary: #228be6;
-  --error: #e03131;
-  --tint-result: color-mix(in srgb, #228be6 6%, var(--body));
-  --tint-actions: color-mix(in srgb, #40c057 8%, var(--body));
-  --tint-actions-fg: #2b8a3e;
-  --tint-desc: color-mix(in srgb, #fab005 6%, var(--body));
-  --canvas-dot: #ced4da;
-
-  --k-function: #1976d2;
-  --k-ruleset: #6a1b9a;
-  --k-optimise: #1e88e5;
-  --k-builtin: #495057;
-  --k-input: #ed6c02;
-  --k-output: #2f9e44;
-
-  --t-number: #1c7ed6;
-  --t-string: #2b8a3e;
-  --t-boolean: #e8590c;
-  --t-date: #0c8599;
-  --t-record: #495057;
-  --t-any: #adb5bd;
-
-  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --doc: "IBM Plex Sans", var(--ui);
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --step: 40px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --body: #242424; --page: #1a1b1e; --fg: #c9c9c9; --dimmed: #828282; --border: #424242; --muted: #2e2e2e;
-    --primary: #4dabf7; --error: #ff6b6b; --tint-actions-fg: #69db7c; --canvas-dot: #3a3a3a;
-    --t-number: #4dabf7; --t-string: #69db7c; --t-boolean: #ff922b; --t-date: #3bc9db; --t-record: #adb5bd; --t-any: #5c5f66;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --body: #242424; --page: #1a1b1e; --fg: #c9c9c9; --dimmed: #828282; --border: #424242; --muted: #2e2e2e;
-  --primary: #4dabf7; --error: #ff6b6b; --tint-actions-fg: #69db7c; --canvas-dot: #3a3a3a;
-  --t-number: #4dabf7; --t-string: #69db7c; --t-boolean: #ff922b; --t-date: #3bc9db; --t-record: #adb5bd; --t-any: #5c5f66;
-  color-scheme: dark;
-}
-
-*, *::before, *::after { box-sizing: border-box; }
-body { background: var(--page); color: var(--fg); font-family: var(--doc); font-size: 15px; line-height: 1.55; }
-.wrap { max-width: 1120px; margin: 0 auto; padding: 40px 20px 80px; display: flex; flex-direction: column; gap: 56px; }
-h1, h2, h3 { text-wrap: balance; margin: 0; font-weight: 600; }
-h1 { font-size: 30px; letter-spacing: -0.01em; }
-h2 { font-size: 21px; }
-h3 { font-size: 15px; }
-p { margin: 0; max-width: 68ch; }
-code, .mono { font-family: var(--mono); font-size: 0.9em; }
-.eyebrow { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dimmed); }
-section { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.lede { color: var(--dimmed); font-size: 16px; }
-header.top { display: flex; flex-direction: column; gap: 10px; }
-
-/* ---------------------------------------------------------------- canvas */
-.canvasScroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--body); }
-.canvas {
-  position: relative; width: 1080px; height: 580px;
-  background-color: var(--body);
-  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-.canvas .placed { position: absolute; }
-.edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.edges path { fill: none; stroke-width: 1.75; }
-.canvasHint { position: absolute; right: 12px; bottom: 10px; font-size: 12px; color: var(--dimmed); font-family: var(--ui); }
-
-/* ---------------------------------------------------------------- node (Boxed Editor drawing model) */
-.node {
-  font-family: var(--ui); font-size: 14px; color: var(--fg);
-  box-sizing: content-box;
-  border: 1px solid var(--border); border-bottom: 0;
-  background: var(--body);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 14px rgb(0 0 0 / 0.06);
-  position: relative;
-}
-.node.selected { outline: 2px solid var(--primary); outline-offset: 1px; }
-.node .row { display: flex; height: var(--step); border-bottom: 1px solid var(--border); position: relative; }
-.node .row.tall { height: calc(var(--step) * 2); }
-.tile {
-  width: var(--step); flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-  color: #fff; border-right: 1px solid var(--border);
-}
-.tile svg { width: 19px; height: 19px; }
-.headStack { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.headLine { flex: 0 0 var(--step); display: flex; align-items: center; min-width: 0; position: relative; }
-.headLine + .headLine { border-top: 1px solid var(--border); }
-.headLine.first { background: var(--muted); }
-.title { flex: 1; min-width: 0; padding-inline: 10px; display: flex; align-items: baseline; gap: 8px; overflow: hidden; white-space: nowrap; }
-.title strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
-.title .fid { font-family: var(--mono); font-size: 12px; color: var(--dimmed); }
-.kebab {
-  width: var(--step); height: 100%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-  border-left: 1px solid var(--border); background: var(--muted); color: var(--dimmed); border-top: 0; border-right: 0; border-bottom: 0; cursor: pointer;
-}
-.kebab svg { width: 16px; height: 16px; }
-.callsLabel { padding-left: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dimmed); }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; max-width: 220px;
-  border: 1px solid var(--border); border-radius: 4px; background: var(--body); color: var(--fg);
-  padding: 3px 6px 3px 6px; font-family: var(--mono); font-size: 12.5px; cursor: pointer;
-}
-.chip:hover { border-color: var(--dimmed); }
-.chip:focus-visible, .kebab:focus-visible, .pick:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-.chip .kdot { width: 14px; height: 14px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
-.chip .kdot svg { width: 10px; height: 10px; }
-.chip .cname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip.empty { color: var(--dimmed); font-style: italic; font-family: var(--ui); border-style: dashed; }
-.chip svg.chev { width: 12px; height: 12px; color: var(--dimmed); }
-.retType { margin-left: auto; padding-right: 18px; font-family: var(--mono); font-size: 12px; color: var(--dimmed); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-
-.half { display: flex; flex-shrink: 0; min-width: 0; position: relative; }
-.half + .half { border-left: 1px solid var(--border); }
-.band { align-items: center; padding-inline: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dimmed); background: var(--muted); }
-.band.result { background: var(--tint-actions); color: var(--tint-actions-fg); }
-.band .count { margin-left: auto; font-weight: 500; letter-spacing: 0; text-transform: none; }
-.pname { width: calc(var(--step) * 2); flex-shrink: 0; display: flex; align-items: center; padding-inline: 10px; border-right: 1px solid var(--border); background: var(--muted); min-width: 0; }
-.pname span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pname .req { color: var(--error); margin-left: 2px; }
-.pval { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding-inline: 8px; font-family: var(--mono); font-size: 12.5px; overflow: hidden; white-space: nowrap; }
-.pval .t { overflow: hidden; text-overflow: ellipsis; }
-.pval svg { width: 13px; height: 13px; color: var(--dimmed); flex-shrink: 0; }
-.pval.missing { color: var(--error); font-family: var(--ui); font-style: italic; font-size: 13px; }
-.pval.dflt { color: var(--dimmed); font-family: var(--ui); font-style: italic; font-size: 13px; }
-.pval .fx { font-family: var(--ui); font-size: 10px; font-weight: 600; color: var(--dimmed); border: 1px solid var(--border); border-radius: 3px; padding: 0 3px; flex-shrink: 0; }
-.out .pval { background: var(--tint-result); }
-.out .pval.stale { color: var(--dimmed); font-style: italic; font-family: var(--ui); font-size: 13px; }
-.filler { flex: 1; background: repeating-linear-gradient(135deg, transparent 0 6px, var(--muted) 6px 7px); }
-.row.err { outline: 2px solid var(--error); outline-offset: -2px; z-index: 1; }
-.errMsg { position: absolute; left: 6px; right: 6px; bottom: 2px; font-size: 11px; color: var(--error); font-family: var(--ui); font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
-.descRow { padding-inline: 10px; align-items: center; background: var(--tint-desc); color: var(--dimmed); font-style: italic; font-size: 13px; }
-.emptyBody { height: calc(var(--step) * 2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 24px; color: var(--dimmed); font-size: 13px; background: var(--muted); }
-
-/* ---------------------------------------------------------------- pins */
-.pin {
-  position: absolute; top: 50%; width: 12px; height: 12px; margin-top: -6px; z-index: 3;
-  border-radius: 50%; background: var(--body); border: 2px solid var(--pc, var(--t-any));
-}
-.pin.l { left: -7px; }
-.pin.r { right: -7px; }
-.pin.on { background: var(--pc); }
-.pin.rec { border-radius: 2px; }
-.pin.list { box-shadow: 0 0 0 2px var(--body), 0 0 0 3.5px var(--pc); }
-.pin.expr { border-style: dotted; }
-.pin.bad { --pc: var(--error); }
-
-/* ---------------------------------------------------------------- stub nodes on the canvas */
-.stub { width: calc(var(--step) * 5); }
-
-/* ---------------------------------------------------------------- picker */
-.pickerWrap { position: relative; }
-.picker {
-  position: absolute; z-index: 20; width: 340px; font-family: var(--ui); font-size: 13px;
-  background: var(--body); border: 1px solid var(--border); border-radius: 6px;
-  box-shadow: 0 8px 28px rgb(0 0 0 / 0.16); overflow: hidden;
-}
-.picker .search { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--dimmed); }
-.picker .search svg { width: 14px; height: 14px; }
-.picker input { flex: 1; border: 0; outline: 0; background: transparent; color: var(--fg); font: inherit; min-width: 0; }
-.picker .group { padding: 8px 10px 2px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dimmed); }
-.picker .list { max-height: 300px; overflow-y: auto; padding-bottom: 6px; }
-.pick { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: transparent; color: var(--fg); text-align: left; padding: 6px 10px; cursor: pointer; font: inherit; }
-.pick:hover, .pick.active { background: var(--muted); }
-.pick .kdot { width: 18px; height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
-.pick .kdot svg { width: 12px; height: 12px; }
-.pick .sig { font-family: var(--mono); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pick .sig .ret { color: var(--dimmed); }
-.pick .check { margin-left: auto; color: var(--primary); }
-.picker .foot { border-top: 1px solid var(--border); padding: 6px 10px; color: var(--dimmed); font-size: 11.5px; display: flex; gap: 12px; }
-.kbd { font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
-
-/* ---------------------------------------------------------------- spec content */
-.anatomy { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.anatomy > div { background: var(--body); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.anatomy p { font-size: 14px; color: var(--dimmed); }
-.anatomy h3 { display: flex; gap: 8px; align-items: center; }
-.swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
-
-.states { display: grid; grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); gap: 20px; }
-@media (max-width: 600px) { .states { grid-template-columns: 1fr; } }
-.state { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.stateStage {
-  overflow-x: auto; padding: 22px 26px; border: 1px solid var(--border); border-radius: 6px;
-  background-color: var(--body); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px); background-size: 20px 20px;
-}
-.stateStage.tallStage { min-height: 480px; }
-.state p { font-size: 14px; color: var(--dimmed); }
-
-table.spec { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--body); }
-table.spec th, table.spec td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
-table.spec th { background: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dimmed); }
-.tableScroll { overflow-x: auto; }
-.pinDemo { position: relative; display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: 8px; }
-.pinDemo .pin { left: 0; top: 0; margin: 0; }
-
-.mapping { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
-@media (max-width: 860px) { .mapping { grid-template-columns: 1fr; } }
-pre.json { margin: 0; padding: 14px 16px; background: var(--body); border: 1px solid var(--border); border-radius: 6px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; }
-.j-k { color: var(--k-ruleset); }
-.j-s { color: var(--t-string); }
-.j-n { color: var(--t-number); }
-:root[data-theme="dark"] .j-k { color: #da77f2; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .j-k { color: #da77f2; } }
-.rules { display: flex; flex-direction: column; gap: 10px; padding: 0; margin: 0; list-style: none; }
-.rules li { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-.rules li b { font-weight: 600; }
-@media (max-width: 600px) { .rules li { grid-template-columns: 1fr; gap: 4px; } }
-.qs { display: flex; flex-direction: column; gap: 12px; padding-left: 20px; margin: 0; max-width: 80ch; }
-.qs li { font-size: 14.5px; }
-.qs li b { font-weight: 600; }
-@media (prefers-reduced-motion: no-preference) { .pin, .chip { transition: background-color .12s, border-color .12s; } }
-.draft { font-family: var(--ui); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dimmed); border: 1px dashed var(--dimmed); border-radius: 3px; padding: 0 5px; line-height: 16px; flex-shrink: 0; }
-.stubTitle { background: var(--muted); height: 100%; display: flex; align-items: center; }
-.note { font-size: 13px; color: var(--dimmed); }
-#sampleModel { white-space: pre; }
-.node .pname { background: var(--body); }
-.node .out .pname { width: 100%; justify-content: flex-end; border-right: 0; }
-.node .pval.blank { background: var(--body); }
-
-.nodeWrap { position: relative; }
-.node .half.arg .pname { position: relative; width: 100%; padding-right: 30px; }
-.argKebab {
-  position: absolute; right: 0; top: 0; bottom: 0; width: 28px; display: flex; align-items: center; justify-content: center;
-  border: 0; border-left: 1px solid var(--border); background: var(--muted); color: var(--dimmed); cursor: pointer; padding: 0;
-  opacity: 0;
-}
-.argKebab svg { width: 15px; height: 15px; }
-.half.arg:hover .argKebab, .argKebab:focus-visible, .argKebab.open { opacity: 1; }
-.argKebab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-.kebab.open, .argKebab.open { background: var(--border); color: var(--fg); }
-.resName { border: 0; background: transparent; color: var(--fg); font: inherit; padding: 2px 4px; margin-right: -4px; border-radius: 3px; cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.resName:hover { background: var(--muted); }
-.resName:focus-visible { outline: 2px solid var(--primary); outline-offset: 0; }
-.resName.locked { font-style: italic; color: var(--dimmed); cursor: default; }
-.resName.locked:hover { background: transparent; }
-.renameInput { width: 100%; font: inherit; font-size: 14px; color: var(--fg); text-align: right; border: 1px solid var(--primary); border-radius: 2px; padding: 1px 5px; background: var(--body); outline: none; }
-.renameInput[aria-invalid="true"] { border-color: var(--error); }
-.renameNote { font-family: var(--ui); font-size: 12px; color: var(--dimmed); padding: 6px 2px 0; max-width: 100%; }
-.menu {
-  position: absolute; z-index: 30; width: 250px; font-family: var(--ui); font-size: 13.5px; padding: 4px;
-  background: var(--body); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 28px rgb(0 0 0 / 0.16);
-}
-.mGroup { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dimmed); }
-.mGroup code { text-transform: none; letter-spacing: 0; font-size: 11px; }
-.mDivider { height: 1px; background: var(--border); margin: 4px 0; }
-.mItem { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; color: var(--fg); font: inherit; text-align: left; padding: 7px 10px; border-radius: 4px; cursor: pointer; min-width: 0; }
-.mItem svg { width: 15px; height: 15px; color: var(--dimmed); flex-shrink: 0; }
-.mItem:hover { background: var(--muted); }
-.mItem:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-.mItem.danger, .mItem.danger svg { color: var(--error); }
-.mItem[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
-.mItem[aria-disabled="true"]:hover { background: transparent; }
-.mHint { margin-left: auto; font-size: 11px; color: var(--dimmed); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.mFoot { border-top: 1px solid var(--border); margin-top: 4px; padding: 6px 10px 4px; font-size: 11.5px; color: var(--dimmed); }
-.danger { color: var(--error); }
-.menuSpec { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 20px; align-items: start; }
-@media (max-width: 1000px) { .menuSpec { grid-template-columns: 1fr; } }
-.menuStage { min-height: 600px; }
-table.spec tr.grp td { background: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dimmed); padding-block: 6px; }
-table.spec tr.grp td code { text-transform: none; letter-spacing: 0; }
-.stateStage.tallStage { min-height: 400px; }
-
-.node .descRow { padding: 0 10px; align-items: center; background: var(--tint-desc); color: var(--dimmed); font-style: italic; font-size: 12.5px; line-height: 16px; cursor: text; }
-.node .descRow:hover { box-shadow: inset 0 0 0 1px var(--border); }
-.descText { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-width: 0; }
-.node .descRow.editing { padding: 0 6px; cursor: default; }
-.descInput { width: 100%; font: inherit; font-style: normal; font-size: 13px; color: var(--fg); border: 1px solid var(--primary); border-radius: 2px; padding: 3px 6px; background: var(--body); outline: none; }
-</style>
-
-<div class="wrap">
-  <header class="top">
-    <span class="eyebrow">EdgeRules Flow Editor · Proposal 4 · FunctionNode</span>
-    <h1>FunctionNode</h1>
-    <p class="lede">A FunctionNode is one model field annotated <code>@FunctionNode</code> whose value is a Portable <code>invocation</code> of a user-defined <code>func</code> or <code>ruleset</code>. The node is drawn with the Boxed Editor's own sheet rules. It shows structure only: the callee, one pin per argument on the left, and one pin per result on the right. Where the values come from is shown by wires. What the values are is shown by output nodes.</p>
-    <p class="note">The output value on the canvas and the values in the sample model at the end of the page come from the real engine: <code>@edgerules/node</code> 0.0.6-alpha.202607291629. The engine calls named in the menus were run against the same version.</p>
-  </header>
-
-  <section>
-    <div class="canvasScroll">
-      <div class="canvas" id="canvas">
-        <svg class="edges" id="edges"></svg>
-        <div class="placed" style="left:40px; top:120px" id="stubIn"></div>
-        <div class="placed" style="left:340px; top:60px" id="hero"></div>
-        <div class="placed" style="top:190px" id="stubOut"></div>
-        <div class="canvasHint">Click the callee chip to pick another callable, the description to edit it, or a result to rename it. Hover an argument for its menu.</div>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <span class="eyebrow">Anatomy</span>
-    <h2>Every part comes from an existing Boxed Editor element</h2>
-    <div class="anatomy">
-      <div><h3><span class="swatch" style="background:var(--k-ruleset)"></span>Kind tile</h3><p>Same 40px tile, icon and color as the callee's header row in the Boxed Editor: blue Σ for <code>func</code>, purple for <code>ruleset</code>. The tile is the drag handle.</p></div>
-      <div><h3>Tall header, two lines</h3><p>Line 1: <code>@node-name</code> in bold, the field name in mono, and the node menu ⋮. Line 2: the callee chip and the return type. Same 80px "tall" header as a <code>func</code> row.</p></div>
-      <div><h3>Callee chip</h3><p>The selector for <code>@method</code>. Opens a searchable list of every user-defined function and ruleset in the model, grouped by kind, with the signature on each line. Built-in functions are not offered.</p></div>
-      <div><h3><span class="swatch" style="background:var(--tint-desc); border:1px solid var(--border)"></span>Description row</h3><p>Optional. Sits under the CALLS line and spans the full width of the argument and result columns. Same yellow tint and italic text as the Boxed Editor's description column, and the same stored text. Click to edit.</p></div>
-      <div><h3>Argument band</h3><p>Neutral grey, like the ARGUMENTS and CONDITIONS bands. Reads ARGUMENT or ARGUMENTS. One 40px row per parameter, showing the name only. Each row has its own ⋮ menu.</p></div>
-      <div><h3><span class="swatch" style="background:var(--tint-actions); border:1px solid var(--border)"></span>Result band</h3><p>Green, like the ruleset ACTIONS band. Reads RESULT or RESULTS. One row per result field, right-aligned at its pin. No menu. Click a name to rename it.</p></div>
-      <div><h3>Pins</h3><p>Sit on the frame's 1px line, centered on the row. Color is the type, shape is the structure, fill is the connection state. A square pin on header line 2 carries the whole result.</p></div>
-      <div><h3>Selection</h3><p>A 2px primary outline, offset by 1px so it does not cover the frame line. The Delete key removes the node from the flow, not from the model, the same as Remove from flow.</p></div>
-    </div>
-  </section>
-
-  <section>
-    <span class="eyebrow">Node menu</span>
-    <h2>The ⋮ in the header acts on the node and its callee</h2>
-    <p>The menu uses the Boxed Editor's <code>RowActionsMenu</code>: Mantine <code>Menu</code>, Tabler icons, labelled groups, and red for destructive items. Items that cannot run are disabled with the reason in a tooltip, never hidden. The second group changes the callee, so it affects every node and field that calls it. The group label says how many callers there are.</p>
-    <div class="menuSpec">
-      <div class="stateStage menuStage" id="sNodeMenu"></div>
-      <div class="tableScroll">
-        <table class="spec">
-          <thead><tr><th>Item</th><th>What it does</th><th>Engine / host call</th></tr></thead>
-          <tbody>
-            <tr class="grp"><td colspan="3">This node</td></tr>
-            <tr><td>Rename node</td><td>Edits the label in bold. The model field keeps its name.</td><td><code>set('decision', { '@node': 'FunctionNode', '@node-name': … })</code></td></tr>
-            <tr><td>Rename field</td><td>Renames the model field. Wires that read <code>decision.*</code> are rewritten, the description moves with <code>renamePath</code>, then the model is linked. If linking fails, the rename is reverted and the error is shown.</td><td><code>rename('decision', …)</code>, then <code>link()</code></td></tr>
-            <tr><td>Change callee…</td><td>Opens the same list as the callee chip. Arguments with the same name and type keep their binding.</td><td><code>set('decision', invocation)</code></td></tr>
-            <tr><td>Duplicate</td><td>Adds <code>decision2</code> next to this node, with the same callee and bindings.</td><td><code>set('decision2', invocation)</code></td></tr>
-            <tr><td>Add description</td><td>Shown when the node has no description. Adds the description row with its input focused. If you leave it empty, nothing is saved and the row goes away.</td><td><code>setDescription('decision', text)</code></td></tr>
-            <tr><td>Remove description</td><td>Shown instead of Add description when one exists. Deletes the text and the row.</td><td><code>setDescription('decision', '')</code>, which deletes the entry</td></tr>
-            <tr class="grp"><td colspan="3">Callee <code>risk</code> · 3 callers</td></tr>
-            <tr><td>Add argument</td><td>Appends a <code>number</code> parameter to the callee. Every other call site gets a seed value so it still links. This is the only way to add an argument when the callee has none, because there is no argument row to open a menu on.</td><td>Boxed Editor <code>addArgument</code> + <code>setBoxedRowData</code></td></tr>
-            <tr><td>Open in decision table editor</td><td>For a <code>func</code>, this reads "Open in boxed editor".</td><td><code>onOpenNode({ path: 'risk', kind: 'ruleset' })</code> or <code>kind: 'boxed-editor'</code>, the Boxed Editor's existing open-target contract</td></tr>
-            <tr><td>Open tests</td><td>Opens the Tests Manager with this callee as the subject.</td><td><code>onOpenNode({ path: 'risk', kind: 'tests' })</code>. <code>'tests'</code> is a new target kind.</td></tr>
-            <tr><td>View as code</td><td>Opens this field's DSL, <code>decision: risk(…)</code>, in the Code Editor. Argument bindings without a wire are edited here.</td><td><code>onOpenNode({ path: 'decision', kind: 'code-editor' })</code></td></tr>
-            <tr class="grp"><td colspan="3">Remove</td></tr>
-            <tr><td>Remove from flow</td><td>Hides the node. The field stays in the model and keeps calculating.</td><td><code>remove('decision.@FunctionNode')</code></td></tr>
-            <tr><td><span class="danger">Delete</span></td><td>Removes the field from the model. If anything still reads it, linking fails and the delete is reverted.</td><td><code>remove('decision')</code>, then <code>link()</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <span class="eyebrow">Argument and result editing</span>
-    <h2>Arguments have a menu, results are renamed in place</h2>
-    <p>Arguments and results belong to the callee, not to the node, so these edits change the callee's signature or body. The Boxed Editor service already makes these changes safely: <code>setBoxedRowData</code> migrates every call site's <code>@arguments</code>, refuses to remove a parameter the body still uses, and links before it commits. The FunctionNode reuses it.</p>
-    <div class="tableScroll">
-      <table class="spec">
-        <thead><tr><th>Action</th><th>Behaviour</th><th>Disabled when</th></tr></thead>
-        <tbody>
-          <tr><td>Move up / Move down</td><td>Reorders the parameter. Calls use named arguments, so no call site changes, but every node that calls this callee reorders its pins.</td><td>First row / last row</td></tr>
-          <tr><td>Add argument below</td><td>Inserts a <code>number</code> parameter (<code>arg</code>, <code>arg2</code>, …) after this row and opens its name for editing. Other call sites get a seed value. A ruleset parameter is a condition column, so it gets <code>string</code>, as in the Boxed Editor.</td><td>Read-only mode</td></tr>
-          <tr><td><span class="danger">Delete argument</span></td><td>Removes the parameter and its binding at every call site.</td><td>The callee's body still uses it. The tooltip says where.</td></tr>
-          <tr><td>Edit description (click)</td><td>A single-line input replaces the text, like the Boxed Editor's <code>DescriptionCell</code>. Enter or clicking away saves, Escape cancels. Saving an empty text removes the description. The text belongs to the node's field (<code>decision</code>), not to the callee, so other callers are not affected.</td><td>Read-only mode</td></tr>
-          <tr><td>Rename result (click)</td><td>An inline input replaces the name. Enter commits, Escape cancels. For a <code>func</code> this renames the field in its body. For a <code>ruleset</code> it renames the action column in every rule and in <code>default</code>. Wires that read <code>caller.oldName</code> are rewritten for every caller, then the model is linked. The engine does not migrate plain field references (E103 if they dangle), so a failed link reverts the rename.</td><td>The result is the unnamed return of a <code>func</code>, such as <code>monthly(amount): amount / 12</code>. Its <code>result</code> label is not a field. Naming it would turn the return into a record and change its type for every caller.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section>
-    <span class="eyebrow">Sizing</span>
-    <h2>Columns fit their content, in whole steps</h2>
-    <ul class="rules">
-      <li><b>Two tracks</b><span>Argument name and result name. Each takes the width of its widest name plus padding, rounded up to the next 40px step, from 2 to 4 steps. Longer names are cut with an ellipsis and shown in full in a tooltip.</span></li>
-      <li><b>Header wins</b><span>When the title or the callee chip needs more room than the body, the extra steps are shared between the two tracks. Argument names stay left-aligned at their pins, and result names stay right-aligned at theirs.</span></li>
-      <li><b>Description</b><span>Never widens the node. It takes the full node width and wraps to at most two lines inside its 40px row. The full text is in the tooltip and in the input when editing.</span></li>
-      <li><b>Missing sides</b><span>A callee with no parameters has no argument column. The node is then only as wide as its header and results.</span></li>
-      <li><b>When it changes</b><span>On a new callee, or when an argument or result is added or renamed. The node grows to the right, so pins on the left edge stay in place and wires do not jump.</span></li>
-    </ul>
-  </section>
-
-  <section>
-    <span class="eyebrow">States</span>
-    <h2>One node, eight situations</h2>
-    <div class="states">
-      <div class="state">
-        <h3>Choosing the callee</h3>
-        <p>Typing filters functions and rulesets. Arguments with the same name and type keep their bindings when the callee changes. The others become unbound, and their wires are removed.</p>
-        <div class="stateStage tallStage" id="sPicker"></div>
-      </div>
-      <div class="state">
-        <h3>Argument menu</h3>
-        <p>⋮ appears on the row on hover or keyboard focus, so it costs no width. Here <code>age</code> cannot be deleted because the ruleset's rules test it.</p>
-        <div class="stateStage tallStage" id="sArgMenu"></div>
-      </div>
-      <div class="state">
-        <h3>Renaming a result</h3>
-        <p>Clicking <code>level</code> opens an inline input, styled like the Boxed Editor's name input. The note under the node says how many wires will be rewritten.</p>
-        <div class="stateStage" id="sRename"></div>
-      </div>
-      <div class="state">
-        <h3>Unnamed return, argument without a wire</h3>
-        <p><code>monthly(amount: application.amount * 1.1)</code>. The expression is not shown on the node. The dotted pin says the argument is bound without a wire, and the tooltip shows the expression. The unnamed <code>result</code> is in italics because it cannot be renamed.</p>
-        <div class="stateStage" id="sScalar"></div>
-      </div>
-      <div class="state">
-        <h3>Record argument, long description</h3>
-        <p>A typed record parameter takes the square pin of a whole record. The description is cut after two lines. The full text is in the tooltip.</p>
-        <div class="stateStage" id="sRecord"></div>
-      </div>
-      <div class="state">
-        <h3>Draft and rejected wire</h3>
-        <p>The engine does not evaluate a call with an unbound required argument. It raises a link error (<code>E113</code>), and the whole model stops evaluating. So a node with an unbound required argument is a <b>draft</b>: it is kept only in the editor and not written to the model. Here a wire from <code>income</code> to <code>segment</code> was rejected, and the row shows the engine's message.</p>
-        <div class="stateStage" id="sError"></div>
-      </div>
-      <div class="state">
-        <h3>New node, no callee yet</h3>
-        <p>A dashed chip is the only call to action. The node writes nothing to the model until a callee is picked.</p>
-        <div class="stateStage" id="sEmpty"></div>
-      </div>
-      <div class="state">
-        <h3>Editing the description</h3>
-        <p>Opened by Add description or by clicking an existing description. The row stays one step high, and the rows below do not move.</p>
-        <div class="stateStage" id="sDesc"></div>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <span class="eyebrow">Pins and wires</span>
-    <h2>Pins encode type, structure and connection</h2>
-    <div class="tableScroll">
-      <table class="spec">
-        <thead><tr><th>Pin</th><th>Meaning</th><th>A wire writes</th></tr></thead>
-        <tbody>
-          <tr><td><span class="pinDemo"><span class="pin on" style="--pc:var(--t-number)"></span></span>Filled circle</td><td>Scalar, wired. Color is the type: <span style="color:var(--t-number)">number</span>, <span style="color:var(--t-string)">string</span>, <span style="color:var(--t-boolean)">boolean</span>, <span style="color:var(--t-date)">date / time / duration</span>.</td><td><code>@arguments.age = "applicant.age"</code></td></tr>
-          <tr><td><span class="pinDemo"><span class="pin expr" style="--pc:var(--t-number)"></span></span>Dotted ring</td><td>Bound to a literal or an expression, with no wire. The tooltip shows the value. Edit it with View as code.</td><td>(not wired)</td></tr>
-          <tr><td><span class="pinDemo"><span class="pin rec on" style="--pc:var(--t-record)"></span></span>Square</td><td>Record (context). Every node has one on header line 2 for the whole result.</td><td><code>@arguments.person = "applicant"</code></td></tr>
-          <tr><td><span class="pinDemo"><span class="pin list on" style="--pc:var(--t-number)"></span></span>Double ring</td><td>List. Ring color is the element type.</td><td><code>@arguments.amounts = "loans"</code></td></tr>
-          <tr><td><span class="pinDemo"><span class="pin bad"></span></span>Red ring</td><td>Required and unbound (the node is a draft), or the engine rejected the wired type.</td><td>Nothing until fixed</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <ul class="rules">
-      <li><b>Wire color</b><span>Same as the source pin, 1.75px bezier. A selected wire gets the primary color.</span></li>
-      <li><b>Connect validation</b><span><code>set</code> accepts a mistyped or incomplete invocation without an error. On drop, the node therefore writes the invocation, links the model, and reverts the write if linking fails. The message attaches to the row that was wired.</span></li>
-      <li><b>Draft nodes</b><span>A node is written to the model only when every required argument is bound. Until then it lives in editor state, so one half-wired node never stops the rest of the workbook from evaluating.</span></li>
-      <li><b>Result types</b><span>For a record result, <code>get(field, 'FIELDS')</code> returns only <code>"@type": "object"</code>. The result pins come from the callee schema's <code>@return</code>.</span></li>
-    </ul>
-  </section>
-
-  <section>
-    <span class="eyebrow">Portable</span>
-    <h2>The node reads and writes one invocation</h2>
-    <p>The left side is what <code>get(field, 'FIELDS')</code> returns and what the node writes back with <code>set</code>, always with named arguments. The right side is the callee schema that defines the rows and pins. Both update when you change the callee on the canvas.</p>
-    <div class="mapping">
-      <div class="state"><h3 id="mapTitleL">decision · invocation</h3><pre class="json" id="jsonInv"></pre></div>
-      <div class="state"><h3 id="mapTitleR">risk · schema</h3><pre class="json" id="jsonSchema"></pre></div>
-    </div>
-  </section>
-
-  <section>
-    <span class="eyebrow">Where the callee list comes from</span>
-    <h2>An existing helper already lists every user callable</h2>
-    <ul class="rules">
-      <li><b>Source</b><span><code>listTestSubjects</code> in <code>tests-manager/model/subjects.ts</code> walks <code>get('*', 'ALL')</code> for <code>func</code> and <code>ruleset</code> at any depth. It moves to a shared module so the Tests Manager and the Flow Editor use one copy.</span></li>
-      <li><b>Schema</b><span>Each callee's rows and pins come from <code>get(path, 'FIELDS')</code>. Pass the filter explicitly: on a mutable service, <code>get(path)</code> without it returned the full definition.</span></li>
-      <li><b>Untyped parameters</b><span>The helper leaves out callables with an untyped parameter, because an untyped parameter cannot be a typed pin. That is why Add argument always gives the new parameter a type.</span></li>
-      <li><b>Built-ins</b><span>Not supported in the FunctionNode. The engine gap in listing built-in signatures stays in <code>docs/engine-bug-reports.md</code>, but it no longer blocks this work.</span></li>
-    </ul>
-  </section>
-
-  <section>
-    <span class="eyebrow">Sample model</span>
-    <h2>The model behind every value on this page</h2>
-    <pre class="json" id="sampleModel"></pre>
-  </section>
-</div>
-
-<script>
-(function () {
-  "use strict";
-  var ICONS = {
-    function: '<path d="M18 16v2a1 1 0 0 1 -1 1h-11l6 -7l-6 -7h11a1 1 0 0 1 1 1v2"/>',
-    ruleset: '<path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6h9"/><path d="M11 12h9"/><path d="M11 18h9"/>',
-    input: '<path d="M3 12h12"/><path d="M11 8l4 4l-4 4"/><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4"/>',
-    output: '<path d="M4 12h12"/><path d="M12 8l4 4l-4 4"/><path d="M20 4v16"/>',
-    dots: '<path d="M12 5v.01"/><path d="M12 12v.01"/><path d="M12 19v.01"/>',
-    chev: '<path d="M6 9l6 6l6 -6"/>',
-    search: '<path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/>',
-    up: '<path d="M12 5v14"/><path d="M18 11l-6 -6l-6 6"/>',
-    down: '<path d="M12 5v14"/><path d="M18 13l-6 6l-6 -6"/>',
-    plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
-    trash: '<path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/>',
-    pencil: '<path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/>',
-    tag: '<path d="M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3z"/>',
-    swap: '<path d="M7 10h14l-4 -4"/><path d="M17 14h-14l4 4"/>',
-    copy: '<path d="M8 10a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/><path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2"/>',
-    note: '<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 13h6"/><path d="M9 17h4"/>',
-    external: '<path d="M12 6h-6a2 2 0 0 0 -2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-6"/><path d="M11 13l9 -9"/><path d="M15 4h5v5"/>',
-    flask: '<path d="M9 3h6"/><path d="M10 9h4"/><path d="M10 3v6l-4 11a.7 .7 0 0 0 .5 1h11a.7 .7 0 0 0 .5 -1l-4 -11v-6"/>',
-    noteoff: '<path d="M3 3l18 18"/><path d="M7 3h7l5 5v7m0 4a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-14"/><path d="M9 17h4"/>',
-    code: '<path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/>',
-    eyeoff: '<path d="M3 3l18 18"/><path d="M10.584 10.587a2 2 0 0 0 2.828 2.83"/><path d="M9.363 5.365a9.466 9.466 0 0 1 2.637 -.365c4 0 7.333 2.333 10 7c-.778 1.361 -1.612 2.524 -2.503 3.488"/><path d="M16.357 17.349c-1.631 1.1 -3.415 1.651 -5.357 1.651c-4 0 -7.333 -2.333 -10 -7c1.369 -2.395 2.913 -4.175 4.632 -5.341"/>'
-  };
-  function icon(name, cls) {
-    return '<svg class="' + (cls || '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>';
-  }
-  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-  var KIND_COLOR = { function: 'var(--k-function)', ruleset: 'var(--k-ruleset)', input: 'var(--k-input)', output: 'var(--k-output)' };
-  var KIND_LABEL = { ruleset: 'Rulesets', function: 'Functions' };
-  function typeColor(t) {
-    if (!t) return 'var(--t-any)';
-    var base = t.replace(/\[\]$/, '');
-    if (base === 'number') return 'var(--t-number)';
-    if (base === 'string') return 'var(--t-string)';
-    if (base === 'boolean') return 'var(--t-boolean)';
-    if (/^(date|time|datetime|duration|period)$/.test(base)) return 'var(--t-date)';
-    return 'var(--t-record)';
-  }
-  function pinClass(t) {
-    if (/\[\]$/.test(t || '')) return ' list';
-    if (t && typeColor(t) === 'var(--t-record)') return ' rec';
-    return '';
-  }
-
-  /* User callables. Schemas are verbatim from get(path, 'FIELDS'); `used` lists the parameters the
-     body references, which the Boxed Editor service refuses to remove. */
-  var CALLABLES = {
-    risk: { kind: 'ruleset', hit: 'first-match', params: [['age', 'number'], ['income', 'number'], ['segment', 'string']],
-      used: ['age', 'income', 'segment'], usedWhere: "risk's rules", callers: 3,
-      ret: { type: 'record', fields: [['level', 'string'], ['limit', 'number']] } },
-    creditScore: { kind: 'function', params: [['age', 'number'], ['income', 'number']], used: ['age', 'income'], usedWhere: "creditScore's body", callers: 1, ret: { type: 'number' } },
-    monthly: { kind: 'function', params: [['amount', 'number']], used: ['amount'], usedWhere: "monthly's body", callers: 2, ret: { type: 'number' } },
-    applicantDecision: { kind: 'function', params: [['person', 'Applicant']], used: ['person'], usedWhere: "applicantDecision's body", callers: 1,
-      ret: { type: 'record', fields: [['eligible', 'boolean'], ['reason', 'string']] } }
-  };
-  var ORDER = ['risk', 'creditScore', 'monthly', 'applicantDecision'];
-  /* Engine output for the sample model; shown only in the output node. */
-  var RESULTS = { risk: { level: "'high'", limit: '1000' }, creditScore: { result: '371' }, applicantDecision: { eligible: 'true', reason: "'adult'" } };
-
-  function retLabel(c) {
-    if (c.ret.type === 'record') return '{ ' + c.ret.fields.map(function (f) { return f[0]; }).join(', ') + ' }';
-    return c.ret.type;
-  }
-  function outputs(c) {
-    if (!c) return [];
-    return c.ret.type === 'record' ? c.ret.fields : [['result', c.ret.type, true]];
-  }
-  function isDraft(n, c) { return c.params.some(function (p) { return !(n.args && n.args[p[0]]); }); }
-  function plural(word, count) { return count === 1 ? word : word + 's'; }
-  function fx(n, p) { var a = n.args && n.args[p]; return a && a.mode !== 'path'; }
-
-  /* ---------------------------------------------------------------- content-based sizing */
-  var STEP = 40;
-  var MEAS = document.createElement('canvas').getContext('2d');
-  var UI = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-  var MONO = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
-  function tw(text, font) { MEAS.font = font; return MEAS.measureText(String(text)).width; }
-  function steps(px, minSteps, maxSteps) { return Math.max(minSteps, Math.min(maxSteps, Math.ceil(px / STEP))) * STEP; }
-
-  function layout(n, c) {
-    var title = n.label || n.field;
-    var line1 = STEP + 10 + tw(title, '600 14px ' + UI) + 8 + tw(n.field, '12px ' + MONO) + (n.draft ? 52 : 0) + 10 + STEP;
-    if (!c) {
-      var empty = STEP + 10 + tw('CALLS', '600 11px ' + UI) + 8 + tw('Select a function or ruleset…', 'italic 13px ' + UI) + 40;
-      return { width: steps(Math.max(line1, empty), 7, 12) };
-    }
-    var line2 = STEP + 10 + tw('CALLS', '600 11px ' + UI) + 8 + (14 + 6 + tw(n.method, '12.5px ' + MONO) + 6 + 12 + 16) + 12 + tw('→ ' + retLabel(c), '12px ' + MONO) + 28;
-    var lName = 0, rName = 0;
-    c.params.forEach(function (p) { lName = Math.max(lName, tw(p[0], '14px ' + UI) + 24 + 28); });
-    outputs(c).forEach(function (o) { rName = Math.max(rName, tw(o[0], '14px ' + UI) + 24); });
-    if (n.renaming) rName = Math.max(rName, tw(n.renaming.value, '14px ' + UI) + 40);
-    var hasL = c.params.length > 0;
-    var lay = { hasL: hasL, lName: hasL ? steps(lName, 2, 4) : 0, rName: steps(rName, 2, 4) };
-    var body = lay.lName + lay.rName;
-    var head = steps(Math.max(line1, line2), 1, 99);
-    if (head > body) {
-      var extra = (head - body) / STEP;
-      var toR = hasL ? Math.ceil(extra / 2) : extra;
-      lay.rName += toR * STEP;
-      lay.lName += (extra - toR) * STEP;
-    }
-    lay.width = Math.max(head, body);
-    return lay;
-  }
-
-  /* ---------------------------------------------------------------- menus */
-  function renderMenu(items, top, left, foot) {
-    var h = '<div class="menu" role="menu" style="top:' + top + 'px; left:' + left + 'px">';
-    items.forEach(function (it) {
-      if (it.group) { h += '<div class="mGroup">' + it.group + '</div>'; return; }
-      if (it.divider) { h += '<div class="mDivider"></div>'; return; }
-      h += '<button type="button" role="menuitem" class="mItem' + (it.danger ? ' danger' : '') + '"' + (it.disabled ? ' aria-disabled="true"' : '') +
-        (it.act ? ' data-act="' + it.act + '"' : '') + (it.why ? ' title="' + esc(it.why) + '"' : '') + '>' + icon(it.icon) + '<span>' + esc(it.label) + '</span>' +
-        (it.why ? '<span class="mHint">' + esc(it.why) + '</span>' : '') + '</button>';
-    });
-    if (foot) h += '<div class="mFoot">' + foot + '</div>';
-    return h + '</div>';
-  }
-  function argMenuItems(c, name) {
-    var i = c.params.map(function (p) { return p[0]; }).indexOf(name);
-    var used = c.used.indexOf(name) >= 0;
-    return [
-      { label: 'Move up', icon: 'up', act: 'up', disabled: i === 0 },
-      { label: 'Move down', icon: 'down', act: 'down', disabled: i === c.params.length - 1 },
-      { label: 'Add argument below', icon: 'plus', act: 'add' },
-      { divider: true },
-      { label: 'Delete argument', icon: 'trash', act: 'del', danger: true, disabled: used, why: used ? 'Used in ' + c.usedWhere : null }
-    ];
-  }
-  function nodeMenuItems(n, c) {
-    var callee = c ? n.method : null;
-    var items = [
-      { group: 'This node' },
-      { label: 'Rename node', icon: 'tag', act: 'noop' },
-      { label: 'Rename field', icon: 'pencil', act: 'noop' },
-      { label: 'Change callee…', icon: 'swap', act: 'change' },
-      { label: 'Duplicate', icon: 'copy', act: 'noop' },
-      n.desc != null ? { label: 'Remove description', icon: 'noteoff', act: 'descRemove' } : { label: 'Add description', icon: 'note', act: 'descAdd' }
-    ];
-    if (c) {
-      items.push({ group: 'Callee <code>' + esc(callee) + '</code> · ' + c.callers + ' ' + plural('caller', c.callers) });
-      items.push({ label: 'Add argument', icon: 'plus', act: 'addEnd' });
-      items.push({ label: c.kind === 'ruleset' ? 'Open in decision table editor' : 'Open in boxed editor', icon: 'external', act: 'noop' });
-      items.push({ label: 'Open tests', icon: 'flask', act: 'noop' });
-      items.push({ label: 'View as code', icon: 'code', act: 'noop' });
-    }
-    items.push({ group: 'Remove' });
-    items.push({ label: 'Remove from flow', icon: 'eyeoff', act: 'noop' });
-    items.push({ label: 'Delete', icon: 'trash', act: 'noop', danger: true });
-    return items;
-  }
-
-  /* Description row: full node width, between the header and the bands. Never widens the node. */
-  function renderDesc(n) {
-    if (n.desc == null) return '';
-    if (n.editingDesc) {
-      return '<div class="row descRow editing"><input class="descInput" id="desc-' + n.id + '" aria-label="Description of ' + esc(n.field) + '" placeholder="Describe what this node decides" value="' + esc(n.editingDesc.value) + '"></div>';
-    }
-    return '<div class="row descRow" data-desc="' + n.id + '" title="' + esc(n.desc) + ' (click to edit)"><span class="descText">' + esc(n.desc) + '</span></div>';
-  }
-
-  /* node model: { id, field, label, method, args: {param: {v, mode}}, selected, errors, wiredOut, menu, renaming } */
-  function renderNode(n) {
-    var c = n.method ? CALLABLES[n.method] : null;
-    n.draft = !!(c && isDraft(n, c));
-    var lay = layout(n, c);
-    var kind = c ? c.kind : 'function';
-    var h = '<div class="nodeWrap" style="width:' + (lay.width + 2) + 'px">';
-    h += '<div class="node' + (n.selected ? ' selected' : '') + '" data-node="' + n.id + '" style="width:' + lay.width + 'px">';
-    h += '<div class="row tall"><div class="tile" style="background:' + KIND_COLOR[kind] + '">' + icon(kind) + '</div><div class="headStack">';
-    h += '<div class="headLine first"><div class="title"><strong title="' + esc(n.label || n.field) + '">' + esc(n.label || n.field) + '</strong><span class="fid">' + esc(n.field) + '</span>' +
-      (n.draft ? '<span class="draft" title="Not written to the model until every required argument is bound">draft</span>' : '') + '</div>' +
-      '<button class="kebab' + (n.menu === 'node' ? ' open' : '') + '" type="button" data-kebab="node" aria-label="Node actions" aria-haspopup="menu">' + icon('dots') + '</button></div>';
-    h += '<div class="headLine"><span class="callsLabel">calls</span><span class="pickerWrap">';
-    if (c) h += '<button class="chip" type="button" data-chip="' + n.id + '" aria-haspopup="listbox"><span class="kdot" style="background:' + KIND_COLOR[c.kind] + '">' + icon(c.kind) + '</span><span class="cname">' + esc(n.method) + '</span>' + icon('chev', 'chev') + '</button>';
-    else h += '<button class="chip empty" type="button" data-chip="' + n.id + '">Select a function or ruleset…' + icon('chev', 'chev') + '</button>';
-    h += '</span>';
-    if (c) h += '<span class="retType" title="' + esc(retLabel(c)) + '">→ ' + esc(retLabel(c)) + '</span><span class="pin r rec" data-pin="' + n.id + ':out:*" style="--pc:var(--t-record)" title="' + esc(n.field) + '"></span>';
-    h += '</div></div></div>';
-    h += renderDesc(n);
-
-    if (!c) {
-      h += '<div class="emptyBody">Pick a function or ruleset. Its parameters become input pins and its results become output pins.</div></div>';
-      if (n.menu === 'node') h += renderMenu(nodeMenuItems(n, c), 40, lay.width - 238);
-      return h + '</div>';
-    }
-    var outs = outputs(c);
-    h += '<div class="row">';
-    if (lay.hasL) h += '<div class="half band" style="width:' + lay.lName + 'px">' + plural('argument', c.params.length) + '</div>';
-    h += '<div class="half band result" style="width:' + lay.rName + 'px">' + plural('result', outs.length) + '</div></div>';
-    var rows = Math.max(c.params.length, outs.length);
-    for (var i = 0; i < rows; i++) {
-      var p = c.params[i], o = outs[i];
-      var err = p && n.errors && n.errors[p[0]];
-      h += '<div class="row' + (err ? ' err' : '') + '">';
-      if (lay.hasL) {
-        if (p) {
-          var a = (n.args && n.args[p[0]]) || null;
-          var pcls = 'pin l' + pinClass(p[1]) + (!a || err ? ' bad' : '') + (a && a.mode === 'path' ? ' on' : '') + (a && a.mode !== 'path' ? ' expr' : '');
-          var tip = p[0] + ' : ' + p[1] + (a ? (a.mode === 'path' ? ' ← ' : ' = ') + a.v : ' (unbound)');
-          var open = n.menu && n.menu.arg === p[0];
-          h += '<div class="half arg' + (open ? ' menuOpen' : '') + '" style="width:' + lay.lName + 'px"><span class="' + pcls + '" data-pin="' + n.id + ':in:' + p[0] + '" style="--pc:' + typeColor(p[1]) + '" title="' + esc(tip) + '"></span>';
-          h += '<div class="pname" title="' + esc(tip) + '"><span>' + esc(p[0]) + '</span><span class="req">*</span>' +
-            '<button type="button" class="argKebab' + (open ? ' open' : '') + '" data-argkebab="' + esc(p[0]) + '" aria-label="Actions for argument ' + esc(p[0]) + '" aria-haspopup="menu">' + icon('dots') + '</button></div></div>';
-        } else h += '<div class="half" style="width:' + lay.lName + 'px"><div class="filler"></div></div>';
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <style>
+      :root {
+        color-scheme: light;
+        box-sizing: border-box;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
       }
-      if (o) {
-        var wired = n.wiredOut && n.wiredOut.indexOf(o[0]) >= 0;
-        var renaming = n.renaming && n.renaming.name === o[0];
-        h += '<div class="half out" style="width:' + lay.rName + 'px"><div class="pname">';
-        if (renaming) h += '<input class="renameInput" id="rename-' + n.id + '" aria-label="Rename result ' + esc(o[0]) + '" value="' + esc(n.renaming.value) + '"' + (n.renaming.error ? ' aria-invalid="true" title="' + esc(n.renaming.error) + '"' : '') + '>';
-        else if (o[2]) h += '<span class="resName locked" title="Unnamed return of ' + esc(n.method) + '. It cannot be renamed.">result</span>';
-        else h += '<button type="button" class="resName" data-res="' + esc(o[0]) + '" title="Click to rename ' + esc(o[0]) + ' in ' + esc(n.method) + '">' + esc(o[0]) + '</button>';
-        h += '</div><span class="pin r' + pinClass(o[1]) + (wired ? ' on' : '') + '" data-pin="' + n.id + ':out:' + o[0] + '" style="--pc:' + typeColor(o[1]) + '" title="' + esc(n.field + '.' + o[0]) + ' : ' + esc(o[1]) + '"></span></div>';
-      } else h += '<div class="half out" style="width:' + lay.rName + 'px"><div class="filler"></div></div>';
-      if (err) h += '<span class="errMsg">' + esc(err) + '</span>';
-      h += '</div>';
-    }
-    h += '</div>';
-    if (n.renaming) h += '<div class="renameNote">' + esc(n.renaming.note || ('Renames ' + n.renaming.name + ' in ' + n.method + ' for ' + c.callers + ' ' + plural('caller', c.callers) + '.')) + (n.renaming.error ? ' <span class="danger">' + esc(n.renaming.error) + '</span>' : '') + '</div>';
-    if (n.menu === 'node') h += renderMenu(nodeMenuItems(n, c), 40, lay.width - 238);
-    if (n.menu && n.menu.arg) {
-      var idx = c.params.map(function (q) { return q[0]; }).indexOf(n.menu.arg);
-      h += renderMenu(argMenuItems(c, n.menu.arg), 120 + (n.desc != null ? STEP : 0) + (idx + 1) * STEP - 4, lay.lName - 30,
-        'Changes <code>' + esc(n.method) + '</code> for ' + c.callers + ' ' + plural('caller', c.callers));
-    }
-    return h + '</div>';
-  }
+      html {
+        scroll-padding-top: env(safe-area-inset-top, 0px);
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        font:
+          14px -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: #fff;
+        color: #000;
+      }
+      img {
+        max-width: 100%;
+      }
+      [hidden]:not([hidden='until-found' i]) {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <title>FunctionNode Design Proposal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
+    <style>
+      /* Layout: a spec sheet. One live canvas up top, then states, wiring rules and the Portable mapping.
+   The node itself uses the Boxed Editor's own drawing model: 40px step, 1px ruled lines, Mantine greys. */
+      :root {
+        --body: #ffffff;
+        --page: #f8f9fa;
+        --fg: #212529;
+        --dimmed: #868e96;
+        --border: #dee2e6;
+        --muted: #f1f3f5;
+        --primary: #228be6;
+        --error: #e03131;
+        --tint-result: color-mix(in srgb, #228be6 6%, var(--body));
+        --tint-actions: color-mix(in srgb, #40c057 8%, var(--body));
+        --tint-actions-fg: #2b8a3e;
+        --tint-desc: color-mix(in srgb, #fab005 6%, var(--body));
+        --canvas-dot: #ced4da;
 
-  function renderPicker(selected, filter, top, left) {
-    var f = (filter || '').toLowerCase();
-    var h = '<div class="picker" role="dialog" aria-label="Select callee" style="top:' + top + 'px; left:' + left + 'px">';
-    h += '<div class="search">' + icon('search') + '<input id="pickerInput" type="text" placeholder="Search functions and rulesets" value="' + esc(filter || '') + '" aria-label="Search functions and rulesets"><span class="kbd">esc</span></div><div class="list" role="listbox">';
-    ['ruleset', 'function'].forEach(function (k) {
-      var names = ORDER.filter(function (nm) { return CALLABLES[nm].kind === k && nm.toLowerCase().indexOf(f) >= 0; });
-      if (!names.length) return;
-      h += '<div class="group">' + KIND_LABEL[k] + '</div>';
-      names.forEach(function (nm) {
-        var c = CALLABLES[nm];
-        h += '<button type="button" role="option" class="pick' + (nm === selected ? ' active' : '') + '" data-pick="' + nm + '" aria-selected="' + (nm === selected) + '">' +
-          '<span class="kdot" style="background:' + KIND_COLOR[k] + '">' + icon(k) + '</span>' +
-          '<span class="sig">' + esc(nm) + '(' + esc(c.params.map(function (p) { return p[0]; }).join(', ')) + ') <span class="ret">→ ' + esc(retLabel(c)) + '</span></span>' +
-          (nm === selected ? '<span class="check">✓</span>' : '') + '</button>';
-      });
-    });
-    h += '</div><div class="foot"><span><span class="kbd">↑↓</span> move</span><span><span class="kbd">↵</span> select</span><span>User-defined only</span></div></div>';
-    return h;
-  }
+        --k-function: #1976d2;
+        --k-ruleset: #6a1b9a;
+        --k-optimise: #1e88e5;
+        --k-builtin: #495057;
+        --k-input: #ed6c02;
+        --k-output: #2f9e44;
 
-  /* ---------------------------------------------------------------- hero canvas */
-  var APPLICANT = { age: ['23', 'number'], income: ['25000', 'number'], segment: ["'retail'", 'string'] };
-  var HERO_LEFT = 340;
-  var LABELS = { risk: 'Risk decision', creditScore: 'Credit score', monthly: 'Monthly amount', applicantDecision: 'Eligibility' };
-  var hero = {
-    id: 'hero', field: 'decision', label: 'Risk decision', method: 'risk', selected: true, menu: null, renaming: null,
-    desc: 'Assess the applicant risk band from age, income and segment', editingDesc: null,
-    args: { age: { v: 'applicant.age', mode: 'path' }, income: { v: 'applicant.income', mode: 'path' }, segment: { v: 'applicant.segment', mode: 'path' } }
-  };
-  var outField = 'level';
-  var pickerOpen = false, pickerFilter = '';
+        --t-number: #1c7ed6;
+        --t-string: #2b8a3e;
+        --t-boolean: #e8590c;
+        --t-date: #0c8599;
+        --t-record: #495057;
+        --t-any: #adb5bd;
 
-  function renderStubIn() {
-    var h = '<div class="node stub" style="width:200px"><div class="row"><div class="tile" style="background:var(--k-input)">' + icon('input') + '</div><div class="title stubTitle"><strong>Applicant</strong><span class="fid">applicant</span></div>' +
-      '<span class="pin r rec' + (hero.args.person ? ' on' : '') + '" data-pin="applicant:out:*" style="--pc:var(--t-record)" title="applicant : Applicant"></span></div>';
-    Object.keys(APPLICANT).forEach(function (k) {
-      h += '<div class="row"><div class="pname" style="width:80px"><span>' + k + '</span></div><div class="pval"><span class="t">' + esc(APPLICANT[k][0]) + '</span></div>' +
-        '<span class="pin r on" data-pin="applicant:out:' + k + '" style="--pc:' + typeColor(APPLICANT[k][1]) + '"></span></div>';
-    });
-    return h + '</div>';
-  }
-  function heroOut() {
-    var c = CALLABLES[hero.method];
-    return outputs(c).filter(function (o) { return o[0] === outField; })[0] || null;
-  }
-  function renderStubOut() {
-    var o = heroOut();
-    var res = RESULTS[hero.method] || {};
-    var v = o && !hero.draft ? res[outField] : null;
-    var h = '<div class="node stub" style="width:200px"><div class="row"><div class="tile" style="background:var(--k-output)">' + icon('output') + '</div><div class="title stubTitle"><strong>Output</strong><span class="fid">decision.' + esc(outField) + '</span></div></div>';
-    h += '<div class="row' + (o ? '' : ' err') + '"><span class="pin l' + (o ? ' on' : ' bad') + '" data-pin="out:in:v" style="--pc:' + (o ? typeColor(o[1]) : 'var(--error)') + '"></span><div class="pname" style="width:80px"><span>value</span></div>' +
-      (o ? '<div class="pval" style="background:var(--tint-result)"><span class="t">' + esc(v || '—') + '</span></div>' : '<div class="pval missing">no decision.' + esc(outField) + '</div>') + '</div>';
-    return h + '</div>';
-  }
+        --ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        --doc: 'IBM Plex Sans', var(--ui);
+        --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        --step: 40px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --body: #242424;
+          --page: #1a1b1e;
+          --fg: #c9c9c9;
+          --dimmed: #828282;
+          --border: #424242;
+          --muted: #2e2e2e;
+          --primary: #4dabf7;
+          --error: #ff6b6b;
+          --tint-actions-fg: #69db7c;
+          --canvas-dot: #3a3a3a;
+          --t-number: #4dabf7;
+          --t-string: #69db7c;
+          --t-boolean: #ff922b;
+          --t-date: #3bc9db;
+          --t-record: #adb5bd;
+          --t-any: #5c5f66;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme='dark'] {
+        --body: #242424;
+        --page: #1a1b1e;
+        --fg: #c9c9c9;
+        --dimmed: #828282;
+        --border: #424242;
+        --muted: #2e2e2e;
+        --primary: #4dabf7;
+        --error: #ff6b6b;
+        --tint-actions-fg: #69db7c;
+        --canvas-dot: #3a3a3a;
+        --t-number: #4dabf7;
+        --t-string: #69db7c;
+        --t-boolean: #ff922b;
+        --t-date: #3bc9db;
+        --t-record: #adb5bd;
+        --t-any: #5c5f66;
+        color-scheme: dark;
+      }
 
-  function drawEdges() {
-    var canvas = document.getElementById('canvas');
-    var svg = document.getElementById('edges');
-    var cr = canvas.getBoundingClientRect();
-    function center(id) {
-      var el = canvas.querySelector('[data-pin="' + id + '"]');
-      if (!el) return null;
-      var r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2 - cr.left, y: r.top + r.height / 2 - cr.top, color: getComputedStyle(el).getPropertyValue('--pc') };
-    }
-    var edges = [];
-    CALLABLES[hero.method].params.forEach(function (p) {
-      var a = hero.args[p[0]];
-      if (!a || a.mode !== 'path') return;
-      if (a.v === 'applicant') edges.push(['applicant:out:*', 'hero:in:' + p[0]]);
-      else if (a.v.indexOf('applicant.') === 0) edges.push(['applicant:out:' + a.v.split('.')[1], 'hero:in:' + p[0]]);
-    });
-    if (heroOut()) edges.push(['hero:out:' + outField, 'out:in:v']);
-    var out = '';
-    edges.forEach(function (e) {
-      var a = center(e[0]), b = center(e[1]);
-      if (!a || !b) return;
-      var dx = Math.max(40, Math.abs(b.x - a.x) * 0.5);
-      out += '<path d="M' + a.x + ' ' + a.y + ' C' + (a.x + dx) + ' ' + a.y + ' ' + (b.x - dx) + ' ' + b.y + ' ' + b.x + ' ' + b.y + '" stroke="' + (a.color.trim() || 'var(--t-any)') + '"/>';
-    });
-    svg.innerHTML = out;
-  }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--page);
+        color: var(--fg);
+        font-family: var(--doc);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+      .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 40px 20px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 56px;
+      }
+      h1,
+      h2,
+      h3 {
+        text-wrap: balance;
+        margin: 0;
+        font-weight: 600;
+      }
+      h1 {
+        font-size: 30px;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font-size: 21px;
+      }
+      h3 {
+        font-size: 15px;
+      }
+      p {
+        margin: 0;
+        max-width: 68ch;
+      }
+      code,
+      .mono {
+        font-family: var(--mono);
+        font-size: 0.9em;
+      }
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--dimmed);
+      }
+      section {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
+      .lede {
+        color: var(--dimmed);
+        font-size: 16px;
+      }
+      header.top {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
 
-  function renderHero() {
-    hero.wiredOut = heroOut() ? [outField] : [];
-    var host = document.getElementById('hero');
-    host.innerHTML = renderNode(hero) + (pickerOpen ? renderPicker(hero.method, pickerFilter, 76, 64) : '');
-    host.style.zIndex = pickerOpen || hero.menu || hero.renaming ? 10 : '';
-    document.getElementById('stubIn').innerHTML = renderStubIn();
-    document.getElementById('stubOut').innerHTML = renderStubOut();
-    var heroW = host.querySelector('.node').offsetWidth;
-    var outLeft = HERO_LEFT + heroW + 100;
-    document.getElementById('stubOut').style.left = outLeft + 'px';
-    document.getElementById('canvas').style.width = Math.max(1080, outLeft + 240) + 'px';
-    drawEdges();
-    renderMapping();
-    if (pickerOpen) {
-      var inp = document.getElementById('pickerInput');
-      if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
-    }
-    if (hero.editingDesc) {
-      var di = document.getElementById('desc-hero');
-      if (di) { di.focus(); di.setSelectionRange(di.value.length, di.value.length); }
-    }
-    if (hero.renaming) {
-      var r = document.getElementById('rename-hero');
-      if (r) { r.focus(); r.setSelectionRange(r.value.length, r.value.length); }
-    }
-  }
+      /* ---------------------------------------------------------------- canvas */
+      .canvasScroll {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--body);
+      }
+      .canvas {
+        position: relative;
+        width: 1080px;
+        height: 580px;
+        background-color: var(--body);
+        background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      .canvas .placed {
+        position: absolute;
+      }
+      .edges {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: visible;
+      }
+      .edges path {
+        fill: none;
+        stroke-width: 1.75;
+      }
+      .canvasHint {
+        position: absolute;
+        right: 12px;
+        bottom: 10px;
+        font-size: 12px;
+        color: var(--dimmed);
+        font-family: var(--ui);
+      }
 
-  function selectCallee(name) {
-    var prev = CALLABLES[hero.method], next = CALLABLES[name];
-    var args = {};
-    next.params.forEach(function (p) {
-      var old = hero.args[p[0]];
-      var prevParam = prev.params.filter(function (q) { return q[0] === p[0]; })[0];
-      if (old && prevParam && prevParam[1] === p[1]) args[p[0]] = old;
-      else if (APPLICANT[p[0]] && APPLICANT[p[0]][1] === p[1]) args[p[0]] = { v: 'applicant.' + p[0], mode: 'path' };
-      else if (p[1] === 'Applicant') args[p[0]] = { v: 'applicant', mode: 'path' };
-    });
-    hero.method = name;
-    hero.args = args;
-    hero.label = LABELS[name];
-    outField = name === 'risk' ? 'level' : outputs(next)[0][0];
-  }
+      /* ---------------------------------------------------------------- node (Boxed Editor drawing model) */
+      .node {
+        font-family: var(--ui);
+        font-size: 14px;
+        color: var(--fg);
+        box-sizing: content-box;
+        border: 1px solid var(--border);
+        border-bottom: 0;
+        background: var(--body);
+        box-shadow:
+          0 1px 2px rgb(0 0 0 / 0.05),
+          0 4px 14px rgb(0 0 0 / 0.06);
+        position: relative;
+      }
+      .node.selected {
+        outline: 2px solid var(--primary);
+        outline-offset: 1px;
+      }
+      .node .row {
+        display: flex;
+        height: var(--step);
+        border-bottom: 1px solid var(--border);
+        position: relative;
+      }
+      .node .row.tall {
+        height: calc(var(--step) * 2);
+      }
+      .tile {
+        width: var(--step);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        border-right: 1px solid var(--border);
+      }
+      .tile svg {
+        width: 19px;
+        height: 19px;
+      }
+      .headStack {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .headLine {
+        flex: 0 0 var(--step);
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        position: relative;
+      }
+      .headLine + .headLine {
+        border-top: 1px solid var(--border);
+      }
+      .headLine.first {
+        background: var(--muted);
+      }
+      .title {
+        flex: 1;
+        min-width: 0;
+        padding-inline: 10px;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .title strong {
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .title .fid {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--dimmed);
+      }
+      .kebab {
+        width: var(--step);
+        height: 100%;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-left: 1px solid var(--border);
+        background: var(--muted);
+        color: var(--dimmed);
+        border-top: 0;
+        border-right: 0;
+        border-bottom: 0;
+        cursor: pointer;
+      }
+      .kebab svg {
+        width: 16px;
+        height: 16px;
+      }
+      .callsLabel {
+        padding-left: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--dimmed);
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 8px;
+        max-width: 220px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--body);
+        color: var(--fg);
+        padding: 3px 6px 3px 6px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        cursor: pointer;
+      }
+      .chip:hover {
+        border-color: var(--dimmed);
+      }
+      .chip:focus-visible,
+      .kebab:focus-visible,
+      .pick:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 1px;
+      }
+      .chip .kdot {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        flex-shrink: 0;
+      }
+      .chip .kdot svg {
+        width: 10px;
+        height: 10px;
+      }
+      .chip .cname {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .chip.empty {
+        color: var(--dimmed);
+        font-style: italic;
+        font-family: var(--ui);
+        border-style: dashed;
+      }
+      .chip svg.chev {
+        width: 12px;
+        height: 12px;
+        color: var(--dimmed);
+      }
+      .retType {
+        margin-left: auto;
+        padding-right: 18px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--dimmed);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+      }
 
-  function argAction(act, name) {
-    var c = CALLABLES[hero.method];
-    var names = c.params.map(function (p) { return p[0]; });
-    var i = names.indexOf(name);
-    if (act === 'up' && i > 0) c.params.splice(i - 1, 0, c.params.splice(i, 1)[0]);
-    if (act === 'down' && i < c.params.length - 1) c.params.splice(i + 1, 0, c.params.splice(i, 1)[0]);
-    if (act === 'add' || act === 'addEnd') {
-      var n = 'arg', k = 1;
-      while (names.indexOf(n) >= 0) { k++; n = 'arg' + k; }
-      var type = c.kind === 'ruleset' ? 'string' : 'number';
-      c.params.splice(act === 'add' ? i + 1 : c.params.length, 0, [n, type]);
-      hero.args[n] = { v: type === 'string' ? "''" : '0', mode: 'literal' };
-    }
-    if (act === 'del' && c.used.indexOf(name) < 0) { c.params.splice(i, 1); delete hero.args[name]; }
-  }
+      .half {
+        display: flex;
+        flex-shrink: 0;
+        min-width: 0;
+        position: relative;
+      }
+      .half + .half {
+        border-left: 1px solid var(--border);
+      }
+      .band {
+        align-items: center;
+        padding-inline: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--dimmed);
+        background: var(--muted);
+      }
+      .band.result {
+        background: var(--tint-actions);
+        color: var(--tint-actions-fg);
+      }
+      .band .count {
+        margin-left: auto;
+        font-weight: 500;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      .pname {
+        width: calc(var(--step) * 2);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        padding-inline: 10px;
+        border-right: 1px solid var(--border);
+        background: var(--muted);
+        min-width: 0;
+      }
+      .pname span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .pname .req {
+        color: var(--error);
+        margin-left: 2px;
+      }
+      .pval {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding-inline: 8px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .pval .t {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .pval svg {
+        width: 13px;
+        height: 13px;
+        color: var(--dimmed);
+        flex-shrink: 0;
+      }
+      .pval.missing {
+        color: var(--error);
+        font-family: var(--ui);
+        font-style: italic;
+        font-size: 13px;
+      }
+      .pval.dflt {
+        color: var(--dimmed);
+        font-family: var(--ui);
+        font-style: italic;
+        font-size: 13px;
+      }
+      .pval .fx {
+        font-family: var(--ui);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--dimmed);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        padding: 0 3px;
+        flex-shrink: 0;
+      }
+      .out .pval {
+        background: var(--tint-result);
+      }
+      .out .pval.stale {
+        color: var(--dimmed);
+        font-style: italic;
+        font-family: var(--ui);
+        font-size: 13px;
+      }
+      .filler {
+        flex: 1;
+        background: repeating-linear-gradient(135deg, transparent 0 6px, var(--muted) 6px 7px);
+      }
+      .row.err {
+        outline: 2px solid var(--error);
+        outline-offset: -2px;
+        z-index: 1;
+      }
+      .errMsg {
+        position: absolute;
+        left: 6px;
+        right: 6px;
+        bottom: 2px;
+        font-size: 11px;
+        color: var(--error);
+        font-family: var(--ui);
+        font-style: normal;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+      }
+      .descRow {
+        padding-inline: 10px;
+        align-items: center;
+        background: var(--tint-desc);
+        color: var(--dimmed);
+        font-style: italic;
+        font-size: 13px;
+      }
+      .emptyBody {
+        height: calc(var(--step) * 2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0 24px;
+        color: var(--dimmed);
+        font-size: 13px;
+        background: var(--muted);
+      }
 
-  function commitRename() {
-    var r = hero.renaming;
-    if (!r) return;
-    var v = r.value.trim();
-    var c = CALLABLES[hero.method];
-    if (v === r.name || v === '') { hero.renaming = null; return; }
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(v)) { r.error = 'Use letters, digits and _ only, not starting with a digit.'; return; }
-    if (c.ret.fields.some(function (f) { return f[0] === v; })) { r.error = v + ' already exists.'; return; }
-    c.ret.fields.forEach(function (f) { if (f[0] === r.name) f[0] = v; });
-    var res = RESULTS[hero.method];
-    if (res && r.name in res) { res[v] = res[r.name]; delete res[r.name]; }
-    if (outField === r.name) outField = v;
-    hero.renaming = null;
-  }
+      /* ---------------------------------------------------------------- pins */
+      .pin {
+        position: absolute;
+        top: 50%;
+        width: 12px;
+        height: 12px;
+        margin-top: -6px;
+        z-index: 3;
+        border-radius: 50%;
+        background: var(--body);
+        border: 2px solid var(--pc, var(--t-any));
+      }
+      .pin.l {
+        left: -7px;
+      }
+      .pin.r {
+        right: -7px;
+      }
+      .pin.on {
+        background: var(--pc);
+      }
+      .pin.rec {
+        border-radius: 2px;
+      }
+      .pin.list {
+        box-shadow:
+          0 0 0 2px var(--body),
+          0 0 0 3.5px var(--pc);
+      }
+      .pin.expr {
+        border-style: dotted;
+      }
+      .pin.bad {
+        --pc: var(--error);
+      }
 
-  // Mirrors DocumentationService.setDescription(path, text): an empty text deletes the description.
-  function commitDesc(cancel) {
-    var e = hero.editingDesc;
-    if (!e) return;
-    var v = cancel ? e.original : e.value.trim();
-    hero.desc = v ? v : null;
-    hero.editingDesc = null;
-  }
+      /* ---------------------------------------------------------------- stub nodes on the canvas */
+      .stub {
+        width: calc(var(--step) * 5);
+      }
 
-  var heroEl = document.getElementById('hero');
-  heroEl.addEventListener('click', function (ev) {
-    ev.stopPropagation(); // re-rendering detaches ev.target, so the document "click outside" handler must not see it
-    var t = ev.target;
-    var chip = t.closest('[data-chip]'), pick = t.closest('[data-pick]'), kebab = t.closest('[data-kebab]'),
-      argK = t.closest('[data-argkebab]'), act = t.closest('[data-act]'), res = t.closest('[data-res]');
-    if (t.closest('.renameInput') || t.closest('.descInput')) return;
-    if (hero.editingDesc) { commitDesc(false); renderHero(); return; }
-    var descEl = t.closest('[data-desc]');
-    if (descEl) { hero.menu = null; pickerOpen = false; hero.editingDesc = { value: hero.desc, original: hero.desc }; renderHero(); return; }
-    if (hero.renaming) { commitRename(); renderHero(); if (!hero.renaming) return; return; }
-    if (chip) { pickerOpen = !pickerOpen; pickerFilter = ''; hero.menu = null; renderHero(); return; }
-    if (pick) { selectCallee(pick.getAttribute('data-pick')); pickerOpen = false; renderHero(); return; }
-    if (kebab) { hero.menu = hero.menu === 'node' ? null : 'node'; pickerOpen = false; renderHero(); return; }
-    if (argK) { var nm = argK.getAttribute('data-argkebab'); hero.menu = hero.menu && hero.menu.arg === nm ? null : { arg: nm }; pickerOpen = false; renderHero(); return; }
-    if (act) {
-      if (act.getAttribute('aria-disabled') === 'true') return;
-      var a = act.getAttribute('data-act');
-      var argName = hero.menu && hero.menu.arg;
-      hero.menu = null;
-      if (a === 'change') pickerOpen = true;
-      else if (a === 'descAdd') { hero.desc = ''; hero.editingDesc = { value: '', original: '' }; }
-      else if (a === 'descRemove') { hero.desc = null; }
-      else if (a !== 'noop') argAction(a, argName);
-      renderHero();
-      return;
-    }
-    if (res) { hero.menu = null; hero.renaming = { name: res.getAttribute('data-res'), value: res.getAttribute('data-res') }; renderHero(); return; }
-    if (t.closest('.picker') || t.closest('.menu')) return;
-    if (hero.menu || pickerOpen) { hero.menu = null; pickerOpen = false; renderHero(); return; }
-    if (t.closest('.node')) { hero.selected = !hero.selected; renderHero(); }
-  });
-  heroEl.addEventListener('input', function (ev) {
-    if (ev.target.id === 'pickerInput') {
-      pickerFilter = ev.target.value;
-      var tmp = document.createElement('div');
-      tmp.innerHTML = renderPicker(hero.method, pickerFilter, 76, 64);
-      document.querySelector('#hero .picker .list').replaceWith(tmp.querySelector('.list'));
-    }
-    if (ev.target.classList.contains('descInput') && hero.editingDesc) hero.editingDesc.value = ev.target.value;
-    if (ev.target.classList.contains('renameInput') && hero.renaming) {
-      hero.renaming.value = ev.target.value;
-      if (hero.renaming.error) { hero.renaming.error = null; ev.target.removeAttribute('aria-invalid'); }
-    }
-  });
-  heroEl.addEventListener('keydown', function (ev) {
-    if (ev.target.classList.contains('descInput')) {
-      if (ev.key === 'Enter') { ev.preventDefault(); commitDesc(false); renderHero(); }
-      if (ev.key === 'Escape') { commitDesc(true); renderHero(); }
-      return;
-    }
-    if (!ev.target.classList.contains('renameInput')) return;
-    if (ev.key === 'Enter') { ev.preventDefault(); commitRename(); renderHero(); }
-    if (ev.key === 'Escape') { hero.renaming = null; renderHero(); }
-  });
-  document.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Escape' && (pickerOpen || hero.menu)) { pickerOpen = false; hero.menu = null; renderHero(); }
-    if (ev.key === 'Enter' && pickerOpen && document.activeElement && document.activeElement.id === 'pickerInput') {
-      var first = document.querySelector('#hero .pick');
-      if (first) { selectCallee(first.getAttribute('data-pick')); pickerOpen = false; renderHero(); }
-    }
-  });
-  document.addEventListener('click', function (ev) {
-    if (ev.target.closest('#hero')) return;
-    if (pickerOpen || hero.menu) { pickerOpen = false; hero.menu = null; renderHero(); }
-    else if (hero.renaming) { commitRename(); renderHero(); }
-    else if (hero.editingDesc) { commitDesc(false); renderHero(); }
-  });
+      /* ---------------------------------------------------------------- picker */
+      .pickerWrap {
+        position: relative;
+      }
+      .picker {
+        position: absolute;
+        z-index: 20;
+        width: 340px;
+        font-family: var(--ui);
+        font-size: 13px;
+        background: var(--body);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        box-shadow: 0 8px 28px rgb(0 0 0 / 0.16);
+        overflow: hidden;
+      }
+      .picker .search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+        color: var(--dimmed);
+      }
+      .picker .search svg {
+        width: 14px;
+        height: 14px;
+      }
+      .picker input {
+        flex: 1;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--fg);
+        font: inherit;
+        min-width: 0;
+      }
+      .picker .group {
+        padding: 8px 10px 2px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--dimmed);
+      }
+      .picker .list {
+        max-height: 300px;
+        overflow-y: auto;
+        padding-bottom: 6px;
+      }
+      .pick {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: var(--fg);
+        text-align: left;
+        padding: 6px 10px;
+        cursor: pointer;
+        font: inherit;
+      }
+      .pick:hover,
+      .pick.active {
+        background: var(--muted);
+      }
+      .pick .kdot {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        flex-shrink: 0;
+      }
+      .pick .kdot svg {
+        width: 12px;
+        height: 12px;
+      }
+      .pick .sig {
+        font-family: var(--mono);
+        font-size: 12px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .pick .sig .ret {
+        color: var(--dimmed);
+      }
+      .pick .check {
+        margin-left: auto;
+        color: var(--primary);
+      }
+      .picker .foot {
+        border-top: 1px solid var(--border);
+        padding: 6px 10px;
+        color: var(--dimmed);
+        font-size: 11.5px;
+        display: flex;
+        gap: 12px;
+      }
+      .kbd {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        border: 1px solid var(--border);
+        border-bottom-width: 2px;
+        border-radius: 3px;
+        padding: 0 4px;
+      }
 
-  /* ---------------------------------------------------------------- Portable mapping */
-  function jsonHtml(obj, indent) {
-    indent = indent || '';
-    var pad = indent + '  ';
-    if (obj === null) return '<span class="j-n">null</span>';
-    if (Array.isArray(obj)) {
-      if (!obj.length) return '[]';
-      return '[\n' + obj.map(function (v) { return pad + jsonHtml(v, pad); }).join(',\n') + '\n' + indent + ']';
-    }
-    if (typeof obj === 'object') {
-      var keys = Object.keys(obj);
-      if (!keys.length) return '{}';
-      return '{\n' + keys.map(function (k) { return pad + '<span class="j-k">"' + esc(k) + '"</span>: ' + jsonHtml(obj[k], pad); }).join(',\n') + '\n' + indent + '}';
-    }
-    if (typeof obj === 'number' || typeof obj === 'boolean') return '<span class="j-n">' + obj + '</span>';
-    return '<span class="j-s">"' + esc(obj) + '"</span>';
-  }
-  function renderMapping() {
-    var c = CALLABLES[hero.method];
-    var args = {};
-    c.params.forEach(function (p) {
-      var a = hero.args[p[0]];
-      if (a) args[p[0]] = a.mode === 'literal' && /^-?\d/.test(a.v) ? Number(a.v) : a.v;
-    });
-    var inv = { '@kind': 'invocation', '@node': 'FunctionNode', '@node-name': hero.label, '@method': hero.method, '@arguments': args };
-    if (!hero.draft) inv['@type'] = c.ret.type === 'record' ? 'object' : c.ret.type;
-    document.getElementById('jsonInv').innerHTML = jsonHtml(inv);
-    document.getElementById('mapTitleL').textContent = hero.field + ' · invocation' + (hero.draft ? ' · draft, not written' : '');
-    var params = {};
-    c.params.forEach(function (p) { params[p[0]] = p[1]; });
-    var ret;
-    if (c.ret.type === 'record') {
-      ret = { '@kind': 'type-definition' };
-      c.ret.fields.forEach(function (f) { ret[f[0]] = { '@kind': 'type', type: f[1] }; });
-    } else ret = c.ret.type;
-    var schema = { '@kind': c.kind + '-schema', '@parameters': params };
-    if (c.hit) schema['@hitPolicy'] = c.hit;
-    schema['@return'] = ret;
-    document.getElementById('jsonSchema').innerHTML = jsonHtml(schema);
-    document.getElementById('mapTitleR').textContent = hero.method + " · get('" + hero.method + "', 'FIELDS')";
-  }
+      /* ---------------------------------------------------------------- spec content */
+      .anatomy {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1px;
+        background: var(--border);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .anatomy > div {
+        background: var(--body);
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      .anatomy p {
+        font-size: 14px;
+        color: var(--dimmed);
+      }
+      .anatomy h3 {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
 
-  /* ---------------------------------------------------------------- static gallery (own copies, so hero edits do not leak in) */
-  var SNAP = JSON.parse(JSON.stringify(CALLABLES));
-  function frozen(fn) { var live = CALLABLES; CALLABLES = SNAP; try { return fn(); } finally { CALLABLES = live; } }
-  var RISK_ARGS = function () { return { age: { v: 'applicant.age', mode: 'path' }, income: { v: 'applicant.income', mode: 'path' }, segment: { v: 'applicant.segment', mode: 'path' } }; };
-  frozen(function () {
-    document.getElementById('sPicker').innerHTML = '<div style="position:relative">' + renderNode({
-      id: 's1', field: 'score', label: 'Credit score', method: 'creditScore',
-      args: { age: { v: 'applicant.age', mode: 'path' }, income: { v: 'applicant.income', mode: 'path' } }
-    }) + renderPicker('creditScore', '', 76, 64).replace('id="pickerInput"', 'id="pickerDemo" tabindex="-1"') + '</div>';
-    document.getElementById('sArgMenu').innerHTML = renderNode({ id: 's2', field: 'decision', label: 'Risk decision', method: 'risk', args: RISK_ARGS(), menu: { arg: 'age' }, wiredOut: ['level'] });
-    document.getElementById('sRename').innerHTML = renderNode({ id: 's3', field: 'decision', label: 'Risk decision', method: 'risk', args: RISK_ARGS(), wiredOut: ['level'],
-      renaming: { name: 'level', value: 'riskLevel', note: 'Renames level in 2 rules and default of risk. Rewrites 1 wire.' } }).replace('id="rename-s3"', 'id="rename-s3" tabindex="-1"');
-    document.getElementById('sScalar').innerHTML = renderNode({ id: 's4', field: 'payment', label: 'Monthly payment', method: 'monthly',
-      args: { amount: { v: 'application.amount * 1.1', mode: 'expr' } }, wiredOut: ['result'] });
-    document.getElementById('sRecord').innerHTML = renderNode({ id: 's5', field: 'eligibility', label: 'Eligibility', method: 'applicantDecision',
-      args: { person: { v: 'applicant', mode: 'path' } }, wiredOut: ['eligible'],
-      desc: 'Checks whether the applicant is an adult. Minors are declined before any risk or pricing step runs, and the reason is shown to the case handler.' });
-    document.getElementById('sError').innerHTML = renderNode({ id: 's6', field: 'decision', label: 'Risk decision', method: 'risk',
-      args: { age: { v: 'applicant.age', mode: 'path' }, income: { v: 'applicant.income', mode: 'path' } },
-      errors: { segment: 'applicant.income rejected: expected string, found number' } });
-    document.getElementById('sEmpty').innerHTML = renderNode({ id: 's7', field: 'node3', label: 'New function node', method: null });
-    document.getElementById('sDesc').innerHTML = renderNode({ id: 's8', field: 'score', label: 'Credit score', method: 'creditScore',
-      args: { age: { v: 'applicant.age', mode: 'path' }, income: { v: 'applicant.income', mode: 'path' } }, wiredOut: ['result'],
-      desc: '', editingDesc: { value: 'Bureau-style score used for pricing' } }).replace('id="desc-s8"', 'id="desc-s8" tabindex="-1"');
-    document.getElementById('sNodeMenu').innerHTML = renderNode({ id: 's9', field: 'decision', label: 'Risk decision', method: 'risk', args: RISK_ARGS(), menu: 'node', wiredOut: ['level'], desc: 'Assess the applicant risk band from age, income and segment' });
-  });
+      .states {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+        gap: 20px;
+      }
+      @media (max-width: 600px) {
+        .states {
+          grid-template-columns: 1fr;
+        }
+      }
+      .state {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+      }
+      .stateStage {
+        overflow-x: auto;
+        padding: 22px 26px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background-color: var(--body);
+        background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      .stateStage.tallStage {
+        min-height: 480px;
+      }
+      .state p {
+        font-size: 14px;
+        color: var(--dimmed);
+      }
 
-  document.getElementById('sampleModel').textContent = [
-    '{',
-    '  type Applicant: { age: <number>; income: <number>; segment: <string> }',
-    '  applicant: { age: 23; income: 25000; segment: "retail" }',
-    '  application: { amount: 32000 }',
-    '  ruleset risk(age: number, income: number, segment: string): {',
-    '    hitPolicy: "first-match"',
-    '    rules: [',
-    '      { when: { age: 18..25, income: < 30000, segment: "retail" }, then: { level: "high", limit: 1000 } }',
-    '      { when: age >= 26 and age <= 64, then: { level: "medium", limit: 5000 } }',
-    '    ]',
-    '    default: { level: "none", limit: 0 }',
-    '  }',
-    '  func creditScore(age: number, income: number): 300 + age * 2 + income / 1000',
-    '  func monthly(amount: number): amount / 12',
-    '  func applicantDecision(person: Applicant): { eligible: person.age >= 18; reason: if person.age >= 18 then "adult" else "minor" }',
-    '  decision: risk(age: applicant.age, income: applicant.income, segment: applicant.segment)   // { level: "high", limit: 1000 }',
-    '  score: creditScore(age: applicant.age, income: applicant.income)                       // 371',
-    '  payment: monthly(amount: application.amount * 1.1)                                     // 2933.3333333333335',
-    '  eligibility: applicantDecision(person: applicant)                                      // { eligible: true, reason: "adult" }',
-    '}'
-  ].join('\n');
+      table.spec {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 14px;
+        background: var(--body);
+      }
+      table.spec th,
+      table.spec td {
+        border: 1px solid var(--border);
+        padding: 8px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+      table.spec th {
+        background: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--dimmed);
+      }
+      .tableScroll {
+        overflow-x: auto;
+      }
+      .pinDemo {
+        position: relative;
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+      .pinDemo .pin {
+        left: 0;
+        top: 0;
+        margin: 0;
+      }
 
-  renderHero();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { renderHero(); });
-  window.addEventListener('resize', drawEdges);
-})();
-</script>
+      .mapping {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 20px;
+      }
+      @media (max-width: 860px) {
+        .mapping {
+          grid-template-columns: 1fr;
+        }
+      }
+      pre.json {
+        margin: 0;
+        padding: 14px 16px;
+        background: var(--body);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        line-height: 1.6;
+      }
+      .j-k {
+        color: var(--k-ruleset);
+      }
+      .j-s {
+        color: var(--t-string);
+      }
+      .j-n {
+        color: var(--t-number);
+      }
+      :root[data-theme='dark'] .j-k {
+        color: #da77f2;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) .j-k {
+          color: #da77f2;
+        }
+      }
+      .rules {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+      .rules li {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr);
+        gap: 16px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+      }
+      .rules li b {
+        font-weight: 600;
+      }
+      @media (max-width: 600px) {
+        .rules li {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+      }
+      .qs {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding-left: 20px;
+        margin: 0;
+        max-width: 80ch;
+      }
+      .qs li {
+        font-size: 14.5px;
+      }
+      .qs li b {
+        font-weight: 600;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .pin,
+        .chip {
+          transition:
+            background-color 0.12s,
+            border-color 0.12s;
+        }
+      }
+      .draft {
+        font-family: var(--ui);
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--dimmed);
+        border: 1px dashed var(--dimmed);
+        border-radius: 3px;
+        padding: 0 5px;
+        line-height: 16px;
+        flex-shrink: 0;
+      }
+      .stubTitle {
+        background: var(--muted);
+        height: 100%;
+        display: flex;
+        align-items: center;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--dimmed);
+      }
+      #sampleModel {
+        white-space: pre;
+      }
+      .node .pname {
+        background: var(--body);
+      }
+      .node .out .pname {
+        width: 100%;
+        justify-content: flex-end;
+        border-right: 0;
+      }
+      .node .pval.blank {
+        background: var(--body);
+      }
 
-</body></html>
+      .nodeWrap {
+        position: relative;
+      }
+      .node .half.arg .pname {
+        position: relative;
+        width: 100%;
+        padding-right: 30px;
+      }
+      .argKebab {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-left: 1px solid var(--border);
+        background: var(--muted);
+        color: var(--dimmed);
+        cursor: pointer;
+        padding: 0;
+        opacity: 0;
+      }
+      .argKebab svg {
+        width: 15px;
+        height: 15px;
+      }
+      .half.arg:hover .argKebab,
+      .argKebab:focus-visible,
+      .argKebab.open {
+        opacity: 1;
+      }
+      .argKebab:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: -2px;
+      }
+      .kebab.open,
+      .argKebab.open {
+        background: var(--border);
+        color: var(--fg);
+      }
+      .resName {
+        border: 0;
+        background: transparent;
+        color: var(--fg);
+        font: inherit;
+        padding: 2px 4px;
+        margin-right: -4px;
+        border-radius: 3px;
+        cursor: text;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+      }
+      .resName:hover {
+        background: var(--muted);
+      }
+      .resName:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 0;
+      }
+      .resName.locked {
+        font-style: italic;
+        color: var(--dimmed);
+        cursor: default;
+      }
+      .resName.locked:hover {
+        background: transparent;
+      }
+      .renameInput {
+        width: 100%;
+        font: inherit;
+        font-size: 14px;
+        color: var(--fg);
+        text-align: right;
+        border: 1px solid var(--primary);
+        border-radius: 2px;
+        padding: 1px 5px;
+        background: var(--body);
+        outline: none;
+      }
+      .renameInput[aria-invalid='true'] {
+        border-color: var(--error);
+      }
+      .renameNote {
+        font-family: var(--ui);
+        font-size: 12px;
+        color: var(--dimmed);
+        padding: 6px 2px 0;
+        max-width: 100%;
+      }
+      .menu {
+        position: absolute;
+        z-index: 30;
+        width: 250px;
+        font-family: var(--ui);
+        font-size: 13.5px;
+        padding: 4px;
+        background: var(--body);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        box-shadow: 0 8px 28px rgb(0 0 0 / 0.16);
+      }
+      .mGroup {
+        padding: 8px 10px 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--dimmed);
+      }
+      .mGroup code {
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 11px;
+      }
+      .mDivider {
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0;
+      }
+      .mItem {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: var(--fg);
+        font: inherit;
+        text-align: left;
+        padding: 7px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        min-width: 0;
+      }
+      .mItem svg {
+        width: 15px;
+        height: 15px;
+        color: var(--dimmed);
+        flex-shrink: 0;
+      }
+      .mItem:hover {
+        background: var(--muted);
+      }
+      .mItem:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: -2px;
+      }
+      .mItem.danger,
+      .mItem.danger svg {
+        color: var(--error);
+      }
+      .mItem[aria-disabled='true'] {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .mItem[aria-disabled='true']:hover {
+        background: transparent;
+      }
+      .mHint {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--dimmed);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+      }
+      .mFoot {
+        border-top: 1px solid var(--border);
+        margin-top: 4px;
+        padding: 6px 10px 4px;
+        font-size: 11.5px;
+        color: var(--dimmed);
+      }
+      .danger {
+        color: var(--error);
+      }
+      .menuSpec {
+        display: grid;
+        grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+      @media (max-width: 1000px) {
+        .menuSpec {
+          grid-template-columns: 1fr;
+        }
+      }
+      .menuStage {
+        min-height: 600px;
+      }
+      table.spec tr.grp td {
+        background: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--dimmed);
+        padding-block: 6px;
+      }
+      table.spec tr.grp td code {
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .stateStage.tallStage {
+        min-height: 400px;
+      }
+
+      .node .descRow {
+        padding: 0 10px;
+        align-items: center;
+        background: var(--tint-desc);
+        color: var(--dimmed);
+        font-style: italic;
+        font-size: 12.5px;
+        line-height: 16px;
+        cursor: text;
+      }
+      .node .descRow:hover {
+        box-shadow: inset 0 0 0 1px var(--border);
+      }
+      .descText {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-width: 0;
+      }
+      .node .descRow.editing {
+        padding: 0 6px;
+        cursor: default;
+      }
+      .descInput {
+        width: 100%;
+        font: inherit;
+        font-style: normal;
+        font-size: 13px;
+        color: var(--fg);
+        border: 1px solid var(--primary);
+        border-radius: 2px;
+        padding: 3px 6px;
+        background: var(--body);
+        outline: none;
+      }
+    </style>
+
+    <div class="wrap">
+      <header class="top">
+        <span class="eyebrow">EdgeRules Flow Editor · Proposal 4 · FunctionNode</span>
+        <h1>FunctionNode</h1>
+        <p class="lede">
+          A FunctionNode is one model field annotated <code>@FunctionNode</code> whose value is a Portable
+          <code>invocation</code> of a user-defined <code>func</code> or <code>ruleset</code>. The node is drawn with
+          the Boxed Editor's own sheet rules. It shows structure only: the callee, one pin per argument on the left, and
+          one pin per result on the right. Where the values come from is shown by wires. What the values are is shown by
+          output nodes.
+        </p>
+        <p class="note">
+          The output value on the canvas and the values in the sample model at the end of the page come from the real
+          engine: <code>@edgerules/node</code> 0.0.6-alpha.202607291629. The engine calls named in the menus were run
+          against the same version.
+        </p>
+      </header>
+
+      <section>
+        <div class="canvasScroll">
+          <div class="canvas" id="canvas">
+            <svg class="edges" id="edges"></svg>
+            <div class="placed" style="left: 40px; top: 120px" id="stubIn"></div>
+            <div class="placed" style="left: 340px; top: 60px" id="hero"></div>
+            <div class="placed" style="top: 190px" id="stubOut"></div>
+            <div class="canvasHint">
+              Click the callee chip to pick another callable, the description to edit it, or a result to rename it.
+              Hover an argument for its menu.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <span class="eyebrow">Anatomy</span>
+        <h2>Every part comes from an existing Boxed Editor element</h2>
+        <div class="anatomy">
+          <div>
+            <h3><span class="swatch" style="background: var(--k-ruleset)"></span>Kind tile</h3>
+            <p>
+              Same 40px tile, icon and color as the callee's header row in the Boxed Editor: blue Σ for
+              <code>func</code>, purple for <code>ruleset</code>. The tile is the drag handle.
+            </p>
+          </div>
+          <div>
+            <h3>Tall header, two lines</h3>
+            <p>
+              Line 1: <code>@node-name</code> in bold, the field name in mono, and the node menu ⋮. Line 2: the callee
+              chip and the return type. Same 80px "tall" header as a <code>func</code> row.
+            </p>
+          </div>
+          <div>
+            <h3>Callee chip</h3>
+            <p>
+              The selector for <code>@method</code>. Opens a searchable list of every user-defined function and ruleset
+              in the model, grouped by kind, with the signature on each line. Built-in functions are not offered.
+            </p>
+          </div>
+          <div>
+            <h3>
+              <span class="swatch" style="background: var(--tint-desc); border: 1px solid var(--border)"></span
+              >Description row
+            </h3>
+            <p>
+              Optional. Sits under the CALLS line and spans the full width of the argument and result columns. Same
+              yellow tint and italic text as the Boxed Editor's description column, and the same stored text. Click to
+              edit.
+            </p>
+          </div>
+          <div>
+            <h3>Argument band</h3>
+            <p>
+              Neutral grey, like the ARGUMENTS and CONDITIONS bands. Reads ARGUMENT or ARGUMENTS. One 40px row per
+              parameter, showing the name only. Each row has its own ⋮ menu.
+            </p>
+          </div>
+          <div>
+            <h3>
+              <span class="swatch" style="background: var(--tint-actions); border: 1px solid var(--border)"></span
+              >Result band
+            </h3>
+            <p>
+              Green, like the ruleset ACTIONS band. Reads RESULT or RESULTS. One row per result field, right-aligned at
+              its pin. No menu. Click a name to rename it.
+            </p>
+          </div>
+          <div>
+            <h3>Pins</h3>
+            <p>
+              Sit on the frame's 1px line, centered on the row. Color is the type, shape is the structure, fill is the
+              connection state. A square pin on header line 2 carries the whole result.
+            </p>
+          </div>
+          <div>
+            <h3>Selection</h3>
+            <p>
+              A 2px primary outline, offset by 1px so it does not cover the frame line. The Delete key removes the node
+              from the flow, not from the model, the same as Remove from flow.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <span class="eyebrow">Node menu</span>
+        <h2>The ⋮ in the header acts on the node and its callee</h2>
+        <p>
+          The menu uses the Boxed Editor's <code>RowActionsMenu</code>: Mantine <code>Menu</code>, Tabler icons,
+          labelled groups, and red for destructive items. Items that cannot run are disabled with the reason in a
+          tooltip, never hidden. The second group changes the callee, so it affects every node and field that calls it.
+          The group label says how many callers there are.
+        </p>
+        <div class="menuSpec">
+          <div class="stateStage menuStage" id="sNodeMenu"></div>
+          <div class="tableScroll">
+            <table class="spec">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>What it does</th>
+                  <th>Engine / host call</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="grp">
+                  <td colspan="3">This node</td>
+                </tr>
+                <tr>
+                  <td>Rename node</td>
+                  <td>Edits the label in bold. The model field keeps its name.</td>
+                  <td><code>set('decision', { '@node': 'FunctionNode', '@node-name': … })</code></td>
+                </tr>
+                <tr>
+                  <td>Rename field</td>
+                  <td>
+                    Renames the model field. Wires that read <code>decision.*</code> are rewritten, the description
+                    moves with <code>renamePath</code>, then the model is linked. If linking fails, the rename is
+                    reverted and the error is shown.
+                  </td>
+                  <td><code>rename('decision', …)</code>, then <code>link()</code></td>
+                </tr>
+                <tr>
+                  <td>Change callee…</td>
+                  <td>
+                    Opens the same list as the callee chip. Arguments with the same name and type keep their binding.
+                  </td>
+                  <td><code>set('decision', invocation)</code></td>
+                </tr>
+                <tr>
+                  <td>Duplicate</td>
+                  <td>Adds <code>decision2</code> next to this node, with the same callee and bindings.</td>
+                  <td><code>set('decision2', invocation)</code></td>
+                </tr>
+                <tr>
+                  <td>Add description</td>
+                  <td>
+                    Shown when the node has no description. Adds the description row with its input focused. If you
+                    leave it empty, nothing is saved and the row goes away.
+                  </td>
+                  <td><code>setDescription('decision', text)</code></td>
+                </tr>
+                <tr>
+                  <td>Remove description</td>
+                  <td>Shown instead of Add description when one exists. Deletes the text and the row.</td>
+                  <td><code>setDescription('decision', '')</code>, which deletes the entry</td>
+                </tr>
+                <tr class="grp">
+                  <td colspan="3">Callee <code>risk</code> · 3 callers</td>
+                </tr>
+                <tr>
+                  <td>Add argument</td>
+                  <td>
+                    Appends a <code>number</code> parameter to the callee. Every other call site gets a seed value so it
+                    still links. This is the only way to add an argument when the callee has none, because there is no
+                    argument row to open a menu on.
+                  </td>
+                  <td>Boxed Editor <code>addArgument</code> + <code>setBoxedRowData</code></td>
+                </tr>
+                <tr>
+                  <td>Open in decision table editor</td>
+                  <td>For a <code>func</code>, this reads "Open in boxed editor".</td>
+                  <td>
+                    <code>onOpenNode({ path: 'risk', kind: 'ruleset' })</code> or <code>kind: 'boxed-editor'</code>, the
+                    Boxed Editor's existing open-target contract
+                  </td>
+                </tr>
+                <tr>
+                  <td>Open tests</td>
+                  <td>Opens the Tests Manager with this callee as the subject.</td>
+                  <td>
+                    <code>onOpenNode({ path: 'risk', kind: 'tests' })</code>. <code>'tests'</code> is a new target kind.
+                  </td>
+                </tr>
+                <tr>
+                  <td>View as code</td>
+                  <td>
+                    Opens this field's DSL, <code>decision: risk(…)</code>, in the Code Editor. Argument bindings
+                    without a wire are edited here.
+                  </td>
+                  <td><code>onOpenNode({ path: 'decision', kind: 'code-editor' })</code></td>
+                </tr>
+                <tr class="grp">
+                  <td colspan="3">Remove</td>
+                </tr>
+                <tr>
+                  <td>Remove from flow</td>
+                  <td>Hides the node. The field stays in the model and keeps calculating.</td>
+                  <td><code>remove('decision.@FunctionNode')</code></td>
+                </tr>
+                <tr>
+                  <td><span class="danger">Delete</span></td>
+                  <td>
+                    Removes the field from the model. If anything still reads it, linking fails and the delete is
+                    reverted.
+                  </td>
+                  <td><code>remove('decision')</code>, then <code>link()</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <span class="eyebrow">Argument and result editing</span>
+        <h2>Arguments have a menu, results are renamed in place</h2>
+        <p>
+          Arguments and results belong to the callee, not to the node, so these edits change the callee's signature or
+          body. The Boxed Editor service already makes these changes safely: <code>setBoxedRowData</code> migrates every
+          call site's <code>@arguments</code>, refuses to remove a parameter the body still uses, and links before it
+          commits. The FunctionNode reuses it.
+        </p>
+        <div class="tableScroll">
+          <table class="spec">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Behaviour</th>
+                <th>Disabled when</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Move up / Move down</td>
+                <td>
+                  Reorders the parameter. Calls use named arguments, so no call site changes, but every node that calls
+                  this callee reorders its pins.
+                </td>
+                <td>First row / last row</td>
+              </tr>
+              <tr>
+                <td>Add argument below</td>
+                <td>
+                  Inserts a <code>number</code> parameter (<code>arg</code>, <code>arg2</code>, …) after this row and
+                  opens its name for editing. Other call sites get a seed value. A ruleset parameter is a condition
+                  column, so it gets <code>string</code>, as in the Boxed Editor.
+                </td>
+                <td>Read-only mode</td>
+              </tr>
+              <tr>
+                <td><span class="danger">Delete argument</span></td>
+                <td>Removes the parameter and its binding at every call site.</td>
+                <td>The callee's body still uses it. The tooltip says where.</td>
+              </tr>
+              <tr>
+                <td>Edit description (click)</td>
+                <td>
+                  A single-line input replaces the text, like the Boxed Editor's <code>DescriptionCell</code>. Enter or
+                  clicking away saves, Escape cancels. Saving an empty text removes the description. The text belongs to
+                  the node's field (<code>decision</code>), not to the callee, so other callers are not affected.
+                </td>
+                <td>Read-only mode</td>
+              </tr>
+              <tr>
+                <td>Rename result (click)</td>
+                <td>
+                  An inline input replaces the name. Enter commits, Escape cancels. For a <code>func</code> this renames
+                  the field in its body. For a <code>ruleset</code> it renames the action column in every rule and in
+                  <code>default</code>. Wires that read <code>caller.oldName</code> are rewritten for every caller, then
+                  the model is linked. The engine does not migrate plain field references (E103 if they dangle), so a
+                  failed link reverts the rename.
+                </td>
+                <td>
+                  The result is the unnamed return of a <code>func</code>, such as
+                  <code>monthly(amount): amount / 12</code>. Its <code>result</code> label is not a field. Naming it
+                  would turn the return into a record and change its type for every caller.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <span class="eyebrow">Sizing</span>
+        <h2>Columns fit their content, in whole steps</h2>
+        <ul class="rules">
+          <li>
+            <b>Two tracks</b
+            ><span
+              >Argument name and result name. Each takes the width of its widest name plus padding, rounded up to the
+              next 40px step, from 2 to 4 steps. Longer names are cut with an ellipsis and shown in full in a
+              tooltip.</span
+            >
+          </li>
+          <li>
+            <b>Header wins</b
+            ><span
+              >When the title or the callee chip needs more room than the body, the extra steps are shared between the
+              two tracks. Argument names stay left-aligned at their pins, and result names stay right-aligned at
+              theirs.</span
+            >
+          </li>
+          <li>
+            <b>Description</b
+            ><span
+              >Never widens the node. It takes the full node width and wraps to at most two lines inside its 40px row.
+              The full text is in the tooltip and in the input when editing.</span
+            >
+          </li>
+          <li>
+            <b>Missing sides</b
+            ><span
+              >A callee with no parameters has no argument column. The node is then only as wide as its header and
+              results.</span
+            >
+          </li>
+          <li>
+            <b>When it changes</b
+            ><span
+              >On a new callee, or when an argument or result is added or renamed. The node grows to the right, so pins
+              on the left edge stay in place and wires do not jump.</span
+            >
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <span class="eyebrow">States</span>
+        <h2>One node, eight situations</h2>
+        <div class="states">
+          <div class="state">
+            <h3>Choosing the callee</h3>
+            <p>
+              Typing filters functions and rulesets. Arguments with the same name and type keep their bindings when the
+              callee changes. The others become unbound, and their wires are removed.
+            </p>
+            <div class="stateStage tallStage" id="sPicker"></div>
+          </div>
+          <div class="state">
+            <h3>Argument menu</h3>
+            <p>
+              ⋮ appears on the row on hover or keyboard focus, so it costs no width. Here <code>age</code> cannot be
+              deleted because the ruleset's rules test it.
+            </p>
+            <div class="stateStage tallStage" id="sArgMenu"></div>
+          </div>
+          <div class="state">
+            <h3>Renaming a result</h3>
+            <p>
+              Clicking <code>level</code> opens an inline input, styled like the Boxed Editor's name input. The note
+              under the node says how many wires will be rewritten.
+            </p>
+            <div class="stateStage" id="sRename"></div>
+          </div>
+          <div class="state">
+            <h3>Unnamed return, argument without a wire</h3>
+            <p>
+              <code>monthly(amount: application.amount * 1.1)</code>. The expression is not shown on the node. The
+              dotted pin says the argument is bound without a wire, and the tooltip shows the expression. The unnamed
+              <code>result</code> is in italics because it cannot be renamed.
+            </p>
+            <div class="stateStage" id="sScalar"></div>
+          </div>
+          <div class="state">
+            <h3>Record argument, long description</h3>
+            <p>
+              A typed record parameter takes the square pin of a whole record. The description is cut after two lines.
+              The full text is in the tooltip.
+            </p>
+            <div class="stateStage" id="sRecord"></div>
+          </div>
+          <div class="state">
+            <h3>Draft and rejected wire</h3>
+            <p>
+              The engine does not evaluate a call with an unbound required argument. It raises a link error
+              (<code>E113</code>), and the whole model stops evaluating. So a node with an unbound required argument is
+              a <b>draft</b>: it is kept only in the editor and not written to the model. Here a wire from
+              <code>income</code> to <code>segment</code> was rejected, and the row shows the engine's message.
+            </p>
+            <div class="stateStage" id="sError"></div>
+          </div>
+          <div class="state">
+            <h3>New node, no callee yet</h3>
+            <p>
+              A dashed chip is the only call to action. The node writes nothing to the model until a callee is picked.
+            </p>
+            <div class="stateStage" id="sEmpty"></div>
+          </div>
+          <div class="state">
+            <h3>Editing the description</h3>
+            <p>
+              Opened by Add description or by clicking an existing description. The row stays one step high, and the
+              rows below do not move.
+            </p>
+            <div class="stateStage" id="sDesc"></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <span class="eyebrow">Pins and wires</span>
+        <h2>Pins encode type, structure and connection</h2>
+        <div class="tableScroll">
+          <table class="spec">
+            <thead>
+              <tr>
+                <th>Pin</th>
+                <th>Meaning</th>
+                <th>A wire writes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="pinDemo"><span class="pin on" style="--pc: var(--t-number)"></span></span>Filled circle
+                </td>
+                <td>
+                  Scalar, wired. Color is the type: <span style="color: var(--t-number)">number</span>,
+                  <span style="color: var(--t-string)">string</span>,
+                  <span style="color: var(--t-boolean)">boolean</span>,
+                  <span style="color: var(--t-date)">date / time / duration</span>.
+                </td>
+                <td><code>@arguments.age = "applicant.age"</code></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="pinDemo"><span class="pin expr" style="--pc: var(--t-number)"></span></span>Dotted ring
+                </td>
+                <td>
+                  Bound to a literal or an expression, with no wire. The tooltip shows the value. Edit it with View as
+                  code.
+                </td>
+                <td>(not wired)</td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="pinDemo"><span class="pin rec on" style="--pc: var(--t-record)"></span></span>Square
+                </td>
+                <td>Record (context). Every node has one on header line 2 for the whole result.</td>
+                <td><code>@arguments.person = "applicant"</code></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="pinDemo"><span class="pin list on" style="--pc: var(--t-number)"></span></span>Double
+                  ring
+                </td>
+                <td>List. Ring color is the element type.</td>
+                <td><code>@arguments.amounts = "loans"</code></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="pinDemo"><span class="pin bad"></span></span>Red ring
+                </td>
+                <td>Required and unbound (the node is a draft), or the engine rejected the wired type.</td>
+                <td>Nothing until fixed</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="rules">
+          <li>
+            <b>Wire color</b><span>Same as the source pin, 1.75px bezier. A selected wire gets the primary color.</span>
+          </li>
+          <li>
+            <b>Connect validation</b
+            ><span
+              ><code>set</code> accepts a mistyped or incomplete invocation without an error. On drop, the node
+              therefore writes the invocation, links the model, and reverts the write if linking fails. The message
+              attaches to the row that was wired.</span
+            >
+          </li>
+          <li>
+            <b>Draft nodes</b
+            ><span
+              >A node is written to the model only when every required argument is bound. Until then it lives in editor
+              state, so one half-wired node never stops the rest of the workbook from evaluating.</span
+            >
+          </li>
+          <li>
+            <b>Result types</b
+            ><span
+              >For a record result, <code>get(field, 'FIELDS')</code> returns only <code>"@type": "object"</code>. The
+              result pins come from the callee schema's <code>@return</code>.</span
+            >
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <span class="eyebrow">Portable</span>
+        <h2>The node reads and writes one invocation</h2>
+        <p>
+          The left side is what <code>get(field, 'FIELDS')</code> returns and what the node writes back with
+          <code>set</code>, always with named arguments. The right side is the callee schema that defines the rows and
+          pins. Both update when you change the callee on the canvas.
+        </p>
+        <div class="mapping">
+          <div class="state">
+            <h3 id="mapTitleL">decision · invocation</h3>
+            <pre class="json" id="jsonInv"></pre>
+          </div>
+          <div class="state">
+            <h3 id="mapTitleR">risk · schema</h3>
+            <pre class="json" id="jsonSchema"></pre>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <span class="eyebrow">Where the callee list comes from</span>
+        <h2>An existing helper already lists every user callable</h2>
+        <ul class="rules">
+          <li>
+            <b>Source</b
+            ><span
+              ><code>listTestSubjects</code> in <code>tests-manager/model/subjects.ts</code> walks
+              <code>get('*', 'ALL')</code> for <code>func</code> and <code>ruleset</code> at any depth. It moves to a
+              shared module so the Tests Manager and the Flow Editor use one copy.</span
+            >
+          </li>
+          <li>
+            <b>Schema</b
+            ><span
+              >Each callee's rows and pins come from <code>get(path, 'FIELDS')</code>. Pass the filter explicitly: on a
+              mutable service, <code>get(path)</code> without it returned the full definition.</span
+            >
+          </li>
+          <li>
+            <b>Untyped parameters</b
+            ><span
+              >The helper leaves out callables with an untyped parameter, because an untyped parameter cannot be a typed
+              pin. That is why Add argument always gives the new parameter a type.</span
+            >
+          </li>
+          <li>
+            <b>Built-ins</b
+            ><span
+              >Not supported in the FunctionNode. The engine gap in listing built-in signatures stays in
+              <code>docs/engine-bug-reports.md</code>, but it no longer blocks this work.</span
+            >
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <span class="eyebrow">Sample model</span>
+        <h2>The model behind every value on this page</h2>
+        <pre class="json" id="sampleModel"></pre>
+      </section>
+    </div>
+
+    <script>
+      (function () {
+        'use strict';
+        var ICONS = {
+          function: '<path d="M18 16v2a1 1 0 0 1 -1 1h-11l6 -7l-6 -7h11a1 1 0 0 1 1 1v2"/>',
+          ruleset:
+            '<path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6h9"/><path d="M11 12h9"/><path d="M11 18h9"/>',
+          input: '<path d="M3 12h12"/><path d="M11 8l4 4l-4 4"/><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4"/>',
+          output: '<path d="M4 12h12"/><path d="M12 8l4 4l-4 4"/><path d="M20 4v16"/>',
+          dots: '<path d="M12 5v.01"/><path d="M12 12v.01"/><path d="M12 19v.01"/>',
+          chev: '<path d="M6 9l6 6l6 -6"/>',
+          search: '<path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/>',
+          up: '<path d="M12 5v14"/><path d="M18 11l-6 -6l-6 6"/>',
+          down: '<path d="M12 5v14"/><path d="M18 13l-6 6l-6 -6"/>',
+          plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+          trash:
+            '<path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/>',
+          pencil: '<path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/>',
+          tag: '<path d="M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3z"/>',
+          swap: '<path d="M7 10h14l-4 -4"/><path d="M17 14h-14l4 4"/>',
+          copy: '<path d="M8 10a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/><path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2"/>',
+          note: '<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 13h6"/><path d="M9 17h4"/>',
+          external:
+            '<path d="M12 6h-6a2 2 0 0 0 -2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-6"/><path d="M11 13l9 -9"/><path d="M15 4h5v5"/>',
+          flask:
+            '<path d="M9 3h6"/><path d="M10 9h4"/><path d="M10 3v6l-4 11a.7 .7 0 0 0 .5 1h11a.7 .7 0 0 0 .5 -1l-4 -11v-6"/>',
+          noteoff:
+            '<path d="M3 3l18 18"/><path d="M7 3h7l5 5v7m0 4a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-14"/><path d="M9 17h4"/>',
+          code: '<path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/>',
+          eyeoff:
+            '<path d="M3 3l18 18"/><path d="M10.584 10.587a2 2 0 0 0 2.828 2.83"/><path d="M9.363 5.365a9.466 9.466 0 0 1 2.637 -.365c4 0 7.333 2.333 10 7c-.778 1.361 -1.612 2.524 -2.503 3.488"/><path d="M16.357 17.349c-1.631 1.1 -3.415 1.651 -5.357 1.651c-4 0 -7.333 -2.333 -10 -7c1.369 -2.395 2.913 -4.175 4.632 -5.341"/>',
+        };
+        function icon(name, cls) {
+          return (
+            '<svg class="' +
+            (cls || '') +
+            '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+            ICONS[name] +
+            '</svg>'
+          );
+        }
+        function esc(s) {
+          return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        var KIND_COLOR = {
+          function: 'var(--k-function)',
+          ruleset: 'var(--k-ruleset)',
+          input: 'var(--k-input)',
+          output: 'var(--k-output)',
+        };
+        var KIND_LABEL = {ruleset: 'Rulesets', function: 'Functions'};
+        function typeColor(t) {
+          if (!t) return 'var(--t-any)';
+          var base = t.replace(/\[\]$/, '');
+          if (base === 'number') return 'var(--t-number)';
+          if (base === 'string') return 'var(--t-string)';
+          if (base === 'boolean') return 'var(--t-boolean)';
+          if (/^(date|time|datetime|duration|period)$/.test(base)) return 'var(--t-date)';
+          return 'var(--t-record)';
+        }
+        function pinClass(t) {
+          if (/\[\]$/.test(t || '')) return ' list';
+          if (t && typeColor(t) === 'var(--t-record)') return ' rec';
+          return '';
+        }
+
+        /* User callables. Schemas are verbatim from get(path, 'FIELDS'); `used` lists the parameters the
+     body references, which the Boxed Editor service refuses to remove. */
+        var CALLABLES = {
+          risk: {
+            kind: 'ruleset',
+            hit: 'first-match',
+            params: [
+              ['age', 'number'],
+              ['income', 'number'],
+              ['segment', 'string'],
+            ],
+            used: ['age', 'income', 'segment'],
+            usedWhere: "risk's rules",
+            callers: 3,
+            ret: {
+              type: 'record',
+              fields: [
+                ['level', 'string'],
+                ['limit', 'number'],
+              ],
+            },
+          },
+          creditScore: {
+            kind: 'function',
+            params: [
+              ['age', 'number'],
+              ['income', 'number'],
+            ],
+            used: ['age', 'income'],
+            usedWhere: "creditScore's body",
+            callers: 1,
+            ret: {type: 'number'},
+          },
+          monthly: {
+            kind: 'function',
+            params: [['amount', 'number']],
+            used: ['amount'],
+            usedWhere: "monthly's body",
+            callers: 2,
+            ret: {type: 'number'},
+          },
+          applicantDecision: {
+            kind: 'function',
+            params: [['person', 'Applicant']],
+            used: ['person'],
+            usedWhere: "applicantDecision's body",
+            callers: 1,
+            ret: {
+              type: 'record',
+              fields: [
+                ['eligible', 'boolean'],
+                ['reason', 'string'],
+              ],
+            },
+          },
+        };
+        var ORDER = ['risk', 'creditScore', 'monthly', 'applicantDecision'];
+        /* Engine output for the sample model; shown only in the output node. */
+        var RESULTS = {
+          risk: {level: "'high'", limit: '1000'},
+          creditScore: {result: '371'},
+          applicantDecision: {eligible: 'true', reason: "'adult'"},
+        };
+
+        function retLabel(c) {
+          if (c.ret.type === 'record')
+            return (
+              '{ ' +
+              c.ret.fields
+                .map(function (f) {
+                  return f[0];
+                })
+                .join(', ') +
+              ' }'
+            );
+          return c.ret.type;
+        }
+        function outputs(c) {
+          if (!c) return [];
+          return c.ret.type === 'record' ? c.ret.fields : [['result', c.ret.type, true]];
+        }
+        function isDraft(n, c) {
+          return c.params.some(function (p) {
+            return !(n.args && n.args[p[0]]);
+          });
+        }
+        function plural(word, count) {
+          return count === 1 ? word : word + 's';
+        }
+        function fx(n, p) {
+          var a = n.args && n.args[p];
+          return a && a.mode !== 'path';
+        }
+
+        /* ---------------------------------------------------------------- content-based sizing */
+        var STEP = 40;
+        var MEAS = document.createElement('canvas').getContext('2d');
+        var UI = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        var MONO = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+        function tw(text, font) {
+          MEAS.font = font;
+          return MEAS.measureText(String(text)).width;
+        }
+        function steps(px, minSteps, maxSteps) {
+          return Math.max(minSteps, Math.min(maxSteps, Math.ceil(px / STEP))) * STEP;
+        }
+
+        function layout(n, c) {
+          var title = n.label || n.field;
+          var line1 =
+            STEP + 10 + tw(title, '600 14px ' + UI) + 8 + tw(n.field, '12px ' + MONO) + (n.draft ? 52 : 0) + 10 + STEP;
+          if (!c) {
+            var empty =
+              STEP +
+              10 +
+              tw('CALLS', '600 11px ' + UI) +
+              8 +
+              tw('Select a function or ruleset…', 'italic 13px ' + UI) +
+              40;
+            return {width: steps(Math.max(line1, empty), 7, 12)};
+          }
+          var line2 =
+            STEP +
+            10 +
+            tw('CALLS', '600 11px ' + UI) +
+            8 +
+            (14 + 6 + tw(n.method, '12.5px ' + MONO) + 6 + 12 + 16) +
+            12 +
+            tw('→ ' + retLabel(c), '12px ' + MONO) +
+            28;
+          var lName = 0,
+            rName = 0;
+          c.params.forEach(function (p) {
+            lName = Math.max(lName, tw(p[0], '14px ' + UI) + 24 + 28);
+          });
+          outputs(c).forEach(function (o) {
+            rName = Math.max(rName, tw(o[0], '14px ' + UI) + 24);
+          });
+          if (n.renaming) rName = Math.max(rName, tw(n.renaming.value, '14px ' + UI) + 40);
+          var hasL = c.params.length > 0;
+          var lay = {hasL: hasL, lName: hasL ? steps(lName, 2, 4) : 0, rName: steps(rName, 2, 4)};
+          var body = lay.lName + lay.rName;
+          var head = steps(Math.max(line1, line2), 1, 99);
+          if (head > body) {
+            var extra = (head - body) / STEP;
+            var toR = hasL ? Math.ceil(extra / 2) : extra;
+            lay.rName += toR * STEP;
+            lay.lName += (extra - toR) * STEP;
+          }
+          lay.width = Math.max(head, body);
+          return lay;
+        }
+
+        /* ---------------------------------------------------------------- menus */
+        function renderMenu(items, top, left, foot) {
+          var h = '<div class="menu" role="menu" style="top:' + top + 'px; left:' + left + 'px">';
+          items.forEach(function (it) {
+            if (it.group) {
+              h += '<div class="mGroup">' + it.group + '</div>';
+              return;
+            }
+            if (it.divider) {
+              h += '<div class="mDivider"></div>';
+              return;
+            }
+            h +=
+              '<button type="button" role="menuitem" class="mItem' +
+              (it.danger ? ' danger' : '') +
+              '"' +
+              (it.disabled ? ' aria-disabled="true"' : '') +
+              (it.act ? ' data-act="' + it.act + '"' : '') +
+              (it.why ? ' title="' + esc(it.why) + '"' : '') +
+              '>' +
+              icon(it.icon) +
+              '<span>' +
+              esc(it.label) +
+              '</span>' +
+              (it.why ? '<span class="mHint">' + esc(it.why) + '</span>' : '') +
+              '</button>';
+          });
+          if (foot) h += '<div class="mFoot">' + foot + '</div>';
+          return h + '</div>';
+        }
+        function argMenuItems(c, name) {
+          var i = c.params
+            .map(function (p) {
+              return p[0];
+            })
+            .indexOf(name);
+          var used = c.used.indexOf(name) >= 0;
+          return [
+            {label: 'Move up', icon: 'up', act: 'up', disabled: i === 0},
+            {label: 'Move down', icon: 'down', act: 'down', disabled: i === c.params.length - 1},
+            {label: 'Add argument below', icon: 'plus', act: 'add'},
+            {divider: true},
+            {
+              label: 'Delete argument',
+              icon: 'trash',
+              act: 'del',
+              danger: true,
+              disabled: used,
+              why: used ? 'Used in ' + c.usedWhere : null,
+            },
+          ];
+        }
+        function nodeMenuItems(n, c) {
+          var callee = c ? n.method : null;
+          var items = [
+            {group: 'This node'},
+            {label: 'Rename node', icon: 'tag', act: 'noop'},
+            {label: 'Rename field', icon: 'pencil', act: 'noop'},
+            {label: 'Change callee…', icon: 'swap', act: 'change'},
+            {label: 'Duplicate', icon: 'copy', act: 'noop'},
+            n.desc != null
+              ? {label: 'Remove description', icon: 'noteoff', act: 'descRemove'}
+              : {label: 'Add description', icon: 'note', act: 'descAdd'},
+          ];
+          if (c) {
+            items.push({
+              group: 'Callee <code>' + esc(callee) + '</code> · ' + c.callers + ' ' + plural('caller', c.callers),
+            });
+            items.push({label: 'Add argument', icon: 'plus', act: 'addEnd'});
+            items.push({
+              label: c.kind === 'ruleset' ? 'Open in decision table editor' : 'Open in boxed editor',
+              icon: 'external',
+              act: 'noop',
+            });
+            items.push({label: 'Open tests', icon: 'flask', act: 'noop'});
+            items.push({label: 'View as code', icon: 'code', act: 'noop'});
+          }
+          items.push({group: 'Remove'});
+          items.push({label: 'Remove from flow', icon: 'eyeoff', act: 'noop'});
+          items.push({label: 'Delete', icon: 'trash', act: 'noop', danger: true});
+          return items;
+        }
+
+        /* Description row: full node width, between the header and the bands. Never widens the node. */
+        function renderDesc(n) {
+          if (n.desc == null) return '';
+          if (n.editingDesc) {
+            return (
+              '<div class="row descRow editing"><input class="descInput" id="desc-' +
+              n.id +
+              '" aria-label="Description of ' +
+              esc(n.field) +
+              '" placeholder="Describe what this node decides" value="' +
+              esc(n.editingDesc.value) +
+              '"></div>'
+            );
+          }
+          return (
+            '<div class="row descRow" data-desc="' +
+            n.id +
+            '" title="' +
+            esc(n.desc) +
+            ' (click to edit)"><span class="descText">' +
+            esc(n.desc) +
+            '</span></div>'
+          );
+        }
+
+        /* node model: { id, field, label, method, args: {param: {v, mode}}, selected, errors, wiredOut, menu, renaming } */
+        function renderNode(n) {
+          var c = n.method ? CALLABLES[n.method] : null;
+          n.draft = !!(c && isDraft(n, c));
+          var lay = layout(n, c);
+          var kind = c ? c.kind : 'function';
+          var h = '<div class="nodeWrap" style="width:' + (lay.width + 2) + 'px">';
+          h +=
+            '<div class="node' +
+            (n.selected ? ' selected' : '') +
+            '" data-node="' +
+            n.id +
+            '" style="width:' +
+            lay.width +
+            'px">';
+          h +=
+            '<div class="row tall"><div class="tile" style="background:' +
+            KIND_COLOR[kind] +
+            '">' +
+            icon(kind) +
+            '</div><div class="headStack">';
+          h +=
+            '<div class="headLine first"><div class="title"><strong title="' +
+            esc(n.label || n.field) +
+            '">' +
+            esc(n.label || n.field) +
+            '</strong><span class="fid">' +
+            esc(n.field) +
+            '</span>' +
+            (n.draft
+              ? '<span class="draft" title="Not written to the model until every required argument is bound">draft</span>'
+              : '') +
+            '</div>' +
+            '<button class="kebab' +
+            (n.menu === 'node' ? ' open' : '') +
+            '" type="button" data-kebab="node" aria-label="Node actions" aria-haspopup="menu">' +
+            icon('dots') +
+            '</button></div>';
+          h += '<div class="headLine"><span class="callsLabel">calls</span><span class="pickerWrap">';
+          if (c)
+            h +=
+              '<button class="chip" type="button" data-chip="' +
+              n.id +
+              '" aria-haspopup="listbox"><span class="kdot" style="background:' +
+              KIND_COLOR[c.kind] +
+              '">' +
+              icon(c.kind) +
+              '</span><span class="cname">' +
+              esc(n.method) +
+              '</span>' +
+              icon('chev', 'chev') +
+              '</button>';
+          else
+            h +=
+              '<button class="chip empty" type="button" data-chip="' +
+              n.id +
+              '">Select a function or ruleset…' +
+              icon('chev', 'chev') +
+              '</button>';
+          h += '</span>';
+          if (c)
+            h +=
+              '<span class="retType" title="' +
+              esc(retLabel(c)) +
+              '">→ ' +
+              esc(retLabel(c)) +
+              '</span><span class="pin r rec" data-pin="' +
+              n.id +
+              ':out:*" style="--pc:var(--t-record)" title="' +
+              esc(n.field) +
+              '"></span>';
+          h += '</div></div></div>';
+          h += renderDesc(n);
+
+          if (!c) {
+            h +=
+              '<div class="emptyBody">Pick a function or ruleset. Its parameters become input pins and its results become output pins.</div></div>';
+            if (n.menu === 'node') h += renderMenu(nodeMenuItems(n, c), 40, lay.width - 238);
+            return h + '</div>';
+          }
+          var outs = outputs(c);
+          h += '<div class="row">';
+          if (lay.hasL)
+            h +=
+              '<div class="half band" style="width:' +
+              lay.lName +
+              'px">' +
+              plural('argument', c.params.length) +
+              '</div>';
+          h +=
+            '<div class="half band result" style="width:' +
+            lay.rName +
+            'px">' +
+            plural('result', outs.length) +
+            '</div></div>';
+          var rows = Math.max(c.params.length, outs.length);
+          for (var i = 0; i < rows; i++) {
+            var p = c.params[i],
+              o = outs[i];
+            var err = p && n.errors && n.errors[p[0]];
+            h += '<div class="row' + (err ? ' err' : '') + '">';
+            if (lay.hasL) {
+              if (p) {
+                var a = (n.args && n.args[p[0]]) || null;
+                var pcls =
+                  'pin l' +
+                  pinClass(p[1]) +
+                  (!a || err ? ' bad' : '') +
+                  (a && a.mode === 'path' ? ' on' : '') +
+                  (a && a.mode !== 'path' ? ' expr' : '');
+                var tip = p[0] + ' : ' + p[1] + (a ? (a.mode === 'path' ? ' ← ' : ' = ') + a.v : ' (unbound)');
+                var open = n.menu && n.menu.arg === p[0];
+                h +=
+                  '<div class="half arg' +
+                  (open ? ' menuOpen' : '') +
+                  '" style="width:' +
+                  lay.lName +
+                  'px"><span class="' +
+                  pcls +
+                  '" data-pin="' +
+                  n.id +
+                  ':in:' +
+                  p[0] +
+                  '" style="--pc:' +
+                  typeColor(p[1]) +
+                  '" title="' +
+                  esc(tip) +
+                  '"></span>';
+                h +=
+                  '<div class="pname" title="' +
+                  esc(tip) +
+                  '"><span>' +
+                  esc(p[0]) +
+                  '</span><span class="req">*</span>' +
+                  '<button type="button" class="argKebab' +
+                  (open ? ' open' : '') +
+                  '" data-argkebab="' +
+                  esc(p[0]) +
+                  '" aria-label="Actions for argument ' +
+                  esc(p[0]) +
+                  '" aria-haspopup="menu">' +
+                  icon('dots') +
+                  '</button></div></div>';
+              } else h += '<div class="half" style="width:' + lay.lName + 'px"><div class="filler"></div></div>';
+            }
+            if (o) {
+              var wired = n.wiredOut && n.wiredOut.indexOf(o[0]) >= 0;
+              var renaming = n.renaming && n.renaming.name === o[0];
+              h += '<div class="half out" style="width:' + lay.rName + 'px"><div class="pname">';
+              if (renaming)
+                h +=
+                  '<input class="renameInput" id="rename-' +
+                  n.id +
+                  '" aria-label="Rename result ' +
+                  esc(o[0]) +
+                  '" value="' +
+                  esc(n.renaming.value) +
+                  '"' +
+                  (n.renaming.error ? ' aria-invalid="true" title="' + esc(n.renaming.error) + '"' : '') +
+                  '>';
+              else if (o[2])
+                h +=
+                  '<span class="resName locked" title="Unnamed return of ' +
+                  esc(n.method) +
+                  '. It cannot be renamed.">result</span>';
+              else
+                h +=
+                  '<button type="button" class="resName" data-res="' +
+                  esc(o[0]) +
+                  '" title="Click to rename ' +
+                  esc(o[0]) +
+                  ' in ' +
+                  esc(n.method) +
+                  '">' +
+                  esc(o[0]) +
+                  '</button>';
+              h +=
+                '</div><span class="pin r' +
+                pinClass(o[1]) +
+                (wired ? ' on' : '') +
+                '" data-pin="' +
+                n.id +
+                ':out:' +
+                o[0] +
+                '" style="--pc:' +
+                typeColor(o[1]) +
+                '" title="' +
+                esc(n.field + '.' + o[0]) +
+                ' : ' +
+                esc(o[1]) +
+                '"></span></div>';
+            } else h += '<div class="half out" style="width:' + lay.rName + 'px"><div class="filler"></div></div>';
+            if (err) h += '<span class="errMsg">' + esc(err) + '</span>';
+            h += '</div>';
+          }
+          h += '</div>';
+          if (n.renaming)
+            h +=
+              '<div class="renameNote">' +
+              esc(
+                n.renaming.note ||
+                  'Renames ' +
+                    n.renaming.name +
+                    ' in ' +
+                    n.method +
+                    ' for ' +
+                    c.callers +
+                    ' ' +
+                    plural('caller', c.callers) +
+                    '.',
+              ) +
+              (n.renaming.error ? ' <span class="danger">' + esc(n.renaming.error) + '</span>' : '') +
+              '</div>';
+          if (n.menu === 'node') h += renderMenu(nodeMenuItems(n, c), 40, lay.width - 238);
+          if (n.menu && n.menu.arg) {
+            var idx = c.params
+              .map(function (q) {
+                return q[0];
+              })
+              .indexOf(n.menu.arg);
+            h += renderMenu(
+              argMenuItems(c, n.menu.arg),
+              120 + (n.desc != null ? STEP : 0) + (idx + 1) * STEP - 4,
+              lay.lName - 30,
+              'Changes <code>' + esc(n.method) + '</code> for ' + c.callers + ' ' + plural('caller', c.callers),
+            );
+          }
+          return h + '</div>';
+        }
+
+        function renderPicker(selected, filter, top, left) {
+          var f = (filter || '').toLowerCase();
+          var h =
+            '<div class="picker" role="dialog" aria-label="Select callee" style="top:' +
+            top +
+            'px; left:' +
+            left +
+            'px">';
+          h +=
+            '<div class="search">' +
+            icon('search') +
+            '<input id="pickerInput" type="text" placeholder="Search functions and rulesets" value="' +
+            esc(filter || '') +
+            '" aria-label="Search functions and rulesets"><span class="kbd">esc</span></div><div class="list" role="listbox">';
+          ['ruleset', 'function'].forEach(function (k) {
+            var names = ORDER.filter(function (nm) {
+              return CALLABLES[nm].kind === k && nm.toLowerCase().indexOf(f) >= 0;
+            });
+            if (!names.length) return;
+            h += '<div class="group">' + KIND_LABEL[k] + '</div>';
+            names.forEach(function (nm) {
+              var c = CALLABLES[nm];
+              h +=
+                '<button type="button" role="option" class="pick' +
+                (nm === selected ? ' active' : '') +
+                '" data-pick="' +
+                nm +
+                '" aria-selected="' +
+                (nm === selected) +
+                '">' +
+                '<span class="kdot" style="background:' +
+                KIND_COLOR[k] +
+                '">' +
+                icon(k) +
+                '</span>' +
+                '<span class="sig">' +
+                esc(nm) +
+                '(' +
+                esc(
+                  c.params
+                    .map(function (p) {
+                      return p[0];
+                    })
+                    .join(', '),
+                ) +
+                ') <span class="ret">→ ' +
+                esc(retLabel(c)) +
+                '</span></span>' +
+                (nm === selected ? '<span class="check">✓</span>' : '') +
+                '</button>';
+            });
+          });
+          h +=
+            '</div><div class="foot"><span><span class="kbd">↑↓</span> move</span><span><span class="kbd">↵</span> select</span><span>User-defined only</span></div></div>';
+          return h;
+        }
+
+        /* ---------------------------------------------------------------- hero canvas */
+        var APPLICANT = {age: ['23', 'number'], income: ['25000', 'number'], segment: ["'retail'", 'string']};
+        var HERO_LEFT = 340;
+        var LABELS = {
+          risk: 'Risk decision',
+          creditScore: 'Credit score',
+          monthly: 'Monthly amount',
+          applicantDecision: 'Eligibility',
+        };
+        var hero = {
+          id: 'hero',
+          field: 'decision',
+          label: 'Risk decision',
+          method: 'risk',
+          selected: true,
+          menu: null,
+          renaming: null,
+          desc: 'Assess the applicant risk band from age, income and segment',
+          editingDesc: null,
+          args: {
+            age: {v: 'applicant.age', mode: 'path'},
+            income: {v: 'applicant.income', mode: 'path'},
+            segment: {v: 'applicant.segment', mode: 'path'},
+          },
+        };
+        var outField = 'level';
+        var pickerOpen = false,
+          pickerFilter = '';
+
+        function renderStubIn() {
+          var h =
+            '<div class="node stub" style="width:200px"><div class="row"><div class="tile" style="background:var(--k-input)">' +
+            icon('input') +
+            '</div><div class="title stubTitle"><strong>Applicant</strong><span class="fid">applicant</span></div>' +
+            '<span class="pin r rec' +
+            (hero.args.person ? ' on' : '') +
+            '" data-pin="applicant:out:*" style="--pc:var(--t-record)" title="applicant : Applicant"></span></div>';
+          Object.keys(APPLICANT).forEach(function (k) {
+            h +=
+              '<div class="row"><div class="pname" style="width:80px"><span>' +
+              k +
+              '</span></div><div class="pval"><span class="t">' +
+              esc(APPLICANT[k][0]) +
+              '</span></div>' +
+              '<span class="pin r on" data-pin="applicant:out:' +
+              k +
+              '" style="--pc:' +
+              typeColor(APPLICANT[k][1]) +
+              '"></span></div>';
+          });
+          return h + '</div>';
+        }
+        function heroOut() {
+          var c = CALLABLES[hero.method];
+          return (
+            outputs(c).filter(function (o) {
+              return o[0] === outField;
+            })[0] || null
+          );
+        }
+        function renderStubOut() {
+          var o = heroOut();
+          var res = RESULTS[hero.method] || {};
+          var v = o && !hero.draft ? res[outField] : null;
+          var h =
+            '<div class="node stub" style="width:200px"><div class="row"><div class="tile" style="background:var(--k-output)">' +
+            icon('output') +
+            '</div><div class="title stubTitle"><strong>Output</strong><span class="fid">decision.' +
+            esc(outField) +
+            '</span></div></div>';
+          h +=
+            '<div class="row' +
+            (o ? '' : ' err') +
+            '"><span class="pin l' +
+            (o ? ' on' : ' bad') +
+            '" data-pin="out:in:v" style="--pc:' +
+            (o ? typeColor(o[1]) : 'var(--error)') +
+            '"></span><div class="pname" style="width:80px"><span>value</span></div>' +
+            (o
+              ? '<div class="pval" style="background:var(--tint-result)"><span class="t">' +
+                esc(v || '—') +
+                '</span></div>'
+              : '<div class="pval missing">no decision.' + esc(outField) + '</div>') +
+            '</div>';
+          return h + '</div>';
+        }
+
+        function drawEdges() {
+          var canvas = document.getElementById('canvas');
+          var svg = document.getElementById('edges');
+          var cr = canvas.getBoundingClientRect();
+          function center(id) {
+            var el = canvas.querySelector('[data-pin="' + id + '"]');
+            if (!el) return null;
+            var r = el.getBoundingClientRect();
+            return {
+              x: r.left + r.width / 2 - cr.left,
+              y: r.top + r.height / 2 - cr.top,
+              color: getComputedStyle(el).getPropertyValue('--pc'),
+            };
+          }
+          var edges = [];
+          CALLABLES[hero.method].params.forEach(function (p) {
+            var a = hero.args[p[0]];
+            if (!a || a.mode !== 'path') return;
+            if (a.v === 'applicant') edges.push(['applicant:out:*', 'hero:in:' + p[0]]);
+            else if (a.v.indexOf('applicant.') === 0)
+              edges.push(['applicant:out:' + a.v.split('.')[1], 'hero:in:' + p[0]]);
+          });
+          if (heroOut()) edges.push(['hero:out:' + outField, 'out:in:v']);
+          var out = '';
+          edges.forEach(function (e) {
+            var a = center(e[0]),
+              b = center(e[1]);
+            if (!a || !b) return;
+            var dx = Math.max(40, Math.abs(b.x - a.x) * 0.5);
+            out +=
+              '<path d="M' +
+              a.x +
+              ' ' +
+              a.y +
+              ' C' +
+              (a.x + dx) +
+              ' ' +
+              a.y +
+              ' ' +
+              (b.x - dx) +
+              ' ' +
+              b.y +
+              ' ' +
+              b.x +
+              ' ' +
+              b.y +
+              '" stroke="' +
+              (a.color.trim() || 'var(--t-any)') +
+              '"/>';
+          });
+          svg.innerHTML = out;
+        }
+
+        function renderHero() {
+          hero.wiredOut = heroOut() ? [outField] : [];
+          var host = document.getElementById('hero');
+          host.innerHTML = renderNode(hero) + (pickerOpen ? renderPicker(hero.method, pickerFilter, 76, 64) : '');
+          host.style.zIndex = pickerOpen || hero.menu || hero.renaming ? 10 : '';
+          document.getElementById('stubIn').innerHTML = renderStubIn();
+          document.getElementById('stubOut').innerHTML = renderStubOut();
+          var heroW = host.querySelector('.node').offsetWidth;
+          var outLeft = HERO_LEFT + heroW + 100;
+          document.getElementById('stubOut').style.left = outLeft + 'px';
+          document.getElementById('canvas').style.width = Math.max(1080, outLeft + 240) + 'px';
+          drawEdges();
+          renderMapping();
+          if (pickerOpen) {
+            var inp = document.getElementById('pickerInput');
+            if (inp) {
+              inp.focus();
+              inp.setSelectionRange(inp.value.length, inp.value.length);
+            }
+          }
+          if (hero.editingDesc) {
+            var di = document.getElementById('desc-hero');
+            if (di) {
+              di.focus();
+              di.setSelectionRange(di.value.length, di.value.length);
+            }
+          }
+          if (hero.renaming) {
+            var r = document.getElementById('rename-hero');
+            if (r) {
+              r.focus();
+              r.setSelectionRange(r.value.length, r.value.length);
+            }
+          }
+        }
+
+        function selectCallee(name) {
+          var prev = CALLABLES[hero.method],
+            next = CALLABLES[name];
+          var args = {};
+          next.params.forEach(function (p) {
+            var old = hero.args[p[0]];
+            var prevParam = prev.params.filter(function (q) {
+              return q[0] === p[0];
+            })[0];
+            if (old && prevParam && prevParam[1] === p[1]) args[p[0]] = old;
+            else if (APPLICANT[p[0]] && APPLICANT[p[0]][1] === p[1])
+              args[p[0]] = {v: 'applicant.' + p[0], mode: 'path'};
+            else if (p[1] === 'Applicant') args[p[0]] = {v: 'applicant', mode: 'path'};
+          });
+          hero.method = name;
+          hero.args = args;
+          hero.label = LABELS[name];
+          outField = name === 'risk' ? 'level' : outputs(next)[0][0];
+        }
+
+        function argAction(act, name) {
+          var c = CALLABLES[hero.method];
+          var names = c.params.map(function (p) {
+            return p[0];
+          });
+          var i = names.indexOf(name);
+          if (act === 'up' && i > 0) c.params.splice(i - 1, 0, c.params.splice(i, 1)[0]);
+          if (act === 'down' && i < c.params.length - 1) c.params.splice(i + 1, 0, c.params.splice(i, 1)[0]);
+          if (act === 'add' || act === 'addEnd') {
+            var n = 'arg',
+              k = 1;
+            while (names.indexOf(n) >= 0) {
+              k++;
+              n = 'arg' + k;
+            }
+            var type = c.kind === 'ruleset' ? 'string' : 'number';
+            c.params.splice(act === 'add' ? i + 1 : c.params.length, 0, [n, type]);
+            hero.args[n] = {v: type === 'string' ? "''" : '0', mode: 'literal'};
+          }
+          if (act === 'del' && c.used.indexOf(name) < 0) {
+            c.params.splice(i, 1);
+            delete hero.args[name];
+          }
+        }
+
+        function commitRename() {
+          var r = hero.renaming;
+          if (!r) return;
+          var v = r.value.trim();
+          var c = CALLABLES[hero.method];
+          if (v === r.name || v === '') {
+            hero.renaming = null;
+            return;
+          }
+          if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(v)) {
+            r.error = 'Use letters, digits and _ only, not starting with a digit.';
+            return;
+          }
+          if (
+            c.ret.fields.some(function (f) {
+              return f[0] === v;
+            })
+          ) {
+            r.error = v + ' already exists.';
+            return;
+          }
+          c.ret.fields.forEach(function (f) {
+            if (f[0] === r.name) f[0] = v;
+          });
+          var res = RESULTS[hero.method];
+          if (res && r.name in res) {
+            res[v] = res[r.name];
+            delete res[r.name];
+          }
+          if (outField === r.name) outField = v;
+          hero.renaming = null;
+        }
+
+        // Mirrors DocumentationService.setDescription(path, text): an empty text deletes the description.
+        function commitDesc(cancel) {
+          var e = hero.editingDesc;
+          if (!e) return;
+          var v = cancel ? e.original : e.value.trim();
+          hero.desc = v ? v : null;
+          hero.editingDesc = null;
+        }
+
+        var heroEl = document.getElementById('hero');
+        heroEl.addEventListener('click', function (ev) {
+          ev.stopPropagation(); // re-rendering detaches ev.target, so the document "click outside" handler must not see it
+          var t = ev.target;
+          var chip = t.closest('[data-chip]'),
+            pick = t.closest('[data-pick]'),
+            kebab = t.closest('[data-kebab]'),
+            argK = t.closest('[data-argkebab]'),
+            act = t.closest('[data-act]'),
+            res = t.closest('[data-res]');
+          if (t.closest('.renameInput') || t.closest('.descInput')) return;
+          if (hero.editingDesc) {
+            commitDesc(false);
+            renderHero();
+            return;
+          }
+          var descEl = t.closest('[data-desc]');
+          if (descEl) {
+            hero.menu = null;
+            pickerOpen = false;
+            hero.editingDesc = {value: hero.desc, original: hero.desc};
+            renderHero();
+            return;
+          }
+          if (hero.renaming) {
+            commitRename();
+            renderHero();
+            if (!hero.renaming) return;
+            return;
+          }
+          if (chip) {
+            pickerOpen = !pickerOpen;
+            pickerFilter = '';
+            hero.menu = null;
+            renderHero();
+            return;
+          }
+          if (pick) {
+            selectCallee(pick.getAttribute('data-pick'));
+            pickerOpen = false;
+            renderHero();
+            return;
+          }
+          if (kebab) {
+            hero.menu = hero.menu === 'node' ? null : 'node';
+            pickerOpen = false;
+            renderHero();
+            return;
+          }
+          if (argK) {
+            var nm = argK.getAttribute('data-argkebab');
+            hero.menu = hero.menu && hero.menu.arg === nm ? null : {arg: nm};
+            pickerOpen = false;
+            renderHero();
+            return;
+          }
+          if (act) {
+            if (act.getAttribute('aria-disabled') === 'true') return;
+            var a = act.getAttribute('data-act');
+            var argName = hero.menu && hero.menu.arg;
+            hero.menu = null;
+            if (a === 'change') pickerOpen = true;
+            else if (a === 'descAdd') {
+              hero.desc = '';
+              hero.editingDesc = {value: '', original: ''};
+            } else if (a === 'descRemove') {
+              hero.desc = null;
+            } else if (a !== 'noop') argAction(a, argName);
+            renderHero();
+            return;
+          }
+          if (res) {
+            hero.menu = null;
+            hero.renaming = {name: res.getAttribute('data-res'), value: res.getAttribute('data-res')};
+            renderHero();
+            return;
+          }
+          if (t.closest('.picker') || t.closest('.menu')) return;
+          if (hero.menu || pickerOpen) {
+            hero.menu = null;
+            pickerOpen = false;
+            renderHero();
+            return;
+          }
+          if (t.closest('.node')) {
+            hero.selected = !hero.selected;
+            renderHero();
+          }
+        });
+        heroEl.addEventListener('input', function (ev) {
+          if (ev.target.id === 'pickerInput') {
+            pickerFilter = ev.target.value;
+            var tmp = document.createElement('div');
+            tmp.innerHTML = renderPicker(hero.method, pickerFilter, 76, 64);
+            document.querySelector('#hero .picker .list').replaceWith(tmp.querySelector('.list'));
+          }
+          if (ev.target.classList.contains('descInput') && hero.editingDesc) hero.editingDesc.value = ev.target.value;
+          if (ev.target.classList.contains('renameInput') && hero.renaming) {
+            hero.renaming.value = ev.target.value;
+            if (hero.renaming.error) {
+              hero.renaming.error = null;
+              ev.target.removeAttribute('aria-invalid');
+            }
+          }
+        });
+        heroEl.addEventListener('keydown', function (ev) {
+          if (ev.target.classList.contains('descInput')) {
+            if (ev.key === 'Enter') {
+              ev.preventDefault();
+              commitDesc(false);
+              renderHero();
+            }
+            if (ev.key === 'Escape') {
+              commitDesc(true);
+              renderHero();
+            }
+            return;
+          }
+          if (!ev.target.classList.contains('renameInput')) return;
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            commitRename();
+            renderHero();
+          }
+          if (ev.key === 'Escape') {
+            hero.renaming = null;
+            renderHero();
+          }
+        });
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && (pickerOpen || hero.menu)) {
+            pickerOpen = false;
+            hero.menu = null;
+            renderHero();
+          }
+          if (
+            ev.key === 'Enter' &&
+            pickerOpen &&
+            document.activeElement &&
+            document.activeElement.id === 'pickerInput'
+          ) {
+            var first = document.querySelector('#hero .pick');
+            if (first) {
+              selectCallee(first.getAttribute('data-pick'));
+              pickerOpen = false;
+              renderHero();
+            }
+          }
+        });
+        document.addEventListener('click', function (ev) {
+          if (ev.target.closest('#hero')) return;
+          if (pickerOpen || hero.menu) {
+            pickerOpen = false;
+            hero.menu = null;
+            renderHero();
+          } else if (hero.renaming) {
+            commitRename();
+            renderHero();
+          } else if (hero.editingDesc) {
+            commitDesc(false);
+            renderHero();
+          }
+        });
+
+        /* ---------------------------------------------------------------- Portable mapping */
+        function jsonHtml(obj, indent) {
+          indent = indent || '';
+          var pad = indent + '  ';
+          if (obj === null) return '<span class="j-n">null</span>';
+          if (Array.isArray(obj)) {
+            if (!obj.length) return '[]';
+            return (
+              '[\n' +
+              obj
+                .map(function (v) {
+                  return pad + jsonHtml(v, pad);
+                })
+                .join(',\n') +
+              '\n' +
+              indent +
+              ']'
+            );
+          }
+          if (typeof obj === 'object') {
+            var keys = Object.keys(obj);
+            if (!keys.length) return '{}';
+            return (
+              '{\n' +
+              keys
+                .map(function (k) {
+                  return pad + '<span class="j-k">"' + esc(k) + '"</span>: ' + jsonHtml(obj[k], pad);
+                })
+                .join(',\n') +
+              '\n' +
+              indent +
+              '}'
+            );
+          }
+          if (typeof obj === 'number' || typeof obj === 'boolean') return '<span class="j-n">' + obj + '</span>';
+          return '<span class="j-s">"' + esc(obj) + '"</span>';
+        }
+        function renderMapping() {
+          var c = CALLABLES[hero.method];
+          var args = {};
+          c.params.forEach(function (p) {
+            var a = hero.args[p[0]];
+            if (a) args[p[0]] = a.mode === 'literal' && /^-?\d/.test(a.v) ? Number(a.v) : a.v;
+          });
+          var inv = {
+            '@kind': 'invocation',
+            '@node': 'FunctionNode',
+            '@node-name': hero.label,
+            '@method': hero.method,
+            '@arguments': args,
+          };
+          if (!hero.draft) inv['@type'] = c.ret.type === 'record' ? 'object' : c.ret.type;
+          document.getElementById('jsonInv').innerHTML = jsonHtml(inv);
+          document.getElementById('mapTitleL').textContent =
+            hero.field + ' · invocation' + (hero.draft ? ' · draft, not written' : '');
+          var params = {};
+          c.params.forEach(function (p) {
+            params[p[0]] = p[1];
+          });
+          var ret;
+          if (c.ret.type === 'record') {
+            ret = {'@kind': 'type-definition'};
+            c.ret.fields.forEach(function (f) {
+              ret[f[0]] = {'@kind': 'type', type: f[1]};
+            });
+          } else ret = c.ret.type;
+          var schema = {'@kind': c.kind + '-schema', '@parameters': params};
+          if (c.hit) schema['@hitPolicy'] = c.hit;
+          schema['@return'] = ret;
+          document.getElementById('jsonSchema').innerHTML = jsonHtml(schema);
+          document.getElementById('mapTitleR').textContent = hero.method + " · get('" + hero.method + "', 'FIELDS')";
+        }
+
+        /* ---------------------------------------------------------------- static gallery (own copies, so hero edits do not leak in) */
+        var SNAP = JSON.parse(JSON.stringify(CALLABLES));
+        function frozen(fn) {
+          var live = CALLABLES;
+          CALLABLES = SNAP;
+          try {
+            return fn();
+          } finally {
+            CALLABLES = live;
+          }
+        }
+        var RISK_ARGS = function () {
+          return {
+            age: {v: 'applicant.age', mode: 'path'},
+            income: {v: 'applicant.income', mode: 'path'},
+            segment: {v: 'applicant.segment', mode: 'path'},
+          };
+        };
+        frozen(function () {
+          document.getElementById('sPicker').innerHTML =
+            '<div style="position:relative">' +
+            renderNode({
+              id: 's1',
+              field: 'score',
+              label: 'Credit score',
+              method: 'creditScore',
+              args: {age: {v: 'applicant.age', mode: 'path'}, income: {v: 'applicant.income', mode: 'path'}},
+            }) +
+            renderPicker('creditScore', '', 76, 64).replace('id="pickerInput"', 'id="pickerDemo" tabindex="-1"') +
+            '</div>';
+          document.getElementById('sArgMenu').innerHTML = renderNode({
+            id: 's2',
+            field: 'decision',
+            label: 'Risk decision',
+            method: 'risk',
+            args: RISK_ARGS(),
+            menu: {arg: 'age'},
+            wiredOut: ['level'],
+          });
+          document.getElementById('sRename').innerHTML = renderNode({
+            id: 's3',
+            field: 'decision',
+            label: 'Risk decision',
+            method: 'risk',
+            args: RISK_ARGS(),
+            wiredOut: ['level'],
+            renaming: {
+              name: 'level',
+              value: 'riskLevel',
+              note: 'Renames level in 2 rules and default of risk. Rewrites 1 wire.',
+            },
+          }).replace('id="rename-s3"', 'id="rename-s3" tabindex="-1"');
+          document.getElementById('sScalar').innerHTML = renderNode({
+            id: 's4',
+            field: 'payment',
+            label: 'Monthly payment',
+            method: 'monthly',
+            args: {amount: {v: 'application.amount * 1.1', mode: 'expr'}},
+            wiredOut: ['result'],
+          });
+          document.getElementById('sRecord').innerHTML = renderNode({
+            id: 's5',
+            field: 'eligibility',
+            label: 'Eligibility',
+            method: 'applicantDecision',
+            args: {person: {v: 'applicant', mode: 'path'}},
+            wiredOut: ['eligible'],
+            desc: 'Checks whether the applicant is an adult. Minors are declined before any risk or pricing step runs, and the reason is shown to the case handler.',
+          });
+          document.getElementById('sError').innerHTML = renderNode({
+            id: 's6',
+            field: 'decision',
+            label: 'Risk decision',
+            method: 'risk',
+            args: {age: {v: 'applicant.age', mode: 'path'}, income: {v: 'applicant.income', mode: 'path'}},
+            errors: {segment: 'applicant.income rejected: expected string, found number'},
+          });
+          document.getElementById('sEmpty').innerHTML = renderNode({
+            id: 's7',
+            field: 'node3',
+            label: 'New function node',
+            method: null,
+          });
+          document.getElementById('sDesc').innerHTML = renderNode({
+            id: 's8',
+            field: 'score',
+            label: 'Credit score',
+            method: 'creditScore',
+            args: {age: {v: 'applicant.age', mode: 'path'}, income: {v: 'applicant.income', mode: 'path'}},
+            wiredOut: ['result'],
+            desc: '',
+            editingDesc: {value: 'Bureau-style score used for pricing'},
+          }).replace('id="desc-s8"', 'id="desc-s8" tabindex="-1"');
+          document.getElementById('sNodeMenu').innerHTML = renderNode({
+            id: 's9',
+            field: 'decision',
+            label: 'Risk decision',
+            method: 'risk',
+            args: RISK_ARGS(),
+            menu: 'node',
+            wiredOut: ['level'],
+            desc: 'Assess the applicant risk band from age, income and segment',
+          });
+        });
+
+        document.getElementById('sampleModel').textContent = [
+          '{',
+          '  type Applicant: { age: <number>; income: <number>; segment: <string> }',
+          '  applicant: { age: 23; income: 25000; segment: "retail" }',
+          '  application: { amount: 32000 }',
+          '  ruleset risk(age: number, income: number, segment: string): {',
+          '    hitPolicy: "first-match"',
+          '    rules: [',
+          '      { when: { age: 18..25, income: < 30000, segment: "retail" }, then: { level: "high", limit: 1000 } }',
+          '      { when: age >= 26 and age <= 64, then: { level: "medium", limit: 5000 } }',
+          '    ]',
+          '    default: { level: "none", limit: 0 }',
+          '  }',
+          '  func creditScore(age: number, income: number): 300 + age * 2 + income / 1000',
+          '  func monthly(amount: number): amount / 12',
+          '  func applicantDecision(person: Applicant): { eligible: person.age >= 18; reason: if person.age >= 18 then "adult" else "minor" }',
+          '  decision: risk(age: applicant.age, income: applicant.income, segment: applicant.segment)   // { level: "high", limit: 1000 }',
+          '  score: creditScore(age: applicant.age, income: applicant.income)                       // 371',
+          '  payment: monthly(amount: application.amount * 1.1)                                     // 2933.3333333333335',
+          '  eligibility: applicantDecision(person: applicant)                                      // { eligible: true, reason: "adult" }',
+          '}',
+        ].join('\n');
+
+        renderHero();
+        if (document.fonts && document.fonts.ready)
+          document.fonts.ready.then(function () {
+            renderHero();
+          });
+        window.addEventListener('resize', drawEdges);
+      })();
+    </script>
+  </body>
+</html>

@@ -41,6 +41,14 @@ describe('BoxedEditor', () => {
         expect(screen.getByText('amount')).toBeInTheDocument();
     });
 
+    it('renders the own row of an opened plain field', () => {
+        render(<BoxedEditor service={buildService()} path="payment" />);
+
+        expect(screen.getByTestId('row-payment')).toHaveTextContent('payment');
+        expect(screen.getByText('42')).toBeInTheDocument();
+        expect(screen.queryByText('application')).not.toBeInTheDocument();
+    });
+
     it('hides the model header when showHeader is false', () => {
         render(<BoxedEditor service={buildService()} path="*" showHeader={false} />);
 

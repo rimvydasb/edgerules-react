@@ -4,14 +4,38 @@
   font-size: 0.85rem;
 }
 
-.code :global(.tok-keyword) { color: light-dark(#7b1fa2, #c792ea); }
-.code :global(.tok-atom) { color: light-dark(#e65100, #d19a66); }
-.code :global(.tok-bool) { color: light-dark(#0b7285, #56b6c2); }
-.code :global(.tok-number) { color: light-dark(#098658, #b5cea8); }
-.code :global(.tok-string) { color: light-dark(#a31515, #ce9178); }
-.code :global(.tok-comment) { color: light-dark(#6a737d, #7f848e); font-style: italic; }
-.code :global(.tok-typeName) { color: light-dark(#267f99, #4ec9b0); }
-.code :global(.tok-propertyName) { color: light-dark(#001080, #9cdcfe); }
-.code :global(.tok-variableName) { color: light-dark(#0070c1, #9cdcfe); }
-.code :global(.tok-function) { color: light-dark(#795e26, #dcdcaa); }
-.code :global(.tok-self) { color: light-dark(#0000ff, #569cd6); font-style: italic; }
+.code :global(.tok-keyword) {
+  color: light-dark(#7b1fa2, #c792ea);
+}
+.code :global(.tok-atom) {
+  color: light-dark(#e65100, #d19a66);
+}
+.code :global(.tok-bool) {
+  color: light-dark(#0b7285, #56b6c2);
+}
+.code :global(.tok-number) {
+  color: light-dark(#098658, #b5cea8);
+}
+.code :global(.tok-string) {
+  color: light-dark(#a31515, #ce9178);
+}
+.code :global(.tok-comment) {
+  color: light-dark(#6a737d, #7f848e);
+  font-style: italic;
+}
+.code :global(.tok-typeName) {
+  color: light-dark(#267f99, #4ec9b0);
+}
+.code :global(.tok-propertyName) {
+  color: light-dark(#001080, #9cdcfe);
+}
+.code :global(.tok-variableName) {
+  color: light-dark(#0070c1, #9cdcfe);
+}
+.code :global(.tok-function) {
+  color: light-dark(#795e26, #dcdcaa);
+}
+.code :global(.tok-self) {
+  color: light-dark(#0000ff, #569cd6);
+  font-style: italic;
+}

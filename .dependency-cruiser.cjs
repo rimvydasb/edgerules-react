@@ -118,6 +118,7 @@ module.exports = {
         'project-session',
         'documentation-service',
         'test-cases-service',
+        'tests-manager',
       ],
       'Main React components',
     ),

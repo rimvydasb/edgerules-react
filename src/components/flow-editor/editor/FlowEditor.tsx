@@ -41,7 +41,7 @@ import {OutputNode, sourcePath} from '../output-node/OutputNode';
 import {autoLayout, findFreeSpot, modelWires, outputWires, type LayoutKind, type Wire} from './graph';
 import {ICON_COLOR, NodePalette} from './NodePalette';
 import {DRAG_TYPE, paletteItems} from './paletteItems';
-import type {FlowChart, FlowEditorProps, FlowLayout, FlowOutput, PaletteItem} from './types';
+import type {FlowChart, FlowEditorProps, FlowFocusRequest, FlowLayout, FlowOutput, PaletteItem} from './types';
 import styles from './flowEditor.module.css';
 
 const NODE_TYPES = {functionNode: FunctionNode, inputNode: InputNode, outputNode: OutputNode, chartNode: ChartNode};
@@ -67,6 +67,7 @@ const MINIMAP_COLOR: Record<LayoutKind, string> = {
 };
 const ROW = 40;
 const FIT_VIEW = {padding: 0.15, maxZoom: 1};
+const FOCUS_VIEW = {padding: 0.6, maxZoom: 1, duration: 300};
 const WIRE_CLASS: Record<Wire['kind'], string> = {
     number: styles.wireNumber,
     string: styles.wireString,
@@ -176,7 +177,11 @@ function syncCharts(charts: FlowChart[], changes: NodeChange[]): FlowChart[] {
     return next;
 }
 
-function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defaultLayout' | 'onLayoutChange'>) {
+function FlowCanvas({
+    defaultLayout,
+    onLayoutChange,
+    focusNode,
+}: Pick<FlowEditorProps, 'defaultLayout' | 'onLayoutChange' | 'focusNode'>) {
     const {service, readOnly = false} = useFlowEditor();
     const flow = useReactFlow();
     const colorScheme = useComputedColorScheme('light');
@@ -498,6 +503,24 @@ function FlowCanvas({defaultLayout, onLayoutChange}: Pick<FlowEditorProps, 'defa
         autoPlaced.current = false;
         arrange(false);
     }, [measured, arrange]);
+
+    // The focus selects its node once the node exists, and centers it once xyflow measured the nodes: after the
+    // first fit and the auto layout, which both fit the view in the next frame, so the centering waits one more.
+    const selected = useRef<FlowFocusRequest | undefined>(undefined);
+    useEffect(() => {
+        if (!focusNode || selected.current === focusNode || !nodes.some((node) => node.id === focusNode.field)) return;
+        selected.current = focusNode;
+        setNodes((current) => current.map((node) => ({...node, selected: node.id === focusNode.field})));
+    }, [focusNode, nodes]);
+    useEffect(() => {
+        if (!focusNode || !measured) return;
+        let frame = window.requestAnimationFrame(() => {
+            frame = window.requestAnimationFrame(
+                () => void flow.fitView({nodes: [{id: focusNode.field}], ...FOCUS_VIEW}),
+            );
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [focusNode, measured, flow]);
 
     return (
         <div className={styles.editor} data-testid="flow-editor">
