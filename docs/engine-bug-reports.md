@@ -1,80 +1,71 @@
 # EdgeRules Engine Bug Reports
 
-Open engine defects only. A report is deleted once the engine fixes it; behaviour ruled _by design_ upstream moves to
-[Clarified behaviour](#clarified-behaviour--not-bugs) as a short note so it is not re-filed.
+Each entry has a label:
 
-Entries were last re-verified against `@edgerules/web` **`0.0.8-alpha.202610231845`** on **2026-10-23** with throwaway
-Node scripts — no React, no mocks. The test suite runs against `@edgerules/node` `0.0.8-alpha.202610231845`. Still
-reproducing on `0.0.8`: root `set('*', …)` dropping `@model-version`, lossy built-in signatures, and `getCode('*')`
-dropping comments. Not re-run on `0.0.8` (last seen on `0.0.7`): empty zero-column relations, root optimisation
-`set('*', …)`, argument type-mismatch message.
+- **[VALID]** — the defect is still open and reproduces on the version named in the entry.
+- **[NOT A BUG]** — the behaviour is by design. The entry stays so that nobody files it again.
 
-## Empty zero-column relations round-trip as lists
+Delete a [VALID] entry when the engine fixes it.
 
-An empty relation has no record keys from which the engine can infer relation columns. After a mutable write, `[]`
-therefore normalizes as a scalar list rather than a relation. A UI may preserve a relation with zero records once at
-least one column is known, but cannot represent the distinct “zero columns, zero records” state across the portable
-engine boundary. Phase 10's exact empty-relation browser case is marked **CANNOT COMPLETE**; the editor seeds a single
-empty record when creating a zero-column relation as a compatibility workaround.
+All entries were last re-verified against `@edgerules/node` and `@edgerules/web` **`0.0.8-alpha.202610231845`** on
+**2026-10-28** with throwaway Node scripts — no React, no mocks.
 
-Expected behavior: portable data needs an unambiguous empty-relation representation, or engine metadata preserving the
+Entry format: a heading with the label and the problem name, then **What is wrong**, then **Expected behaviour** (for
+[VALID]) or **Why it is not a bug** (for [NOT A BUG]).
+
+## [VALID] Empty zero-column relations round-trip as lists
+
+**What is wrong:** an empty relation has no record keys from which the engine can infer relation columns. After a
+mutable write, `[]` normalizes as a scalar list, not as a relation. A UI can keep a relation with zero records when it
+knows at least one column, but it cannot carry the "zero columns, zero records" state across the portable engine
+boundary.
+
+```ts
+const s = MutableDecisionService.fromCode('{ r: [{a: 1}] }');
+s.set('r', []);
+s.toPortable();
+// { '@kind': 'context', r: { '@kind': 'expression', expression: '[]' } }  — no relation kind
+```
+
+Phase 10's exact empty-relation browser case is marked **CANNOT COMPLETE**. Workaround: the editor seeds one empty
+record when it creates a zero-column relation.
+
+**Expected behaviour:** portable data has an unambiguous empty-relation representation, or engine metadata keeps the
 intended collection kind when no values exist.
 
-## Root `set('*', …)` rejects a valid model containing a root optimisation
+## [VALID] Root `set('*', …)` drops root metadata (`@model-name`, `@model-version`)
 
-When a linked model already contains a root-level `@kind: "optimise"` declaration, replacing the model with its own
-portable root plus an unrelated ruleset-signature/call-site edit can fail with:
+> KNOWN ISSUE. IGNORE IT. This issue is well known and will be revisited in future stories.
 
-`invalid portable structure: optimise declarations are allowed only at the model root`
-
-The optimisation is already a direct child of the root. The Boxed Editor hit this while atomically adding a decision
-table condition column and its named call-site argument after a root optimisation had been created. The editor now works
-around the engine defect by setting only the changed top-level definitions and linking after the batch, rather than
-calling `set('*', …)`.
-
-Expected behavior: `set('*', service.toPortable())` (and the same root with unrelated valid edits) must accept a
-root-level optimisation exactly as initial construction does.
-
-## Root metadata (`@model-name`, `@model-version`) is silently dropped by
-
-`set('*', …)` — a mutable service can set it at construction but never edit it (@edgerules/node + @edgerules/web)
-
-> KNOWN ISSUE. IGNORE IT. This issue is well known and will be revisited in future stories. Still reproduces on
-> `0.0.6-alpha.202607291629`.
-
-`MutableDecisionService.fromPortable({'@model-version': '1.4.0', ...})` preserves `@model-version` correctly (matches
-`API_SPEC.md` "Limitations" #3: of the root context's reserved metadata keys, only `@model-version` is meant to
-round-trip; `@model-name` is documented as accepted-on-parse-but-not-persisted). But a **root `set('*', …)` on an
-already-constructed service drops both keys**, not just `@model-name` — the rest of the write applies correctly
-(ordinary fields commit), only the two `@model-*` keys never make it through. So `@model-version` behaves correctly only
-for a model's _initial_ construction; there is currently no way to change it (or set it for the first time) on a live
-service.
+**What is wrong:** `MutableDecisionService.fromPortable({'@model-version': '1.4.0', ...})` keeps `@model-version`
+(`API_SPEC.md` "Limitations" #3: only `@model-version` round-trips; `@model-name` is accepted on parse but not
+persisted). A root `set('*', …)` on a service that already exists drops **both** keys. The rest of the write commits. So
+a mutable service can set `@model-version` at construction, but it can never change it or set it later.
 
 ```ts
 const service = MutableDecisionService.fromCode('{ amount: 10 }');
 service.set('*', {...service.toPortable(), '@model-version': '2.0'});
 service.toPortable();
-// { '@kind': 'context', amount: 10 }  — '@model-version' never appears; 'amount' itself did commit
+// { '@kind': 'context', amount: 10 }  — '@model-version' is missing; 'amount' did commit
 ```
 
-Expected behavior: a root `set('*', …)` should persist `@model-version` exactly as `fromPortable` does (and either
-persist `@model-name` too or reject a write that sets it, per the sibling gap already noted in `API_SPEC.md`).
 `BoxedEditor`'s `Model Settings` dialog (`docs/boxed-editor/phase-05-context-menus-and-actions.md` §4) commits through
-this same `set('*', …)` path, so today **neither** field it edits persists past the next reload — the dialog is
-implemented and wired per spec, but blocked end-to-end on this engine gap.
+this `set('*', …)` path. Neither field that it edits persists after the next reload. The dialog is implemented as
+specified, but this engine gap blocks it end-to-end.
 
----
+**Expected behaviour:** a root `set('*', …)` persists `@model-version` exactly as `fromPortable` does. For
+`@model-name`, it persists the key or rejects the write (the sibling gap in `API_SPEC.md`).
 
-## Built-in function signatures are only exposed as lossy completion `detail` strings
+## [VALID] Built-in function signatures are only available as lossy completion `detail` strings
 
-Found on `0.0.6-alpha.202607291629`. The only API that lists built-in functions is the static
-`MutableDecisionService.completions(code, pos)`: options with `type: 'function'` carry the signature as a free-text
-`detail` string. There is no structured built-in catalog. The `detail` string loses information a GUI needs:
+**What is wrong:** the only API that lists built-in functions is the static
+`MutableDecisionService.completions(code, pos)`. Options with `type: 'function'` carry the signature as a free-text
+`detail` string. There is no structured built-in catalog. The `detail` string loses information that a GUI needs:
 
 1. **No parameter names.** `round | (number, number) -> number` — the Flow Editor `FunctionNode` cannot label its input
-   pins and falls back to `#1`, `#2`.
-2. **Overloads collapse to one signature.** `substring` has a 2-argument and a 3-argument form (`doc/reference`), but
-   completions report only `(string, number, number) -> string`. The GUI cannot tell that the third argument is
+   pins and shows `#1`, `#2`.
+2. **Overloads collapse to one signature.** `substring` has a 2-argument form and a 3-argument form (`doc/reference`),
+   but completions report only `(string, number, number) -> string`. The GUI cannot tell that the third argument is
    optional.
 3. **Variadic functions look unary.** `coalesce | (any) -> any`.
 4. **User callables report no return type.** `monthly | (amount: number)` — no `-> …` part.
@@ -88,37 +79,35 @@ MutableDecisionService.completions(doc, doc.indexOf('x: ') + 3)
 //  'coalesce | (any) -> any', ...]
 ```
 
-Expected behavior: a structured built-in catalog, for example `get('*', 'BUILTIN_DEFINITIONS')` or a static
-`builtins()`, returning `PortableFunctionSchema`-shaped entries with named `@parameters`, per-parameter
-optional/variadic markers (or one entry per overload), and `@return`. User callables are already covered by
-`get('*', 'ALL')` + `get('*', 'EXTERNAL_DEFINITIONS')`.
+**Expected behaviour:** a structured built-in catalog, for example `get('*', 'BUILTIN_DEFINITIONS')` or a static
+`builtins()`. It returns `PortableFunctionSchema`-shaped entries with named `@parameters`, optional/variadic markers per
+parameter (or one entry per overload), and `@return`. `get('*', 'ALL')` + `get('*', 'EXTERNAL_DEFINITIONS')` already
+cover user callables.
 
----
+## [VALID] Argument type-mismatch link error names an internal node id, not the argument
 
-## Argument type-mismatch link error names an internal node id, not the argument
-
-Found on `0.0.6-alpha.202607291629`. A named argument of the wrong type fails linking with a message that names an
-internal node id. The message does not say which call or which argument is wrong. A missing argument, by contrast, gets
-a clear message (`E113: function 'risk' call is missing required argument 'segment'`).
+**What is wrong:** a named argument of the wrong type fails linking with a message that names an internal node id. The
+message does not say which call or which argument is wrong. A missing argument, by contrast, gets a clear message
+(`E113: function 'risk' call is missing required argument 'segment'`).
 
 ```ts
 // ruleset risk(age: number, income: number, segment: string)
 // d: risk(age: applicant.age, income: applicant.income, segment: applicant.income)
 await service.execute('*');
-// execution error: linker error: type mismatch in node NodeId(10): expected string, found number
+// execution error: linker error: type mismatch in node NodeId(7): expected string, found number
 ```
 
-Expected behavior: an error code and a message in the E113 style, for example
-`function 'risk' argument 'segment' expects string, found number`, ideally with the field path (`d`). The Flow Editor
-`FunctionNode` and the Boxed Editor both need to attach the error to one argument row. Today they can only do that by
-assuming the row the user just edited caused it.
+The Flow Editor `FunctionNode` and the Boxed Editor must attach the error to one argument row. Today they can only
+assume that the row the user edited last caused it.
 
-## A filter condition on a field named like a sibling field links as a circular dependency
+**Expected behaviour:** an error code and a message in the E113 style, for example
+`function 'risk' argument 'segment' expects string, found number`, ideally with the field path (`d`).
 
-Found on `0.0.8-alpha.202610231845` (2026-10-28), while writing `models/loan-origination`. A filter condition reads a
-field of the list item by its bare name. When a field of the enclosing context has the same name, the linker resolves
-the name to that field and reports a cycle. Evaluation resolves the same name to the item field: without the cycle, the
-filter result is correct.
+## [VALID] A filter condition on a field named like a sibling field links as a circular dependency
+
+**What is wrong:** a filter condition reads a field of the list item by its bare name. When a field of the enclosing
+context has the same name, the linker resolves the name to that field and reports a cycle. Evaluation resolves the same
+name to the item field: without the cycle, the filter result is correct. Found while writing `models/loan-origination`.
 
 ```ts
 // Link fails:
@@ -134,42 +123,41 @@ service.link();
 //   passed: true }
 ```
 
-Expected behavior: the linker resolves a bare name in a filter condition the same way evaluation does. R1 of
+Workaround: give the sibling field a different name (`allPassed`).
+
+**Expected behaviour:** the linker resolves a bare name in a filter condition the same way evaluation does. R1 of
 `DSL_CONTEXT_SPEC.md` puts the expression-scope binding before the entities of the current context, so `passed` is the
-item field and there is no cycle. Workaround: name the sibling field differently (`allPassed`).
+item field and there is no cycle.
 
-## `getCode('*')` drops source comments and formatting
+## [NOT A BUG] `getCode('*')` drops source comments
 
-Found on `@edgerules/node` **`0.0.7-alpha.202610201841`** (2026-10-20). `fromCode` followed by `getCode('*')` silently
-deletes comments. Output formatting is fixed in `@edgerules/web` `0.0.8-alpha.202610231845` (multi-line); comments are
-still dropped there:
+**What happens:** `fromCode` followed by `getCode('*')` returns the code without its comments. (Output formatting is
+multi-line since `0.0.8-alpha.202610231845`.)
 
 ```ts
 MutableDecisionService.fromCode('{\n  // keep me\n  a: 1\n  b: a + 1\n}').getCode('*');
-// 0.0.8: "{\n    a: 1\n    b: a + 1\n}"
+// "{\n    a: 1\n    b: a + 1\n}"
 ```
 
-A project persisted from `getCode('*')` loses all authored comments on the first save.
+**Why it is not a bug:** the engine intentionally does not keep comments. Comments can be large, and keeping them would
+fill the WASM cache with text that the engine does not use. Documentation belongs to the documentation service, not to
+the engine. A host that must keep authored comments stores the source text itself and does not persist from
+`getCode('*')`.
 
-Expected behavior: preserve comments as trivia, or reject the operation instead of deleting them silently
-(`global-project-management.md` §4.5).
+## [NOT A BUG] `rename()` migrates references only for callables
 
----
-
-## Clarified behaviour — not bugs
-
-### `rename()` migrates references only for callables — by design
-
-Reported as a defect against `0.0.5-alpha.202607291250`, ruled by design upstream and documented in
-`0.0.6-alpha.202607291629` (the `rename` doc comment in `dist/_core/mutable-service.d.ts`; `remove()` carries the same
-caveat). The engine does not offer full refactoring — `link()` exists to check the model after any mutation.
+**What happens:** `rename()` updates references for some entry kinds and leaves them dangling for others:
 
 | Renamed entry                                                  | References migrated?                                                                                                                                  |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `func` / `ruleset` / `loop`, and their own declared parameters | **Yes** — call sites and references relink, including a ruleset's cell-map `when` keys, boolean-expression `when` rows, and named-argument call sites |
-| Plain field / context key / `type`                             | **No** — only the key changes; expressions using the old name are left byte-identical and dangle                                                      |
+| Plain field / context key / `type`                             | **No** — only the key changes; expressions that use the old name stay byte-identical and dangle                                                       |
 
-Neither case throws for a linking reason, so a host that renames anything outside the first row must call `link()`
-itself and surface the error. `DecisionTableEditor` only renames a ruleset or its parameters — the migrating case.
-`createBoxedEditorService.rename` renames arbitrary rows and deliberately skips the link check (Resolved Decision #12,
-`phase-08-quality-gate.md`), which is an editor-side gap: `docs/qa/current-bugs.md` Bug 10 option 3.
+Neither case throws for a linking reason.
+
+**Why it is not a bug:** ruled by design upstream and documented since `0.0.6-alpha.202607291629` (the `rename` doc
+comment in `dist/_core/mutable-service.d.ts`; `remove()` has the same caveat). The engine does not offer full
+refactoring — `link()` exists to check the model after any mutation. A host that renames anything outside the first row
+must call `link()` and show the error. `DecisionTableEditor` renames only a ruleset or its parameters — the migrating
+case. `createBoxedEditorService.rename` renames arbitrary rows and deliberately skips the link check (Resolved Decision
+#12, `phase-08-quality-gate.md`). That is an editor-side gap: `docs/qa/current-bugs.md` Bug 10 option 3.
