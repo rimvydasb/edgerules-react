@@ -3,9 +3,10 @@
 Complete, realistic EdgeRules projects that the components are tested and demonstrated with. Each model is one project
 bundle: the DSL model and the documentation, tests and flow slices that a host stores next to it.
 
-| Model                                     | Shows                                                                                       |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------- |
-| [loan-repayment](loan-repayment/index.ts) | Types, a decision table, functions, a `@Service`, two `@Workbook`s with charts, test suites |
+| Model                                         | Shows                                                                                                                                                 |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [loan-repayment](loan-repayment/index.ts)     | Types, a decision table, functions, a `@Service`, two `@Workbook`s with charts, test suites                                                           |
+| [loan-origination](loan-origination/index.ts) | Records, a scorecard and three decision tables, policy rules, affordability, a `@Service`, two `@Workbook`s with charts, test suites over list inputs |
 
 ## Layout of a Model
 
@@ -26,3 +27,5 @@ models/<model-name>/
 - Stories open a model with `openStoryProject(<MODEL>_PROJECT)`. Playwright specs of a model are in
   `e2e/models/<model-name>.spec.ts`.
 - Keep values deterministic: tests and specs assert exact engine results.
+- A test row of a list element other than `[0]` (`applicants[1].name`) is `custom: true`. The schema derives only `[0]`,
+  so the Tests view drops a row it cannot derive unless the row is user-authored.

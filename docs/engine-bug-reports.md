@@ -113,6 +113,31 @@ Expected behavior: an error code and a message in the E113 style, for example
 `FunctionNode` and the Boxed Editor both need to attach the error to one argument row. Today they can only do that by
 assuming the row the user just edited caused it.
 
+## A filter condition on a field named like a sibling field links as a circular dependency
+
+Found on `0.0.8-alpha.202610231845` (2026-10-28), while writing `models/loan-origination`. A filter condition reads a
+field of the list item by its bare name. When a field of the enclosing context has the same name, the linker resolves
+the name to that field and reports a cycle. Evaluation resolves the same name to the item field: without the cycle, the
+filter result is correct.
+
+```ts
+// Link fails:
+// { rules: [{code: "A", passed: true}, {code: "B", passed: false}]
+//   failed: for r in rules[passed = false] return r.code
+//   passed: count(failed) = 0 }
+service.link();
+// linker error: E110: circular dependency: failed → passed → failed
+
+// Links, and `failed` is [{code: "B", passed: false}] — the item field, not the sibling `passed: true`:
+// { rules: [...same...]
+//   failed: rules[passed = false]
+//   passed: true }
+```
+
+Expected behavior: the linker resolves a bare name in a filter condition the same way evaluation does. R1 of
+`DSL_CONTEXT_SPEC.md` puts the expression-scope binding before the entities of the current context, so `passed` is the
+item field and there is no cycle. Workaround: name the sibling field differently (`allPassed`).
+
 ## `getCode('*')` drops source comments and formatting
 
 Found on `@edgerules/node` **`0.0.7-alpha.202610201841`** (2026-10-20). `fromCode` followed by `getCode('*')` silently

@@ -6,6 +6,7 @@ import {expect, userEvent, within} from 'storybook/test';
 import {MutableDecisionService} from '@edgerules/web/mutable';
 import {ProjectProvider, type ProjectSession} from '../../../src/components/project-session';
 import {Shell, type ShellView} from '../../../src/components/shell';
+import {LOAN_ORIGINATION_PROJECT} from '../../../models/loan-origination';
 import {LOAN_REPAYMENT_PROJECT} from '../../../models/loan-repayment';
 import {openStoryProject} from '../../support/storyProject';
 
@@ -204,4 +205,52 @@ export const LoanRepaymentTermComparison: Story = {
 export const LoanRepaymentServiceTests: Story = {
     args: {defaultExplorerOpen: true, defaultPath: 'loanRepayment', defaultView: 'tests'},
     loaders: loanRepaymentLoaders,
+};
+
+// The loan origination project of models/loan-origination: applicant and application records, a scorecard, policy
+// rules, pricing and decision tables, a `@Service`, two workbooks with charts, and tests.
+const loanOriginationLoaders: Story['loaders'] = [
+    async () => ({session: await openStoryProject(LOAN_ORIGINATION_PROJECT)}),
+];
+
+/** The loan origination project with the Project Explorer open. */
+export const LoanOrigination: Story = {args: {defaultExplorerOpen: true}, loaders: loanOriginationLoaders};
+
+/** The `applicantScorecard` decision table: every characteristic of the applicant falls into one bin of points. */
+export const LoanOriginationScorecard: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'applicantScorecard'},
+    loaders: loanOriginationLoaders,
+};
+
+/** The `decisionMatrix` decision table: knockouts, grade, LTV and DSTI decide APPROVE, REFER or DECLINE. */
+export const LoanOriginationDecisionMatrix: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'decisionMatrix'},
+    loaders: loanOriginationLoaders,
+};
+
+/** The `originate` service in the Boxed view: the records, the per-applicant decisions, the pricing and the offer. */
+export const LoanOriginationService: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'originate'},
+    loaders: loanOriginationLoaders,
+};
+
+/**
+ * The `originationBook` workbook: the loan terms and two applicants make the joint application; the scorecards of both
+ * applicants as charts, and the decision, the offer, the affordability and the household grade as outputs.
+ */
+export const LoanOriginationBook: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'originationBook', defaultView: 'flow'},
+    loaders: loanOriginationLoaders,
+};
+
+/** The `capacityBook` workbook: the largest affordable loan of a household for each term. */
+export const LoanOriginationCapacity: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'capacityBook', defaultView: 'flow'},
+    loaders: loanOriginationLoaders,
+};
+
+/** The tests of the `originate` service: joint and single applications, one per outcome. Run all to check every case. */
+export const LoanOriginationServiceTests: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'originate', defaultView: 'tests'},
+    loaders: loanOriginationLoaders,
 };
