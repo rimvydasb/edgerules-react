@@ -19,13 +19,14 @@ export interface UseCellResult {
     text: string;
     result: TestResult | undefined;
     isStale: boolean;
-    // Only meaningful for an assertion cell; `undefined` for an input cell or a stale result.
+    // Only meaningful for an assertion cell; `undefined` for an input cell, a stale result or no result yet.
     isMatch: boolean | undefined;
     setText: (text: string) => void;
 }
 
 // One cell's persisted text, its path's current computed value, and — for an assertion cell —
-// whether the expected text matches it. A stale result never reports a match either way.
+// whether the expected text matches it. A stale result, or a case that has not run yet, never reports a match
+// either way.
 export function useCell(
     testCasesService: TestCasesService,
     testCaseId: string,
@@ -37,8 +38,11 @@ export function useCell(
         testCasesService.subscribe,
         () => testCasesService.getCell(testCaseId, row.path, kind) ?? '',
     );
-    const {result, isStale} = useResultInfo(testCasesService, testCaseId, row.path, revision);
-    const isMatch = kind === 'assertion' && !isStale ? matches(text, result?.value, row.type) : undefined;
+    const {result, resultSet, isStale} = useResultInfo(testCasesService, testCaseId, row.path, revision);
+    const isMatch =
+        kind === 'assertion' && resultSet !== undefined && !isStale
+            ? matches(text, result?.value, row.type)
+            : undefined;
 
     return {
         text,

@@ -23,9 +23,10 @@
   position: relative;
 }
 
+/* As wide as its columns: a narrower container scrolls instead of squeezing the fixed test-case columns. */
 .table {
   table-layout: fixed;
-  width: auto;
+  width: max-content;
 }
 
 /* Frozen columns. Offsets are set inline (they depend on the computed Path width). */

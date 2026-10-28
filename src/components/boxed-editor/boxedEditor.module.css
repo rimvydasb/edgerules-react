@@ -364,6 +364,10 @@
   cursor: text;
   min-width: 0;
   font: inherit;
+  /* A name wider than a narrow column ends with an ellipsis instead of running under the column menu. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .typeButton {

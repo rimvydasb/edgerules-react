@@ -82,7 +82,7 @@ export function EditableColumnHeader({
                 {editing === 'name' ? (
                     editor(`Rename ${name}`)
                 ) : (
-                    <button type="button" onClick={() => begin('name')} className={classes.textButton}>
+                    <button type="button" title={name} onClick={() => begin('name')} className={classes.textButton}>
                         <TypeName type={type}>{name}</TypeName>
                     </button>
                 )}

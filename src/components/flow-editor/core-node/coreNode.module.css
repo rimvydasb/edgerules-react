@@ -98,13 +98,19 @@
   white-space: nowrap;
 }
 
+/* The title keeps its width; the field path after it shrinks first, so a narrow node still shows its title. */
 .titleText {
+  flex-shrink: 0;
+  max-width: 100%;
   overflow: hidden;
   font-weight: 600;
   text-overflow: ellipsis;
 }
 
 .fieldName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--mantine-color-dimmed);
   font-family: var(--mantine-font-family-monospace);
   font-size: 12px;

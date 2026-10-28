@@ -41,6 +41,24 @@ describe('BoxedEditor', () => {
         expect(screen.getByText('amount')).toBeInTheDocument();
     });
 
+    it('renders an opened ruleset with its own header row, so its rules keep their columns', () => {
+        const service = createBoxedEditorService(
+            MutableDecisionService.fromCode(`{
+                ruleset band(age: number): {
+                    hitPolicy: "first-match"
+                    rules: [{ when: { age: < 30 }, then: { level: "young" } }]
+                    default: { level: "none" }
+                }
+            }`),
+        );
+        render(<BoxedEditor service={service} path="band" />);
+
+        expect(screen.getByTestId('row-band')).toHaveTextContent('band');
+        expect(screen.getByTestId('column-band-age')).toBeInTheDocument();
+        expect(screen.getByTestId('column-band-level')).toBeInTheDocument();
+        expect(screen.getByText('Rule 1')).toBeInTheDocument();
+    });
+
     it('renders the own row of an opened plain field', () => {
         render(<BoxedEditor service={buildService()} path="payment" />);
 

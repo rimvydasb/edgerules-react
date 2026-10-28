@@ -9,7 +9,7 @@ export default defineConfig({
         environment: 'jsdom',
         globals: false,
         setupFiles: ['./vitest.setup.ts'],
-        include: ['src/**/*.test.{ts,tsx}'],
+        include: ['src/**/*.test.{ts,tsx}', 'models/**/*.test.{ts,tsx}'],
         // Process CSS Modules (class names kept as written) so class- and style-based assertions are real.
         css: {include: /\.module\.css$/, modules: {classNameStrategy: 'non-scoped'}},
     },

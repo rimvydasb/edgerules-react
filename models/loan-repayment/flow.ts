@@ -1,0 +1,66 @@
+import type {FlowMetadataDocument} from '../../src/components/project-session';
+
+/**
+ * `flow.json` of the loan repayment project: the outputs and the charts of both workbooks. Node positions are empty, so
+ * the Flow Editor places every node with its automatic layout.
+ */
+export const LOAN_REPAYMENT_FLOW: FlowMetadataDocument = {
+    schemaVersion: 2,
+    layouts: {
+        mortgageBook: {
+            positions: {},
+            outputs: [
+                {
+                    id: 'output',
+                    label: 'Monthly payment',
+                    source: {node: 'mortgageBook.repayment', handle: 'out:payment'},
+                },
+                {
+                    id: 'output2',
+                    label: 'Cost of the loan',
+                    source: {node: 'mortgageBook.repayment', handle: 'out:cost'},
+                },
+            ],
+            charts: [
+                {
+                    id: 'chart',
+                    label: 'Remaining balance',
+                    source: {node: 'mortgageBook.repayment', handle: 'out:schedule'},
+                    config: {kind: 'area', x: 'period', series: ['balance']},
+                    size: {width: 520, height: 320},
+                },
+                {
+                    id: 'chart2',
+                    label: 'Yearly interest and principal',
+                    source: {node: 'mortgageBook.yearly', handle: 'out:result'},
+                    config: {kind: 'bar', x: 'year', series: ['interest', 'principal'], stacked: true},
+                    size: {width: 520, height: 320},
+                },
+            ],
+        },
+        termComparisonBook: {
+            positions: {},
+            outputs: [
+                {
+                    id: 'output',
+                    label: '15-year payment',
+                    source: {node: 'termComparisonBook.shortPlan', handle: 'out:payment'},
+                },
+                {
+                    id: 'output2',
+                    label: '30-year payment',
+                    source: {node: 'termComparisonBook.longPlan', handle: 'out:payment'},
+                },
+            ],
+            charts: [
+                {
+                    id: 'chart',
+                    label: 'Balance by year',
+                    source: {node: 'termComparisonBook.comparison', handle: 'out:result'},
+                    config: {kind: 'line', x: 'year', series: ['shorterBalance', 'longerBalance']},
+                    size: {width: 560, height: 340},
+                },
+            ],
+        },
+    },
+};

@@ -31,6 +31,30 @@ describe('TestsManager — project session tests', () => {
         expect(screen.queryByText('Test Case 1')).not.toBeInTheDocument();
     });
 
+    it('marks no assertion of a case that has not run', async () => {
+        const {session} = await openFixtureProject({
+            tests: {
+                schemaVersion: 1,
+                subjects: {
+                    risk: {
+                        cases: [
+                            {id: 'young', name: 'Young', order: 0, inputs: {age: '20'}, assertions: {level: 'low'}},
+                        ],
+                        rows: [
+                            {path: 'age', section: 'inputs', order: 0, type: 'number', present: true},
+                            {path: 'level', section: 'assertions', order: 0, type: 'string', present: true},
+                        ],
+                    },
+                },
+            },
+        });
+        render(<TestsManager service={session.engine} testCases={session.tests} subjectId="risk" />);
+
+        const assertion = await screen.findByLabelText('assertion level');
+        expect(assertion).toHaveAttribute('data-mismatch', 'false');
+        expect(screen.getByTestId('assertion-summary-young')).toHaveTextContent('');
+    });
+
     it('pre-generates into the session, which marks the tests slice dirty', async () => {
         const {session} = await openFixtureProject();
         const {unmount} = render(<TestsManager service={session.engine} testCases={session.tests} />);

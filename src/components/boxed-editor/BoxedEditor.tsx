@@ -17,6 +17,11 @@ import {ModelHeaderRow} from './rows/ModelHeaderRow';
 import {NewRow} from './rows/NewRow';
 import {RowSwitch} from './rows/RowSwitch';
 
+// Root kinds that keep their own row; the row renders its children and its trailing new-item row itself. An opened
+// context keeps its name row (with its menu), and an opened field has no children. A ruleset and an optimisation lay
+// out the columns of their child rows in their own header row, so their children cannot render without it.
+const OWN_ROW_ROOT_KINDS = new Set(['context', 'field', 'ruleset', 'optimisation']);
+
 interface BoxedEditorGridProps {
     path: string;
     showHeader: boolean;
@@ -61,10 +66,7 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
                 <BoxedLayoutProvider rows={rows}>
                     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
                         {showHeader && rootRow.kind === 'model' && <ModelHeaderRow row={rootRow} />}
-                        {rootRow.kind === 'context' || rootRow.kind === 'field' ? (
-                            // An opened context keeps its own name row (with its menu); the row renders its
-                            // children and its trailing new-item row itself. An opened field has no children, so
-                            // it shows its own row too.
+                        {OWN_ROW_ROOT_KINDS.has(rootRow.kind) ? (
                             <RowSwitch row={{...rootRow, children: rows}} />
                         ) : (
                             <>

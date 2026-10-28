@@ -6,6 +6,7 @@ import {expect, userEvent, within} from 'storybook/test';
 import {MutableDecisionService} from '@edgerules/web/mutable';
 import {ProjectProvider, type ProjectSession} from '../../../src/components/project-session';
 import {Shell, type ShellView} from '../../../src/components/shell';
+import {LOAN_REPAYMENT_PROJECT} from '../../../models/loan-repayment';
 import {openStoryProject} from '../../support/storyProject';
 
 // The sample model of docs/model-decomposition.md. `risk` is an invocation, so the Flow view shows it as a
@@ -167,4 +168,37 @@ export const Project: Story = {
         await userEvent.click(within(explorer).getAllByText('riskScore()')[1]!);
         await expect(await canvas.findByTestId('shell-tests-view')).toBeInTheDocument();
     },
+};
+
+// The loan repayment project of models/loan-repayment: a decision table, functions, a `@Service`, two workbooks with
+// charts, and tests.
+const loanRepaymentLoaders: Story['loaders'] = [
+    async () => ({session: await openStoryProject(LOAN_REPAYMENT_PROJECT)}),
+];
+
+/** The loan repayment project with the Project Explorer open. */
+export const LoanRepayment: Story = {args: {defaultExplorerOpen: true}, loaders: loanRepaymentLoaders};
+
+/** The `pricingTier` decision table: the credit score and the term select the price tier. */
+export const LoanRepaymentDecisionTable: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'pricingTier'},
+    loaders: loanRepaymentLoaders,
+};
+
+/** The `mortgageBook` workbook: the repayment plan, two outputs, the remaining balance and the yearly split. */
+export const LoanRepaymentMortgageBook: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'mortgageBook', defaultView: 'flow'},
+    loaders: loanRepaymentLoaders,
+};
+
+/** The `termComparisonBook` workbook: the same loan over 15 and 30 years, and the balance of both by year. */
+export const LoanRepaymentTermComparison: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'termComparisonBook', defaultView: 'flow'},
+    loaders: loanRepaymentLoaders,
+};
+
+/** The tests of the `loanRepayment` service. Run all to check every case. */
+export const LoanRepaymentServiceTests: Story = {
+    args: {defaultExplorerOpen: true, defaultPath: 'loanRepayment', defaultView: 'tests'},
+    loaders: loanRepaymentLoaders,
 };
