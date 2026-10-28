@@ -61,8 +61,8 @@ flowchart LR
   host passes no service.
 - **Test Case columns**: each column is one test case. A column header has three fixed parts — a drag handle, a
   click-to-edit name, and a three-dots menu — plus a running indicator while a run is in flight.
-- **Toolbar** (above the grid): `Add test case`, `Run all`, and the paging controls; a warning banner appears here when
-  the model needs an optimisation solver and none is registered.
+- **No toolbar**: every grid-level command is a header cell — see [Context Menu And Actions](#context-menu-and-actions).
+  Only a warning banner appears above the grid, when the model needs an optimisation solver and none is registered.
 - **Paging**: when a subject has more test cases than `pageSize`, the GUI pages over test-case **columns**; the Path and
   Description columns are frozen (sticky) and never page.
 - **Assertions**: cells hold the value the user expects. A cell whose expected value does not equal the computed value
@@ -77,7 +77,11 @@ Tests Manager GUI follows the same language as Boxed Editor GUI:
 - Every cell is single-height (40px) and grows only in 40px steps when it needs to wrap — a row's height is driven by
   its Description text, the header row's by the longest visible case name.
 - Same icons for drag and drop (`DragIndicator`), add (`Add`), and context menu (`MoreVert`).
-- Same spacing, padding, margins, context-menu style, and full cell borders.
+- Same spacing, padding, margins, context-menu style (`RowActionsMenu`, destructive items red under a divider), and full
+  cell borders.
+- Same chrome colors: muted header row, drag-handle and three-dots cells; a yellow-tinted Description column with an
+  italic `Add a description…` placeholder; uppercase band labels (`INPUTS 4`) for section rows.
+- The top-left tile is the test kind icon (flask) in the test kind color, as in the Project Explorer.
 
 ### Sections
 
@@ -478,7 +482,7 @@ src/components/tests-manager/
 │  ├─ useKnownPaths.ts               — the subject's addressable paths, for Path cell validation
 │  └─ useForceUpdate.ts              — re-render on service notifications where no stable snapshot exists
 ├─ grid/
-│  ├─ TestsGrid.tsx                  — grid shell, frozen Path/Description columns, toolbar, paging, solver banner
+│  ├─ TestsGrid.tsx                  — grid shell, frozen Path/Description columns, header commands, paging, solver banner
 │  ├─ SubjectHeaderCell.tsx          — the Path column header drop-down
 │  ├─ TestCaseHeaderCell.tsx         — drag handle, click-to-edit name, three-dots menu, run indicator
 │  ├─ SectionHeaderRow.tsx           — Inputs / Assertions / Validations separators; pass counter
@@ -654,7 +658,6 @@ name is click-to-edit and columns reorder via the header's own drag handle.
 | Action          | Effect                                                                          |
 | --------------- | ------------------------------------------------------------------------------- |
 | `Run`           | Runs this case now.                                                             |
-| `Run all`       | Runs every case of the subject, sequentially.                                   |
 | `Clone`         | Copies input and assertion cells into a new case inserted right after this one. |
 | `Clear results` | Drops this case's results, leaving inputs and assertions.                       |
 | `Delete`        | Removes the case with its cells and results; disabled when it is the only case. |
@@ -670,8 +673,13 @@ a path with no index — has its button disabled.
 | `Copy actual to expected` | `Assertions`          | Overwrites expected with the computed value, per case.                              |
 | `Delete row`              | user-authored rows    | Removes the row outright, with its cells and results.                               |
 
-**Grid-level actions** live in the toolbar above the grid: `Add test case`, `Run all`, and the paging controls (shown
-only when there is more than one page). A trailing icon column also carries an "add test case at end" button.
+**Grid-level actions** live in the header row, not in a toolbar above the grid:
+
+| Control           | Place                                                        | Effect                                                      |
+| ----------------- | ------------------------------------------------------------ | ----------------------------------------------------------- |
+| `Run all` (▶)     | Header cell above the rows' three-dots column                | Runs every case of the subject; spins while a run is busy.  |
+| `Add test case` + | Trailing header cell, upper step                             | Appends a test case. Hidden when `readOnly`.                |
+| Pager `‹ 1/2 ›`   | Trailing header cell, lower step (column widens by one step) | Pages test-case columns; shown only with two or more pages. |
 
 **Drag and drop**: rows reorder within their own section — one `DndContext` per section, so a row can never be dropped
 among another section's rows — and test-case columns reorder by dragging a column header, with the drop index resolved
@@ -852,7 +860,7 @@ Stories live in `stories/tests-manager/TestsManager.stories.tsx`, each building 
 | 17  | `TestRunner` ships inside `tests-manager`, not as a fourth package | It is exported from `edgerules-react/tests-manager` and buildable/testable on its own, but gets no subpath of its own: it has exactly one consumer and, unlike `TestCasesService`, no reason to be importable without the engine. Revisit if a headless CI runner ever wants it alone.                                                   |
 | 18  | Subject renames rewrite keys, via a standalone `renameTestSubject` | A subject id is a dotted path and part of the IndexedDB key, so a context rename would otherwise strand every subject beneath it. Keeping the path as the key — rather than a synthetic id stored in the model — avoids putting authoring metadata into a model the engine currently drops it from.                                      |
 | 19  | A removed path is flagged, not hidden                              | A row the model no longer declares stays visible, tinted and warning-iconed, rather than vanishing: its authored data is kept, and silently dropping a row the user filled in reads as data loss. It is excluded from binding, from results, and from pass counters.                                                                     |
-| 20  | Column rename and reorder are direct manipulation                  | The case name is click-to-edit in the header and columns reorder by dragging the header handle, so the column menu carries only actions with no direct-manipulation equivalent (`Run`, `Run all`, `Clone`, `Clear results`, `Delete`).                                                                                                   |
+| 20  | Column rename and reorder are direct manipulation                  | The case name is click-to-edit in the header and columns reorder by dragging the header handle, so the column menu carries only actions with no direct-manipulation equivalent (`Run`, `Clone`, `Clear results`, `Delete`).                                                                                                              |
 | 21  | A new test case inherits the previous case's inputs                | Filling in a second or third case is then a tweak rather than a retype. Assertions always start blank — a promoted row is shared, but what each case expects of it is not.                                                                                                                                                               |
 | 22  | Pre-generation waits for hydration                                 | `TestCasesService` is synchronous over an in-memory cache that IndexedDB fills asynchronously. Deriving rows before hydration lands would mark the service locally mutated and discard the very data hydration was about to deliver.                                                                                                     |
 | 23  | Run generations rather than a queue                                | Each run for a case takes a generation number, and a superseded run's result is discarded on arrival. Typing quickly across several cells therefore leaves the last edit's result standing, not whichever engine call happened to return last.                                                                                           |

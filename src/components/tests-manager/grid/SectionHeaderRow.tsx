@@ -1,3 +1,4 @@
+import {IconCircleCheck, IconCircleX} from '@tabler/icons-react';
 import type {ReactElement} from 'react';
 import type {TestCase, TestCasesService, TestRow, TestSectionId} from '../../test-cases-service';
 import {useForceUpdateOn} from '../hooks/useForceUpdate';
@@ -59,7 +60,10 @@ export function SectionHeaderRow({
     return (
         <GridRow className={classes.section} data-testid={`section-${sectionId}`}>
             <GridCell colSpan={4} className={cx(classes.section, classes.sectionSticky)}>
-                {SECTION_LABELS[sectionId]}
+                <span className={classes.sectionLabel}>
+                    {SECTION_LABELS[sectionId]}
+                    <span className={classes.sectionCount}>{rows.length}</span>
+                </span>
             </GridCell>
             {visibleCases.map((testCase) => {
                 const summary =
@@ -75,7 +79,8 @@ export function SectionHeaderRow({
                     >
                         {summary ? (
                             <span className={summary.allPass ? classes.pass : classes.fail}>
-                                {summary.label} {summary.allPass ? '✓' : '✗'}
+                                {summary.allPass ? <IconCircleCheck size={16} /> : <IconCircleX size={16} />}
+                                {summary.label}
                             </span>
                         ) : null}
                     </GridCell>

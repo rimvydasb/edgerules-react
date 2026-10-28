@@ -55,7 +55,7 @@ const TILE_COLOR: Partial<Record<IconKind, string>> = {
     'function-node': KIND_COLORS.function,
     'output-node': '#2f9e44',
     'chart-node': '#7048e8',
-    test: '#2f9e44',
+    test: KIND_COLORS.test,
 };
 
 export interface KindIconProps {

@@ -65,7 +65,7 @@ export function TestRowLine({
 
     return (
         <GridRow ref={sortable.setNodeRef} style={style} data-testid={`row-${row.path || '(result)'}`}>
-            <GridCell fill className={sticky} style={{...iconCell, left: 0}}>
+            <GridCell fill className={cx(sticky, classes.muted)} style={{...iconCell, left: 0}}>
                 {!readOnly && (
                     <span
                         aria-label={`drag ${row.path}`}
@@ -73,7 +73,7 @@ export function TestRowLine({
                         {...sortable.listeners}
                         className={cx(classes.iconBox, classes.drag)}
                     >
-                        <IconGripVertical size={16} />
+                        <IconGripVertical size={19} />
                     </span>
                 )}
             </GridCell>
@@ -89,7 +89,11 @@ export function TestRowLine({
                     </Tooltip>
                 )}
             </GridCell>
-            <GridCell fill className={sticky} style={{...iconCell, left: ICON_CELL_WIDTH + pathColumnWidth}}>
+            <GridCell
+                fill
+                className={cx(sticky, classes.muted)}
+                style={{...iconCell, left: ICON_CELL_WIDTH + pathColumnWidth}}
+            >
                 {!readOnly && (
                     <span className={classes.iconBox}>
                         <TestsMenu actions={menuActions}>
@@ -99,7 +103,7 @@ export function TestRowLine({
                                 disabled={!hasMenuActions}
                                 className={classes.iconButton}
                             >
-                                <IconDotsVertical size={16} />
+                                <IconDotsVertical size={20} />
                             </button>
                         </TestsMenu>
                     </span>
@@ -107,7 +111,7 @@ export function TestRowLine({
             </GridCell>
             <GridCell
                 fill
-                className={sticky}
+                className={cx(sticky, classes.descriptionCell)}
                 style={{
                     left: ICON_CELL_WIDTH + pathColumnWidth + ICON_CELL_WIDTH,
                     width: DESCRIPTION_COLUMN_WIDTH,
@@ -119,6 +123,7 @@ export function TestRowLine({
                         aria-label={`description ${row.path}`}
                         value={description}
                         disabled={readOnly}
+                        placeholder={readOnly ? undefined : 'Add a description…'}
                         className={classes.description}
                         onChange={(event) => documentationService.setDescription(qualifiedPath, event.target.value)}
                     />
@@ -136,7 +141,7 @@ export function TestRowLine({
                     {row.section === 'validations' && <ValidationCell testCaseId={testCase.id} row={row} />}
                 </GridCell>
             ))}
-            <GridCell fill className={cx(deleted && classes.deleted)} style={iconCell} />
+            <GridCell fill className={cx(deleted && classes.deleted)} />
         </GridRow>
     );
 }

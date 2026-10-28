@@ -6,6 +6,7 @@ import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {isKnownPath} from '../model/paths';
 import {createPathLanguageService} from '../model/pathLanguage';
 import {cx} from '#ui/cx';
+import {GRID_STEP} from '#ui/grid';
 import * as classes from './testsGrid.module.css';
 
 // Self-contained Path-column sizing/truncation: `computePathColumnWidth` sizes the column from the
@@ -29,10 +30,12 @@ function estimateTextWidth(text: string): number {
 }
 
 // Longest path in `paths` -> column width, capped at `PATH_COLUMN_MAX_WIDTH` so a single deep path
-// never blows out the whole grid; short models get a column no wider than they need.
+// never blows out the whole grid; short models get a column no wider than they need. Snapped up to
+// a whole number of `GRID_STEP`s, so the column lines sit on the same step grid as the Boxed Editor's.
 export function computePathColumnWidth(paths: readonly string[]): number {
     const longest = paths.reduce((max, path) => Math.max(max, estimateTextWidth(path)), 0);
-    return Math.min(PATH_COLUMN_MAX_WIDTH, Math.max(80, longest + PATH_CELL_CHROME_WIDTH));
+    const needed = Math.max(80, longest + PATH_CELL_CHROME_WIDTH);
+    return Math.min(PATH_COLUMN_MAX_WIDTH, Math.ceil(needed / GRID_STEP) * GRID_STEP);
 }
 
 // Cuts from the front of `path` until it fits `columnWidth`, prefixing the remainder with `..`.

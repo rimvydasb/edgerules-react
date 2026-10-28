@@ -26,7 +26,7 @@ const runner: TestRunner = {
 };
 
 describe('testCaseActionsFor', () => {
-    it('has no Insert left/right entries — the top toolbar Add button covers case creation', async () => {
+    it('has no Insert left/right entries — the header + button covers case creation', async () => {
         const service = createTestCasesService('model', '*', {dbName: uniqueDbName()});
         await waitForHydration(service);
         const testCase = service.addTestCase('A');

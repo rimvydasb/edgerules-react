@@ -1,20 +1,12 @@
-/* Tests Manager grid layout. Borders and base cell metrics come from src/ui/grid (one collapsed border). */
+/*
+ * Tests Manager grid layout. Borders and base cell metrics come from src/ui/grid (one collapsed border).
+ * Colors and chrome follow the Boxed Editor (boxedEditor.module.css): muted header, handle and menu
+ * cells, a yellow-tinted Description column, uppercase band labels, and a kind-colored icon tile.
+ * Every command lives inside the grid itself — there is no toolbar above it.
+ */
 .root {
+  --tm-muted: var(--mantine-color-default-hover);
   min-width: 0;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--mantine-spacing-xs);
-  margin-bottom: var(--mantine-spacing-xs);
-}
-
-.pager {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
 }
 
 .container {
@@ -23,10 +15,23 @@
   position: relative;
 }
 
-/* As wide as its columns: a narrower container scrolls instead of squeezing the fixed test-case columns. */
+/*
+ * As wide as its columns: a narrower container scrolls instead of squeezing the fixed test-case columns.
+ * Separate (not collapsed) borders: a sticky cell of a collapsed table loses its borders in Chromium,
+ * because the table, not the cell, paints them. So, as in the Boxed Editor, every line has one owner —
+ * the table owns the outer top and left edges, every cell its own right and bottom line.
+ */
 .table {
   table-layout: fixed;
   width: max-content;
+  border-collapse: separate;
+  border-top: 1px solid var(--grid-border);
+  border-left: 1px solid var(--grid-border);
+}
+
+.table th,
+.table td {
+  border-width: 0 1px 1px 0;
 }
 
 /* Frozen columns. Offsets are set inline (they depend on the computed Path width). */
@@ -40,13 +45,22 @@
   position: sticky;
   top: 0;
   z-index: 3;
-  background-color: var(--mantine-color-body);
+  background-color: var(--tm-muted);
 }
 
 .logo {
-  background-color: #000;
   color: #fff;
   text-align: center;
+}
+
+.logo > svg {
+  vertical-align: middle;
+}
+
+/* Muted chrome cells: drag handles and three-dots menus, as in the Boxed Editor. */
+.muted {
+  background-color: var(--tm-muted);
+  color: var(--mantine-color-dimmed);
 }
 
 /* A row whose path the model no longer declares: tinted, never hidden. */
@@ -55,8 +69,23 @@
 }
 
 .section {
-  background-color: var(--mantine-color-default-hover);
+  height: 40px;
+  background-color: var(--tm-muted);
+}
+
+/* Inputs / Assertions / Validations — the Boxed Editor's band label. */
+.sectionLabel {
+  padding-inline: 8px;
+  font-size: 0.6875rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mantine-color-dimmed);
+}
+
+.sectionCount {
+  margin-left: 6px;
+  font-weight: 400;
 }
 
 .sectionSticky {
@@ -65,41 +94,131 @@
   z-index: 1;
 }
 
+.pass,
+.fail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .pass {
   color: var(--mantine-color-green-7);
-  font-weight: 600;
 }
 
 .fail {
   color: var(--mantine-color-red-7);
-  font-weight: 600;
 }
 
 .iconBox {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
 }
 
 .drag {
   cursor: grab;
 }
 
+/* A square icon button that fills its cell (or header step) — the Boxed Editor's `actionsButton`. */
 .iconButton {
-  border: none;
-  background: transparent;
-  color: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--mantine-color-dimmed);
   cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  background-color: var(--mantine-color-default-border);
+  color: var(--mantine-color-text);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
 }
 
 .iconButton:disabled {
   cursor: default;
   opacity: 0.3;
+}
+
+/* The header's Run all button: the one primary command, so it is drawn in the primary color. It
+ * fills its whole (two-step) header cell. */
+.runAll,
+.runAll:hover:not(:disabled) {
+  color: var(--mantine-primary-color-filled);
+}
+
+.runAll {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+}
+
+/* Header corner stack: two 40px steps (`+` over the pager) in the trailing column. */
+.cornerStack {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cornerStep {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cornerStep + .cornerStep {
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--mantine-color-dimmed);
+}
+
+.pager > button {
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.pager > span {
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.spin {
+  animation: tm-spin 0.8s linear infinite;
+}
+
+@keyframes tm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.descriptionCell {
+  background-color: color-mix(in srgb, var(--mantine-color-yellow-6) 6%, var(--mantine-color-body));
 }
 
 .description {
@@ -111,10 +230,17 @@
   outline: none;
   resize: none;
   box-sizing: border-box;
-  padding: 8px;
+  padding: 10px 8px;
   background: transparent;
-  color: inherit;
+  color: var(--mantine-color-dimmed);
   font: inherit;
+  font-size: 0.8125rem;
+  font-style: italic;
+  overflow: hidden;
+}
+
+.description:not(:placeholder-shown) {
+  font-style: normal;
 }
 
 .description:focus {
@@ -178,10 +304,16 @@
 
 .caseHandle {
   border-right: 1px solid var(--mantine-color-default-border);
+  color: var(--mantine-color-dimmed);
 }
 
 .caseMenu {
   border-left: 1px solid var(--mantine-color-default-border);
+}
+
+.caseRunning {
+  color: var(--mantine-primary-color-filled);
+  flex-shrink: 0;
 }
 
 .caseHandle,
@@ -195,6 +327,7 @@
 
 .caseName {
   flex: 1;
+  font-size: 0.8125rem;
   min-width: 0;
   display: flex;
   align-items: center;

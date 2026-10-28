@@ -219,8 +219,8 @@ export const ColumnPaging: Story = {
         return (
             <Box maw={1100}>
                 <Text size="sm" mb="xs">
-                    <code>pageSize=3</code>. Use &quot;Add test case&quot; a few times to see the Path and Description
-                    columns stay frozen while test-case columns page.
+                    <code>pageSize=3</code>. Click the header&apos;s + button a few times to see the Path and
+                    Description columns stay frozen while test-case columns page.
                 </Text>
                 <ProjectTestsManager session={session} pageSize={3} />
             </Box>

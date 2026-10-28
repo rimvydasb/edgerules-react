@@ -91,12 +91,12 @@ describe('TestsManager — rendering', () => {
         render(<TestsManager service={service} modelName={uniqueModelName()} pageSize={2} />);
 
         await waitFor(() => expect(screen.getByTestId('tests-grid')).toBeInTheDocument());
-        // Add cases via the toolbar button until paging kicks in.
+        // Add cases via the header's + button until paging kicks in.
         const user = userEvent.setup();
         await user.click(screen.getByRole('button', {name: 'Add test case'}));
         await user.click(screen.getByRole('button', {name: 'Add test case'}));
 
-        await waitFor(() => expect(screen.getByTestId('page-indicator')).toHaveTextContent('Page 1/2'));
+        await waitFor(() => expect(screen.getByTestId('page-indicator')).toHaveTextContent('1/2'));
     });
 
     it('disables editing and case CRUD in readOnly mode while running stays available', async () => {

@@ -1,5 +1,12 @@
-import {IconCopy, IconTrash} from '@tabler/icons-react';
-import type {ReactElement} from 'react';
+import {
+    IconArrowUp,
+    IconClipboardCheck,
+    IconCopy,
+    IconEraser,
+    IconPlayerPlay,
+    IconTrash,
+    type Icon,
+} from '@tabler/icons-react';
 import type {TestCase, TestCasesService, TestRow} from '../../test-cases-service';
 import {hasIndex, nextDuplicatePath} from '../model/paths';
 import {formatValue} from '../model/values';
@@ -9,7 +16,9 @@ export interface TestsMenuAction {
     label: string;
     onSelect: () => void;
     disabled?: boolean;
-    icon?: ReactElement;
+    icon?: Icon;
+    /** Destructive — red, and set off from the other actions by a divider. */
+    danger?: boolean;
 }
 
 function copyActualToExpected(row: TestRow, testCasesService: TestCasesService): void {
@@ -32,10 +41,10 @@ export function testCaseActionsFor(
     const index = all.findIndex((c) => c.id === testCase.id);
 
     return [
-        {label: 'Run', onSelect: () => void runner.run(testCase.id)},
-        {label: 'Run all', onSelect: () => void runner.runAll()},
+        {label: 'Run', icon: IconPlayerPlay, onSelect: () => void runner.run(testCase.id)},
         {
             label: 'Clone',
+            icon: IconCopy,
             onSelect: () => {
                 const copy = testCasesService.addTestCase(`${testCase.name} copy`);
                 for (const [path, text] of Object.entries(testCase.inputs)) {
@@ -47,8 +56,14 @@ export function testCaseActionsFor(
                 testCasesService.moveTestCase(copy.id, index + 1);
             },
         },
-        {label: 'Clear results', onSelect: () => testCasesService.clearResultSet(testCase.id)},
-        {label: 'Delete', onSelect: () => testCasesService.removeTestCase(testCase.id), disabled: all.length <= 1},
+        {label: 'Clear results', icon: IconEraser, onSelect: () => testCasesService.clearResultSet(testCase.id)},
+        {
+            label: 'Delete',
+            icon: IconTrash,
+            danger: true,
+            onSelect: () => testCasesService.removeTestCase(testCase.id),
+            disabled: all.length <= 1,
+        },
     ];
 }
 
@@ -66,7 +81,7 @@ export function rowActionsFor(row: TestRow, testCasesService: TestCasesService):
         );
         actions.push({
             label: 'Duplicate',
-            icon: <IconCopy size={16} />,
+            icon: IconCopy,
             disabled: target === undefined,
             onSelect: () => {
                 if (target) testCasesService.duplicateRow(row.path, target);
@@ -77,10 +92,19 @@ export function rowActionsFor(row: TestRow, testCasesService: TestCasesService):
     if (row.section === 'validations') {
         actions.push({
             label: 'Move to Assertions',
+            icon: IconArrowUp,
             onSelect: () => {
                 testCasesService.setRowSection(row.path, 'assertions');
                 copyActualToExpected(row, testCasesService);
             },
+        });
+    }
+
+    if (row.section === 'assertions') {
+        actions.push({
+            label: 'Copy actual to expected',
+            icon: IconClipboardCheck,
+            onSelect: () => copyActualToExpected(row, testCasesService),
         });
     }
 
@@ -90,19 +114,17 @@ export function rowActionsFor(row: TestRow, testCasesService: TestCasesService):
     if (row.section === 'assertions' && !row.custom) {
         actions.push({
             label: 'Delete',
-            icon: <IconTrash size={16} />,
+            icon: IconTrash,
+            danger: true,
             onSelect: () => testCasesService.setRowSection(row.path, 'validations'),
         });
-    }
-
-    if (row.section === 'assertions') {
-        actions.push({label: 'Copy actual to expected', onSelect: () => copyActualToExpected(row, testCasesService)});
     }
 
     if (row.custom) {
         actions.push({
             label: 'Delete row',
-            icon: <IconTrash size={16} />,
+            icon: IconTrash,
+            danger: true,
             onSelect: () => testCasesService.removeRow(row.path),
         });
     }

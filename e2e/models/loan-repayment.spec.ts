@@ -72,7 +72,7 @@ test('the service tests pass when run, and show no result before', async ({page}
     expect((await header.boundingBox())!.width).toBeGreaterThanOrEqual(159);
 
     await page.getByRole('button', {name: 'Run all'}).click();
-    await expect(summaries.nth(0)).toHaveText('7/7 ✓');
-    await expect(summaries.nth(4)).toHaveText('6/6 ✓');
+    await expect(summaries.nth(0)).toHaveText('7/7');
+    await expect(summaries.nth(4)).toHaveText('6/6');
     await expect(page.locator('[data-mismatch="true"]')).toHaveCount(0);
 });

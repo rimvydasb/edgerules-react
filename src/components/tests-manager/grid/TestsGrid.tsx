@@ -1,8 +1,16 @@
-import {Alert, Button, ActionIcon} from '@mantine/core';
-import {IconAlertTriangle, IconChecklist, IconPlus} from '@tabler/icons-react';
+import {Alert, Tooltip} from '@mantine/core';
+import {
+    IconAlertTriangle,
+    IconChevronLeft,
+    IconChevronRight,
+    IconFlask,
+    IconLoader2,
+    IconPlayerPlay,
+    IconPlus,
+} from '@tabler/icons-react';
 import {closestCenter, DndContext} from '@dnd-kit/core';
 import {horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy} from '@dnd-kit/sortable';
-import type {CSSProperties, ReactElement} from 'react';
+import {useSyncExternalStore, type CSSProperties, type ReactElement} from 'react';
 import type {TestCase, TestRow} from '../../test-cases-service';
 import {useTestsManagerContext} from '../context/TestsManagerContext';
 import {useColumnDrag} from '../dnd/useColumnDrag';
@@ -14,6 +22,7 @@ import {useTestSubjects} from '../hooks/useTestSubjects';
 import type {TestSubjectId} from '../tests-manager-types';
 import {GridBody, GridCell, GridHead, GridRow, GridTable} from '#ui/grid';
 import {cx} from '#ui/cx';
+import {KIND_COLORS} from '#ui/kindColors';
 import * as classes from './testsGrid.module.css';
 import {computePathColumnWidth} from './PathCell';
 import {SectionHeaderRow} from './SectionHeaderRow';
@@ -101,6 +110,14 @@ export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectI
     } = useColumnDrag(allCases, visibleCases, moveTestCase);
 
     const iconCell: CSSProperties = {width: ICON_CELL_WIDTH, maxWidth: ICON_CELL_WIDTH, padding: 0};
+    // The trailing column holds `+`; once columns page, it widens by one step so the pager fits
+    // under it.
+    const paged = pageCount > 1;
+    const trailingWidth = paged ? 2 * ICON_CELL_WIDTH : ICON_CELL_WIDTH;
+    const trailingCell: CSSProperties = {width: trailingWidth, maxWidth: trailingWidth, padding: 0};
+
+    const running = useSyncExternalStore(runner.subscribe, runner.getRunning);
+    const anyRunning = running.length > 0;
 
     return (
         <div data-testid="tests-grid" className={classes.root}>
@@ -115,41 +132,6 @@ export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectI
                     No optimisation solver registered for this model.
                 </Alert>
             )}
-            <div className={classes.toolbar}>
-                {!readOnly && (
-                    <Button size="compact-sm" variant="subtle" onClick={() => testCasesService.addTestCase()}>
-                        Add test case
-                    </Button>
-                )}
-                <Button size="compact-sm" variant="subtle" onClick={() => void runner.runAll()}>
-                    Run all
-                </Button>
-                {pageCount > 1 && (
-                    <div className={classes.pager}>
-                        <Button
-                            size="compact-sm"
-                            variant="subtle"
-                            onClick={prevPage}
-                            disabled={pageIndex === 0}
-                            aria-label="previous page"
-                        >
-                            ‹
-                        </Button>
-                        <span data-testid="page-indicator">
-                            Page {pageIndex + 1}/{pageCount}
-                        </span>
-                        <Button
-                            size="compact-sm"
-                            variant="subtle"
-                            onClick={nextPage}
-                            disabled={pageIndex >= pageCount - 1}
-                            aria-label="next page"
-                        >
-                            ›
-                        </Button>
-                    </div>
-                )}
-            </div>
             <div className={classes.container}>
                 <GridTable className={classes.table}>
                     <GridHead>
@@ -157,9 +139,9 @@ export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectI
                             <GridCell
                                 header
                                 className={cx(classes.head, classes.logo)}
-                                style={{...iconCell, left: 0, zIndex: 4}}
+                                style={{...iconCell, left: 0, zIndex: 4, backgroundColor: KIND_COLORS.test}}
                             >
-                                <IconChecklist size={16} />
+                                <IconFlask size={20} />
                             </GridCell>
                             <GridCell
                                 header
@@ -173,11 +155,29 @@ export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectI
                                     readOnly={readOnly}
                                 />
                             </GridCell>
+                            {/* Above the rows' three-dots column: the grid's one primary command. */}
                             <GridCell
                                 header
+                                fill
                                 className={classes.head}
                                 style={{...iconCell, left: ICON_CELL_WIDTH + pathColumnWidth, zIndex: 4}}
-                            />
+                            >
+                                <Tooltip label="Run all test cases" withinPortal>
+                                    <button
+                                        type="button"
+                                        aria-label="Run all"
+                                        aria-busy={anyRunning || undefined}
+                                        className={cx(classes.iconButton, classes.runAll)}
+                                        onClick={() => void runner.runAll()}
+                                    >
+                                        {anyRunning ? (
+                                            <IconLoader2 size={20} className={classes.spin} />
+                                        ) : (
+                                            <IconPlayerPlay size={20} />
+                                        )}
+                                    </button>
+                                </Tooltip>
+                            </GridCell>
                             <GridCell
                                 header
                                 className={classes.head}
@@ -211,18 +211,53 @@ export function TestsGrid({onSubjectChange}: {onSubjectChange: (id: TestSubjectI
                                     ))}
                                 </SortableContext>
                             </DndContext>
-                            <GridCell header align="center" className={classes.head} style={iconCell}>
-                                {!readOnly && (
-                                    <ActionIcon
-                                        size="sm"
-                                        variant="subtle"
-                                        color="gray"
-                                        aria-label="Add test case at end"
-                                        onClick={() => testCasesService.addTestCase()}
-                                    >
-                                        <IconPlus size={16} />
-                                    </ActionIcon>
-                                )}
+                            <GridCell header fill className={classes.head} style={trailingCell}>
+                                <span className={classes.cornerStack}>
+                                    {!readOnly && (
+                                        <span className={classes.cornerStep}>
+                                            <Tooltip label="Add test case" withinPortal>
+                                                <button
+                                                    type="button"
+                                                    aria-label="Add test case"
+                                                    className={classes.iconButton}
+                                                    onClick={() => testCasesService.addTestCase()}
+                                                >
+                                                    <IconPlus size={20} />
+                                                </button>
+                                            </Tooltip>
+                                        </span>
+                                    )}
+                                    {paged && (
+                                        <span className={classes.cornerStep}>
+                                            <span className={classes.pager}>
+                                                <button
+                                                    type="button"
+                                                    aria-label="previous page"
+                                                    className={classes.iconButton}
+                                                    onClick={prevPage}
+                                                    disabled={pageIndex === 0}
+                                                >
+                                                    <IconChevronLeft size={14} />
+                                                </button>
+                                                <span
+                                                    data-testid="page-indicator"
+                                                    aria-label={`Page ${pageIndex + 1}/${pageCount}`}
+                                                >
+                                                    {pageIndex + 1}/{pageCount}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    aria-label="next page"
+                                                    className={classes.iconButton}
+                                                    onClick={nextPage}
+                                                    disabled={pageIndex >= pageCount - 1}
+                                                >
+                                                    <IconChevronRight size={14} />
+                                                </button>
+                                            </span>
+                                        </span>
+                                    )}
+                                </span>
                             </GridCell>
                         </GridRow>
                     </GridHead>
