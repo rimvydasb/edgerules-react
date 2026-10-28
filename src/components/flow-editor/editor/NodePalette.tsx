@@ -98,7 +98,7 @@ export function NodePalette({items, collapsed, onCollapsedChange, onAdd}: NodePa
     return (
         <nav className={styles.palette} aria-label="Node palette">
             <div className={styles.paletteHeader}>
-                <span className={styles.paletteTitle}>Nodes</span>
+                <span className={styles.paletteTitle}>Available Nodes</span>
                 <Tooltip label="Hide node palette" withArrow>
                     <ActionIcon
                         variant="subtle"
