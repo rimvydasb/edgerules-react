@@ -17,7 +17,7 @@ conclusions instead of repeating them. Written for the maintainer, not for an in
 | Non-GUI services      | Project Session (bundle load/save, IndexedDB repository), Documentation Service, Test Cases Service                                                                                |
 | Not built             | Types Editor; any `explain()`/trace view; table static analysis UI; versioning/diff UI                                                                                             |
 | Distribution          | **Not on npm** (`edgerules-react` 0.1.0 is unpublished). No hosted Storybook, no hosted studio, no CI workflow in the repo (checks run only through local agent hooks)             |
-| Engine dependency     | `@edgerules/web` `0.0.8-alpha.*`, pinned as a regular dependency. 6 open engine defects in [engine-bug-reports.md](../engine-bug-reports.md), several with UI-side workarounds     |
+| Engine dependency     | `@edgerules/web` `0.1.0-alpha.*`, pinned as a regular dependency. 4 open engine defects in [engine-bug-reports.md](../engine-bug-reports.md), several with UI-side workarounds     |
 | Engine binary         | Prod WASM is now **754 KB** (617 KB in July). It is already above the 700 KB budget the engine prospect proposed                                                                   |
 | Peer stack            | React 18/19, **Mantine 9** (required), CodeMirror 6, `@xyflow/react` 12, `@tanstack/charts` — the last three optional per component                                                |
 | Internal architecture | Layered, enforced by dependency-cruiser; per-component subpath exports; `index.ts` public API vs `internal.ts`; ~6.7K lines of specs and stories                                   |

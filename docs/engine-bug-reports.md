@@ -7,7 +7,7 @@ Each entry has a label:
 
 Delete a [VALID] entry when the engine fixes it.
 
-All entries were last re-verified against `@edgerules/node` and `@edgerules/web` **`0.0.8-alpha.202610231845`** on
+All entries were last re-verified against `@edgerules/node` and `@edgerules/web` **`0.1.0-alpha.202610281745`** on
 **2026-10-28** with throwaway Node scripts — no React, no mocks.
 
 Entry format: a heading with the label and the problem name, then **What is wrong**, then **Expected behaviour** (for
@@ -102,32 +102,6 @@ assume that the row the user edited last caused it.
 
 **Expected behaviour:** an error code and a message in the E113 style, for example
 `function 'risk' argument 'segment' expects string, found number`, ideally with the field path (`d`).
-
-## [VALID] A filter condition on a field named like a sibling field links as a circular dependency
-
-**What is wrong:** a filter condition reads a field of the list item by its bare name. When a field of the enclosing
-context has the same name, the linker resolves the name to that field and reports a cycle. Evaluation resolves the same
-name to the item field: without the cycle, the filter result is correct. Found while writing `models/loan-origination`.
-
-```ts
-// Link fails:
-// { rules: [{code: "A", passed: true}, {code: "B", passed: false}]
-//   failed: for r in rules[passed = false] return r.code
-//   passed: count(failed) = 0 }
-service.link();
-// linker error: E110: circular dependency: failed → passed → failed
-
-// Links, and `failed` is [{code: "B", passed: false}] — the item field, not the sibling `passed: true`:
-// { rules: [...same...]
-//   failed: rules[passed = false]
-//   passed: true }
-```
-
-Workaround: give the sibling field a different name (`allPassed`).
-
-**Expected behaviour:** the linker resolves a bare name in a filter condition the same way evaluation does. R1 of
-`DSL_CONTEXT_SPEC.md` puts the expression-scope binding before the entities of the current context, so `passed` is the
-item field and there is no cycle.
 
 ## [NOT A BUG] `getCode('*')` drops source comments
 

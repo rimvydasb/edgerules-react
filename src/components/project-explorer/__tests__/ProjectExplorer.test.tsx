@@ -99,6 +99,23 @@ describe('ProjectExplorer sections', () => {
         expect(screen.queryByText('a')).toBeNull();
         expect(screen.getByText('b')).toBeInTheDocument();
     });
+
+    it('keeps the sections when the model does not link', async () => {
+        const user = userEvent.setup();
+        const service = buildService();
+        // `processApplication` and `loanBook.decision` still call it: an unresolved reference.
+        service.remove('riskScore');
+        expect(() => service.link()).toThrow();
+        render(<ProjectExplorer service={service} testSubjects={['*']} />);
+
+        expect(sectionCount('Types')).toBe('2');
+        expect(sectionCount('Methods')).toBe('3');
+        expect(sectionCount('Variables')).toBe('3');
+        expect(sectionCount('Workbooks')).toBe('1');
+        await user.click(screen.getByText('loanBook'));
+        expect(screen.getByTestId('icon-input-node')).toBeInTheDocument();
+        expect(screen.getByTestId('icon-output-node')).toBeInTheDocument();
+    });
 });
 
 describe('ProjectExplorer open', () => {
