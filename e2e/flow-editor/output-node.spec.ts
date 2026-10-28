@@ -30,3 +30,14 @@ test('shows the error row when the wired path does not exist', async ({page}) =>
     await open(page, 'missing-path');
     await expect(page.getByRole('alert')).toContainText('no decision.missing');
 });
+
+test('shows each value shape: single values in the row, lists and records as tables', async ({page}) => {
+    await openStory(page, `${PREFIX}kinds`);
+    const output = (field: string) => page.getByTestId(`output-node-output-${field}`);
+    await expect(output('amount').getByTestId('output-value')).toHaveText('2501', {timeout: 15_000});
+    await expect(output('label')).toHaveAttribute('data-shape', 'scalar');
+    await expect(output('scores')).toHaveAttribute('data-shape', 'list');
+    await expect(output('applicant')).toHaveAttribute('data-shape', 'record');
+    await expect(output('offers').getByTestId('output-value')).toHaveText('3 rows × 3 columns');
+    await expect(output('schedule').getByTestId('output-value')).toHaveText('12 rows × 5 columns');
+});

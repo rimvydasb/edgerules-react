@@ -41,6 +41,18 @@ test('mortgageBook charts the repayment plan and shows its outputs', async ({pag
 
     const payment = page.getByTestId('output-node-output');
     await expect(payment.getByTestId('output-value')).toHaveText('1354.35');
+    // The cost record and the repayment schedule show as tables.
+    await expect(page.getByTestId('output-node-output2').getByTestId('output-value')).toHaveText('2 fields');
+    const schedule = page.getByTestId('output-node-output3');
+    await expect(schedule.getByTestId('output-value')).toHaveText('300 rows × 5 columns');
+    await expect(schedule.getByTestId('output-table').getByRole('columnheader')).toHaveText([
+        '#',
+        'period',
+        'payment',
+        'interest',
+        'principal',
+        'balance',
+    ]);
     // The title stays whole next to the long source path; the path is the part that is cut. Element pixels, not
     // screen pixels: the canvas zoom scales the bounding box.
     const title = payment.getByText('Monthly payment', {exact: true});

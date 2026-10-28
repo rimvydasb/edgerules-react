@@ -1,6 +1,6 @@
 import {MutableDecisionService} from '@edgerules/node/mutable';
 import {ReactFlow, ReactFlowProvider, type Edge} from '@xyflow/react';
-import {render, screen, waitFor} from '@testing-library/react';
+import {render, screen, waitFor, within} from '@testing-library/react';
 import {describe, expect, it} from 'vitest';
 import {FlowEditorProvider} from '../../FlowEditorProvider';
 import {FunctionNode} from '../../function-node/FunctionNode';
@@ -10,8 +10,18 @@ import {OutputNode, formatValue, sourcePath} from '../OutputNode';
 
 const nodeTypes = {functionNode: FunctionNode, outputNode: OutputNode};
 
+// The sample model with results that are lists: of records, and of numbers.
+const MODEL = SAMPLE_MODEL.replace(
+    /}$/,
+    `  func tiers(base: number): [{ name: "prime"; limit: base }, { name: "standard"; limit: base * 2 }]
+  func sequence(start: number): [start, start + 1, start + 2]
+  rows: tiers(base: 1000)
+  numbers: sequence(start: 1)
+}`,
+);
+
 function renderOutput(wire?: {source: string; handle: string}) {
-    const mutable = MutableDecisionService.fromCode(SAMPLE_MODEL);
+    const mutable = MutableDecisionService.fromCode(MODEL);
     const service = createFlowEditorService(mutable);
     const edges: Edge[] = wire
         ? [{id: 'wire', source: wire.source, sourceHandle: wire.handle, target: 'out', targetHandle: 'in:value'}]
@@ -24,6 +34,8 @@ function renderOutput(wire?: {source: string; handle: string}) {
                         nodes={[
                             {id: 'decision', type: 'functionNode', position: {x: 0, y: 0}, data: {field: 'decision'}},
                             {id: 'payment', type: 'functionNode', position: {x: 0, y: 300}, data: {field: 'payment'}},
+                            {id: 'rows', type: 'functionNode', position: {x: 0, y: 600}, data: {field: 'rows'}},
+                            {id: 'numbers', type: 'functionNode', position: {x: 0, y: 900}, data: {field: 'numbers'}},
                             {id: 'out', type: 'outputNode', position: {x: 500, y: 0}, data: {}, width: 200, height: 80},
                         ]}
                         edges={edges}
@@ -58,6 +70,39 @@ describe('OutputNode', () => {
         await waitFor(() => expect(screen.getByTestId('output-value')).toHaveTextContent("'high'"));
         service.renameField('decision', 'verdict'); // the wire still reads decision.level, which is gone now
         expect(await screen.findByRole('alert')).toBeInTheDocument();
+    });
+
+    it('shows a list of records as a table under the value row', async () => {
+        renderOutput({source: 'rows', handle: 'out:result'});
+        const table = await screen.findByTestId('output-table');
+        expect(screen.getByTestId('output-node-out')).toHaveAttribute('data-shape', 'table');
+        expect(screen.getByTestId('output-value')).toHaveTextContent('2 rows × 2 columns');
+        expect(
+            within(table)
+                .getAllByRole('columnheader')
+                .map((cell) => cell.textContent),
+        ).toEqual(['#', 'name', 'limit']);
+        expect(within(table).getAllByRole('row')).toHaveLength(3);
+        expect(within(table).getByText('prime')).toBeInTheDocument();
+    });
+
+    it('shows a record as a table of fields', async () => {
+        renderOutput({source: 'decision', handle: 'out:*'});
+        const table = await screen.findByTestId('output-table');
+        expect(screen.getByTestId('output-value')).toHaveTextContent('2 fields');
+        expect(within(table).getByRole('rowheader', {name: 'level'})).toBeInTheDocument();
+        expect(within(table).getByText('high')).toBeInTheDocument();
+    });
+
+    it('shows a list of values as a numbered list', async () => {
+        renderOutput({source: 'numbers', handle: 'out:result'});
+        const table = await screen.findByTestId('output-table');
+        expect(screen.getByTestId('output-value')).toHaveTextContent('3 items');
+        expect(
+            within(table)
+                .getAllByRole('rowheader')
+                .map((cell) => cell.textContent),
+        ).toEqual(['1', '2', '3']);
     });
 
     it('shows the error row when the wired path does not exist', async () => {

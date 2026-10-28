@@ -185,7 +185,10 @@ export const LoanRepaymentDecisionTable: Story = {
     loaders: loanRepaymentLoaders,
 };
 
-/** The `mortgageBook` workbook: the repayment plan, two outputs, the remaining balance and the yearly split. */
+/**
+ * The `mortgageBook` workbook: the repayment plan, the monthly payment, the cost of the loan and the repayment schedule
+ * as tables, the remaining balance and the yearly split.
+ */
 export const LoanRepaymentMortgageBook: Story = {
     args: {defaultExplorerOpen: true, defaultPath: 'mortgageBook', defaultView: 'flow'},
     loaders: loanRepaymentLoaders,

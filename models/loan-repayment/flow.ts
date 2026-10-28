@@ -20,6 +20,11 @@ export const LOAN_REPAYMENT_FLOW: FlowMetadataDocument = {
                     label: 'Cost of the loan',
                     source: {node: 'mortgageBook.repayment', handle: 'out:cost'},
                 },
+                {
+                    id: 'output3',
+                    label: 'Repayment schedule',
+                    source: {node: 'mortgageBook.repayment', handle: 'out:schedule'},
+                },
             ],
             charts: [
                 {

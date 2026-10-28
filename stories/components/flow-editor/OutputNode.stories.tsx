@@ -1,8 +1,16 @@
 import '@xyflow/react/dist/style.css';
-import {useMemo, type ReactElement} from 'react';
+import {useEffect, useMemo, type ReactElement} from 'react';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import {expect, within} from 'storybook/test';
-import {ReactFlow, ReactFlowProvider, type Edge, type Node} from '@xyflow/react';
+import {expect, waitFor, within} from 'storybook/test';
+import {
+    ReactFlow,
+    ReactFlowProvider,
+    useNodesInitialized,
+    useNodesState,
+    useReactFlow,
+    type Edge,
+    type Node,
+} from '@xyflow/react';
 import {init, MutableDecisionService} from '@edgerules/web/mutable';
 import {
     createFlowEditorService,
@@ -27,6 +35,49 @@ const SAMPLE_MODEL = `{
   decision: risk(age: applicant.age, income: applicant.income, segment: applicant.segment)
   payment: monthly(amount: application.amount * 1.1)
 }`;
+
+// One function whose result has a field of every value shape that an OutputNode draws.
+const KINDS_MODEL = `{
+  func showcase(seed: number): {
+    amount: seed * 1250.5
+    label: "approved"
+    approved: true
+    dueDate: date("2026-11-01")
+    scores: [seed, seed * 2, seed * 3, 5, 8]
+    tags: ["retail", "prime", "new"]
+    applicant: { name: "Ada"; age: 37; vip: false }
+    nested: { pricing: { tier: "prime"; premium: 0.005 }; history: [1, 2, 3, 4, 5, 6, 7] }
+    offers: [
+      { tier: "prime"; rate: 0.04; approved: true }
+      { tier: "standard"; rate: 0.055; approved: true }
+      { tier: "near-prime"; rate: 0.07; approved: false }
+    ]
+    schedule: amortizationSchedule(12000, 0.05 / 12, 12)
+  }
+  samples: showcase(seed: 2)
+}`;
+
+// The outputs of the kinds story in columns: [result field, title].
+const KIND_COLUMNS: [string, string][][] = [
+    [
+        ['amount', 'Number'],
+        ['label', 'Text'],
+        ['approved', 'Boolean'],
+        ['dueDate', 'Date'],
+    ],
+    [
+        ['scores', 'List of numbers'],
+        ['tags', 'List of text'],
+    ],
+    [
+        ['applicant', 'Record'],
+        ['nested', 'Record with nested values'],
+    ],
+    [
+        ['offers', 'List of records'],
+        ['schedule', 'Amortization schedule'],
+    ],
+];
 
 const nodeTypes = {functionNode: FunctionNode, outputNode: OutputNode};
 
@@ -53,6 +104,62 @@ function Canvas({
             <FlowEditorProvider service={service}>
                 <div style={{width: '100%', height: 420}}>
                     <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={false} fitView />
+                </div>
+            </FlowEditorProvider>
+        </ReactFlowProvider>
+    );
+}
+
+// The kinds story's canvas: the function on the left, its outputs in columns on the right.
+const KIND_OUTPUTS = KIND_COLUMNS.flatMap((column, x) =>
+    column.map(([field, label], y) => ({field, label, position: {x: 1000 + x * 480, y: y * (x === 0 ? 120 : 400)}})),
+);
+const KIND_NODES: Node[] = [
+    {id: 'samples', type: 'functionNode', position: {x: 0, y: 0}, data: {field: 'samples'}},
+    ...KIND_OUTPUTS.map(({field, label, position}) => ({
+        id: `output-${field}`,
+        type: 'outputNode',
+        position,
+        data: {label},
+    })),
+];
+const KIND_EDGES: Edge[] = KIND_OUTPUTS.map(({field}) => ({
+    id: field,
+    source: 'samples',
+    sourceHandle: `out:${field}`,
+    target: `output-${field}`,
+    targetHandle: 'in:value',
+}));
+
+// xyflow fits the first nodes it measures; this fits again once it has measured them all.
+function FitWhenMeasured(): null {
+    const measured = useNodesInitialized();
+    const {fitView} = useReactFlow();
+    useEffect(() => {
+        if (measured) void fitView();
+    }, [measured, fitView]);
+    return null;
+}
+
+function KindsCanvas(): ReactElement {
+    const service = useMemo(() => createFlowEditorService(MutableDecisionService.fromCode(KINDS_MODEL) as never), []);
+    // Controlled nodes keep what xyflow measures, so the first fit sees the size of every node.
+    const [nodes, , onNodesChange] = useNodesState(KIND_NODES);
+
+    return (
+        <ReactFlowProvider>
+            <FlowEditorProvider service={service}>
+                <div style={{width: '100%', height: '100vh'}}>
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={KIND_EDGES}
+                        onNodesChange={onNodesChange}
+                        nodeTypes={nodeTypes}
+                        fitView
+                        minZoom={0.2}
+                    >
+                        <FitWhenMeasured />
+                    </ReactFlow>
                 </div>
             </FlowEditorProvider>
         </ReactFlowProvider>
@@ -94,3 +201,25 @@ export const UnnamedResult: Story = {args: {source: 'payment', handle: 'out:resu
 
 /** The wired path is not in the model: the node shows the error row. */
 export const MissingPath: Story = {args: {source: 'decision', handle: 'out:missing'}};
+
+/**
+ * Every value shape side by side: a single value shows in the value row; a list, a list of records and a record show
+ * as a table under it. The wheel scrolls a long table, not the canvas.
+ */
+export const Kinds: Story = {
+    render: () => <KindsCanvas />,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement);
+        const expectShape = (field: string, shape: string) =>
+            waitFor(
+                () => expect(canvas.getByTestId(`output-node-output-${field}`)).toHaveAttribute('data-shape', shape),
+                SLOW,
+            );
+        for (const field of ['amount', 'label', 'approved', 'dueDate']) await expectShape(field, 'scalar');
+        await expectShape('scores', 'list');
+        await expectShape('applicant', 'record');
+        await expectShape('offers', 'table');
+        await expectShape('schedule', 'table');
+        await expect(canvas.getByText('12 rows × 5 columns')).toBeVisible();
+    },
+};
