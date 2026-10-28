@@ -17,27 +17,45 @@ function sectionCount(label: string): string | null | undefined {
 }
 
 describe('ProjectExplorer sections', () => {
-    it('renders the five sections in order, collapsed, with their member counts', () => {
+    it('renders the five sections in order, expanded, with their member counts', () => {
         render(<ProjectExplorer service={buildService()} testSubjects={['*']} />);
 
         const tree = screen.getByRole('tree');
         const headers = within(tree)
             .getAllByRole('treeitem')
-            .map((item) => item.querySelector('span span:nth-child(2)')?.textContent);
+            .filter((item) => item.dataset.level === '1')
+            .map((item) => item.querySelector('span span')?.textContent);
         expect(headers).toEqual(['Types', 'Methods', 'Variables', 'Workbooks', 'Tests']);
         expect(sectionCount('Types')).toBe('2');
         expect(sectionCount('Methods')).toBe('4');
         expect(sectionCount('Variables')).toBe('3');
         expect(sectionCount('Workbooks')).toBe('1');
         expect(sectionCount('Tests')).toBe('1');
-        expect(screen.queryByText('riskScore()')).toBeNull();
+        expect(screen.getAllByText('riskScore()')).toHaveLength(1);
     });
 
-    it('shows every method by its qualified path, nested ones included', async () => {
+    it('filters the entries by the search, and hides the sections without matches', async () => {
         const user = userEvent.setup();
+        render(<ProjectExplorer service={buildService()} testSubjects={['*']} />);
+
+        await user.type(screen.getByRole('textbox', {name: 'Search project'}), 'DECI');
+        expect(screen.getByText('decision')).toBeInTheDocument();
+        expect(screen.getByText('loanBook')).toBeInTheDocument();
+        expect(screen.queryByText('applicant')).toBeNull();
+        expect(screen.queryByText('Types')).toBeNull();
+        expect(sectionCount('Workbooks')).toBe('1');
+
+        await user.clear(screen.getByRole('textbox', {name: 'Search project'}));
+        await user.type(screen.getByRole('textbox', {name: 'Search project'}), 'nothing');
+        expect(screen.getByText('No entries match “nothing”')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', {name: 'Clear search'}));
+        expect(screen.getByText('Types')).toBeInTheDocument();
+    });
+
+    it('shows every method by its qualified path, nested ones included', () => {
         render(<ProjectExplorer service={buildService()} />);
 
-        await user.click(screen.getByText('Methods'));
         expect(screen.getByText('riskScore()')).toBeInTheDocument();
         expect(screen.getByText('risk()')).toBeInTheDocument();
         expect(screen.getByText('nested.deep()')).toBeInTheDocument();
@@ -48,7 +66,6 @@ describe('ProjectExplorer sections', () => {
         const user = userEvent.setup();
         render(<ProjectExplorer service={buildService()} />);
 
-        await user.click(screen.getByText('Workbooks'));
         await user.click(screen.getByText('loanBook'));
         expect(screen.getByText('applicant')).toBeInTheDocument();
         expect(screen.getByText('decision')).toBeInTheDocument();
@@ -65,17 +82,13 @@ describe('ProjectExplorer sections', () => {
         render(<ProjectExplorer service={service} />);
         expect(getSpy).toHaveBeenCalledTimes(2);
 
-        await user.click(screen.getByText('Variables'));
-        await user.click(screen.getByText('Workbooks'));
         await user.click(screen.getByText('loanBook'));
         expect(getSpy).toHaveBeenCalledTimes(2);
     });
 
-    it('re-reads the model when the revision changes, keeping the sections expanded', async () => {
+    it('re-reads the model when the revision changes, keeping the sections expanded', () => {
         const service = buildService('{ a: 1; b: 2 }');
-        const user = userEvent.setup();
         const {rerender} = render(<ProjectExplorer service={service} revision={0} />);
-        await user.click(screen.getByText('Variables'));
         expect(screen.getByText('a')).toBeInTheDocument();
 
         service.remove('a');
@@ -102,6 +115,8 @@ describe('ProjectExplorer open', () => {
         const user = userEvent.setup();
         render(<ProjectExplorer service={buildService()} testSubjects={['*']} onOpen={onOpen} />);
 
+        // A section header collapses and expands its section; it opens nothing.
+        await user.click(screen.getByText(section));
         await user.click(screen.getByText(section));
         expect(onOpen).not.toHaveBeenCalled();
         await user.click(screen.getByText(label));
@@ -113,7 +128,6 @@ describe('ProjectExplorer open', () => {
         const user = userEvent.setup();
         render(<ProjectExplorer service={buildService()} onOpen={onOpen} />);
 
-        await user.click(screen.getByText('Workbooks'));
         await user.click(screen.getByText('loanBook'));
         await user.click(screen.getByText('decision'));
         expect(onOpen).toHaveBeenLastCalledWith({kind: 'function-node', path: 'loanBook.decision'});
@@ -223,14 +237,32 @@ describe('ProjectExplorer create', () => {
 });
 
 describe('ProjectExplorer header', () => {
-    it('renders a close button only with onClose', async () => {
-        const onClose = vi.fn();
+    it('renders a hide button only with onCollapsedChange', async () => {
+        const onCollapsedChange = vi.fn();
         const user = userEvent.setup();
         const {rerender} = render(<ProjectExplorer service={buildService()} />);
         expect(screen.queryByRole('button', {name: 'Hide project explorer'})).toBeNull();
 
-        rerender(<ProjectExplorer service={buildService()} onClose={onClose} />);
+        rerender(<ProjectExplorer service={buildService()} onCollapsedChange={onCollapsedChange} />);
         await user.click(screen.getByRole('button', {name: 'Hide project explorer'}));
-        expect(onClose).toHaveBeenCalledOnce();
+        expect(onCollapsedChange).toHaveBeenCalledWith(true);
+    });
+
+    it('shows a rail of section icons when collapsed; an icon expands only its section', async () => {
+        const user = userEvent.setup();
+        const service = buildService();
+        const onCollapsedChange = vi.fn();
+        const {rerender} = render(
+            <ProjectExplorer service={service} collapsed onCollapsedChange={onCollapsedChange} />,
+        );
+        expect(screen.queryByRole('tree')).toBeNull();
+
+        await user.click(screen.getByRole('button', {name: 'Show Workbooks'}));
+        expect(onCollapsedChange).toHaveBeenCalledWith(false);
+
+        rerender(<ProjectExplorer service={service} onCollapsedChange={onCollapsedChange} />);
+        expect(screen.getByText('loanBook')).toBeInTheDocument();
+        expect(screen.queryByText('Person')).toBeNull();
+        expect(screen.queryByText('riskScore()')).toBeNull();
     });
 });

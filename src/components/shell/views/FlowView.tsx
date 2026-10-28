@@ -41,6 +41,7 @@ export function FlowView({
             defaultLayout={defaultLayout}
             onLayoutChange={onLayoutChange}
             focusNode={focusNode}
+            defaultPaletteCollapsed
         />
     );
 }

@@ -116,8 +116,8 @@ type Story = StoryObj<typeof HostedShell>;
 /** The whole model in the Boxed view. */
 export const Default: Story = {args: {}};
 
-/** The Project Explorer is open; the kind icon of the header and the close button of the panel toggle it. */
-export const WithProjectExplorer: Story = {args: {defaultExplorerOpen: true}};
+/** The Project Explorer collapsed to its rail of section icons; an icon opens the panel with that section. */
+export const CollapsedProjectExplorer: Story = {args: {defaultExplorerOpen: false}};
 
 /** The DSL code of a context path; an edit commits after 500 ms without typing. */
 export const CodeOfAContext: Story = {args: {defaultPath: 'applicant', defaultView: 'code'}};
@@ -159,13 +159,12 @@ export const Project: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement);
         const explorer = await canvas.findByRole('navigation', {name: 'Project explorer'});
-        await userEvent.click(within(explorer).getByText('Workbooks'));
         await userEvent.click(within(explorer).getByText('loanBook'));
         await expect(canvas.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
         await userEvent.click(await within(explorer).findByText('decision'));
         await expect(canvas.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
-        await userEvent.click(within(explorer).getByText('Tests'));
-        await userEvent.click(within(explorer).getByText('riskScore()'));
+        // The second `riskScore()` is the entry of the Tests section.
+        await userEvent.click(within(explorer).getAllByText('riskScore()')[1]!);
         await expect(await canvas.findByTestId('shell-tests-view')).toBeInTheDocument();
     },
 };

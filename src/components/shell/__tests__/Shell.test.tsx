@@ -107,22 +107,25 @@ describe('Shell breadcrumb', () => {
 });
 
 describe('Shell project explorer', () => {
-    it('opens with the kind icon and closes with its close button or the kind icon', async () => {
+    it('starts open; its hide button or the kind icon collapses it to a rail, and a rail icon opens one section', async () => {
         const user = userEvent.setup();
         await renderShell();
-        expect(screen.queryByRole('navigation', {name: 'Project explorer'})).toBeNull();
-
-        await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
-        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
-        expect(within(explorer).getByText('Variables')).toBeInTheDocument();
+        const explorer = () => screen.getByRole('navigation', {name: 'Project explorer'});
+        expect(within(explorer()).getByText('limit')).toBeInTheDocument();
         expect(screen.getAllByRole('button', {name: 'Hide project explorer'})).toHaveLength(2);
 
-        await user.click(within(explorer).getByRole('button', {name: 'Hide project explorer'}));
-        expect(screen.queryByRole('navigation', {name: 'Project explorer'})).toBeNull();
+        await user.click(within(explorer()).getByRole('button', {name: 'Hide project explorer'}));
+        expect(within(explorer()).queryByRole('tree')).toBeNull();
+        expect(screen.getByRole('button', {name: 'Show project explorer'})).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
+        await user.click(within(explorer()).getByRole('button', {name: 'Show Variables'}));
+        expect(within(explorer()).getByText('limit')).toBeInTheDocument();
+        expect(within(explorer()).queryByText('Customer')).toBeNull();
+
         await user.click(screen.getByRole('button', {name: 'Hide project explorer', pressed: true}));
-        expect(screen.queryByRole('navigation', {name: 'Project explorer'})).toBeNull();
+        expect(within(explorer()).queryByRole('tree')).toBeNull();
+        await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
+        expect(within(explorer()).getByRole('tree')).toBeInTheDocument();
     });
 
     it('opens a clicked entry at its path in the active view', async () => {
@@ -130,19 +133,16 @@ describe('Shell project explorer', () => {
         const {session, onPathChange} = await renderShell({defaultExplorerOpen: true, defaultView: 'code'});
         const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
 
-        await user.click(within(explorer).getByText('Variables'));
         await user.click(within(explorer).getByText('applicant'));
         expect(onPathChange).toHaveBeenLastCalledWith('applicant');
         expect(breadcrumbItems()).toEqual(['Model', 'applicant']);
         expect(codeView().state.doc.toString()).toBe(session.engine.getCode('applicant'));
 
         await user.click(screen.getByRole('radio', {name: 'Boxed'}));
-        await user.click(within(explorer).getByText('Methods'));
         await user.click(within(explorer).getByText('applicant.calculateAge()'));
         expect(onPathChange).toHaveBeenLastCalledWith('applicant.calculateAge');
         expect(breadcrumbItems()).toEqual(['Model', 'applicant', 'calculateAge(...)']);
 
-        await user.click(within(explorer).getByText('Types'));
         await user.click(within(explorer).getByText('Customer'));
         expect(breadcrumbItems()).toEqual(['Model', 'Customer']);
         expect(screen.getByRole('treegrid')).toHaveTextContent('income');
@@ -157,13 +157,11 @@ describe('Shell project explorer', () => {
         const {onViewChange} = await renderShell({defaultExplorerOpen: true, defaultView: 'flow'});
         const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
 
-        await user.click(within(explorer).getByText('Variables'));
         await user.click(within(explorer).getByText('applicant'));
         expect(breadcrumbItems()).toEqual(['Model', 'applicant']);
         expect(screen.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
         expect(onViewChange).not.toHaveBeenCalled();
 
-        await user.click(within(explorer).getByText('Types'));
         await user.click(within(explorer).getByText('Customer'));
         expect(onViewChange).toHaveBeenLastCalledWith('boxed');
         expect(breadcrumbItems()).toEqual(['Model', 'Customer']);
@@ -175,7 +173,6 @@ describe('Shell project explorer', () => {
         const {onViewChange} = await renderShell({defaultExplorerOpen: true, defaultView: 'flow'}, session);
         const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
 
-        await user.click(within(explorer).getByText('Workbooks'));
         await user.click(within(explorer).getByText('loanBook'));
         expect(breadcrumbItems()).toEqual(['Model', 'loanBook']);
         expect(await screen.findByTestId('function-node-loanBook.decision')).toBeInTheDocument();
@@ -190,17 +187,36 @@ describe('Shell project explorer', () => {
         );
     });
 
-    it('opens a workbook node at its path in the Boxed view', async () => {
+    it('opens a workbook and its nodes in the Flow view from any other view', async () => {
         const {session} = await openFixtureProject({model: {dsl: WORKBOOK_MODEL}});
         const user = userEvent.setup();
-        await renderShell({defaultExplorerOpen: true}, session);
+        const {onViewChange} = await renderShell({defaultView: 'code'}, session);
         const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
 
-        await user.click(within(explorer).getByText('Workbooks'));
         await user.click(within(explorer).getByText('loanBook'));
+        expect(onViewChange).toHaveBeenLastCalledWith('flow');
+        expect(breadcrumbItems()).toEqual(['Model', 'loanBook']);
+
+        // The first click expanded the workbook.
+        await user.click(screen.getByRole('radio', {name: 'Boxed'}));
         await user.click(within(explorer).getByText('decision'));
-        expect(breadcrumbItems()).toEqual(['Model', 'loanBook', 'decision']);
-        expect(screen.getByTestId('row-loanBook.decision')).toBeInTheDocument();
+        expect(onViewChange).toHaveBeenLastCalledWith('flow');
+        expect(breadcrumbItems()).toEqual(['Model', 'loanBook']);
+        expect(await screen.findByTestId('function-node-loanBook.decision')).toBeInTheDocument();
+    });
+
+    it('opens the model root as the workbook when its nodes have no @Workbook context', async () => {
+        const {session} = await openFixtureProject({
+            model: {dsl: `{ @InputNode applicant: { income: 5000 }\n limit: 10 }`},
+        });
+        const user = userEvent.setup();
+        const {onViewChange} = await renderShell({defaultPath: 'limit'}, session);
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+
+        await user.click(within(explorer).getByText('Model'));
+        expect(onViewChange).toHaveBeenLastCalledWith('flow');
+        expect(breadcrumbItems()).toEqual(['Model']);
+        expect(await screen.findByTestId('input-node-applicant')).toBeInTheDocument();
     });
 
     it('opens the tests of a subject in the Tests view, with no other view', async () => {
@@ -210,8 +226,8 @@ describe('Shell project explorer', () => {
         const {onViewChange} = await renderShell({defaultExplorerOpen: true}, session);
         const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
 
-        await user.click(within(explorer).getByText('Tests'));
-        await user.click(within(explorer).getByText('riskScore()'));
+        // The second `riskScore()` is the entry of the Tests section.
+        await user.click(within(explorer).getAllByText('riskScore()')[1]!);
         expect(onViewChange).toHaveBeenLastCalledWith('tests');
         expect(breadcrumbItems()).toEqual(['Model', 'riskScore(...)']);
         expect(screen.queryByRole('radiogroup', {name: 'View'})).toBeNull();
@@ -233,8 +249,8 @@ describe('Shell project explorer', () => {
         await user.click(await screen.findByRole('menuitem', {name: 'riskScore()'}));
 
         expect(session.tests.forSubject('riskScore').listTestCases()).toHaveLength(1);
-        // The Tests section expands with the new subject; Methods stays collapsed.
-        expect(within(explorer).getByText('riskScore()')).toBeInTheDocument();
+        // The Tests section lists the new subject next to the method.
+        expect(within(explorer).getAllByText('riskScore()')).toHaveLength(2);
         expect(breadcrumbItems()).toEqual(['Model', 'riskScore(...)']);
         expect(screen.getByTestId('shell-tests-view')).toBeInTheDocument();
     });
@@ -268,7 +284,7 @@ describe('Shell project explorer', () => {
 
         await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
         expect(onExplorerOpenChange).toHaveBeenCalledWith(true);
-        expect(screen.queryByRole('navigation', {name: 'Project explorer'})).toBeNull();
+        expect(screen.queryByRole('tree')).toBeNull();
     });
 });
 
@@ -316,7 +332,7 @@ describe('Shell view switch', () => {
 
         // The kind icon, the Project Explorer toggle, comes first.
         await user.tab();
-        expect(screen.getByRole('button', {name: 'Show project explorer'})).toHaveFocus();
+        expect(screen.getByRole('button', {name: 'Hide project explorer', pressed: true})).toHaveFocus();
         await user.tab();
         expect(screen.getByRole('radio', {name: 'Code'})).toHaveFocus();
         await user.keyboard('{ArrowRight}');
@@ -588,6 +604,8 @@ describe('Shell Flow view', () => {
         });
         const user = userEvent.setup();
         await renderShell({defaultView: 'flow', defaultPath: 'applicant'}, session);
+        // The node palette of the Shell starts collapsed.
+        await user.click(await screen.findByRole('button', {name: 'Show node palette'}));
 
         await user.click(screen.getByRole('button', {name: 'Add input applicant.profile'}));
         expect(await screen.findByTestId('input-node-applicant.profile')).toBeInTheDocument();

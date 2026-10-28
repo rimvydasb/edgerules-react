@@ -45,6 +45,48 @@
   padding: 6px;
 }
 
+/* The sections are spaced like the groups of the Flow Editor node palette. */
+.tree > li + li {
+  margin-top: 10px;
+}
+
+.search {
+  padding: 10px 10px 4px;
+}
+
+.empty {
+  padding: 16px 14px;
+  color: var(--mantine-color-dimmed);
+  font-size: 12.5px;
+}
+
+/* The collapsed panel: one icon per section, in a rail as wide as the icon square of the Shell header. */
+.rail {
+  align-items: stretch;
+  gap: 2px;
+  padding-top: 6px;
+}
+
+.railItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.railItem:hover {
+  background: var(--pe-muted);
+}
+
+.railItem:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
 .error {
   margin: 10px;
 }
@@ -55,7 +97,9 @@
   align-items: center;
   gap: 6px;
   min-height: 30px;
-  padding: 3px 6px 3px 2px;
+  padding: 3px 6px;
+  /* The tree level offset: a child's chevron sits below its parent's icon. */
+  padding-inline-start: calc(var(--label-offset) + 2px);
   border: 1px solid transparent;
   border-radius: var(--mantine-radius-sm);
   cursor: pointer;
@@ -73,7 +117,22 @@
   border-color: var(--mantine-primary-color-filled);
 }
 
-.node[data-selected] {
+/* A section header is a palette group label: no kind tile, no row highlight. */
+.heading {
+  min-height: 26px;
+}
+
+.heading:hover,
+.heading[data-selected] {
+  border-color: transparent;
+  background: none;
+}
+
+.heading:hover .group {
+  color: var(--mantine-color-text);
+}
+
+.node[data-selected]:not(.heading) {
   background: var(--mantine-primary-color-light);
 }
 

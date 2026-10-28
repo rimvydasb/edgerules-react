@@ -33,7 +33,7 @@ export function Shell({
     onViewChange,
     readOnly,
     explorerOpen: explorerOpenProp,
-    defaultExplorerOpen = false,
+    defaultExplorerOpen = true,
     onExplorerOpenChange,
     onOpenNode,
     className,
@@ -129,15 +129,16 @@ export function Shell({
     const dslError = dslValidity.status === 'invalid' ? dslValidity.message : undefined;
     const status = view === 'tests' ? undefined : root === '*' ? dslError : codeErrors[root];
 
-    const explorer = explorerOpen && (
+    const explorer = (
         <ProjectExplorer
-            className={classes.explorer}
+            className={cx(classes.explorer, !explorerOpen && classes.explorerCollapsed)}
+            collapsed={!explorerOpen}
             service={session.engine}
             revision={version}
             rootLabel="Project"
             testSubjects={testSubjects}
             readOnly={readOnly}
-            onClose={() => setExplorerOpen(false)}
+            onCollapsedChange={(collapsed) => setExplorerOpen(!collapsed)}
             onOpen={(target) => navigate(explorerRoute(target, view, session.engine.toPortable()))}
             onCreateTest={(subjectId) => session.tests.forSubject(subjectId).addTestCase()}
         />

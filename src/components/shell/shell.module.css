@@ -39,6 +39,12 @@
   border: 1px solid var(--sh-border);
 }
 
+/* The collapsed Project Explorer is a rail of section icons, one header icon square wide: its right frame line
+ * continues the right line of the kind icon square. */
+.explorerCollapsed {
+  flex-basis: 41px;
+}
+
 .root *,
 .root *::before,
 .root *::after {

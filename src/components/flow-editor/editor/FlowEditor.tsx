@@ -181,7 +181,8 @@ function FlowCanvas({
     defaultLayout,
     onLayoutChange,
     focusNode,
-}: Pick<FlowEditorProps, 'defaultLayout' | 'onLayoutChange' | 'focusNode'>) {
+    defaultPaletteCollapsed = false,
+}: Pick<FlowEditorProps, 'defaultLayout' | 'onLayoutChange' | 'focusNode' | 'defaultPaletteCollapsed'>) {
     const {service, readOnly = false} = useFlowEditor();
     const flow = useReactFlow();
     const colorScheme = useComputedColorScheme('light');
@@ -192,7 +193,7 @@ function FlowCanvas({
     const [charts, setCharts] = useState<FlowChart[]>(() => defaultLayout?.charts ?? []);
     const [nodes, setNodes] = useState<Node[]>([]);
     const [selectedEdges, setSelectedEdges] = useState<ReadonlySet<string>>(new Set());
-    const [collapsed, setCollapsed] = useState(false);
+    const [collapsed, setCollapsed] = useState(defaultPaletteCollapsed);
     // Positions of nodes about to appear: a drop or a click on the palette, then the saved layout.
     const pending = useRef(new Map<string, XYPosition>(Object.entries(defaultLayout?.positions ?? {})));
     const select = useRef<string | undefined>(undefined);

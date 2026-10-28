@@ -22,17 +22,19 @@ describe('explorerRoute', () => {
     it.each<[ShellView, ProjectExplorerOpenTarget, ReturnType<typeof explorerRoute>]>([
         // The active view stays when it can show the entry.
         ['code', {kind: 'type', path: 'Customer'}, {path: 'Customer', view: 'code'}],
-        ['boxed', {kind: 'workbook', path: 'book'}, {path: 'book', view: 'boxed'}],
         ['flow', {kind: 'context', path: 'applicant'}, {path: 'applicant', view: 'flow'}],
         ['flow', {kind: 'function', path: 'riskScore'}, {path: 'riskScore', view: 'flow'}],
-        ['boxed', {kind: 'function-node', path: 'book.score'}, {path: 'book.score', view: 'boxed'}],
-        // A workbook node in the Flow view: the canvas of its workbook, centered on the node.
+        // A workbook and its nodes always open in the Flow view; a node is centered on the canvas of its workbook.
+        ['boxed', {kind: 'workbook', path: 'book'}, {path: 'book', view: 'flow'}],
+        ['code', {kind: 'workbook', path: '*'}, {path: '*', view: 'flow'}],
+        ['tests', {kind: 'workbook', path: 'book'}, {path: 'book', view: 'flow'}],
+        ['boxed', {kind: 'function-node', path: 'book.score'}, {path: 'book', view: 'flow', focus: 'book.score'}],
         ['flow', {kind: 'function-node', path: 'book.score'}, {path: 'book', view: 'flow', focus: 'book.score'}],
+        ['code', {kind: 'input-node', path: 'applicant'}, {path: '*', view: 'flow', focus: 'applicant'}],
         // An entry without Flow, from the Flow view.
         ['flow', {kind: 'type', path: 'Customer'}, {path: 'Customer', view: 'boxed'}],
         ['flow', {kind: 'variable', path: 'limit'}, {path: 'limit', view: 'boxed'}],
-        // From the Tests view: the default view of the section.
-        ['tests', {kind: 'workbook', path: 'book'}, {path: 'book', view: 'flow'}],
+        // From the Tests view: the Boxed view.
         ['tests', {kind: 'function', path: 'riskScore'}, {path: 'riskScore', view: 'boxed'}],
         // A test always opens in the Tests view.
         ['code', {kind: 'test', path: '*'}, {path: '*', view: 'tests'}],

@@ -12,6 +12,7 @@ export interface FlowEditorProps {
     defaultLayout?: FlowLayout; // positions and output nodes to start from; read on mount only
     onLayoutChange?: (layout: FlowLayout) => void; // after a node is moved, added or removed, or an output is rewired
     focusNode?: FlowFocusRequest; // a new object selects that node and centers the view on it
+    defaultPaletteCollapsed?: boolean; // the node palette starts as the rail of node types; defaults to false
 }
 
 /** Asks the canvas to select one node and center it; each new object is a new request. */

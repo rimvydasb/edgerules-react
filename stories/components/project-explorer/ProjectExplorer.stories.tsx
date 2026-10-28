@@ -12,7 +12,7 @@ async function buildService(code: string) {
 const meta: Meta<typeof ProjectExplorer> = {
     title: 'Project Explorer/ProjectExplorer',
     component: ProjectExplorer,
-    args: {onClose: fn()},
+    args: {onCollapsedChange: fn()},
     // A side panel: fixed width, full height, with a frame like the Node palette of the Flow Editor.
     decorators: [
         (Story) => (
@@ -39,16 +39,13 @@ export const Default: Story = {
     render: (args, {loaded}) => <ProjectExplorer {...args} service={loaded.service} style={{flex: 1}} />,
 };
 
-/** Every section open, the workbook expanded to its nodes, and the tests of two subjects. */
+/** The workbook expanded to its nodes, and the tests of two subjects. */
 export const Expanded: Story = {
     args: {testSubjects: ['*', 'riskScore'], onOpen: fn(), onCreateTest: fn()},
     loaders: [async () => ({service: await buildService(MODEL_DSL)})],
     render: (args, {loaded}) => <ProjectExplorer {...args} service={loaded.service} style={{flex: 1}} />,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement);
-        for (const section of ['Types', 'Methods', 'Variables', 'Workbooks', 'Tests']) {
-            await userEvent.click(await canvas.findByText(section));
-        }
         await userEvent.click(await canvas.findByText('loanBook'));
     },
 };

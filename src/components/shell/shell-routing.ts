@@ -23,16 +23,15 @@ function parentPath(path: string): string {
 }
 
 /**
- * The active view stays when it can show the entry. A workbook node in the Flow view is centered on the canvas of its
- * workbook. From the Tests view, or from the Flow view for an entry without Flow, the entry opens in the default view
- * of its section: Flow for a workbook, Boxed for every other entry.
+ * A workbook and its nodes always open in the Flow view: a node is centered on the canvas of its workbook. For any
+ * other entry the active view stays when it can show the entry; from the Tests view, or from the Flow view for an
+ * entry without Flow, the entry opens in the Boxed view.
  */
 export function explorerRoute(target: ProjectExplorerOpenTarget, view: ShellView, model: unknown): ShellRoute {
     if (target.kind === 'test') return {path: target.path, view: 'tests'};
-    if (view === 'tests') return {path: target.path, view: target.kind === 'workbook' ? 'flow' : 'boxed'};
-    if (NODE_KINDS.has(target.kind) && view === 'flow') {
-        return {path: parentPath(target.path), view: 'flow', focus: target.path};
-    }
+    if (target.kind === 'workbook') return {path: target.path, view: 'flow'};
+    if (NODE_KINDS.has(target.kind)) return {path: parentPath(target.path), view: 'flow', focus: target.path};
+    if (view === 'tests') return {path: target.path, view: 'boxed'};
     if (view === 'flow' && !isFlowRoot(rootPathSegments(model, target.path))) return {path: target.path, view: 'boxed'};
     return {path: target.path, view};
 }

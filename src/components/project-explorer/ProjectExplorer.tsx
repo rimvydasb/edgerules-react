@@ -12,6 +12,7 @@ import {
     ActionIcon,
     Alert,
     Button,
+    CloseButton,
     Group,
     Menu,
     Modal,
@@ -23,7 +24,7 @@ import {
     type RenderTreeNodePayload,
     type TreeNodeData,
 } from '@mantine/core';
-import {IconChevronRight, IconLayoutSidebarLeftCollapse, IconPlus} from '@tabler/icons-react';
+import {IconChevronRight, IconLayoutSidebarLeftCollapse, IconPlus, IconSearch} from '@tabler/icons-react';
 import type {PortableContext, PortableError, PortableNode} from '@edgerules/portable';
 import {cx} from '#ui/cx';
 import {isPortableError} from '#lib/portable';
@@ -58,8 +59,10 @@ export interface ProjectExplorerProps {
     service: ProjectExplorerService;
     /** Title of the panel header; not a tree node itself. */
     rootLabel?: string;
-    /** Shows a close button in the header; called when it is clicked. */
-    onClose?: () => void;
+    /** Shows the rail of section icons instead of the panel. */
+    collapsed?: boolean;
+    /** Shows a hide button in the header; a rail icon expands the panel with its section open. */
+    onCollapsedChange?: (collapsed: boolean) => void;
     /** Any value that changes with the model, e.g. the model version; a change re-reads the model. */
     revision?: unknown;
     /** The test subjects that have tests: '*' for the model, or a method path. */
@@ -86,6 +89,34 @@ const SECTIONS: {section: ExplorerSection; label: string}[] = [
 
 function sectionItemId(section: ExplorerSection): string {
     return `section:${section}`;
+}
+
+// The expansion of the tree: a node value to whether it is expanded.
+type ExpandedState = Record<string, boolean>;
+
+// Every section starts expanded.
+const SECTIONS_EXPANDED: ExpandedState = Object.fromEntries(
+    SECTIONS.map(({section}) => [sectionItemId(section), true]),
+);
+
+// The entries whose label contains the query, ignoring case. A workbook stays with its matching nodes, and a matching
+// workbook keeps all its nodes.
+function filterEntries(entries: ExplorerEntry[], query: string): ExplorerEntry[] {
+    const matches = (entry: ExplorerEntry) => entry.label.toLowerCase().includes(query);
+    return entries.flatMap((entry) => {
+        if (matches(entry)) return [entry];
+        const children = entry.children?.filter(matches) ?? [];
+        return children.length > 0 ? [{...entry, children}] : [];
+    });
+}
+
+// Every node of the tree expanded, while a search shows all its matches.
+function allExpanded(data: TreeNodeData[], state: ExpandedState = {}): ExpandedState {
+    for (const node of data) {
+        state[node.value] = true;
+        if (node.children) allExpanded(node.children, state);
+    }
+    return state;
 }
 
 function entryItemId(kind: ExplorerEntryKind, path: string): string {
@@ -127,7 +158,8 @@ interface PendingCreate {
 export function ProjectExplorer({
     service,
     rootLabel = 'Project',
-    onClose,
+    collapsed = false,
+    onCollapsedChange,
     revision,
     testSubjects = NO_SUBJECTS,
     readOnly = false,
@@ -159,21 +191,43 @@ export function ProjectExplorer({
         [model, types, testSubjects],
     );
 
-    const tree = useTree();
+    const [query, setQuery] = useState('');
+    const search = query.trim().toLowerCase();
+    const [expanded, setExpanded] = useState<ExpandedState>(SECTIONS_EXPANDED);
     const [pending, setPending] = useState<PendingCreate | undefined>();
 
     const onOpenRef = useRef(onOpen);
     onOpenRef.current = onOpen;
 
+    // A search hides the sections without matches.
     const data = useMemo(
         () =>
-            SECTIONS.map(({section, label}) => {
-                const entries = sections?.[section] ?? [];
+            SECTIONS.flatMap(({section, label}) => {
+                const all = sections?.[section] ?? [];
+                const entries = search ? filterEntries(all, search) : all;
+                if (search && entries.length === 0) return [];
                 const meta: NodeMeta = {kind: section, text: label, section, count: entries.length};
-                return {value: sectionItemId(section), label, nodeProps: {meta}, children: entries.map(entryNode)};
+                return [{value: sectionItemId(section), label, nodeProps: {meta}, children: entries.map(entryNode)}];
             }),
-        [sections],
+        [sections, search],
     );
+
+    // A search shows every match: the tree is expanded while it lasts, and the user's expansion comes back after it.
+    const tree = useTree({
+        expandedState: search ? allExpanded(data) : expanded,
+        onExpandedStateChange: (state) => {
+            if (!search) setExpanded(state);
+        },
+    });
+
+    const expandOnly = (section: ExplorerSection) => {
+        setQuery('');
+        setExpanded((current) => ({
+            ...current,
+            ...Object.fromEntries(SECTIONS.map((item) => [sectionItemId(item.section), item.section === section])),
+        }));
+        onCollapsedChange?.(false);
+    };
 
     // The names a new root entity must not take: root fields and types share one namespace for the user.
     const taken = useMemo(() => {
@@ -278,7 +332,7 @@ export function ProjectExplorer({
         return (
             <div
                 {...elementProps}
-                className={cx(elementProps.className, classes.node)}
+                className={cx(elementProps.className, classes.node, meta.section && classes.heading)}
                 onClick={(event) => {
                     elementProps.onClick(event);
                     if (meta.target) open(meta.target);
@@ -294,7 +348,7 @@ export function ProjectExplorer({
                     aria-hidden="true"
                 />
                 <span className={classes.label}>
-                    <KindIcon kind={meta.kind} />
+                    {meta.section ? null : <KindIcon kind={meta.kind} />}
                     <span
                         className={cx(
                             classes.text,
@@ -311,19 +365,38 @@ export function ProjectExplorer({
         );
     }
 
+    if (collapsed) {
+        return (
+            <nav className={cx(classes.root, classes.rail, className)} style={style} aria-label="Project explorer">
+                {SECTIONS.map(({section, label}) => (
+                    <Tooltip key={section} label={label} position="right" withArrow>
+                        <button
+                            type="button"
+                            className={classes.railItem}
+                            aria-label={`Show ${label}`}
+                            onClick={() => expandOnly(section)}
+                        >
+                            <KindIcon kind={section} />
+                        </button>
+                    </Tooltip>
+                ))}
+            </nav>
+        );
+    }
+
     return (
         <nav className={cx(classes.root, className)} style={style} aria-label="Project explorer">
-            {rootLabel || onClose ? (
+            {rootLabel || onCollapsedChange ? (
                 <div className={classes.header}>
                     <span className={classes.title}>{rootLabel}</span>
-                    {onClose ? (
+                    {onCollapsedChange ? (
                         <Tooltip label="Hide project explorer" withArrow>
                             <ActionIcon
                                 variant="subtle"
                                 color="gray"
                                 size="sm"
                                 aria-label="Hide project explorer"
-                                onClick={onClose}
+                                onClick={() => onCollapsedChange(true)}
                             >
                                 <IconLayoutSidebarLeftCollapse size={16} />
                             </ActionIcon>
@@ -331,7 +404,23 @@ export function ProjectExplorer({
                     ) : null}
                 </div>
             ) : null}
+            <div className={classes.search}>
+                <TextInput
+                    size="xs"
+                    placeholder="Search project"
+                    aria-label="Search project"
+                    leftSection={<IconSearch size={14} />}
+                    rightSection={
+                        query && <CloseButton size="xs" aria-label="Clear search" onClick={() => setQuery('')} />
+                    }
+                    value={query}
+                    onChange={(event) => setQuery(event.currentTarget.value)}
+                />
+            </div>
             <ScrollArea className={classes.body} type="hover" scrollbarSize={6}>
+                {!isPortableError(model) && search && data.length === 0 ? (
+                    <div className={classes.empty}>No entries match “{query.trim()}”</div>
+                ) : null}
                 {isPortableError(model) ? (
                     <Alert className={classes.error} color="red" variant="light">
                         {model.message}
@@ -341,7 +430,7 @@ export function ProjectExplorer({
                         className={classes.tree}
                         data={data}
                         tree={tree}
-                        levelOffset="md"
+                        levelOffset={20}
                         expandOnClick
                         selectOnClick
                         renderNode={renderNode}

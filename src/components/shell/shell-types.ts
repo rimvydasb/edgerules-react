@@ -16,8 +16,8 @@ export interface ShellProps {
     onViewChange?: (view: ShellView) => void; // view switch, or "View as code" of an editor
     readOnly?: boolean; // passed to every editor
     explorerOpen?: boolean; // controlled visibility of the Project Explorer side panel
-    defaultExplorerOpen?: boolean; // uncontrolled initial visibility of the Project Explorer; defaults to false
-    onExplorerOpenChange?: (open: boolean) => void; // the kind icon of the header, or the close button of the panel
+    defaultExplorerOpen?: boolean; // uncontrolled initial visibility of the Project Explorer; defaults to true
+    onExplorerOpenChange?: (open: boolean) => void; // the kind icon of the header, the hide button or a rail icon of the panel
     onOpenNode?: (target: BoxedEditorOpenTarget | FlowEditorOpenTarget) => void; // targets the Shell does not open
     className?: string;
     style?: CSSProperties;
