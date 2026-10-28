@@ -103,6 +103,46 @@ assume that the row the user edited last caused it.
 **Expected behaviour:** an error code and a message in the E113 style, for example
 `function 'risk' argument 'segment' expects string, found number`, ideally with the field path (`d`).
 
+## [VALID] `optimise` cannot declare one decision variable per list element
+
+**What is wrong:** an `optimise` element accepts only scalar, individually named decision variables. A model cannot
+declare a variable for each element of a list input, or add up variables over a list in the objective or a constraint.
+The limit is in the EdgeRules linker, not in the solver: HiGHS solves problems with thousands of integer variables. The
+optimisation spec lists "Batch / indexed variables" as deferred (`OPTIMISATION_METAPHOR_SPEC.md` § 15.5).
+
+```edgerules
+optimise pick(values: number[], capacity: number): {
+    variables: { calls: <number[], integer: true, min: 0> }
+    maximise: sum(for i in 0..(count(values) - 1) return values[i] * calls[i])
+    constraints: { time: sum(for c in calls return 30 * c) <= capacity }
+}
+// E332: variable 'calls' must be a <number, ...> — decision variables are always numbers
+
+// with a scalar variable, a sum over a list is rejected too:
+//     maximise: sum(for v in values return v * call)
+// E336: objective is not affine in the decision variables: a decision variable inside the function 'sum'
+```
+
+As a result, an assignment problem over a list (for example, choosing a channel for each of 100 clients in
+`models/client-outreach`) cannot be modelled client by client. The model groups the clients into segments, writes one
+variable per segment and channel by hand (22 variables), and gives the solver's counts to clients with rules. The solver
+then works from segment averages, so the plan can be slightly worse than the true optimum per client, and the number of
+variables changes the DSL text instead of the input data.
+
+**Real-world example to rebuild when this is fixed — `models/client-outreach`:** a sales team of 2 workers has a 7-hour
+day to reach 100 prospects. Each prospect gets one action: a call (30 min, lift 0.25), an email (15 min, 0.15), an SMS
+(5 min, 0.08) or nothing. Rules give each client and channel an expected value (deal revenue × propensity × lift ×
+preference fit) and decide which channels the client may get (cooling-off period, phone consent, email address, no SMS
+for private clients). The optimisation maximises the total expected value within 840 team minutes and 40 SMS, with at
+most one action per client. With indexed variables this becomes 3 binary variables per client (`call[i]`, `email[i]`,
+`sms[i]`), a blocked channel bound to 0, and a constraint `call[i] + email[i] + sms[i] <= 1` for each client. The
+segments, `segmentPicks` and the ranking rules can then be removed.
+
+**Expected behaviour:** `optimise` supports indexed variables: a variable declared per element of a list parameter (for
+example `<number[], integer: true, min: 0>` sized by the list), with `sum`/`for` over those variables allowed in the
+objective and the constraints as long as the expression stays affine. The result returns the variable as a list, in the
+order of the input list.
+
 ## [NOT A BUG] `getCode('*')` drops source comments
 
 **What happens:** `fromCode` followed by `getCode('*')` returns the code without its comments. (Output formatting is

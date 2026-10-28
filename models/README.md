@@ -7,6 +7,7 @@ bundle: the DSL model and the documentation, tests and flow slices that a host s
 | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [loan-repayment](loan-repayment/index.ts)     | Types, a decision table, functions, a `@Service`, two `@Workbook`s with charts, test suites                                                           |
 | [loan-origination](loan-origination/index.ts) | Records, a scorecard and three decision tables, policy rules, affordability, a `@Service`, two `@Workbook`s with charts, test suites over list inputs |
+| [client-outreach](client-outreach/index.ts)   | An `optimise` element (HiGHS MILP) over decision tables: which of 100 prospects to call, email or text in a day of two workers                        |
 
 ## Layout of a Model
 
@@ -17,6 +18,7 @@ models/<model-name>/
 ├── documentation.ts  # documentation.json: description by model path
 ├── tests.ts          # tests.json: test suites by subject
 ├── flow.ts           # flow.json: Flow Editor layouts (outputs, charts) by flow root
+├── clients.ts        # (optional) generated input data that model.ts and the tests share
 └── __tests__/        # vitest with the real @edgerules/node engine
 ```
 
@@ -29,3 +31,5 @@ models/<model-name>/
 - Keep values deterministic: tests and specs assert exact engine results.
 - A test row of a list element other than `[0]` (`applicants[1].name`) is `custom: true`. The schema derives only `[0]`,
   so the Tests view drops a row it cannot derive unless the row is user-authored.
+- A model with an `optimise` element needs a solver: its `__tests__` register highs-js on the engine (`registerSolver`).
+  Without a solver, the optimisation result and everything after it is `Missing`.
