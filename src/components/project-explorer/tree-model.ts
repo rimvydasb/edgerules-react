@@ -108,6 +108,9 @@ function workbookNodes(workbookPath: string, workbook: Record<string, unknown>):
         }));
 }
 
+/** The label of the root workbook: the model root when no context has `@Workbook` but the root has nodes. */
+export const ROOT_WORKBOOK_LABEL = 'Model';
+
 function byLabel(a: ExplorerEntry, b: ExplorerEntry): number {
     if (a.path === '*' || b.path === '*') return a.path === '*' ? -1 : 1;
     return a.label.localeCompare(b.label);
@@ -118,7 +121,8 @@ function byLabel(a: ExplorerEntry, b: ExplorerEntry): number {
  * - **Types**: the type definitions of the root.
  * - **Methods**: every function, service and ruleset, also inside contexts, by qualified path.
  * - **Variables**: every other root field, contexts included.
- * - **Workbooks**: every root context with `@Workbook`, with its nodes as children.
+ * - **Workbooks**: every root context with `@Workbook`, with its nodes as children. A model without a `@Workbook`
+ *   context but with nodes on the root is one workbook: the root ('*'), and its nodes are not variables.
  * - **Tests**: every test subject that has tests.
  */
 export function buildSections(
@@ -132,8 +136,19 @@ export function buildSections(
         sections.types.push({kind: 'type', path: name, label: name});
     }
     collectMethods('', model, sections.methods);
+    const hasWorkbook = fields(model).some(([, node]) => isWorkbook(node));
+    const rootNodes = hasWorkbook ? [] : workbookNodes('', model);
+    if (rootNodes.length > 0) {
+        sections.workbooks.push({
+            kind: 'workbook',
+            path: ROOT_FETCH_PATH,
+            label: ROOT_WORKBOOK_LABEL,
+            children: rootNodes,
+        });
+    }
+    const rootNodePaths = new Set(rootNodes.map((entry) => entry.path));
     for (const [name, node] of fields(model)) {
-        if (methodKind(node)) continue;
+        if (methodKind(node) || rootNodePaths.has(name)) continue;
         if (isWorkbook(node)) {
             const children = workbookNodes(name, node as Record<string, unknown>);
             sections.workbooks.push({kind: 'workbook', path: name, label: name, children});

@@ -53,6 +53,31 @@ describe('buildSections', () => {
         expect(result.methods).toEqual([]);
         expect(result.workbooks.map((entry) => entry.path)).toEqual(['book']);
     });
+
+    it('treats the model root as the workbook when no context has @Workbook but the root has nodes', () => {
+        const result = sections(
+            '{ @InputNode applicant: { age: 21 }\n @FunctionNode risk: applicant.age * 2\n limit: 10 }',
+        );
+
+        expect(result.workbooks).toEqual([
+            {
+                kind: 'workbook',
+                path: '*',
+                label: 'Model',
+                children: [
+                    {kind: 'input-node', path: 'applicant', label: 'applicant'},
+                    {kind: 'function-node', path: 'risk', label: 'risk'},
+                ],
+            },
+        ]);
+        expect(result.variables.map((entry) => entry.path)).toEqual(['limit']);
+    });
+
+    it('does not treat the model root as a workbook when a context has @Workbook', () => {
+        const result = sections('{ @InputNode applicant: { age: 21 }\n @Workbook book: { @InputNode x: { a: 1 } } }');
+        expect(result.workbooks.map((entry) => entry.path)).toEqual(['book']);
+        expect(result.variables.map((entry) => entry.path)).toEqual(['applicant']);
+    });
 });
 
 describe('methodKind', () => {

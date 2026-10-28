@@ -184,6 +184,9 @@ export function ProjectExplorer({
             ...(sections?.workbooks ?? []),
         ])
             names.add(entry.path);
+        // The nodes of the root workbook are root fields too.
+        for (const entry of sections?.workbooks.find((workbook) => workbook.path === ROOT_FETCH_PATH)?.children ?? [])
+            names.add(entry.path);
         for (const entry of sections?.methods ?? []) if (!entry.path.includes('.')) names.add(entry.path);
         return names;
     }, [sections]);
