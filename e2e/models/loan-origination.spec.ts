@@ -26,7 +26,12 @@ test('the Project Explorer lists every entity of the model', async ({page}) => {
     ]) {
         await expect(nav.getByText(entry, {exact: true}), entry).toBeVisible(SLOW);
     }
-    for (const method of ['applicantScorecard(...)', 'decisionMatrix(...)', 'originate(...)', 'policyRules(...)']) {
+    for (const method of [
+        'applicantScorecard(...)',
+        'decisionMatrix(...)',
+        'loanOriginationDecision(...)',
+        'policyRules(...)',
+    ]) {
         await expect(nav.getByText(method, {exact: true}).first(), method).toBeVisible();
     }
 });

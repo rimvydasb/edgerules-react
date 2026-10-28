@@ -7,7 +7,7 @@
  * - `policyRules` are the knockout rules of the credit policy, one record per rule.
  * - `pricingGrid` prices the grade and the loan-to-value; `affordability` stress-tests the payment.
  * - `decisionMatrix` combines the knockouts, the grade, the LTV and the DSTI into APPROVE, REFER or DECLINE.
- * - `originate` is the `@Service`; `originationBook` and `capacityBook` are the workbooks.
+ * - `loanOriginationDecision` is the `@Service`; `originationBook` and `capacityBook` are the workbooks.
  */
 export const LOAN_ORIGINATION_DSL = `{
     type Applicant: { name: <string>; birthDate: <date>; employment: <string>; yearsEmployed: <number>; monthlyIncome: <number>; monthlyExpenses: <number>; monthlyDebtPayments: <number>; bureauScore: <number>; delinquencies: <number> }
@@ -134,7 +134,7 @@ export const LOAN_ORIGINATION_DSL = `{
         applicants: [mainApplicant, coApplicant]
     }
     @Service
-    func originate(application: Application): {
+    func loanOriginationDecision(application: Application): {
         record: applicationRecord(application)
         applicants: for applicant in application.applicants return applicantDecision(applicant, application)
         householdScore: min(for applicant in applicants return applicant.scorecard.score)
@@ -167,7 +167,7 @@ export const LOAN_ORIGINATION_DSL = `{
             { name: "Ieva Petraitiene"; birthDate: date("1990-09-30"); employment: "contract"; yearsEmployed: 3; monthlyIncome: 2600; monthlyExpenses: 900; monthlyDebtPayments: 0; bureauScore: 702; delinquencies: 1 }
         ]
     }
-    sampleDecision: originate(application: sampleApplication).decision.outcome
+    sampleDecision: loanOriginationDecision(application: sampleApplication).decision.outcome
     @Workbook
     originationBook: {
         @InputNode(name: "Loan terms")
@@ -183,7 +183,7 @@ export const LOAN_ORIGINATION_DSL = `{
         @FunctionNode(name: "Co-applicant scorecard")
         coScorecard: scoreApplicant(applicant: coApplicant, applicationDate: loan.applicationDate)
         @FunctionNode(name: "Origination decision")
-        origination: originate(application: application)
+        origination: loanOriginationDecision(application: application)
     }
     @Workbook
     capacityBook: {

@@ -22,7 +22,7 @@ export const LOAN_ORIGINATION_DOCUMENTATION: DocumentationDocument = {
         affordability:
             'The monthly payment, the payment stress-tested at the rate plus the buffer, the debt service to income and the largest affordable loan',
         jointApplication: 'Builds an application from the loan terms and two applicants',
-        originate:
+        loanOriginationDecision:
             'Decides a mortgage application: scores and checks every applicant, prices the loan, tests affordability and makes an offer',
         borrowingCapacity: 'The largest affordable loan of a household for terms of 10 to 30 years',
         sampleApplication: 'An example joint mortgage application',

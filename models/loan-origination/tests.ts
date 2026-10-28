@@ -60,8 +60,8 @@ const NONE: string[] = Array(9).fill('');
 export const LOAN_ORIGINATION_TESTS: TestSuitesDocument = {
     schemaVersion: 1,
     subjects: {
-        originate: suite(
-            'originate',
+        loanOriginationDecision: suite(
+            'loanOriginationDecision',
             [
                 ['application.applicationDate', 'date'],
                 ['application.loanAmount', 'number'],

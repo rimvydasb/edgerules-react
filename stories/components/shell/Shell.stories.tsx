@@ -228,9 +228,9 @@ export const LoanOriginationDecisionMatrix: Story = {
     loaders: loanOriginationLoaders,
 };
 
-/** The `originate` service in the Boxed view: the records, the per-applicant decisions, the pricing and the offer. */
+/** The `loanOriginationDecision` service in the Boxed view: the records, the per-applicant decisions, the pricing and the offer. */
 export const LoanOriginationService: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'originate'},
+    args: {defaultExplorerOpen: true, defaultPath: 'loanOriginationDecision'},
     loaders: loanOriginationLoaders,
 };
 
@@ -249,8 +249,8 @@ export const LoanOriginationCapacity: Story = {
     loaders: loanOriginationLoaders,
 };
 
-/** The tests of the `originate` service: joint and single applications, one per outcome. Run all to check every case. */
+/** The tests of the `loanOriginationDecision` service: joint and single applications, one per outcome. Run all to check every case. */
 export const LoanOriginationServiceTests: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'originate', defaultView: 'tests'},
+    args: {defaultExplorerOpen: true, defaultPath: 'loanOriginationDecision', defaultView: 'tests'},
     loaders: loanOriginationLoaders,
 };

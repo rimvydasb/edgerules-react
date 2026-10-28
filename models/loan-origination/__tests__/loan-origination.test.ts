@@ -83,15 +83,17 @@ function engine() {
 }
 
 async function originate(overrides: Partial<typeof LOAN>, applicants: Applicant[]): Promise<Origination> {
-    return (await engine().execute('originate', {application: {...LOAN, ...overrides, applicants}})) as Origination;
+    return (await engine().execute('loanOriginationDecision', {
+        application: {...LOAN, ...overrides, applicants},
+    })) as Origination;
 }
 
 describe('loan origination model', () => {
     it('opens as a project with every slice', async () => {
         const {session} = await openFixtureProject(LOAN_ORIGINATION_PROJECT);
-        expect(session.getSlice('tests').subjects).toHaveProperty('originate');
+        expect(session.getSlice('tests').subjects).toHaveProperty('loanOriginationDecision');
         expect(Object.keys(session.getSlice('flow').layouts)).toEqual(['originationBook', 'capacityBook']);
-        expect(session.engine.getCode('originate')).toContain('@Service');
+        expect(session.engine.getCode('loanOriginationDecision')).toContain('@Service');
     });
 
     it('describes only paths the model has', () => {
@@ -179,7 +181,7 @@ describe('loan origination model', () => {
         });
     });
 
-    describe('originate service', () => {
+    describe('loanOriginationDecision service', () => {
         it('approves the joint application, graded by the weaker applicant', async () => {
             const result = await originate({}, [JONAS, IEVA]);
             expect(result.applicants.map((applicant) => applicant.scorecard.grade.grade)).toEqual(['A', 'C']);
