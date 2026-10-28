@@ -110,7 +110,15 @@ module.exports = {
     ),
     componentAllowlist(
       'shell',
-      ['code-editor', 'boxed-editor', 'flow-editor', 'project-session', 'documentation-service', 'test-cases-service'],
+      [
+        'code-editor',
+        'boxed-editor',
+        'flow-editor',
+        'project-explorer',
+        'project-session',
+        'documentation-service',
+        'test-cases-service',
+      ],
       'Main React components',
     ),
     {

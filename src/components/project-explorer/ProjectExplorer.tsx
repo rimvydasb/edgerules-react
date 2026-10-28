@@ -1,6 +1,15 @@
-import {useMemo, useRef, useState, type CSSProperties, type ReactElement, type ReactNode} from 'react';
-import {Alert, Tree, useTree, type RenderTreeNodePayload, type TreeNodeData} from '@mantine/core';
-import {IconChevronRight} from '@tabler/icons-react';
+import {useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type ReactNode} from 'react';
+import {
+    ActionIcon,
+    Alert,
+    ScrollArea,
+    Tooltip,
+    Tree,
+    useTree,
+    type RenderTreeNodePayload,
+    type TreeNodeData,
+} from '@mantine/core';
+import {IconChevronRight, IconLayoutSidebarLeftCollapse} from '@tabler/icons-react';
 import type {PortableContext, PortableError, PortableNode} from '@edgerules/portable';
 import {cx} from '#ui/cx';
 import {isPortableError} from '#lib/portable';
@@ -17,8 +26,13 @@ interface ProjectExplorerService {
 export interface ProjectExplorerProps {
     /** The engine service to read the model from. Only `get` is used today; `set`/`remove`/`rename` support is coming. */
     service: ProjectExplorerService;
-    /** Heading rendered above the tree; not a tree node itself. */
+    /** Title of the panel header; not a tree node itself. */
     rootLabel?: string;
+    /** Shows a close button in the header; called when it is clicked. */
+    onClose?: () => void;
+    /** Any value that changes with the model, e.g. the model version; a change re-reads every loaded context. */
+    revision?: unknown;
+    onOpenContext?: (contextPath: string) => void;
     onOpenVariables?: (contextPath: string) => void;
     onOpenFunction?: (functionPath: string) => void;
     onOpenDecisionTable?: (tablePath: string) => void;
@@ -48,7 +62,11 @@ interface NodeMeta {
     kind: IconKind;
     text: string;
     error?: PortableError;
+    count?: number; // the member count of a Types or Variables group
 }
+
+const GROUP_KINDS = new Set<IconKind>(['types', 'vars']);
+const CODE_KINDS = new Set<IconKind>(['func', 'dt']);
 
 function node(value: string, meta: NodeMeta | null, children?: TreeNodeData[]): TreeNodeData {
     return {value, label: meta?.text ?? '', nodeProps: {meta}, ...(children ? {children} : {})};
@@ -76,7 +94,16 @@ function renderNode(
             {meta ? (
                 <span className={classes.label}>
                     <KindIcon kind={meta.kind} error={meta.error} />
-                    <span>{meta.text}</span>
+                    <span
+                        className={cx(
+                            classes.text,
+                            GROUP_KINDS.has(meta.kind) && classes.group,
+                            CODE_KINDS.has(meta.kind) && classes.textCode,
+                        )}
+                    >
+                        {meta.text}
+                    </span>
+                    {meta.count !== undefined ? <span className={classes.count}>{meta.count}</span> : null}
                 </span>
             ) : null}
         </div>
@@ -91,6 +118,9 @@ function renderNode(
 export function ProjectExplorer({
     service,
     rootLabel = 'Project',
+    onClose,
+    revision,
+    onOpenContext,
     onOpenVariables,
     onOpenFunction,
     onOpenDecisionTable,
@@ -101,7 +131,21 @@ export function ProjectExplorer({
     const [contextCache, setContextCache] = useState<Map<string, PortableNode | PortableError>>(
         () => new Map([[ROOT_PATH, service.get(ROOT_FETCH_PATH)]]),
     );
-    const [rootTypes] = useState<PortableNode | PortableError>(() => service.get(ROOT_FETCH_PATH, 'TYPE_DEFINITIONS'));
+    const [rootTypes, setRootTypes] = useState<PortableNode | PortableError>(() =>
+        service.get(ROOT_FETCH_PATH, 'TYPE_DEFINITIONS'),
+    );
+
+    // A model change re-reads the loaded contexts only, so the expanded nodes stay expanded.
+    const readRevision = useRef(revision);
+    useEffect(() => {
+        if (readRevision.current === revision) return;
+        readRevision.current = revision;
+        setContextCache(
+            (previous) =>
+                new Map([...previous.keys()].map((path) => [path, service.get(path || ROOT_FETCH_PATH)] as const)),
+        );
+        setRootTypes(service.get(ROOT_FETCH_PATH, 'TYPE_DEFINITIONS'));
+    }, [revision, service]);
 
     const tree = useTree({
         onNodeExpand: (value) => {
@@ -110,8 +154,8 @@ export function ProjectExplorer({
         },
     });
 
-    const handlersRef = useRef({onOpenVariables, onOpenFunction, onOpenDecisionTable, onOpenTypes});
-    handlersRef.current = {onOpenVariables, onOpenFunction, onOpenDecisionTable, onOpenTypes};
+    const handlersRef = useRef({onOpenContext, onOpenVariables, onOpenFunction, onOpenDecisionTable, onOpenTypes});
+    handlersRef.current = {onOpenContext, onOpenVariables, onOpenFunction, onOpenDecisionTable, onOpenTypes};
 
     const rootNode = contextCache.get(ROOT_PATH);
     const {data, actions} = useMemo(() => {
@@ -123,7 +167,7 @@ export function ProjectExplorer({
 
             return node(
                 itemId,
-                {kind: 'vars', text: 'Variables'},
+                {kind: 'vars', text: 'Variables', count: vars.length},
                 vars.map((entry) => {
                     actions.set(entry.path, () => handlersRef.current.onOpenVariables?.(contextPath));
                     return node(entry.path, {kind: 'var', text: entry.name});
@@ -143,7 +187,7 @@ export function ProjectExplorer({
 
             return node(
                 itemId,
-                {kind: 'types', text: 'Types'},
+                {kind: 'types', text: 'Types', count: entries.length},
                 entries.map((entry) => {
                     const entryItemId = typeEntryItemId(entry.name);
                     actions.set(entryItemId, () => handlersRef.current.onOpenTypes?.(entry.name));
@@ -164,6 +208,7 @@ export function ProjectExplorer({
             }
 
             // entry.kind === 'ctx'
+            actions.set(entry.path, () => handlersRef.current.onOpenContext?.(entry.path));
             const cached = contextCache.get(entry.path);
             const error = cached !== undefined && isPortableError(cached) ? cached : undefined;
             const meta: NodeMeta = {kind: 'ctx', text: entry.name, error};
@@ -205,21 +250,42 @@ export function ProjectExplorer({
     }, [contextCache, rootTypes]);
 
     return (
-        <div className={className} style={style}>
-            {rootLabel ? <div className={classes.heading}>{rootLabel}</div> : null}
-            {isPortableError(rootNode) ? (
-                <Alert color="red" variant="light">
-                    {rootNode.message}
-                </Alert>
-            ) : (
-                <Tree
-                    data={data}
-                    tree={tree}
-                    levelOffset="md"
-                    expandOnClick
-                    renderNode={(payload) => renderNode(payload, (value) => actions.get(value)?.())}
-                />
-            )}
-        </div>
+        <nav className={cx(classes.root, className)} style={style} aria-label="Project explorer">
+            {rootLabel || onClose ? (
+                <div className={classes.header}>
+                    <span className={classes.title}>{rootLabel}</span>
+                    {onClose ? (
+                        <Tooltip label="Hide project explorer" withArrow>
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                aria-label="Hide project explorer"
+                                onClick={onClose}
+                            >
+                                <IconLayoutSidebarLeftCollapse size={16} />
+                            </ActionIcon>
+                        </Tooltip>
+                    ) : null}
+                </div>
+            ) : null}
+            <ScrollArea className={classes.body} type="hover" scrollbarSize={6}>
+                {isPortableError(rootNode) ? (
+                    <Alert className={classes.error} color="red" variant="light">
+                        {rootNode.message}
+                    </Alert>
+                ) : (
+                    <Tree
+                        className={classes.tree}
+                        data={data}
+                        tree={tree}
+                        levelOffset="md"
+                        expandOnClick
+                        selectOnClick
+                        renderNode={(payload) => renderNode(payload, (value) => actions.get(value)?.())}
+                    />
+                )}
+            </ScrollArea>
+        </nav>
     );
 }

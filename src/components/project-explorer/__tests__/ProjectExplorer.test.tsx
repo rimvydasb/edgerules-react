@@ -151,4 +151,48 @@ describe('ProjectExplorer', () => {
         await user.click(screen.getByText('Variables'));
         expect(screen.getByText('b')).toBeInTheDocument();
     });
+
+    it('fires onOpenContext with the context path when clicking a [ctx] node', async () => {
+        const onOpenContext = vi.fn();
+        const user = userEvent.setup();
+        render(<ProjectExplorer service={buildService()} onOpenContext={onOpenContext} />);
+
+        await user.click(screen.getByText('nested'));
+        expect(onOpenContext).toHaveBeenCalledWith('nested');
+    });
+
+    it('shows the member count of the Types and Variables groups', () => {
+        render(<ProjectExplorer service={buildService()} />);
+
+        expect(screen.getByText('Types').nextSibling).toHaveTextContent('2');
+        expect(screen.getByText('Variables').nextSibling).toHaveTextContent('2');
+    });
+
+    it('renders a close button in the header only with onClose', async () => {
+        const onClose = vi.fn();
+        const user = userEvent.setup();
+        const {rerender} = render(<ProjectExplorer service={buildService()} />);
+        expect(screen.queryByRole('button', {name: 'Hide project explorer'})).toBeNull();
+
+        rerender(<ProjectExplorer service={buildService()} onClose={onClose} />);
+        await user.click(screen.getByRole('button', {name: 'Hide project explorer'}));
+        expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it('re-reads the loaded contexts when the revision changes, keeping them expanded', async () => {
+        const service = MutableDecisionService.fromCode('{ box: { a: 1; b: 2 } }');
+        const user = userEvent.setup();
+        const {rerender} = render(<ProjectExplorer service={service} revision={0} />);
+        await user.click(screen.getByText('box'));
+        await user.click(screen.getByText('Variables'));
+        expect(screen.getByText('a')).toBeInTheDocument();
+
+        service.remove('box.a');
+        rerender(<ProjectExplorer service={service} revision={0} />);
+        expect(screen.getByText('a')).toBeInTheDocument();
+
+        rerender(<ProjectExplorer service={service} revision={1} />);
+        expect(screen.queryByText('a')).toBeNull();
+        expect(screen.getByText('b')).toBeInTheDocument();
+    });
 });

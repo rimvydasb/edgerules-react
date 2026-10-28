@@ -24,21 +24,26 @@ The header is one row of the Boxed Editor ruled sheet: 40px tall, 1px border lin
 icon of the root path kind and the breadcrumb navigation on the left, and the view switch on the right. The active
 editor fills the body.
 
+The `ProjectExplorer` side panel is optional. It is full height on the left, 256px wide, and its header row is in line
+with the Shell header row.
+
 ```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│ ƒx │ Model › applicant › calculateAge(...)    │  Code  │ Boxed  │  Flow  │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│                         active editor (one at a time)                    │
-│                                                                          │
-├──────────────────────────────────────────────────────────────────────────┤
-│ status line: commit error of the Code view (only when there is an error) │
-└──────────────────────────────────────────────────────────────────────────┘
+┌──────────────────┬───────────────────────────────────────────────────────────┐
+│ Project       [«]│ ƒx │ Model › applicant › calculateAge(...) │ Code │ Boxed │
+├──────────────────┼───────────────────────────────────────────────────────────┤
+│ ▸ TYPES       2  │                                                           │
+│ ▸ VARIABLES   1  │               active editor (one at a time)               │
+│ ▾ {} applicant   │                                                           │
+│     ƒx calc…()   ├───────────────────────────────────────────────────────────┤
+│                  │ status line: commit error of the Code view (on error)     │
+└──────────────────┴───────────────────────────────────────────────────────────┘
 ```
 
 | Element            | Implementation                                   | Behavior                                                                     |
 | ------------------ | ------------------------------------------------ | ---------------------------------------------------------------------------- |
 | `ShellBreadcrumbs` | Kind icon square, then one `button` per item     | The first item is `Model` and opens `'*'`. The last item is text.            |
+| Kind icon square   | Toggle `button` with `aria-pressed`              | Shows and hides the `ProjectExplorer` side panel.                            |
+| `ProjectExplorer`  | Side panel left of the header and the body       | Mounted only while open. Its close button hides it.                          |
 | `ShellViewSwitch`  | `radiogroup` of three 3-step header cells        | Changes the active view. The root path does not change.                      |
 | Editor body        | One of `CodeEditor`, `BoxedEditor`, `FlowEditor` | Only the active editor is mounted.                                           |
 | `ShellStatus`      | Mantine `Alert`                                  | Shows the last commit error of the Code view. It is hidden without an error. |
@@ -58,6 +63,7 @@ flowchart LR
         ShellViewSwitch
     end
     subgraph editors["Editors"]
+        ProjectExplorer
         CodeEditor
         BoxedEditor
         FlowEditor
@@ -71,19 +77,21 @@ flowchart LR
     Shell -->|useProjectSession| ProjectProvider
     Shell -->|renders| ShellBreadcrumbs
     Shell -->|renders| ShellViewSwitch
+    Shell -->|renders when open| ProjectExplorer
     Shell -->|renders the active view| CodeEditor
     Shell -->|renders the active view| BoxedEditor
     Shell -->|renders the active view| FlowEditor
     Shell -->|execute, setDslDraft, engine.setCode| ProjectSession
+    ProjectExplorer -.->|onOpenContext, onOpenFunction| Shell
     BoxedEditor -.->|onOpenNode| Shell
     FlowEditor -.->|onOpenNode| Shell
 ```
 
 `Shell` adds this row to the dependency-cruiser allowlist in [architecture.md](../architecture.md):
 
-| Component | Allowed component dependencies                                                                                 |
-| --------- | -------------------------------------------------------------------------------------------------------------- |
-| `shell`   | `code-editor`, `boxed-editor`, `flow-editor`, `project-session`, `documentation-service`, `test-cases-service` |
+| Component | Allowed component dependencies                                                                                                     |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `shell`   | `code-editor`, `boxed-editor`, `flow-editor`, `project-explorer`, `project-session`, `documentation-service`, `test-cases-service` |
 
 ### Files
 
@@ -114,6 +122,9 @@ interface ShellProps {
   defaultView?: ShellView; // uncontrolled initial view; defaults to 'boxed'
   onViewChange?: (view: ShellView) => void; // view switch, or "View as code" of an editor
   readOnly?: boolean; // passed to every editor
+  explorerOpen?: boolean; // controlled visibility of the Project Explorer side panel
+  defaultExplorerOpen?: boolean; // uncontrolled initial visibility of the Project Explorer; defaults to false
+  onExplorerOpenChange?: (open: boolean) => void; // the kind icon of the header, or the close button of the panel
   onOpenNode?: (target: BoxedEditorOpenTarget | FlowEditorOpenTarget) => void; // targets the Shell does not open
   className?: string;
   style?: CSSProperties;
@@ -125,7 +136,8 @@ interface ShellProps {
 - `Shell` creates `createFlowEditorService(session.engine, {root})` once per session and root path.
 - `Shell` passes `session.documentation` to `BoxedEditor` and `FlowEditor`.
 - `Shell` passes `session.tests.forSubject('*')` as the `testCasesService` of `BoxedEditor`.
-- `Shell` passes `useProjectSlice('model').version` as the `revision` of `BoxedEditor`.
+- `Shell` passes `useProjectSlice('model').version` as the `revision` of `BoxedEditor` and `ProjectExplorer`.
+- `Shell` passes `session.engine` as the `service` of `ProjectExplorer`.
 - `Shell` passes `session.flow.getLayout(root)` as `defaultLayout` of `FlowEditor`.
 - `Shell` passes `(layout) => session.flow.setLayout(root, layout)` as `onLayoutChange` of `FlowEditor`.
 
@@ -164,6 +176,20 @@ The breadcrumb has one item for the model and one item for each path segment.
 - A click on an item sets the root path to the path of that item.
 - The kind icon shows the kind of the root path, in the colors of the Boxed Editor rows: the model (`IconSitemap` on
   dark), a function (`IconMathFunction` on blue), a context (muted `IconBraces`).
+- The kind icon is the toggle of the Project Explorer. While the panel is open, the icon has the primary-color underline
+  of the active view cell.
+
+### The Project Explorer opens entries of the model
+
+| Explorer callback     | Shell action                                                     |
+| --------------------- | ---------------------------------------------------------------- |
+| `onOpenContext`       | Sets the root path to the context path.                          |
+| `onOpenVariables`     | Sets the root path to the context of the variables (`'*'` root). |
+| `onOpenFunction`      | Sets the root path to the function path.                         |
+| `onOpenDecisionTable` | Forwards `{kind: 'ruleset', path}` to `onOpenNode`.              |
+| `onOpenTypes`         | Forwards `{kind: 'type-definition', path: name ?? '*'}`.         |
+
+- A model change re-reads the loaded contexts of the explorer. The expanded nodes stay expanded.
 - A segment with a `@node-name` annotation shows the field name. The breadcrumb shows model paths, not node titles.
 
 ### Navigation changes the root path or the view
@@ -292,7 +318,6 @@ current model on mount, so it shows the changes of the other views.
 
 - [architecture.md](../architecture.md) names the host workspace `Shell`, which owns the active session ID and tabs.
   This `Shell` is the model view inside one `ProjectProvider`. The host workspace renders it.
-- The host connects `ProjectExplorer` `onOpenVariables` and `onOpenFunction` to the `path` of `Shell`.
 - Each function in EdgeRules is isolated. The Boxed view and the Flow view show a function body as a root context.
 - The Code view shows annotations, because annotations are part of the DSL code.
 - The engine tests `get-set-code-roundtrip.test.ts` and `set-code.test.ts` in `edgerules/tests/wasm/` verify the

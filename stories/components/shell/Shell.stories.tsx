@@ -31,10 +31,17 @@ interface ShellStoryArgs {
     defaultPath?: string;
     defaultView?: ShellView;
     readOnly?: boolean;
+    defaultExplorerOpen?: boolean;
     controlled?: boolean; // the host holds the path and the view, and prints them
 }
 
-function HostedShell({defaultPath, defaultView, readOnly, controlled}: ShellStoryArgs): ReactElement {
+function HostedShell({
+    defaultPath,
+    defaultView,
+    readOnly,
+    defaultExplorerOpen,
+    controlled,
+}: ShellStoryArgs): ReactElement {
     const [path, setPath] = useState(defaultPath ?? '*');
     const [view, setView] = useState<ShellView>(defaultView ?? 'boxed');
     const [forwarded, setForwarded] = useState<string>();
@@ -59,6 +66,7 @@ function HostedShell({defaultPath, defaultView, readOnly, controlled}: ShellStor
                 <Shell
                     languageService={MutableDecisionService}
                     readOnly={readOnly}
+                    defaultExplorerOpen={defaultExplorerOpen}
                     {...(controlled
                         ? {path, onPathChange: setPath, view, onViewChange: setView}
                         : {defaultPath, defaultView})}
@@ -86,6 +94,9 @@ type Story = StoryObj<typeof HostedShell>;
 
 /** The whole model in the Boxed view. */
 export const Default: Story = {args: {}};
+
+/** The Project Explorer is open; the kind icon of the header and the close button of the panel toggle it. */
+export const WithProjectExplorer: Story = {args: {defaultExplorerOpen: true}};
 
 /** The DSL code of a context path; an edit commits after 500 ms without typing. */
 export const CodeOfAContext: Story = {args: {defaultPath: 'applicant', defaultView: 'code'}};

@@ -3,6 +3,7 @@ import {useCallback, useEffect, useMemo, useRef, useState, type ReactElement} fr
 import {cx} from '#ui/cx';
 import {createBoxedEditorService, type BoxedEditorOpenTarget} from '../boxed-editor';
 import {createFlowEditorService, type FlowEditorOpenTarget} from '../flow-editor';
+import {ProjectExplorer} from '../project-explorer';
 import {useProjectSession, useProjectSlice, useProjectSnapshot} from '../project-session';
 import {isRootPath, rootPathSegments} from './shell-path';
 import type {ShellProps, ShellView} from './shell-types';
@@ -29,6 +30,9 @@ export function Shell({
     defaultView = 'boxed',
     onViewChange,
     readOnly,
+    explorerOpen: explorerOpenProp,
+    defaultExplorerOpen = false,
+    onExplorerOpenChange,
     onOpenNode,
     className,
     style,
@@ -38,6 +42,8 @@ export function Shell({
     const {dslValidity} = useProjectSnapshot();
     const [ownPath, setOwnPath] = useState(defaultPath);
     const [ownView, setOwnView] = useState<ShellView>(defaultView);
+    const [ownExplorerOpen, setOwnExplorerOpen] = useState(defaultExplorerOpen);
+    const explorerOpen = explorerOpenProp ?? ownExplorerOpen;
     const requested = path ?? ownPath;
     const view = viewProp ?? ownView;
 
@@ -86,6 +92,11 @@ export function Shell({
         }
     };
 
+    const setExplorerOpen = (open: boolean) => {
+        if (explorerOpenProp === undefined) setOwnExplorerOpen(open);
+        onExplorerOpenChange?.(open);
+    };
+
     const openNode = (target: OpenTarget) => {
         const opens = isRootPath(session.engine.toPortable(), target.path);
         if (opens && target.kind === 'boxed-editor') navigate({path: target.path, view: 'boxed'});
@@ -98,53 +109,74 @@ export function Shell({
 
     return (
         <div className={cx(classes.root, className)} style={style} data-testid="shell">
-            <div className={classes.header}>
-                <ShellBreadcrumbs segments={segments} onNavigate={(next) => navigate({path: next})} />
-                <ShellViewSwitch view={view} onChange={(next) => navigate({view: next})} />
-            </div>
-            <div className={classes.body}>
-                {view === 'code' && (
-                    <CodeView
-                        key={root}
-                        root={root}
-                        languageService={languageService}
-                        readOnly={readOnly}
-                        drafts={drafts}
-                        onCommitError={onCommitError}
-                        flushRef={flushCode}
-                    />
-                )}
-                {view === 'boxed' && (
-                    <BoxedView
-                        root={root}
-                        service={boxedService}
-                        languageService={languageService}
-                        readOnly={readOnly}
-                        onOpenNode={openNode}
-                    />
-                )}
-                {view === 'flow' && (
-                    <FlowView
-                        key={root}
-                        root={root}
-                        service={flowService}
-                        languageService={languageService}
-                        readOnly={readOnly}
-                        onOpenNode={openNode}
-                    />
-                )}
-            </div>
-            {status !== undefined && (
-                <Alert
-                    className={classes.status}
-                    color="red"
-                    variant="light"
-                    title="The code is not applied"
-                    data-testid="shell-status"
-                >
-                    {status}
-                </Alert>
+            {explorerOpen && (
+                <ProjectExplorer
+                    className={classes.explorer}
+                    service={session.engine}
+                    revision={version}
+                    rootLabel="Project"
+                    onClose={() => setExplorerOpen(false)}
+                    onOpenContext={(contextPath) => navigate({path: contextPath})}
+                    onOpenVariables={(contextPath) => navigate({path: contextPath || '*'})}
+                    onOpenFunction={(functionPath) => navigate({path: functionPath})}
+                    onOpenDecisionTable={(tablePath) => onOpenNode?.({kind: 'ruleset', path: tablePath})}
+                    onOpenTypes={(typeName) => onOpenNode?.({kind: 'type-definition', path: typeName ?? '*'})}
+                />
             )}
+            <div className={classes.main}>
+                <div className={classes.header}>
+                    <ShellBreadcrumbs
+                        segments={segments}
+                        onNavigate={(next) => navigate({path: next})}
+                        explorerOpen={explorerOpen}
+                        onToggleExplorer={() => setExplorerOpen(!explorerOpen)}
+                    />
+                    <ShellViewSwitch view={view} onChange={(next) => navigate({view: next})} />
+                </div>
+                <div className={classes.body}>
+                    {view === 'code' && (
+                        <CodeView
+                            key={root}
+                            root={root}
+                            languageService={languageService}
+                            readOnly={readOnly}
+                            drafts={drafts}
+                            onCommitError={onCommitError}
+                            flushRef={flushCode}
+                        />
+                    )}
+                    {view === 'boxed' && (
+                        <BoxedView
+                            root={root}
+                            service={boxedService}
+                            languageService={languageService}
+                            readOnly={readOnly}
+                            onOpenNode={openNode}
+                        />
+                    )}
+                    {view === 'flow' && (
+                        <FlowView
+                            key={root}
+                            root={root}
+                            service={flowService}
+                            languageService={languageService}
+                            readOnly={readOnly}
+                            onOpenNode={openNode}
+                        />
+                    )}
+                </div>
+                {status !== undefined && (
+                    <Alert
+                        className={classes.status}
+                        color="red"
+                        variant="light"
+                        title="The code is not applied"
+                        data-testid="shell-status"
+                    >
+                        {status}
+                    </Alert>
+                )}
+            </div>
         </div>
     );
 }

@@ -1,5 +1,7 @@
+import {Tooltip} from '@mantine/core';
 import {IconBraces, IconChevronRight, IconMathFunction, IconSitemap} from '@tabler/icons-react';
 import {Fragment, type ReactElement} from 'react';
+import {cx} from '#ui/cx';
 import {KIND_COLORS} from '#ui/kindColors';
 import type {ShellPathSegment} from './shell-path';
 import * as classes from './shell.module.css';
@@ -7,34 +9,58 @@ import * as classes from './shell.module.css';
 export interface ShellBreadcrumbsProps {
     segments: ShellPathSegment[]; // the root path, one segment per field
     onNavigate: (path: string) => void;
+    explorerOpen: boolean;
+    onToggleExplorer: () => void;
 }
 
 // The icon square of the root path kind, in the shared kind colors of the Boxed Editor header rows. A context row of
 // the Boxed Editor has no colored icon, so a context gets a muted one.
-function KindIcon({kind}: {kind: 'model' | ShellPathSegment['kind']}): ReactElement {
-    if (kind === 'model') {
-        return (
-            <div aria-hidden="true" className={classes.kindIcon} style={{backgroundColor: KIND_COLORS.model}}>
-                <IconSitemap size={20} color="#fff" />
-            </div>
-        );
-    }
-    if (kind === 'function') {
-        return (
-            <div aria-hidden="true" className={classes.kindIcon} style={{backgroundColor: KIND_COLORS.function}}>
-                <IconMathFunction size={19} color="#fff" />
-            </div>
-        );
-    }
+function KindGlyph({kind}: {kind: 'model' | ShellPathSegment['kind']}): ReactElement {
+    if (kind === 'model') return <IconSitemap size={20} color="#fff" />;
+    if (kind === 'function') return <IconMathFunction size={19} color="#fff" />;
+    return <IconBraces size={19} />;
+}
+
+const KIND_FILL: Partial<Record<'model' | ShellPathSegment['kind'], string>> = {
+    model: KIND_COLORS.model,
+    function: KIND_COLORS.function,
+};
+
+// The kind icon square also opens and closes the Project Explorer, like the rail button of the Node palette.
+function ExplorerToggle({
+    kind,
+    open,
+    onToggle,
+}: {
+    kind: 'model' | ShellPathSegment['kind'];
+    open: boolean;
+    onToggle: () => void;
+}): ReactElement {
+    const label = open ? 'Hide project explorer' : 'Show project explorer';
+    const fill = KIND_FILL[kind];
     return (
-        <div aria-hidden="true" className={classes.kindIcon}>
-            <IconBraces size={19} />
-        </div>
+        <Tooltip label={label} position="bottom-start" withArrow>
+            <button
+                type="button"
+                aria-label={label}
+                aria-pressed={open}
+                className={cx(classes.kindIcon, open && classes.kindIconOpen)}
+                style={fill ? {backgroundColor: fill} : undefined}
+                onClick={onToggle}
+            >
+                <KindGlyph kind={kind} />
+            </button>
+        </Tooltip>
     );
 }
 
 /** `Model` › `applicant` › `calculateAge(...)`: the fully qualified root path, the last item as plain text. */
-export function ShellBreadcrumbs({segments, onNavigate}: ShellBreadcrumbsProps): ReactElement {
+export function ShellBreadcrumbs({
+    segments,
+    onNavigate,
+    explorerOpen,
+    onToggleExplorer,
+}: ShellBreadcrumbsProps): ReactElement {
     const items = [
         {label: 'Model', path: '*'},
         ...segments.map((segment) => ({
@@ -44,7 +70,7 @@ export function ShellBreadcrumbs({segments, onNavigate}: ShellBreadcrumbsProps):
     ];
     return (
         <>
-            <KindIcon kind={segments.at(-1)?.kind ?? 'model'} />
+            <ExplorerToggle kind={segments.at(-1)?.kind ?? 'model'} open={explorerOpen} onToggle={onToggleExplorer} />
             <nav aria-label="Model path" className={classes.breadcrumbs}>
                 {items.map((item, index) => (
                     <Fragment key={item.path}>

@@ -1,32 +1,140 @@
-.heading {
-  padding: 4px 8px;
-  font-size: var(--mantine-font-size-sm);
-  font-weight: 500;
+/*
+ * The Project Explorer side panel, in the design language of the Flow Editor node palette: a 40px muted header with
+ * the title and the close button, a scroll body, and rows with a colored kind tile. Mantine colors only, so the light
+ * and dark schemes follow the host theme.
+ */
+.root {
+  --pe-border: var(--mantine-color-default-border);
+  --pe-muted: var(--mantine-color-default-hover);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--mantine-color-body);
 }
 
+.root *,
+.root *::before,
+.root *::after {
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 14px 8px;
+  border-bottom: 1px solid var(--pe-border);
+  background: var(--pe-muted);
+}
+
+.title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+}
+
+.tree {
+  padding: 6px;
+}
+
+.error {
+  margin: 10px;
+}
+
+/* ---------------------------------------------------------------- rows */
 .node {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px 4px;
+  gap: 6px;
+  min-height: 30px;
+  padding: 3px 6px 3px 2px;
+  border: 1px solid transparent;
   border-radius: var(--mantine-radius-sm);
   cursor: pointer;
   user-select: none;
-  font-size: var(--mantine-font-size-sm);
+  outline: none;
+  font-size: 13px;
 }
 
 .node:hover {
-  background-color: var(--mantine-color-default-hover);
+  border-color: var(--pe-border);
+  background: var(--pe-muted);
+}
+
+.node:focus-visible {
+  border-color: var(--mantine-primary-color-filled);
+}
+
+.node[data-selected] {
+  background: var(--mantine-primary-color-light);
 }
 
 .label {
-  display: inline-flex;
+  display: flex;
+  flex: 1;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Functions and decision tables read as code: `name()`. */
+.textCode {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 12px;
+}
+
+/* A Types or Variables group reads as a palette group label, with its member count. */
+.group {
+  color: var(--mantine-color-dimmed);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.count {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--pe-muted);
+  color: var(--mantine-color-dimmed);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.tile {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.tileMuted {
+  background: var(--pe-border);
+  color: var(--mantine-color-dimmed);
 }
 
 .chevron {
   flex-shrink: 0;
+  color: var(--mantine-color-dimmed);
   transition: transform 100ms ease;
 }
 

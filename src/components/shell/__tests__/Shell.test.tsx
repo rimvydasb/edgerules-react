@@ -94,6 +94,50 @@ describe('Shell breadcrumb', () => {
     });
 });
 
+describe('Shell project explorer', () => {
+    it('opens with the kind icon and closes with its close button or the kind icon', async () => {
+        const user = userEvent.setup();
+        await renderShell();
+        expect(screen.queryByRole('navigation', {name: 'Project explorer'})).toBeNull();
+
+        await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+        expect(within(explorer).getByText('applicant')).toBeInTheDocument();
+        expect(screen.getAllByRole('button', {name: 'Hide project explorer'})).toHaveLength(2);
+
+        await user.click(within(explorer).getByRole('button', {name: 'Hide project explorer'}));
+        expect(screen.queryByRole('navigation', {name: 'Project explorer'})).toBeNull();
+
+        await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
+        await user.click(screen.getByRole('button', {name: 'Hide project explorer', pressed: true}));
+        expect(screen.queryByRole('navigation', {name: 'Project explorer'})).toBeNull();
+    });
+
+    it('opens the clicked context or function as the root path', async () => {
+        const user = userEvent.setup();
+        const {onPathChange} = await renderShell({defaultExplorerOpen: true});
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+
+        await user.click(within(explorer).getByText('applicant'));
+        expect(onPathChange).toHaveBeenLastCalledWith('applicant');
+        expect(breadcrumbItems()).toEqual(['Model', 'applicant']);
+
+        await user.click(await within(explorer).findByText('calculateAge()'));
+        expect(onPathChange).toHaveBeenLastCalledWith('applicant.calculateAge');
+        expect(breadcrumbItems()).toEqual(['Model', 'applicant', 'calculateAge(...)']);
+    });
+
+    it('follows the controlled visibility and only reports a toggle', async () => {
+        const user = userEvent.setup();
+        const onExplorerOpenChange = vi.fn();
+        await renderShell({explorerOpen: false, onExplorerOpenChange});
+
+        await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
+        expect(onExplorerOpenChange).toHaveBeenCalledWith(true);
+        expect(screen.queryByRole('navigation', {name: 'Project explorer'})).toBeNull();
+    });
+});
+
 describe('Shell view switch', () => {
     it('starts in the Boxed view and switches views at the same root path', async () => {
         const user = userEvent.setup();
@@ -123,6 +167,9 @@ describe('Shell view switch', () => {
         const {onViewChange} = await renderShell({defaultView: 'code'});
         expect(screen.getByRole('radio', {name: 'Code'})).toHaveAttribute('aria-checked', 'true');
 
+        // The kind icon, the Project Explorer toggle, comes first.
+        await user.tab();
+        expect(screen.getByRole('button', {name: 'Show project explorer'})).toHaveFocus();
         await user.tab();
         expect(screen.getByRole('radio', {name: 'Code'})).toHaveFocus();
         await user.keyboard('{ArrowRight}');
