@@ -19,6 +19,14 @@ export function useWiredReading(handleId: string): {source?: string; reading?: W
     const {service} = useFlowEditor();
     const [connection] = useNodeConnections({handleType: 'target', handleId});
     const source = connection ? sourcePath(connection.source, connection.sourceHandle) : undefined;
+    return {source, reading: useModelReading(service, source)};
+}
+
+/**
+ * What the engine computes for the model path `source`; it reads again after every committed change of the service.
+ * Undefined while `source` is undefined and until the first read settles.
+ */
+export function useModelReading(service: FlowEditorService, source: string | undefined): WiredReading | undefined {
     const [reading, setReading] = useState<WiredReading | undefined>();
 
     useEffect(() => {
@@ -40,5 +48,5 @@ export function useWiredReading(handleId: string): {source?: string; reading?: W
         };
     }, [service, source]);
 
-    return {source, reading};
+    return reading;
 }

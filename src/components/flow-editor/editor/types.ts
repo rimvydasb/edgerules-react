@@ -13,7 +13,16 @@ export interface FlowEditorProps {
     onLayoutChange?: (layout: FlowLayout) => void; // after a node is moved, added or removed, or an output is rewired
     focusNode?: FlowFocusRequest; // a new object selects that node and centers the view on it
     defaultPaletteCollapsed?: boolean; // the node palette starts as the rail of node types; defaults to false
+    onSelectionChange?: (selection: FlowSelection | undefined) => void; // the one selected node; undefined for none or several
 }
+
+/**
+ * The one selected node of the canvas. A model node is a field of the model; an output or a chart node is a sink that
+ * shows the value of the model path wired into it (`source`, undefined while nothing is wired).
+ */
+export type FlowSelection =
+    | {kind: 'function' | 'object-input' | 'list-input'; field: string}
+    | {kind: 'output' | 'chart'; id: string; label?: string; source?: string};
 
 /** Asks the canvas to select one node and center it; each new object is a new request. */
 export interface FlowFocusRequest {

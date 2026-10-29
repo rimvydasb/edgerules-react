@@ -99,6 +99,44 @@ describe('header row', () => {
         expect(screen.queryByRole('button', {name: 'Show test column'})).not.toBeInTheDocument();
     });
 
+    it('widens the value column to the editor width when fit to width is on; other columns shrink it', async () => {
+        const user = userEvent.setup();
+        const testCasesService = createTestCasesService('model', '*', {dbName: uniqueDbName('fit-width')});
+        const {container} = render(
+            <div>
+                <BoxedEditor
+                    service={createBoxedEditorService(MutableDecisionService.fromCode(MODEL))}
+                    path="*"
+                    testCasesService={testCasesService}
+                />
+            </div>,
+        );
+        const root = container.querySelector('[role="treegrid"]')!.parentElement!;
+        // jsdom does no layout: 1602 = 2 frame px + 40 steps.
+        Object.defineProperty(root, 'clientWidth', {configurable: true, value: 1602});
+        const template = () => (screen.getByTestId('row-*') as HTMLElement).style.gridTemplateColumns;
+
+        expect(template()).toBe('320px 480px 40px 240px');
+        const fit = screen.getByRole('button', {name: 'Fit to width'});
+        expect(fit).toHaveAttribute('aria-pressed', 'false');
+
+        await user.click(fit);
+        expect(screen.getByRole('button', {name: 'Fit to content'})).toHaveAttribute('aria-pressed', 'true');
+        // 40 steps - 8 name - 1 actions - 6 description = 25 value steps.
+        expect(template()).toBe('320px 1000px 40px 240px');
+
+        await user.click(screen.getByRole('button', {name: 'Show test column'}));
+        expect(template()).toBe('320px 680px 40px 240px 320px');
+
+        await user.click(screen.getByRole('button', {name: 'Hide description'}));
+        expect(template()).toBe('320px 920px 40px 320px');
+
+        await user.click(screen.getByRole('button', {name: 'Fit to content'}));
+        expect(template()).toBe('320px 480px 40px 320px');
+
+        testCasesService.dispose();
+    });
+
     it('runs the first test case when the test column is shown, and the selected case on navigation', async () => {
         const user = userEvent.setup();
         const mutable = MutableDecisionService.fromCode(MODEL);

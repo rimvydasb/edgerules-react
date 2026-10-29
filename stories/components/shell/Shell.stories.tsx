@@ -99,3 +99,38 @@ export const Project: Story = {
         await expect(await canvas.findByRole('radio', {name: 'Tests'})).toHaveAttribute('aria-checked', 'true');
     },
 };
+
+/**
+ * The split screen of the Flow view. The toggle right of Tests shows the selected node beside the canvas: the
+ * `decision` node as the body of `riskScore` in a Boxed Editor, the output node as the data wired into it. A click on
+ * the empty canvas closes it.
+ */
+export const SplitScreen: Story = {
+    args: {defaultPath: 'loanBook', defaultView: 'flow', defaultExplorerOpen: false},
+    loaders: [
+        async () => ({
+            session: await openStoryProject({
+                name: 'Shell split screen story',
+                model: {dsl: PROJECT_MODEL},
+                flow: {
+                    schemaVersion: 2,
+                    layouts: {
+                        loanBook: {
+                            positions: {},
+                            outputs: [
+                                {id: 'output', label: 'Decision', source: {node: 'loanBook.decision', handle: 'out:*'}},
+                            ],
+                        },
+                    },
+                },
+            }),
+        }),
+    ],
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement);
+        await userEvent.click(await canvas.findByRole('button', {name: 'Split screen'}));
+        await userEvent.click(await canvas.findByTestId('function-node-loanBook.decision'));
+        const panel = await canvas.findByTestId('shell-split-panel');
+        await expect(within(panel).getByTestId('row-riskScore.score')).toBeInTheDocument();
+    },
+};

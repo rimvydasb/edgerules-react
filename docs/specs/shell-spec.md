@@ -49,8 +49,21 @@ The `ProjectExplorer` side panel is optional. It is 256px wide, below the header
 | Kind icon square   | Toggle `button` with `aria-pressed`                              | Shows and hides the `ProjectExplorer` side panel.                            |
 | `ProjectExplorer`  | Side panel below the header, left of the body                    | Mounted only while open. Its close button hides it.                          |
 | `ShellViewSwitch`  | `radiogroup` of four 3-step header cells                         | Changes the active view. The root path does not change.                      |
+| `ShellSplitToggle` | Toggle `button` with `aria-pressed`, one step right of Tests     | Off by default. Enabled only in the Flow view. Splits the Flow view.         |
 | Editor body        | One of `CodeEditor`, `BoxedEditor`, `FlowEditor`, `TestsManager` | Only the active editor is mounted.                                           |
 | `ShellStatus`      | Mantine `Alert`                                                  | Shows the last commit error of the Code view. It is hidden without an error. |
+
+### Flow view split screen
+
+With the split screen on, the Flow view shows the selected node in a panel right of the canvas. The panel follows the
+selection (`FlowEditor` `onSelectionChange`). A click on the empty canvas clears the selection and closes the panel.
+
+| Selected node                      | Panel content                                                                                                           |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Function node                      | `BoxedEditor` at the callee path: the body of the called function or ruleset. A draft without a callee shows its field. |
+| Object or list input               | `BoxedEditor` at the field path of the node. Another node mounts another Boxed Editor.                                  |
+| Output or chart node (sink)        | `SinkSheet`: the full value of the wired path, on the Boxed Editor ruled sheet.                                         |
+| None, several nodes, or toggle off | No panel. The canvas keeps its full width.                                                                              |
 
 ### Component dependencies
 

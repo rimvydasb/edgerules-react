@@ -42,7 +42,15 @@ import {OutputNode, sourcePath} from '../output-node/OutputNode';
 import {autoLayout, findFreeSpot, modelWires, outputWires, type LayoutKind, type Wire} from './graph';
 import {ICON_COLOR, NodePalette} from './NodePalette';
 import {DRAG_TYPE, paletteItems} from './paletteItems';
-import type {FlowChart, FlowEditorProps, FlowFocusRequest, FlowLayout, FlowOutput, PaletteItem} from './types';
+import type {
+    FlowChart,
+    FlowEditorProps,
+    FlowFocusRequest,
+    FlowLayout,
+    FlowOutput,
+    FlowSelection,
+    PaletteItem,
+} from './types';
 import styles from './flowEditor.module.css';
 
 const NODE_TYPES = {
@@ -190,12 +198,30 @@ function syncCharts(charts: FlowChart[], changes: NodeChange[]): FlowChart[] {
     return next;
 }
 
+/** The one selected node, or undefined when none or several are selected. */
+function selectionOf(nodes: Node[], outputs: FlowOutput[], charts: FlowChart[]): FlowSelection | undefined {
+    const chosen = nodes.filter((node) => node.selected);
+    if (chosen.length !== 1) return undefined;
+    const {id, type} = chosen[0];
+    const kind = KIND_OF[type ?? ''];
+    if (kind === 'output' || kind === 'chart') {
+        const sink = (kind === 'output' ? outputs : charts).find((candidate) => candidate.id === id);
+        const source = sink?.source && sourcePath(sink.source.node, sink.source.handle);
+        return {kind, id, label: sink?.label, source};
+    }
+    return kind ? {kind, field: id} : undefined;
+}
+
 function FlowCanvas({
     defaultLayout,
     onLayoutChange,
     focusNode,
     defaultPaletteCollapsed = false,
-}: Pick<FlowEditorProps, 'defaultLayout' | 'onLayoutChange' | 'focusNode' | 'defaultPaletteCollapsed'>) {
+    onSelectionChange,
+}: Pick<
+    FlowEditorProps,
+    'defaultLayout' | 'onLayoutChange' | 'focusNode' | 'defaultPaletteCollapsed' | 'onSelectionChange'
+>) {
     const {service, readOnly = false} = useFlowEditor();
     const flow = useReactFlow();
     const colorScheme = useComputedColorScheme('light');
@@ -354,6 +380,17 @@ function FlowCanvas({
         reported.current = text;
         onLayoutChange(layout);
     }, [nodes, outputs, charts, onLayoutChange]);
+
+    // Report the selected node when it changes: another node, its wire or its label, or no node at all.
+    const selection = useMemo(() => selectionOf(nodes, outputs, charts), [nodes, outputs, charts]);
+    const selectionKey = JSON.stringify(selection ?? null);
+    const reportedSelection = useRef('null');
+    useEffect(() => {
+        if (selectionKey === reportedSelection.current) return;
+        reportedSelection.current = selectionKey;
+        onSelectionChange?.(selection);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectionKey, onSelectionChange]);
 
     function viewportCenter(): XYPosition {
         const box = wrapper.current?.getBoundingClientRect();

@@ -1,5 +1,5 @@
 import {Tooltip} from '@mantine/core';
-import {IconFlask, IconNotes, IconPlus, IconSettings} from '@tabler/icons-react';
+import {IconArrowAutofitContent, IconFlask, IconNotes, IconPlus, IconSettings} from '@tabler/icons-react';
 import {Fragment, type ReactElement, type ReactNode} from 'react';
 import {RowActionsMenu} from '#ui/RowActionsMenu';
 import {cx} from '#ui/cx';
@@ -66,12 +66,13 @@ export interface HeaderRowProps {
 
 /**
  * The one-step header on top of every opened Boxed Expression: the model name (root) or the metaphor name, the
- * description and test-results column toggles, and — at the model root only — the `Model settings` button and the
- * `plus` menu that adds entities.
+ * fit-width toggle, the description and test-results column toggles, and — at the model root only — the
+ * `Model settings` button and the `plus` menu that adds entities.
  * Above the two overlay columns it shows their headings: the model description and the test case selector.
  */
 export function HeaderRow({row}: HeaderRowProps): ReactElement {
-    const {readOnly, testCasesService, setShowDescription, setShowTestResults} = useBoxedEditorContext();
+    const {readOnly, testCasesService, fitWidth = false, setFitWidth, setShowDescription, setShowTestResults} =
+        useBoxedEditorContext();
     const {openModelSettings} = useBoxedEditorUi();
     const {template, showDescription, showTestResults} = useBoxedLayout();
     const actions = useRowActions(row);
@@ -90,6 +91,15 @@ export function HeaderRow({row}: HeaderRowProps): ReactElement {
                     <div role="heading" aria-level={2} className={cx(classes.headerTitle, classes.strong)}>
                         {metaphorName(row)}
                     </div>
+                    {setFitWidth && (
+                        <HeaderButton
+                            label={fitWidth ? 'Fit to content' : 'Fit to width'}
+                            pressed={fitWidth}
+                            onClick={() => setFitWidth(!fitWidth)}
+                        >
+                            <IconArrowAutofitContent size={18} />
+                        </HeaderButton>
+                    )}
                     {setShowDescription && (
                         <HeaderButton
                             label={showDescription ? 'Hide description' : 'Show description'}

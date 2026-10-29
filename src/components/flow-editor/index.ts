@@ -7,7 +7,7 @@ export {ListInputNode} from './list-input-node/ListInputNode';
 export {ObjectInputNode} from './object-input-node/ObjectInputNode';
 export {OutputNode} from './output-node/OutputNode';
 export type {ChartConfig, ChartKind, ChartNodeData} from './chart-node/types';
-export type {FlowChart, FlowEditorProps, FlowFocusRequest, FlowLayout, FlowOutput} from './editor/types';
+export type {FlowChart, FlowEditorProps, FlowFocusRequest, FlowLayout, FlowOutput, FlowSelection} from './editor/types';
 export type {FlowEditorOpenTarget, FlowEditorProviderProps, FlowEditorService, FlowNodeRef} from './flow-editor-types';
 export type {CalleeRef, FunctionNodeData, FunctionNodeModel, NodeArgument, NodeResult} from './function-node/types';
 export type {ListInputNodeData, ListInputNodeModel, ListItemField} from './list-input-node/types';

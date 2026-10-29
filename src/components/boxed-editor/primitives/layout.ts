@@ -50,6 +50,24 @@ export function gridTemplateColumns({
     return columns.join(' ');
 }
 
+/** Width of the grid frame's left and right edges (`.grid` border). */
+const GRID_FRAME_WIDTH = 2;
+
+/**
+ * Value-column width (in whole steps) that fills `availableWidth` next to the other visible columns, never narrower
+ * than `minUnits`.
+ */
+export function fittedValueUnits(
+    availableWidth: number,
+    {showDescription, showTestResults}: ColumnVisibility,
+    minUnits: number,
+): number {
+    let otherWidth = NAME_COLUMN_WIDTH + ACTIONS_COLUMN_WIDTH + GRID_FRAME_WIDTH;
+    if (showDescription) otherWidth += DESCRIPTION_COLUMN_WIDTH;
+    if (showTestResults) otherWidth += TEST_RESULTS_COLUMN_WIDTH;
+    return Math.max(minUnits, Math.floor((availableWidth - otherWidth) / CELL));
+}
+
 /** Splits `total` steps into `count` whole-step tracks; leftover steps go to the leftmost tracks. */
 export function splitUnits(count: number, total: number): number[] {
     if (count <= 0) return [];

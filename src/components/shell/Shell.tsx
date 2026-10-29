@@ -10,6 +10,7 @@ import {isRootPath, rootPathSegments, rootViews} from './shell-path';
 import {explorerRoute} from './shell-routing';
 import type {ShellProps, ShellView} from './shell-types';
 import {ShellBreadcrumbs} from './ShellBreadcrumbs';
+import {ShellSplitToggle} from './ShellSplitToggle';
 import {ShellViewSwitch} from './ShellViewSwitch';
 import {BoxedView} from './views/BoxedView';
 import {CodeView} from './views/CodeView';
@@ -48,6 +49,8 @@ export function Shell({
     const [ownPath, setOwnPath] = useState(defaultPath);
     const [ownView, setOwnView] = useState<ShellView>(defaultView);
     const [ownExplorerOpen, setOwnExplorerOpen] = useState(defaultExplorerOpen);
+    // The split screen of the Flow view: off by default.
+    const [split, setSplit] = useState(false);
     const explorerOpen = explorerOpenProp ?? ownExplorerOpen;
     const requested = path ?? ownPath;
     const requestedView = viewProp ?? ownView;
@@ -187,6 +190,7 @@ export function Shell({
                     onCreateTests={readOnly ? undefined : createTests}
                     onChange={(next) => navigate({view: next})}
                 />
+                <ShellSplitToggle open={split} disabled={view !== 'flow'} onToggle={() => setSplit(!split)} />
             </div>
             <div className={classes.content}>
                 {explorer}
@@ -217,10 +221,12 @@ export function Shell({
                                 key={root}
                                 root={root}
                                 service={flowService}
+                                boxedService={boxedService}
                                 languageService={languageService}
                                 readOnly={readOnly}
                                 onOpenNode={openNode}
                                 focusNode={focus}
+                                split={split}
                             />
                         )}
                         {view === 'tests' && (

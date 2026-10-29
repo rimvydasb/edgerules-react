@@ -1,9 +1,9 @@
 import {Alert} from '@mantine/core';
 import {DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent} from '@dnd-kit/core';
-import {useState, type ReactElement} from 'react';
+import {useEffect, useRef, useState, type ReactElement, type RefObject} from 'react';
 import type {BoxedEditorProps} from './BoxedEditorProps';
 import {useRowCommands} from './commands/useRowCommands';
-import {BoxedEditorProvider} from './context/BoxedEditorContext';
+import {BoxedEditorProvider, useBoxedEditorContext} from './context/BoxedEditorContext';
 import {BoxedEditorTestProvider} from './context/BoxedEditorTestContext';
 import {BoxedEditorUiProvider} from './context/BoxedEditorUiContext';
 import {BoxedLayoutProvider} from './context/BoxedLayoutContext';
@@ -28,7 +28,25 @@ interface BoxedEditorGridProps {
     showHeader: boolean;
 }
 
+/** The width of `ref`'s parent element while `enabled`, followed on every resize. */
+function useParentWidth(ref: RefObject<HTMLElement | null>, enabled: boolean): number | undefined {
+    const [width, setWidth] = useState<number>();
+    useEffect(() => {
+        const parent = ref.current?.parentElement;
+        if (!enabled || !parent || typeof ResizeObserver === 'undefined') return undefined;
+        const measure = (): void => setWidth(parent.clientWidth);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(parent);
+        return () => observer.disconnect();
+    }, [ref, enabled]);
+    return enabled ? width : undefined;
+}
+
 function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement {
+    const {fitWidth = false} = useBoxedEditorContext();
+    const gridRef = useRef<HTMLDivElement>(null);
+    const availableWidth = useParentWidth(gridRef, fitWidth);
     const service = useBoxedEditorService();
     const rows = useBoxedRows(path);
     const rootRow = service.getBoxedRowData(path);
@@ -63,8 +81,8 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
                     {modelError.message}
                 </Alert>
             )}
-            <div role="treegrid" className={classes.grid}>
-                <BoxedLayoutProvider rows={rows}>
+            <div ref={gridRef} role="treegrid" className={classes.grid}>
+                <BoxedLayoutProvider rows={rows} availableWidth={availableWidth}>
                     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
                         {showHeader && <HeaderRow row={rootRow} />}
                         {OWN_ROW_ROOT_KINDS.has(rootRow.kind) ? (
@@ -126,6 +144,7 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
     // The header toggles change the column visibility; a changed prop sets it again.
     const [showDescription, setShowDescription] = useSyncedState(defaultShowDescription);
     const [showTestResults, setShowTestResults] = useSyncedState(defaultShowTestResults);
+    const [fitWidth, setFitWidth] = useState(false);
 
     return (
         <div className={cx(classes.root, className)} style={style}>
@@ -137,6 +156,8 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
                 showDescription={showDescription}
                 showTestResults={showTestResults}
                 showType={showType}
+                fitWidth={fitWidth}
+                setFitWidth={setFitWidth}
                 setShowDescription={setShowDescription}
                 setShowTestResults={setShowTestResults}
                 languageService={languageService}

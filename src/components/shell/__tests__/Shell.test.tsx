@@ -730,3 +730,81 @@ describe('Shell Flow view', () => {
         expect(session.engine.getCode('applicant')).toContain('@InputNode');
     });
 });
+
+describe('Shell split screen', () => {
+    // The workbook with an output node that reads the whole result of `decision`.
+    async function openWorkbook() {
+        const {session} = await openFixtureProject({
+            model: {dsl: WORKBOOK_MODEL},
+            flow: {
+                schemaVersion: 2,
+                layouts: {
+                    loanBook: {
+                        positions: {},
+                        outputs: [
+                            {id: 'output', label: 'Decision', source: {node: 'loanBook.decision', handle: 'out:*'}},
+                        ],
+                    },
+                },
+            },
+        });
+        return session;
+    }
+
+    function nodeOf(testId: string): HTMLElement {
+        return screen.getByTestId(testId).closest<HTMLElement>('.react-flow__node')!;
+    }
+
+    it('is off by default and enabled only in the Flow view', async () => {
+        const user = userEvent.setup();
+        await renderShell({defaultPath: 'applicant'});
+        const toggle = screen.getByRole('button', {name: 'Split screen'});
+        expect(toggle).toBeDisabled();
+        expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+        await user.click(screen.getByRole('radio', {name: 'Flow'}));
+        expect(toggle).toBeEnabled();
+        expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('shows the callee of a function node and an input node in a Boxed Editor, follows the selection and closes on a canvas click', async () => {
+        const session = await openWorkbook();
+        const user = userEvent.setup();
+        await renderShell({defaultPath: 'loanBook', defaultView: 'flow'}, session);
+        await screen.findByTestId('function-node-loanBook.decision');
+
+        // Off: a selected node opens nothing. A click, not a press: d3-drag needs a real window on mousedown.
+        fireEvent.click(nodeOf('function-node-loanBook.decision'));
+        await waitFor(() => expect(nodeOf('function-node-loanBook.decision')).toHaveClass('selected'));
+        expect(screen.queryByTestId('shell-split-panel')).toBeNull();
+
+        await user.click(screen.getByRole('button', {name: 'Split screen'}));
+        const panel = await screen.findByTestId('shell-split-panel');
+        // A function node shows the body of the function it calls, not the call site.
+        expect(within(panel).getByRole('treegrid')).toBeInTheDocument();
+        expect(within(panel).getByTestId('row-riskScore.score')).toBeInTheDocument();
+        expect(within(panel).queryByTestId('row-loanBook.decision')).toBeNull();
+
+        // Another node renders another Boxed Editor.
+        fireEvent.click(nodeOf('object-input-node-loanBook.applicant'));
+        await waitFor(() => expect(within(panel).getByTestId('row-loanBook.applicant')).toBeInTheDocument());
+        expect(within(panel).queryByTestId('row-riskScore.score')).toBeNull();
+
+        fireEvent.click(screen.getByTestId('shell').querySelector<HTMLElement>('.react-flow__pane')!);
+        await waitFor(() => expect(screen.queryByTestId('shell-split-panel')).toBeNull());
+    });
+
+    it('shows the full data wired into an output node', async () => {
+        const session = await openWorkbook();
+        const user = userEvent.setup();
+        await renderShell({defaultPath: 'loanBook', defaultView: 'flow'}, session);
+        await user.click(screen.getByRole('button', {name: 'Split screen'}));
+
+        fireEvent.click(nodeOf('output-node-output'));
+        const sheet = await screen.findByTestId('sink-sheet');
+        expect(within(sheet).getByText('Decision')).toBeInTheDocument();
+        expect(within(sheet).getByText('loanBook.decision')).toBeInTheDocument();
+        expect(await within(sheet).findByText('score')).toBeInTheDocument();
+        expect(within(sheet).getByText('50')).toBeInTheDocument();
+    });
+});

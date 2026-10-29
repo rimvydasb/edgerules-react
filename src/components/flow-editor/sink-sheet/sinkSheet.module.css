@@ -1,0 +1,217 @@
+/*
+ * The data of an Output or a Chart node on the ruled sheet of the Boxed Editor: a 40px step, 1px border lines, a muted
+ * header row with a kind icon square. Every row owns its bottom line, and the sheet frame owns the outer edges.
+ */
+.sheet {
+  --ss-border: var(--mantine-color-default-border);
+  --ss-muted: var(--mantine-color-default-hover);
+  --ss-t-number: var(--mantine-color-blue-7);
+  --ss-t-string: var(--mantine-color-green-8);
+  --ss-t-boolean: var(--mantine-color-orange-7);
+  --ss-t-record: var(--mantine-color-gray-7);
+
+  display: flex;
+  flex-direction: column;
+  min-width: 100%;
+  width: max-content;
+  border: 1px solid var(--ss-border);
+  border-bottom: 0;
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.sheet,
+.sheet * {
+  box-sizing: border-box;
+}
+
+.row {
+  display: flex;
+  height: 40px;
+  border-bottom: 1px solid var(--ss-border);
+}
+
+.header {
+  background-color: var(--ss-muted);
+}
+
+.icon {
+  display: flex;
+  width: 39px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--ss-border);
+  color: #fff;
+}
+
+.title {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  padding-inline: 8px;
+  line-height: 39px;
+  white-space: nowrap;
+}
+
+.source {
+  overflow: hidden;
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+/* The name column: a field name, a list position, or 'value' for the whole value. */
+.name {
+  display: flex;
+  flex: 0 0 200px;
+  align-items: center;
+  overflow: hidden;
+  padding-right: 8px;
+  border-right: 1px solid var(--ss-border);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The engine value, on the green result tint of an OutputNode. */
+.value,
+.type {
+  display: flex;
+  flex: 1;
+  min-width: 160px;
+  align-items: center;
+  overflow: hidden;
+  padding-inline: 10px;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value {
+  background: color-mix(in srgb, var(--mantine-color-green-6) 8%, transparent);
+}
+
+.typeRow .name,
+.type {
+  color: var(--mantine-color-dimmed);
+}
+
+.typeRow .name {
+  padding-left: 12px;
+}
+
+/* The size of a nested list or record, whose items follow in the rows below. */
+.summary {
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family);
+}
+
+.message,
+.error {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ss-border);
+  color: var(--mantine-color-dimmed);
+}
+
+.error {
+  color: var(--mantine-color-error);
+}
+
+/* ---------------------------------------------------------------- a list of records as one table */
+.tableRow {
+  border-bottom: 1px solid var(--ss-border);
+}
+
+.scroll {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  height: 40px;
+  max-width: 320px;
+  padding-inline: 10px;
+  overflow: hidden;
+  border-right: 1px solid var(--ss-border);
+  border-bottom: 1px solid var(--ss-border);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table tr > :last-child {
+  border-right: 0;
+}
+
+.table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.table thead th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  background: var(--ss-muted);
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family);
+  font-weight: 600;
+}
+
+/* The row number. */
+.key {
+  width: 40px;
+  background: var(--ss-muted);
+  color: var(--mantine-color-dimmed);
+  font-weight: 400;
+}
+
+.number {
+  color: var(--ss-t-number);
+}
+
+.table .number {
+  text-align: right;
+}
+
+.string {
+  color: var(--ss-t-string);
+}
+
+.boolean {
+  color: var(--ss-t-boolean);
+}
+
+.empty {
+  color: var(--mantine-color-dimmed);
+}
+
+.nested {
+  color: var(--ss-t-record);
+}
+
+.more {
+  padding-block: 8px;
+  border-bottom: 1px solid var(--ss-border);
+  color: var(--mantine-color-dimmed);
+  font-size: 12px;
+}
+
+/* Under a table, the line above the note is the table's; the table row owns the line below. */
+.tableRow .more {
+  padding-left: 12px;
+  border-top: 1px solid var(--ss-border);
+  border-bottom: 0;
+}
