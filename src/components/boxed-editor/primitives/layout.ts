@@ -14,7 +14,7 @@ export const NAME_COLUMN_UNITS = 8;
 /** Default value-column width; it widens (in whole steps) when a sub-grid needs more room. */
 export const VALUE_COLUMN_UNITS = 12;
 export const DESCRIPTION_COLUMN_UNITS = 6;
-export const TEST_RESULTS_COLUMN_UNITS = 6;
+export const TEST_RESULTS_COLUMN_UNITS = 8;
 /** Narrowest nested sub-column (rule condition/action, relation column, argument header). */
 export const MIN_SUB_COLUMN_UNITS = 3;
 /** Width of a ruleset's `priority` sub-column. */
@@ -24,7 +24,7 @@ export const NAME_COLUMN_WIDTH = CELL * NAME_COLUMN_UNITS; // 320
 export const VALUE_COLUMN_WIDTH = CELL * VALUE_COLUMN_UNITS; // 480
 export const ACTIONS_COLUMN_WIDTH = CELL; // 40
 export const DESCRIPTION_COLUMN_WIDTH = CELL * DESCRIPTION_COLUMN_UNITS; // 240
-export const TEST_RESULTS_COLUMN_WIDTH = CELL * TEST_RESULTS_COLUMN_UNITS; // 240
+export const TEST_RESULTS_COLUMN_WIDTH = CELL * TEST_RESULTS_COLUMN_UNITS; // 320
 
 export const ROW_HEIGHT = CELL; // 40
 export const TALL_ROW_HEIGHT = CELL * 2; // 80

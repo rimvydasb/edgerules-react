@@ -13,6 +13,10 @@ export interface BoxedEditorContextValue {
     showDescription: boolean;
     showTestResults: boolean;
     showType: boolean;
+    /** Header toggles of the description and test-results columns. Absent in harnesses that mount
+     * only this provider; the header then hides its toggles. */
+    setShowDescription?: (show: boolean) => void;
+    setShowTestResults?: (show: boolean) => void;
     languageService?: CodeEditorService;
     documentationService?: DocumentationService;
     testCasesService?: TestCasesService;

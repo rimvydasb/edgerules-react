@@ -139,6 +139,7 @@ describe('test-results: triggers', () => {
                 service={service}
                 path="*"
                 testCasesService={testCasesService}
+                showTestResults
                 testRunner={runner}
                 testSubjectId="*"
                 autoRunTests={false}
@@ -220,6 +221,7 @@ describe('test-results: rendering', () => {
                 service={service}
                 path="*"
                 testCasesService={testCasesService}
+                showTestResults
                 testRunner={runner}
                 testSubjectId="*"
                 revision="rev-0"
@@ -256,6 +258,7 @@ describe('test-results: rendering', () => {
                 service={service}
                 path="*"
                 testCasesService={testCasesService}
+                showTestResults
                 testSubjectId="*"
                 revision="rev-1"
                 autoRunTests={false}
@@ -284,6 +287,7 @@ describe('test-results: rendering', () => {
                 service={service}
                 path="*"
                 testCasesService={testCasesService}
+                showTestResults
                 testRunner={runner}
                 testSubjectId="*"
             />,
@@ -342,6 +346,7 @@ describe('test-results: rendering', () => {
                 service={service}
                 path="creditDecision"
                 testCasesService={testCasesService}
+                showTestResults
                 testSubjectId="creditDecision"
                 revision="rev-0"
                 autoRunTests={false}
@@ -352,7 +357,11 @@ describe('test-results: rendering', () => {
         expect(screen.getByText('true')).toBeInTheDocument();
         expect(screen.getByText('hello world')).toBeInTheDocument();
         expect(screen.getByText('3 items')).toBeInTheDocument();
-        expect(screen.getByText('{…}')).toBeInTheDocument();
+        const resultText = (path: string) =>
+            screen.getByTestId(`row-${path}`).querySelector('[data-column="test-results"]')?.textContent;
+        expect(resultText('creditDecision.obj')).toBe('{…}');
+        // The subject's own row shows every result path of the run.
+        expect(resultText('creditDecision')).toBe('{…}');
 
         const skippedRow = screen.getByTestId('row-creditDecision.skipped');
         expect(skippedRow.querySelector('[data-column="test-results"]')?.textContent).toBe('');

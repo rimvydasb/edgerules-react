@@ -186,6 +186,47 @@
   background-color: var(--bx-muted);
 }
 
+/* ---------------------------------------------------------------- header row (rows/HeaderRow.tsx) */
+.headerRow .cell {
+  font-style: normal;
+}
+
+.headerTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  align-self: stretch;
+  /* The row's own bottom line takes the last pixel of the step. */
+  line-height: 39px;
+  padding-inline: 8px;
+  border-right: 1px solid var(--bx-border);
+}
+
+/* A header button: one step cell, styled like the actions button. The last button ends on the name column's line. */
+.headerButton {
+  composes: actionsButton;
+}
+
+.headerTitle:last-child,
+.headerButton:last-child {
+  border-right: none;
+}
+
+/* A pressed toggle keeps the hover look of `.actionsButton`. */
+.headerButtonPressed {
+  background-color: var(--mantine-color-default-border);
+}
+
+.columnHeading {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mantine-color-dimmed);
+}
+
 /* ---------------------------------------------------------------- text */
 .ellipsis {
   min-width: 0;
@@ -422,33 +463,58 @@
 }
 
 /* ---------------------------------------------------------------- test results */
-.nav {
-  border: none;
-  background: none;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-  font-size: 1rem;
-  color: var(--mantine-color-dimmed);
-}
-
-.nav:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
+/* The case label and the previous/next cell fill the header's flush test cell; the label owns the line between them. */
 .resultHeader {
   display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.resultLabel {
+  display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: center;
   gap: 4px;
-  width: 100%;
-  min-width: 0;
+  padding-inline: 8px;
+  border-right: 1px solid var(--bx-border);
 }
 
 .resultName {
   composes: ellipsis;
   flex: 1;
   font-size: 0.75rem;
+}
+
+/* Previous and next share one step cell, styled like the actions button. */
+.navCell {
+  display: flex;
+  width: 40px;
+  flex-shrink: 0;
+  background-color: var(--bx-muted);
+}
+
+.nav {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--mantine-color-dimmed);
+  cursor: pointer;
+}
+
+.nav:hover:not(:disabled) {
+  background-color: var(--mantine-color-default-border);
+}
+
+.nav:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .resultCount {

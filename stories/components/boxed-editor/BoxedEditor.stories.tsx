@@ -346,7 +346,8 @@ export const TestCasesAndTestRunner: Story = {
             description: {
                 story:
                     'A `TestCasesService` + `TestRunner` wired exactly as a host would, with three seeded ' +
-                    "cases. Edit `application.loanAmount`'s value cell (click, retype, Enter) to watch the " +
+                    'cases. Show the test column with the flask toggle in the header — the first case runs at once. ' +
+                    "Edit `application.loanAmount`'s value cell (click, retype, Enter) to watch the " +
                     "*selected* case's `payment` re-run (debounced ~300 ms) — switch cases with the " +
                     "header's ‹ › and the one you leave goes stale (italic) until you navigate back to it, " +
                     'at which point it re-runs immediately. "Invalid input" carries an unparseable ' +

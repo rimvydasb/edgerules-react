@@ -66,7 +66,15 @@ export interface BoxedEditorTestProviderProps {
  * `testRunner` is absent.
  */
 export function BoxedEditorTestProvider({children}: BoxedEditorTestProviderProps): ReactElement {
-    const {testCasesService, testRunner, autoRunTests, revision} = useBoxedEditorContext();
+    const {
+        testCasesService,
+        testRunner,
+        autoRunTests: autoRunEnabled,
+        showTestResults,
+        revision,
+    } = useBoxedEditorContext();
+    // A hidden test column shows no results, so nothing runs until the user shows it.
+    const autoRunTests = autoRunEnabled && showTestResults && testCasesService !== undefined;
     const revisionText = revision === undefined ? undefined : String(revision);
 
     const cases = useSyncExternalStore(
@@ -118,17 +126,17 @@ export function BoxedEditorTestProvider({children}: BoxedEditorTestProviderProps
         }, AUTO_RUN_DEBOUNCE_MS);
     }, [autoRunTests]);
 
-    // Mount + case-selection change: an immediate freshness-gated run, never debounced — a discrete
-    // navigation click should show `pending` right away rather than waiting out the commit debounce.
+    // Mount, case-selection change and showing the test column: an immediate freshness-gated run, never debounced — a
+    // discrete click should show `pending` right away rather than waiting out the commit debounce.
     useEffect(() => {
         if (!autoRunTests || !testRunner || !currentCase) return;
         const set = testCasesService?.getResultSet(currentCase.id);
         if (set !== undefined && set.modelRevision === revisionText) return;
         void testRunner.run(currentCase.id);
-        // Deliberately keyed on the case id alone — `revisionText` is read fresh, not tracked, so an
-        // external revision bump is handled by the effect below instead of double-firing this one.
+        // Deliberately keyed on the case id and the run switch alone — `revisionText` is read fresh, not tracked, so
+        // an external revision bump is handled by the effect below instead of double-firing this one.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentCase?.id]);
+    }, [currentCase?.id, autoRunTests]);
 
     // `revision` change: routed through the same debounce as a commit, so a host that bumps
     // `revision` from `onChange` (Section 6, "Commit ➜ re-run ➜ display") never double-runs — both

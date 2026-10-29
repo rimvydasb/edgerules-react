@@ -1,7 +1,9 @@
 import {useMemo, type ReactElement} from 'react';
+import {listCallables} from '#lib/callables';
 import {BoxedEditor, type BoxedEditorOpenTarget, type BoxedEditorService} from '../../boxed-editor';
 import type {CodeEditorService} from '../../code-editor';
 import {useProjectSession, useProjectSlice} from '../../project-session';
+import {createTestRunner, type TestSubject} from '../../tests-manager';
 
 export interface BoxedViewProps {
     root: string;
@@ -11,11 +13,27 @@ export interface BoxedViewProps {
     onOpenNode: (target: BoxedEditorOpenTarget) => void;
 }
 
-/** The boxed expression rows of the root path; a function path shows its header row with its arguments, then its body. */
+/**
+ * The boxed expression rows of the root path; a function path shows its header row with its arguments, then its body.
+ * The test column shows the tests of the root when it is a callable (a function or a decision table), otherwise the
+ * tests of the whole model.
+ */
 export function BoxedView({root, service, languageService, readOnly, onOpenNode}: BoxedViewProps): ReactElement {
     const session = useProjectSession();
     const {version} = useProjectSlice('model');
-    const testCases = useMemo(() => session.tests.forSubject('*'), [session]);
+    const subject = useMemo<TestSubject>(() => {
+        const callable = listCallables(session.engine).find((candidate) => candidate.path === root);
+        return callable
+            ? {id: callable.path, kind: callable.kind, name: callable.path}
+            : {id: '*', kind: 'model', name: '*'};
+        // `version` re-reads the callables after a model change.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session, root, version]);
+    const testCases = useMemo(() => session.tests.forSubject(subject.id), [session, subject.id]);
+    const testRunner = useMemo(
+        () => createTestRunner(session.engine, testCases, subject, {modelRevision: String(version)}),
+        [session, testCases, subject, version],
+    );
     return (
         <BoxedEditor
             service={service}
@@ -26,6 +44,8 @@ export function BoxedView({root, service, languageService, readOnly, onOpenNode}
             languageService={languageService}
             documentationService={session.documentation}
             testCasesService={testCases}
+            testRunner={testRunner}
+            testSubjectId={subject.id}
         />
     );
 }

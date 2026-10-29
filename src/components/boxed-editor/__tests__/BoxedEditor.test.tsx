@@ -99,7 +99,7 @@ describe('BoxedEditor', () => {
     it('toggles the description and test-results columns via props', () => {
         const testCasesService = createTestCasesService('model', '*', {dbName: uniqueDbName()});
         const {container, rerender} = render(
-            <BoxedEditor service={buildService()} path="*" testCasesService={testCasesService} />,
+            <BoxedEditor service={buildService()} path="*" testCasesService={testCasesService} showTestResults />,
         );
         expect(container.querySelectorAll('[data-column="description"]').length).toBeGreaterThan(0);
         expect(container.querySelectorAll('[data-column="test-results"]').length).toBeGreaterThan(0);

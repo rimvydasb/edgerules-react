@@ -34,7 +34,7 @@ export function ModelSettingsDialog({row}: ModelSettingsDialogProps): ReactEleme
     }, [modelSettingsOpen]);
 
     const save = (): void => {
-        // `row` (from `ModelHeaderRow`) is the root row fetched via `getBoxedRowData('*')`, which —
+        // `row` (from `HeaderRow`) is the root row fetched via `getBoxedRowData('*')`, which —
         // like every path — has its own `children` stripped by the cache; denormalizing that as-is
         // would commit an empty context and wipe the whole model. Fetch the live children first.
         const children = service.getBoxedRowsData(row.path);

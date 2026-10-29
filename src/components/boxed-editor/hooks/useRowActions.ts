@@ -60,7 +60,7 @@ interface ActionDraft {
 export function useRowActions(row: BoxedRowData): RowMenuItem[] {
     const {service, readOnly, onOpenNode} = useBoxedEditorContext();
     const commands = useRowCommands();
-    const {isExpanded, toggleExpand, openModelSettings} = useBoxedEditorUi();
+    const {isExpanded, toggleExpand} = useBoxedEditorUi();
 
     return useMemo(() => {
         const drafts: ActionDraft[] = [];
@@ -173,7 +173,6 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
         switch (row.kind) {
             case 'model': {
                 pushContainerAdds(row.path, service.getBoxedRowsData(row.path), true);
-                push('model-settings', 'Model settings', () => openModelSettings());
                 pushViewAsCode();
                 break;
             }
@@ -488,5 +487,5 @@ export function useRowActions(row: BoxedRowData): RowMenuItem[] {
             onSelect: draft.onSelect,
         }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [row, service, readOnly, commands, isExpanded, toggleExpand, openModelSettings, onOpenNode]);
+    }, [row, service, readOnly, commands, isExpanded, toggleExpand, onOpenNode]);
 }

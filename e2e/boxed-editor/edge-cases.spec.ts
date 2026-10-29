@@ -246,12 +246,20 @@ test.describe('Boxed Editor / side columns', () => {
         await expect(page.locator('[data-column="description"]')).toHaveCount(0);
         await expect(page.locator('[data-column="test-results"]')).toHaveCount(0);
     });
+    test('hides the test column until its header toggle shows it', async ({page}) => {
+        await openBoxedEditorStory(page, 'test-cases-and-test-runner');
+        await expect(page.locator('[data-column="test-results"]')).toHaveCount(0);
+        await page.getByRole('button', {name: 'Show test column'}).click();
+        await expect(page.getByTestId('row-payment').locator('[data-column="test-results"]')).not.toBeEmpty();
+    });
     test('renders passing and failing row results', async ({page}) => {
         await openBoxedEditorStory(page, 'test-cases-and-test-runner');
+        await page.getByRole('button', {name: 'Show test column'}).click();
         await expect(page.locator('[data-column="test-results"]')).not.toHaveCount(0);
     });
     test('coalesces a burst of edits into a completed test run', async ({page}) => {
         await openBoxedEditorStory(page, 'test-cases-and-test-runner');
+        await page.getByRole('button', {name: 'Show test column'}).click();
         await commitExpression(page, 'application.loanAmount', '100');
         await commitExpression(page, 'application.loanAmount', '200');
         await expect(page.locator('[data-column="test-results"]').first()).not.toContainText('…');

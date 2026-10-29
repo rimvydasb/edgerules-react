@@ -48,11 +48,12 @@ export interface BoxedEditorProps {
     autoRunTests?: boolean;
 
     // --- chrome ---
-    // Model header row. Default true.
+    // Header row: the model name or the metaphor name, the column toggles, and the model's `plus` menu. Default true.
     showHeader?: boolean;
-    // TestResultsColumn. Default true.
+    // TestResultsColumn, the state of its header toggle; a changed value sets the toggle again. Default false.
+    // A shown column runs the selected test case.
     showTestResults?: boolean;
-    // DescriptionColumn. Default true.
+    // DescriptionColumn, the state of its header toggle; a changed value sets the toggle again. Default true.
     showDescription?: boolean;
     // Type tooltip (hover + Alt-reveal). Default true.
     showType?: boolean;

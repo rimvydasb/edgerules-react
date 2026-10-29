@@ -1,6 +1,6 @@
 import {Alert} from '@mantine/core';
 import {DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent} from '@dnd-kit/core';
-import type {ReactElement} from 'react';
+import {useState, type ReactElement} from 'react';
 import type {BoxedEditorProps} from './BoxedEditorProps';
 import {useRowCommands} from './commands/useRowCommands';
 import {BoxedEditorProvider} from './context/BoxedEditorContext';
@@ -13,7 +13,7 @@ import * as classes from './boxedEditor.module.css';
 import {cx} from '#ui/cx';
 import {useBoxedEditorService} from './hooks/useBoxedEditorService';
 import {useBoxedRows} from './hooks/useBoxedRows';
-import {ModelHeaderRow} from './rows/ModelHeaderRow';
+import {HeaderRow} from './rows/HeaderRow';
 import {NewRow} from './rows/NewRow';
 import {RowSwitch} from './rows/RowSwitch';
 
@@ -66,7 +66,7 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
             <div role="treegrid" className={classes.grid}>
                 <BoxedLayoutProvider rows={rows}>
                     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-                        {showHeader && rootRow.kind === 'model' && <ModelHeaderRow row={rootRow} />}
+                        {showHeader && <HeaderRow row={rootRow} />}
                         {OWN_ROW_ROOT_KINDS.has(rootRow.kind) ? (
                             <RowSwitch row={{...rootRow, children: rows}} />
                         ) : (
@@ -82,6 +82,17 @@ function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement
             </div>
         </>
     );
+}
+
+/** Local state that follows `value` whenever the prop itself changes (React's "adjust state on prop change"). */
+function useSyncedState(value: boolean): [boolean, (next: boolean) => void] {
+    const [state, setState] = useState(value);
+    const [previous, setPrevious] = useState(value);
+    if (previous !== value) {
+        setPrevious(value);
+        setState(value);
+    }
+    return [state, setState];
 }
 
 /**
@@ -105,13 +116,16 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
         testSubjectId,
         autoRunTests = true,
         showHeader = true,
-        showTestResults = true,
-        showDescription = true,
+        showTestResults: defaultShowTestResults = false,
+        showDescription: defaultShowDescription = true,
         showType = true,
         expanded = true,
         className,
         style,
     } = props;
+    // The header toggles change the column visibility; a changed prop sets it again.
+    const [showDescription, setShowDescription] = useSyncedState(defaultShowDescription);
+    const [showTestResults, setShowTestResults] = useSyncedState(defaultShowTestResults);
 
     return (
         <div className={cx(classes.root, className)} style={style}>
@@ -123,6 +137,8 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
                 showDescription={showDescription}
                 showTestResults={showTestResults}
                 showType={showType}
+                setShowDescription={setShowDescription}
+                setShowTestResults={setShowTestResults}
                 languageService={languageService}
                 documentationService={documentationService}
                 testCasesService={testCasesService}

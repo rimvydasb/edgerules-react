@@ -8,7 +8,7 @@ import {FunctionResultRow} from './FunctionResultRow';
 import {FunctionRow} from './FunctionRow';
 import {ListItemRow} from './ListItemRow';
 import {ListRow} from './ListRow';
-import {ModelHeaderRow} from './ModelHeaderRow';
+import {HeaderRow} from './HeaderRow';
 import {OptimisationConstraintGroupRow} from './OptimisationConstraintGroupRow';
 import {OptimisationConstraintRow} from './OptimisationConstraintRow';
 import {OptimisationObjectiveRow} from './OptimisationObjectiveRow';
@@ -50,7 +50,7 @@ export function RowSwitch({row}: RowSwitchProps): ReactElement {
 function renderRow(row: BoxedRowData): ReactElement {
     switch (row.kind) {
         case 'model':
-            return <ModelHeaderRow row={row} />;
+            return <HeaderRow row={row} />;
         case 'field':
             return <FieldRow row={row} />;
         case 'context':

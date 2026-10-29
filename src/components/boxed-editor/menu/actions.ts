@@ -51,7 +51,6 @@ export const rowActionRegistry = [
     {id: 'add-optimisation', icon: IconAdjustments},
     {id: 'switch-objective-direction', icon: IconArrowsUpDown},
     {id: 'switch-rule-form', icon: IconArrowsUpDown},
-    {id: 'model-settings', icon: IconSettings},
     {id: 'view-as-code', icon: IconCode},
     {id: 'expand', icon: IconArrowsMaximize},
     {id: 'collapse', icon: IconArrowsMinimize},

@@ -34,6 +34,18 @@ test('the decision table opened as the root keeps its header row and its columns
     expect(Math.abs(declined!.x - tier!.x)).toBeLessThan(12);
 });
 
+test('the decision table runs its own tests when its test column is shown', async ({page}) => {
+    await openStory(page, 'models-loan-repayment--decision-table');
+    await expect(page.getByTestId('header-row').getByRole('heading')).toHaveText('Decision table', SLOW);
+    await page.getByRole('button', {name: 'Show test column'}).click();
+    // The tests of `pricingTier` itself, not of the whole model: its own row shows the whole result.
+    const result = page.getByTestId('row-pricingTier').locator('[data-column="test-results"]');
+    await expect(result).toHaveText('{…}', SLOW);
+    await page.getByRole('button', {name: 'Next test case'}).click();
+    await expect(page.getByTestId('header-row')).toContainText(/2\/\d+/);
+    await expect(result).toHaveText('{…}');
+});
+
 test('mortgageBook charts the repayment plan and shows its outputs', async ({page}) => {
     await openStory(page, 'models-loan-repayment--mortgage-book');
     await expect(page.getByRole('img', {name: 'Remaining balance'})).toBeVisible(SLOW);

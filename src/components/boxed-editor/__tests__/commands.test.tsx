@@ -641,7 +641,7 @@ describe('commands: Model Settings', () => {
         const onChange = vi.fn();
 
         render(<BoxedEditor service={service} path="*" languageService={languageService} onChange={onChange} />);
-        await chooseAction(user, 0, 'Model settings');
+        await user.click(screen.getByRole('button', {name: 'Model settings'}));
 
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(screen.getByLabelText('Name')).toHaveValue('Model');
@@ -667,7 +667,7 @@ describe('commands: Model Settings', () => {
         const onChange = vi.fn();
 
         render(<BoxedEditor service={service} path="*" languageService={languageService} onChange={onChange} />);
-        await chooseAction(user, 0, 'Model settings');
+        await user.click(screen.getByRole('button', {name: 'Model settings'}));
         await user.click(screen.getByRole('button', {name: 'Cancel'}));
 
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

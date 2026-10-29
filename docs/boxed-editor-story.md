@@ -281,9 +281,9 @@ interface BoxedEditorProps {
   autoRunTests?: boolean; // Whether a commit / case switch re-runs automatically. Defaults to true.
 
   // --- chrome ---
-  showHeader?: boolean; // Model header row. Default true.
-  showTestResults?: boolean; // TestResultsColumn. Default true.
-  showDescription?: boolean; // DescriptionColumn. Default true.
+  showHeader?: boolean; // Header row (title, column toggles, model `plus` menu). Default true.
+  showTestResults?: boolean; // TestResultsColumn, initial state of its header toggle. Default false.
+  showDescription?: boolean; // DescriptionColumn, initial state of its header toggle. Default true.
   showType?: boolean; // Type tooltip (hover + Alt-reveal). Default true.
   expanded?: boolean; // Initial global expand state. Default true.
   className?: string;
