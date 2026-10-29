@@ -27,9 +27,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  box-sizing: border-box;
   max-width: 220px;
+  height: 26px;
   margin-left: 8px;
-  padding: 3px 6px;
+  padding: 0 6px;
   border: 1px solid var(--fn-border);
   border-radius: 4px;
   background: var(--mantine-color-body);
@@ -120,4 +122,31 @@
 .pickerFoot {
   color: var(--mantine-color-dimmed);
   font-size: 11.5px;
+}
+
+.shortcut {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid var(--fn-border);
+  border-radius: 4px;
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-dimmed);
+  cursor: pointer;
+}
+
+.shortcut:hover {
+  border-color: var(--mantine-color-dimmed);
+  color: var(--mantine-color-text);
+}
+
+.shortcut:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
 }

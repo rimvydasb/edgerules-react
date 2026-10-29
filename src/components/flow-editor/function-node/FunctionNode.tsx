@@ -1,4 +1,5 @@
 import type {NodeProps} from '@xyflow/react';
+import {IconExternalLink} from '@tabler/icons-react';
 import {useState, type ReactElement} from 'react';
 import {
     EditableName,
@@ -174,6 +175,22 @@ export function FunctionNode({id, data, selected}: NodeProps<FunctionNodeType>):
                         onOpenedChange={setPickerOpened}
                         onSelect={(method) => void runCommand(() => service.setCallee(field, method))}
                     />
+                    {callee && onOpenNode && (
+                        <button
+                            type="button"
+                            className={`${styles.shortcut} nodrag`}
+                            aria-label={`Open ${callee.path} in ${callee.kind === 'ruleset' ? 'decision table editor' : 'boxed editor'}`}
+                            title={`Open ${callee.path} in ${callee.kind === 'ruleset' ? 'decision table editor' : 'boxed editor'}`}
+                            onClick={() =>
+                                onOpenNode({
+                                    path: callee.path,
+                                    kind: callee.kind === 'ruleset' ? 'ruleset' : 'boxed-editor',
+                                })
+                            }
+                        >
+                            <IconExternalLink size={13} aria-hidden />
+                        </button>
+                    )}
                     {callee && (
                         <>
                             <NodeSummary>{`→ ${callee.returnLabel}`}</NodeSummary>
