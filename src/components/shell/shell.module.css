@@ -273,19 +273,23 @@
 }
 
 /* ---------------------------------------------------------------- workbook picker */
-/* The dotted canvas of the Flow Editor, with the panels in the very center. */
+/*
+ * The dotted canvas of the Flow Editor, with the panel groups in the very center. Like the Flow Editor, it has a frame
+ * line: its top line lies on the bottom line of the header, its left line on the right line of the Project Explorer.
+ */
 .workbooks {
   --wb-canvas: var(--mantine-color-gray-0);
   --wb-dot: #ced4da;
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
+  flex-direction: column;
+  gap: 32px;
   align-items: center;
-  justify-content: center;
-  align-content: center;
+  /* `safe`: a picker taller than the body scrolls from its top, not from its middle. */
+  justify-content: safe center;
   height: 100%;
   padding: 24px;
   overflow: auto;
+  border: 1px solid var(--sh-border);
   background-color: var(--wb-canvas);
   background-image: radial-gradient(circle, var(--wb-dot) 0.7px, transparent 0.8px);
   background-size: 20px 20px;
@@ -294,6 +298,31 @@
 :global([data-mantine-color-scheme='dark']) .workbooks {
   --wb-canvas: var(--mantine-color-dark-8);
   --wb-dot: #3a3a3a;
+}
+
+/* The workbooks, then the services: a title and a row of panels each. */
+.workbookGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.workbookGroupTitle {
+  margin: 0;
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workbookPanels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
 }
 
 .workbookPanel {
@@ -407,4 +436,48 @@
   gap: 4px;
   color: var(--mantine-primary-color-filled);
   font-weight: 600;
+}
+
+/* The panel that creates a new workbook: the size of a workbook panel, a dashed outline and a plus. */
+.workbookAdd {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  width: 340px;
+  min-height: 196px;
+  padding: 20px;
+  border: 1px dashed var(--sh-border);
+  border-radius: var(--mantine-radius-md);
+  background-color: transparent;
+  color: var(--mantine-color-dimmed);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.workbookAdd:hover {
+  border-color: var(--mantine-primary-color-filled);
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-primary-color-filled);
+}
+
+.workbookAdd:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+}
+
+.workbookAddIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px dashed currentColor;
+  border-radius: 50%;
 }

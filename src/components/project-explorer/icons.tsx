@@ -25,12 +25,13 @@ export type IconKind = ExplorerEntryKind | ExplorerSection;
 const ICON_BY_KIND: Record<IconKind, Icon> = {
     types: IconCategory,
     methods: IconMathFunction,
+    services: IconServer,
     variables: IconVariable,
     workbooks: IconBook2,
     tests: IconFlask,
     type: IconTag,
     function: IconMathFunction,
-    service: IconServer,
+    service: IconMathFunction,
     ruleset: IconListCheck,
     context: IconBraces,
     variable: IconVariable,
@@ -48,7 +49,7 @@ const ICON_BY_KIND: Record<IconKind, Icon> = {
 const TILE_COLOR: Partial<Record<IconKind, string>> = {
     type: KIND_COLORS.complexType,
     function: KIND_COLORS.function,
-    service: KIND_COLORS.function,
+    service: KIND_COLORS.service,
     ruleset: KIND_COLORS.ruleset,
     workbook: KIND_COLORS.model,
     'input-node': '#ed6c02',

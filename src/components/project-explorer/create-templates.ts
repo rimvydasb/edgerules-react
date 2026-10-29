@@ -12,8 +12,8 @@ export interface CreateOption {
 const EMPTY_BODY = {'@kind': 'context', result: 0};
 
 // The smallest valid entity of each kind; the user completes it in the opened editor.
-// A method is a function, a service or a ruleset. Input, output and chart nodes exist only inside a workbook, so no
-// section offers them: the Flow Editor of the workbook creates them.
+// A method is a function or a ruleset; a service is a function with `@Service`. Input, output and chart nodes exist
+// only inside a workbook, so no section offers them: the Flow Editor of the workbook creates them.
 export const CREATE_OPTIONS: Record<Exclude<ExplorerSection, 'tests'>, CreateOption[]> = {
     types: [
         {
@@ -31,18 +31,6 @@ export const CREATE_OPTIONS: Record<Exclude<ExplorerSection, 'tests'>, CreateOpt
             template: () => ({'@kind': 'function', '@parameters': {}, '@body': EMPTY_BODY}) as PortableNode,
         },
         {
-            kind: 'service',
-            label: 'Service',
-            defaultName: 'newService',
-            template: () =>
-                ({
-                    '@kind': 'function',
-                    '@node': SERVICE_ANNOTATION,
-                    '@parameters': {},
-                    '@body': EMPTY_BODY,
-                }) as PortableNode,
-        },
-        {
             kind: 'ruleset',
             label: 'Ruleset',
             defaultName: 'newRuleset',
@@ -53,6 +41,20 @@ export const CREATE_OPTIONS: Record<Exclude<ExplorerSection, 'tests'>, CreateOpt
                     '@hitPolicy': 'first-match',
                     '@rules': [],
                     '@default': EMPTY_BODY,
+                }) as PortableNode,
+        },
+    ],
+    services: [
+        {
+            kind: 'service',
+            label: 'Service',
+            defaultName: 'newService',
+            template: () =>
+                ({
+                    '@kind': 'function',
+                    '@node': SERVICE_ANNOTATION,
+                    '@parameters': {},
+                    '@body': EMPTY_BODY,
                 }) as PortableNode,
         },
     ],

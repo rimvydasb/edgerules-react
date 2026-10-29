@@ -15,15 +15,17 @@ function sections(code: string, testSubjects: string[] = []) {
 }
 
 describe('buildSections', () => {
-    it('splits the model into Types, Methods, Variables, Workbooks and Tests, each by name', () => {
+    it('splits the model into Types, Methods, Service Methods, Variables, Workbooks and Tests, each by name', () => {
         const result = sections(MODEL_DSL, ['riskScore', '*']);
 
         expect(result.types.map((entry) => entry.path)).toEqual(['PeopleList', 'Person']);
         expect(result.methods.map((entry) => [entry.kind, entry.label])).toEqual([
             ['function', 'nested.deep()'],
-            ['service', 'processApplication(...)'],
             ['ruleset', 'risk(...)'],
             ['function', 'riskScore(...)'],
+        ]);
+        expect(result.services.map((entry) => [entry.kind, entry.label])).toEqual([
+            ['service', 'processApplication(...)'],
         ]);
         expect(result.variables.map((entry) => [entry.kind, entry.path])).toEqual([
             ['variable', 'globalConst'],
@@ -46,6 +48,12 @@ describe('buildSections', () => {
             ['function-node', 'loanBook.decision'],
             ['output-node', 'loanBook.result'],
         ]);
+    });
+
+    it('lists a service inside a context as a service method by its qualified path', () => {
+        const result = sections('{ nested: { @Service\n func deep(): 1 } }');
+        expect(result.services.map((entry) => entry.label)).toEqual(['nested.deep()']);
+        expect(result.methods).toEqual([]);
     });
 
     it('does not list a callable of a workbook as a method', () => {

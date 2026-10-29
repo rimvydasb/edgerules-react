@@ -5,6 +5,7 @@
 export const KIND_COLORS = {
     model: '#17191c',
     function: '#1976d2',
+    service: '#d49b00', // a function with `@Service`: gold
     ruleset: '#6a1b9a',
     complexType: '#ed6c02',
     optimisation: '#1e88e5',

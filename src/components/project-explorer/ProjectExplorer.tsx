@@ -11,11 +11,8 @@ import {
 import {
     ActionIcon,
     Alert,
-    Button,
     CloseButton,
-    Group,
     Menu,
-    Modal,
     ScrollArea,
     TextInput,
     Tooltip,
@@ -28,11 +25,11 @@ import {IconChevronRight, IconLayoutSidebarLeftCollapse, IconPlus, IconSearch} f
 import type {PortableContext, PortableError, PortableNode} from '@edgerules/portable';
 import {cx} from '#ui/cx';
 import {isPortableError} from '#lib/portable';
-import {CREATE_OPTIONS, uniqueName, type CreateOption} from './create-templates';
+import {CREATE_OPTIONS, type CreateOption} from './create-templates';
+import {CreateDialog} from './CreateDialog';
 import {KindIcon, type IconKind} from './icons';
 import {
     buildSections,
-    isIdentifier,
     ROOT_FETCH_PATH,
     type ExplorerEntry,
     type ExplorerEntryKind,
@@ -82,6 +79,7 @@ const NO_SUBJECTS: readonly string[] = [];
 const SECTIONS: {section: ExplorerSection; label: string}[] = [
     {section: 'types', label: 'Types'},
     {section: 'methods', label: 'Methods'},
+    {section: 'services', label: 'Service Methods'},
     {section: 'variables', label: 'Variables'},
     {section: 'workbooks', label: 'Workbooks'},
     {section: 'tests', label: 'Tests'},
@@ -151,7 +149,7 @@ interface PendingCreate {
 }
 
 /**
- * The project tree: Types, Methods, Variables, Workbooks and Tests (docs/stories/project-explorer-redesign.md). It
+ * The project tree: Types, Methods, Service Methods, Variables, Workbooks and Tests (docs/stories/project-explorer-redesign.md). It
  * reads the model with two `service.get` calls and reports the opened entry through `onOpen`; the host picks the
  * editor. Each section header has an add button that creates a new entity with `service.set` and opens it.
  */
@@ -241,18 +239,22 @@ export function ProjectExplorer({
         // The nodes of the root workbook are root fields too.
         for (const entry of sections?.workbooks.find((workbook) => workbook.path === ROOT_FETCH_PATH)?.children ?? [])
             names.add(entry.path);
-        for (const entry of sections?.methods ?? []) if (!entry.path.includes('.')) names.add(entry.path);
+        for (const entry of [...(sections?.methods ?? []), ...(sections?.services ?? [])])
+            if (!entry.path.includes('.')) names.add(entry.path);
         return names;
     }, [sections]);
 
     const canCreate = !readOnly && service.set !== undefined;
     const testSubjectOptions: {path: string; label: string; untypedArguments?: string[]}[] = [
         {path: '*', label: 'Model'},
-        ...(sections?.methods ?? []).map((entry) => ({
-            path: entry.path,
-            label: entry.label,
-            untypedArguments: entry.untypedArguments,
-        })),
+        // The methods and the services, by name.
+        ...[...(sections?.methods ?? []), ...(sections?.services ?? [])]
+            .sort((a, b) => a.label.localeCompare(b.label))
+            .map((entry) => ({
+                path: entry.path,
+                label: entry.label,
+                untypedArguments: entry.untypedArguments,
+            })),
     ];
     const hasGenericMethod = testSubjectOptions.some((subject) => subject.untypedArguments);
 
@@ -460,7 +462,7 @@ export function ProjectExplorer({
             </ScrollArea>
             {pending ? (
                 <CreateDialog
-                    pending={pending}
+                    option={pending.option}
                     taken={taken}
                     onCancel={() => setPending(undefined)}
                     onCreate={(name) => {
@@ -476,57 +478,5 @@ export function ProjectExplorer({
                 />
             ) : null}
         </nav>
-    );
-}
-
-interface CreateDialogProps {
-    pending: PendingCreate;
-    taken: ReadonlySet<string>;
-    onCancel: () => void;
-    onCreate: (name: string) => string | undefined; // an error message, or undefined on success
-}
-
-/** Asks for the name of a new root entity. */
-function CreateDialog({pending, taken, onCancel, onCreate}: CreateDialogProps): ReactElement {
-    const [name, setName] = useState(() => uniqueName(pending.option.defaultName, taken));
-    const [error, setError] = useState<string | undefined>();
-
-    const submit = () => {
-        const trimmed = name.trim();
-        if (!isIdentifier(trimmed)) {
-            setError('A name starts with a letter or _ and has only letters, digits and _.');
-        } else if (taken.has(trimmed)) {
-            setError(`"${trimmed}" already exists.`);
-        } else {
-            setError(onCreate(trimmed));
-        }
-    };
-
-    return (
-        <Modal opened onClose={onCancel} title={`New ${pending.option.label.toLowerCase()}`} size="sm">
-            <form
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    submit();
-                }}
-            >
-                <TextInput
-                    label="Name"
-                    value={name}
-                    error={error}
-                    data-autofocus
-                    onChange={(event) => {
-                        setName(event.currentTarget.value);
-                        setError(undefined);
-                    }}
-                />
-                <Group justify="flex-end" mt="md">
-                    <Button variant="default" onClick={onCancel}>
-                        Cancel
-                    </Button>
-                    <Button type="submit">Create</Button>
-                </Group>
-            </form>
-        </Modal>
     );
 }

@@ -17,7 +17,7 @@ function sectionCount(label: string): string | null | undefined {
 }
 
 describe('ProjectExplorer sections', () => {
-    it('renders the five sections in order, expanded, with their member counts', () => {
+    it('renders the six sections in order, expanded, with their member counts', () => {
         render(<ProjectExplorer service={buildService()} testSubjects={['*']} />);
 
         const tree = screen.getByRole('tree');
@@ -25,9 +25,10 @@ describe('ProjectExplorer sections', () => {
             .getAllByRole('treeitem')
             .filter((item) => item.dataset.level === '1')
             .map((item) => item.querySelector('span span')?.textContent);
-        expect(headers).toEqual(['Types', 'Methods', 'Variables', 'Workbooks', 'Tests']);
+        expect(headers).toEqual(['Types', 'Methods', 'Service Methods', 'Variables', 'Workbooks', 'Tests']);
         expect(sectionCount('Types')).toBe('2');
-        expect(sectionCount('Methods')).toBe('4');
+        expect(sectionCount('Methods')).toBe('3');
+        expect(sectionCount('Service Methods')).toBe('1');
         expect(sectionCount('Variables')).toBe('3');
         expect(sectionCount('Workbooks')).toBe('1');
         expect(sectionCount('Tests')).toBe('1');
@@ -109,7 +110,8 @@ describe('ProjectExplorer sections', () => {
         render(<ProjectExplorer service={service} testSubjects={['*']} />);
 
         expect(sectionCount('Types')).toBe('2');
-        expect(sectionCount('Methods')).toBe('3');
+        expect(sectionCount('Methods')).toBe('2');
+        expect(sectionCount('Service Methods')).toBe('1');
         expect(sectionCount('Variables')).toBe('3');
         expect(sectionCount('Workbooks')).toBe('1');
         await user.click(screen.getByText('loanBook'));
@@ -123,6 +125,7 @@ describe('ProjectExplorer open', () => {
         ['Types', 'Person', {kind: 'type', path: 'Person'}],
         ['Methods', 'nested.deep()', {kind: 'function', path: 'nested.deep'}],
         ['Methods', 'risk(...)', {kind: 'ruleset', path: 'risk'}],
+        ['Service Methods', 'processApplication(...)', {kind: 'service', path: 'processApplication'}],
         ['Variables', 'nested', {kind: 'context', path: 'nested'}],
         ['Variables', 'globalConst', {kind: 'variable', path: 'globalConst'}],
         ['Workbooks', 'loanBook', {kind: 'workbook', path: 'loanBook'}],
@@ -166,7 +169,7 @@ describe('ProjectExplorer create', () => {
     it.each([
         ['Types', undefined, 'NewType', {'@kind': 'type-definition'}, 'type'],
         ['Methods', 'Function', 'newFunction', {'@kind': 'function-schema'}, 'function'],
-        ['Methods', 'Service', 'newService', {'@kind': 'function-schema', '@node': 'Service'}, 'service'],
+        ['Service Methods', undefined, 'newService', {'@kind': 'function-schema', '@node': 'Service'}, 'service'],
         ['Methods', 'Ruleset', 'newRuleset', {'@kind': 'ruleset-schema'}, 'ruleset'],
         ['Variables', 'Value', 'newValue', {'@kind': 'type', type: 'number'}, 'variable'],
         ['Variables', 'Context', 'newContext', {'@kind': 'context'}, 'context'],
@@ -195,7 +198,7 @@ describe('ProjectExplorer create', () => {
 
         await user.click(screen.getByRole('button', {name: 'Add to Methods'}));
         const items = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
-        expect(items).toEqual(['Function', 'Service', 'Ruleset']);
+        expect(items).toEqual(['Function', 'Ruleset']);
     });
 
     it('refuses a name that is taken or not an identifier, and changes nothing', async () => {

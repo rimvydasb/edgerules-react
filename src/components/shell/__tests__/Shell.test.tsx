@@ -216,6 +216,62 @@ describe('Shell project explorer', () => {
         expect(await screen.findByTestId('function-node-loanBook.decision')).toBeInTheDocument();
     });
 
+    it('offers a panel per service method in the workbook picker, and opens the clicked one', async () => {
+        const {session} = await openFixtureProject({
+            model: {
+                dsl: `{
+    @Service
+    func quote(income: number): { score: income / 100 }
+    func helper(): 1
+    @Workbook
+    loanBook: { @InputNode applicant: { income: 5000 } }
+}`,
+            },
+        });
+        const user = userEvent.setup();
+        await renderShell({defaultPath: '*', defaultView: 'flow'}, session);
+        const services = screen.getByRole('region', {name: 'Service Methods'});
+
+        // Only the `@Service` function has a panel.
+        expect(
+            within(services)
+                .getAllByRole('button')
+                .map((panel) => panel.getAttribute('aria-label')),
+        ).toEqual(['quote(...)']);
+        expect(within(services).getByText('1 argument')).toBeInTheDocument();
+        await user.click(within(services).getByRole('button', {name: 'quote(...)'}));
+        expect(breadcrumbItems()).toEqual(['Model', 'quote(...)']);
+        expect(screen.getByRole('radio', {name: 'Boxed'})).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('creates a workbook from the add panel of the workbook picker and opens its flow', async () => {
+        const {session} = await openFixtureProject({model: {dsl: WORKBOOK_MODEL}});
+        const user = userEvent.setup();
+        await renderShell({defaultPath: '*', defaultView: 'flow'}, session);
+
+        await user.click(screen.getByRole('button', {name: 'New workbook'}));
+        const name = await screen.findByRole('textbox', {name: 'Name'});
+        // A root name is taken.
+        await user.clear(name);
+        await user.type(name, 'loanBook');
+        await user.click(screen.getByRole('button', {name: 'Create'}));
+        expect(screen.getByText('"loanBook" already exists.')).toBeInTheDocument();
+
+        await user.clear(name);
+        await user.type(name, 'pricing');
+        await user.click(screen.getByRole('button', {name: 'Create'}));
+        expect(session.engine.get('pricing')).toMatchObject({'@kind': 'context', '@node': 'Workbook'});
+        expect(breadcrumbItems()).toEqual(['Model', 'pricing']);
+        expect(screen.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('offers no add panel in the workbook picker when read-only', async () => {
+        const {session} = await openFixtureProject({model: {dsl: WORKBOOK_MODEL}});
+        await renderShell({defaultPath: '*', defaultView: 'flow', readOnly: true}, session);
+        expect(screen.getByTestId('shell-workbook-picker')).toBeInTheDocument();
+        expect(screen.queryByRole('button', {name: 'New workbook'})).toBeNull();
+    });
+
     it('opens the model root as the workbook when its nodes have no @Workbook context', async () => {
         const {session} = await openFixtureProject({
             model: {dsl: `{ @InputNode applicant: { income: 5000 }\n limit: 10 }`},

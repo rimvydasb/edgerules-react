@@ -1,10 +1,13 @@
 import {Alert} from '@mantine/core';
 import {useCallback, useEffect, useMemo, useRef, useState, type ReactElement} from 'react';
 import {listCallables, untypedParameters} from '#lib/callables';
+import {isPortableError} from '#lib/portable';
+import {isRecord} from '#lib/portableUtils';
 import {cx} from '#ui/cx';
 import {createBoxedEditorService, type BoxedEditorOpenTarget} from '../boxed-editor';
 import {createFlowEditorService, type FlowEditorOpenTarget, type FlowFocusRequest} from '../flow-editor';
 import {ProjectExplorer} from '../project-explorer';
+import {buildSections, CREATE_OPTIONS} from '../project-explorer/internal';
 import {useProjectSession, useProjectSlice, useProjectSnapshot} from '../project-session';
 import {
     annotationAt,
@@ -25,10 +28,18 @@ import {BoxedView} from './views/BoxedView';
 import {CodeView} from './views/CodeView';
 import {FlowView} from './views/FlowView';
 import {TestsView} from './views/TestsView';
-import {WorkbookPicker, type WorkbookSummary} from './views/WorkbookPicker';
+import {WorkbookPicker, type ServiceSummary, type WorkbookSummary} from './views/WorkbookPicker';
 import * as classes from './shell.module.css';
 
 type OpenTarget = BoxedEditorOpenTarget | FlowEditorOpenTarget;
+
+// The `@parameters` of the callable at `path` of `model`.
+function parametersAt(model: unknown, path: string): Record<string, unknown> {
+    let node = model;
+    for (const name of path.split('.')) node = isRecord(node) ? node[name] : undefined;
+    const parameters = isRecord(node) ? node['@parameters'] : undefined;
+    return isRecord(parameters) ? parameters : {};
+}
 
 /**
  * One part of the model of the open `ProjectSession`, from a root path: the whole model ('*') or the path of an
@@ -103,16 +114,25 @@ export function Shell({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session, root, version]);
 
-    // The Flow view of the model root offers the workbooks to open, when the model has any.
-    const workbooks = useMemo<WorkbookSummary[]>(() => {
-        if (root !== '*') return [];
+    // The Flow view of the model root offers the workbooks and the services to open, when the model has workbooks.
+    // A new workbook must not take a root name.
+    const {workbooks, services, taken} = useMemo(() => {
+        if (root !== '*') return {workbooks: [], services: [], taken: new Set<string>()};
         const model = session.engine.toPortable();
-        return modelWorkbooks(model).map((workbook) => ({
+        const workbooks: WorkbookSummary[] = modelWorkbooks(model).map((workbook) => ({
             path: workbook,
             ...(annotationAt(model, workbook)?.name !== undefined && {name: annotationAt(model, workbook)!.name}),
             ...(descriptions[workbook] !== undefined && {description: descriptions[workbook]}),
             ...workbookNodeCounts(model, workbook),
         }));
+        const services: ServiceSummary[] = buildSections(model, undefined, []).services.map((entry) => ({
+            path: entry.path,
+            label: entry.label,
+            ...(descriptions[entry.path] !== undefined && {description: descriptions[entry.path]}),
+            arguments: Object.keys(parametersAt(model, entry.path)).length,
+        }));
+        const taken = new Set(Object.keys(model).filter((name) => !name.startsWith('@')));
+        return {workbooks, services, taken};
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session, root, version, descriptions]);
 
@@ -181,6 +201,14 @@ export function Shell({
     const createTests = () => {
         session.tests.forSubject(root).addTestCase();
         navigate({view: 'tests'});
+    };
+
+    // A new workbook from the add panel of the workbook picker, opened in the Flow view.
+    const createWorkbook = (name: string): string | undefined => {
+        const result = session.engine.set(name, CREATE_OPTIONS.workbooks[0]!.template());
+        if (isPortableError(result)) return result.message;
+        navigate({path: name, view: 'flow'});
+        return undefined;
     };
 
     // The Tests view has no commit; the Code view commit error belongs to the editors of the model.
@@ -252,7 +280,11 @@ export function Shell({
                         {view === 'flow' && workbooks.length > 0 && (
                             <WorkbookPicker
                                 workbooks={workbooks}
+                                services={services}
+                                taken={taken}
                                 onSelect={(workbook) => navigate({path: workbook, view: 'flow'})}
+                                onSelectService={(service) => navigate({path: service, view: 'boxed'})}
+                                onCreate={readOnly ? undefined : createWorkbook}
                             />
                         )}
                         {view === 'flow' && workbooks.length === 0 && (

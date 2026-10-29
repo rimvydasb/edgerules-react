@@ -4,8 +4,8 @@ import {untypedParameters} from '#lib/callables';
 /** Literal `get()` argument for the root context. */
 export const ROOT_FETCH_PATH = '*';
 
-/** The five sections of the explorer, in display order. */
-export type ExplorerSection = 'types' | 'methods' | 'variables' | 'workbooks' | 'tests';
+/** The six sections of the explorer, in display order. */
+export type ExplorerSection = 'types' | 'methods' | 'services' | 'variables' | 'workbooks' | 'tests';
 
 /** What an entry is: it picks the icon of the row and the editor the host opens for it. */
 export type ExplorerEntryKind =
@@ -95,20 +95,26 @@ function methodLabel(path: string, node: Record<string, unknown>): string {
     return isRecord(parameters) && Object.keys(parameters).length > 0 ? `${path}(...)` : `${path}()`;
 }
 
-// Every callable of a context, at any depth. A function is atomic and a workbook holds nodes, not methods.
-function collectMethods(contextPath: string, context: Record<string, unknown>, methods: ExplorerEntry[]): void {
+// Every callable of a context, at any depth: the services in `services`, the other callables in `methods`. A function is
+// atomic and a workbook holds nodes, not methods.
+function collectMethods(
+    contextPath: string,
+    context: Record<string, unknown>,
+    methods: ExplorerEntry[],
+    services: ExplorerEntry[],
+): void {
     for (const [name, node] of fields(context)) {
         const path = joinPath(contextPath, name);
         const kind = methodKind(node);
         if (kind) {
             const untypedArguments = untypedParameters(node);
-            methods.push({
+            (kind === 'service' ? services : methods).push({
                 kind,
                 path,
                 label: methodLabel(path, node as Record<string, unknown>),
                 ...(untypedArguments.length > 0 && {untypedArguments}),
             });
-        } else if (isContext(node) && !isWorkbook(node)) collectMethods(path, node, methods);
+        } else if (isContext(node) && !isWorkbook(node)) collectMethods(path, node, methods, services);
     }
 }
 
@@ -134,8 +140,9 @@ function byLabel(a: ExplorerEntry, b: ExplorerEntry): number {
 /**
  * Splits the model into the explorer sections, each sorted by name:
  * - **Types**: the type definitions of the root.
- * - **Methods**: every function, service and ruleset, also inside contexts, by qualified path: `path(...)` when it has
+ * - **Methods**: every function and ruleset, also inside contexts, by qualified path: `path(...)` when it has
  *   arguments, `path()` when it has none.
+ * - **Services**: every function with `@Service`, labelled like a method.
  * - **Variables**: every other root field, contexts included.
  * - **Workbooks**: every root context with `@Workbook`, with its nodes as children. A model without a `@Workbook`
  *   context but with nodes on the root is one workbook: the root ('*'), and its nodes are not variables.
@@ -146,12 +153,19 @@ export function buildSections(
     types: PortableContext | undefined,
     testSubjects: readonly string[],
 ): ExplorerSections {
-    const sections: ExplorerSections = {types: [], methods: [], variables: [], workbooks: [], tests: []};
+    const sections: ExplorerSections = {
+        types: [],
+        methods: [],
+        services: [],
+        variables: [],
+        workbooks: [],
+        tests: [],
+    };
 
     for (const [name] of types ? fields(types) : []) {
         sections.types.push({kind: 'type', path: name, label: name});
     }
-    collectMethods('', model, sections.methods);
+    collectMethods('', model, sections.methods, sections.services);
     const hasWorkbook = fields(model).some(([, node]) => isWorkbook(node));
     const rootNodes = hasWorkbook ? [] : workbookNodes('', model);
     if (rootNodes.length > 0) {
@@ -172,7 +186,9 @@ export function buildSections(
             sections.variables.push({kind: isContext(node) ? 'context' : 'variable', path: name, label: name});
         }
     }
-    const methodLabels = new Map(sections.methods.map((entry) => [entry.path, entry.label]));
+    const methodLabels = new Map(
+        [...sections.methods, ...sections.services].map((entry) => [entry.path, entry.label]),
+    );
     for (const subjectId of testSubjects) {
         const label = subjectId === '*' ? 'Model' : (methodLabels.get(subjectId) ?? `${subjectId}()`);
         sections.tests.push({kind: 'test', path: subjectId, label});
