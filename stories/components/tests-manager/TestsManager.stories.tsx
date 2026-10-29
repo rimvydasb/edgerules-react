@@ -6,10 +6,10 @@ import {
     useProjectSession,
     useProjectSlice,
     type ProjectSession,
-} from '../../src/components/project-session';
-import {TestsManager} from '../../src/components/tests-manager';
-import type {TestsManagerProps} from '../../src/components/tests-manager';
-import {openStoryProject} from '../support/storyProject';
+} from '../../../src/components/project-session';
+import {TestsManager} from '../../../src/components/tests-manager';
+import type {TestsManagerProps} from '../../../src/components/tests-manager';
+import {openStoryProject} from '../../support/storyProject';
 
 const WORKBOOK_MODEL = `{
     maxLimit: 10000,
@@ -99,8 +99,46 @@ function ProjectTestsManager({
     );
 }
 
+interface WorkbookArgs {
+    readOnly?: boolean;
+    pageSize?: number; // test-case columns per page; the Path and Description columns stay frozen
+}
+
+// "Add bonus field" edits the model through the session engine. The model slice version is the `revision`, so every
+// case re-runs on a model edit.
+function WorkbookHarness({readOnly, pageSize}: WorkbookArgs): ReactElement {
+    const session = useProjectSession();
+    const model = useProjectSlice('model');
+
+    return (
+        <Box maw={1100}>
+            <Text size="sm" mb="xs">
+                Type values into Inputs, then use a row&apos;s three-dots menu to &quot;Move to Assertions&quot; and
+                edit the expected value to see the mismatch highlight.
+            </Text>
+            <ProjectTestsManager session={session} revision={model.version} readOnly={readOnly} pageSize={pageSize} />
+            <Text size="sm" mt="md" mb="xs">
+                &quot;Add bonus field&quot; edits the model (version <code>{model.version}</code>): every case re-runs
+                and the new field appears in Validations. Set <code>pageSize</code> and add cases with the header&apos;s
+                + button to page the test-case columns.
+            </Text>
+            <Button
+                size="compact-sm"
+                variant="subtle"
+                mr="xs"
+                onClick={() => session.engine.set('bonus', {'@kind': 'expression', expression: '5'})}
+            >
+                Add bonus field
+            </Button>
+            <Button size="compact-sm" variant="subtle" onClick={() => session.engine.remove('bonus')}>
+                Remove bonus field
+            </Button>
+        </Box>
+    );
+}
+
 const meta: Meta<typeof TestsManager> = {
-    title: 'Tests Manager/TestsManager',
+    title: 'Components/Tests Manager',
     component: TestsManager,
     parameters: {
         docs: {
@@ -118,24 +156,20 @@ export default meta;
 
 type Story = StoryObj<typeof TestsManager>;
 
-export const Workbook: Story = {
+/** The tests of a model, over a live project session. The controls make it read-only or page its columns. */
+export const Workbook: StoryObj<WorkbookArgs> = {
+    args: {readOnly: false},
+    argTypes: {pageSize: {control: {type: 'number', min: 1}}},
     loaders: [
         async () => {
             return {session: await openStoryProject(WORKBOOK_MODEL)};
         },
     ],
-    render: (_args, {loaded}) => {
-        const {session} = loaded as {session: ProjectSession};
-        return (
-            <Box maw={1100}>
-                <Text size="sm" mb="xs">
-                    Type values into Inputs, then use a row&apos;s three-dots menu to &quot;Move to Assertions&quot; and
-                    edit the expected value to see the mismatch highlight.
-                </Text>
-                <ProjectTestsManager session={session} />
-            </Box>
-        );
-    },
+    render: (args, {loaded}) => (
+        <ProjectProvider session={loaded.session as ProjectSession}>
+            <WorkbookHarness {...args} />
+        </ProjectProvider>
+    ),
 };
 
 export const DecisionServiceEntryPoints: Story = {
@@ -208,97 +242,6 @@ export const OptimiseWithoutSolver: Story = {
     },
 };
 
-export const ColumnPaging: Story = {
-    loaders: [
-        async () => {
-            return {session: await openStoryProject(WORKBOOK_MODEL)};
-        },
-    ],
-    render: (_args, {loaded}) => {
-        const {session} = loaded as {session: ProjectSession};
-        return (
-            <Box maw={1100}>
-                <Text size="sm" mb="xs">
-                    <code>pageSize=3</code>. Click the header&apos;s + button a few times to see the Path and
-                    Description columns stay frozen while test-case columns page.
-                </Text>
-                <ProjectTestsManager session={session} pageSize={3} />
-            </Box>
-        );
-    },
-};
-
-export const SharedDocumentationService: Story = {
-    loaders: [
-        async () => {
-            return {session: await openStoryProject(WORKBOOK_MODEL)};
-        },
-    ],
-    render: (_args, {loaded}) => {
-        const {session} = loaded as {session: ProjectSession};
-        return (
-            <Box maw={1100}>
-                <Text size="sm" mb="xs">
-                    Two <code>TestsManager</code> instances over one project session, sharing its documentation store
-                    and its tests — edit a Description or a value cell in either and watch it appear in the other.
-                </Text>
-                <Text size="sm" fw={600}>
-                    Instance A
-                </Text>
-                <ProjectTestsManager session={session} />
-                <Text size="sm" fw={600} mt="md">
-                    Instance B
-                </Text>
-                <ProjectTestsManager session={session} />
-            </Box>
-        );
-    },
-};
-
-function LiveModelHarness(): ReactElement {
-    const session = useProjectSession();
-    const model = useProjectSlice('model');
-
-    return (
-        <Box maw={1100}>
-            <Text size="sm" mb="xs">
-                &quot;Add bonus field&quot; edits the model through the session engine; the model slice version (
-                <code>{model.version}</code>) is passed as <code>revision</code>, so every case re-runs and the new
-                field appears in Validations. &quot;Remove bonus field&quot; then hides its row again.
-            </Text>
-            <Button
-                size="compact-sm"
-                variant="subtle"
-                mr="xs"
-                mb="xs"
-                onClick={() => session.engine.set('bonus', {'@kind': 'expression', expression: '5'})}
-            >
-                Add bonus field
-            </Button>
-            <Button size="compact-sm" variant="subtle" mb="xs" onClick={() => session.engine.remove('bonus')}>
-                Remove bonus field
-            </Button>
-            <ProjectTestsManager session={session} revision={model.version} />
-        </Box>
-    );
-}
-
-export const LiveModelEdits: Story = {
-    loaders: [
-        async () => {
-            return {session: await openStoryProject(WORKBOOK_MODEL)};
-        },
-    ],
-    render: (_args, {loaded}) => {
-        const {session} = loaded as {session: ProjectSession};
-        return (
-            <ProjectProvider session={session}>
-                <LiveModelHarness />
-            </ProjectProvider>
-        );
-    },
-};
-
 export const IndexedArrayPaths: Story = {
     loaders: [
         async () => {
@@ -316,22 +259,6 @@ export const IndexedArrayPaths: Story = {
                     click a Path cell to retype it — an unknown path turns red as you type.
                 </Text>
                 <ProjectTestsManager session={session} />
-            </Box>
-        );
-    },
-};
-
-export const ReadOnly: Story = {
-    loaders: [
-        async () => {
-            return {session: await openStoryProject(WORKBOOK_MODEL)};
-        },
-    ],
-    render: (_args, {loaded}) => {
-        const {session} = loaded as {session: ProjectSession};
-        return (
-            <Box maw={1100}>
-                <ProjectTestsManager session={session} readOnly />
             </Box>
         );
     },

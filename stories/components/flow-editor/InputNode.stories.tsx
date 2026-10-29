@@ -1,7 +1,6 @@
 import '@xyflow/react/dist/style.css';
 import {useEffect, useMemo, useState, type ReactElement} from 'react';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import {expect, userEvent, within} from 'storybook/test';
 import {ReactFlow, ReactFlowProvider, type Edge, type Node} from '@xyflow/react';
 import {init, MutableDecisionService} from '@edgerules/web/mutable';
 import {createDocumentationService} from '../../../src/components/documentation-service';
@@ -105,7 +104,7 @@ function Canvas({
 }
 
 const meta: Meta<typeof Canvas> = {
-    title: 'Flow Editor/InputNode',
+    title: 'Components/Flow Editor/Input Node',
     component: Canvas,
     parameters: {layout: 'fullscreen'},
     loaders: [
@@ -120,43 +119,7 @@ export default meta;
 type Story = StoryObj<typeof Canvas>;
 
 export const Default: Story = {args: {field: 'applicant'}};
-export const SingleField: Story = {args: {field: 'application'}};
 /** The record feeds the `decision` FunctionNode: one wire per field. */
 export const Wired: Story = {args: {field: 'applicant', wired: true}};
 /** Values are shown as code and cannot be edited. */
 export const ReadOnly: Story = {args: {field: 'applicant', readOnly: true}};
-
-const DESCRIPTION = 'The person who applies for the credit';
-
-// Menus render in a portal, so the play functions query the whole document.
-const screen = () => within(document.body);
-// xyflow hides a node until it is measured, so the first lookup waits longer than the default.
-const SLOW = {timeout: 8000};
-
-export const NodeMenu: Story = {
-    args: {field: 'applicant', description: DESCRIPTION},
-    play: async () => {
-        await userEvent.click(await screen().findByRole('button', {name: 'Node actions'}, SLOW));
-        await expect(await screen().findByRole('menuitem', {name: 'Duplicate'})).toBeVisible();
-    },
-};
-
-export const RenameField: Story = {
-    args: {field: 'applicant'},
-    play: async () => {
-        await userEvent.click(await screen().findByRole('button', {name: 'age'}, SLOW));
-        const input = await screen().findByLabelText('Rename field age');
-        await userEvent.clear(input);
-        await userEvent.type(input, 'years');
-    },
-};
-
-/** Click a value to edit it as an expression; Enter writes it to the model. */
-export const EditValue: Story = {
-    args: {field: 'applicant'},
-    play: async () => {
-        await userEvent.click(await screen().findByRole('button', {name: 'Value of age'}, SLOW));
-        const editor = await screen().findByTestId('value-editor-age');
-        await expect(editor).toBeVisible();
-    },
-};

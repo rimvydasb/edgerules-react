@@ -1,7 +1,7 @@
 import {test, expect, type Locator, type Page} from '@playwright/test';
 import {openStory} from '../support/storybook';
 
-const PREFIX = 'flow-editor-floweditor--';
+const PREFIX = 'components-flow-editor-canvas--';
 
 async function open(page: Page, story: string) {
     await openStory(page, `${PREFIX}${story}`);

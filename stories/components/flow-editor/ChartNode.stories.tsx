@@ -1,7 +1,6 @@
 import '@xyflow/react/dist/style.css';
 import {useMemo, type ReactElement} from 'react';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import {expect, userEvent, within} from 'storybook/test';
 import {ReactFlow, ReactFlowProvider, type Edge, type Node} from '@xyflow/react';
 import {init, MutableDecisionService} from '@edgerules/web/mutable';
 import {
@@ -115,7 +114,7 @@ function Canvas({
 }
 
 const meta: Meta<typeof Canvas> = {
-    title: 'Flow Editor/ChartNode',
+    title: 'Components/Flow Editor/Chart Node',
     component: Canvas,
     parameters: {layout: 'fullscreen'},
     loaders: [
@@ -129,9 +128,6 @@ export default meta;
 
 type Story = StoryObj<typeof Canvas>;
 
-// xyflow hides a node until it is measured, and the engine loads first: the first lookup waits longer.
-const SLOW = {timeout: 8000};
-
 /**
  * Loan repayment in the Flow Editor: the loan input feeds the amortization schedule and the cost split, and three
  * charts read them. Change the amount, rate or years on the input node and every chart draws again. Drag the
@@ -139,29 +135,8 @@ const SLOW = {timeout: 8000};
  */
 export const LoanRepayment: Story = {render: () => <LoanFlow />};
 
-/** No config: the node picks `period` for the axis and draws every other numeric column as a line. */
-export const AutoConfigured: Story = {
-    args: {label: 'Repayment schedule'},
-    play: async ({canvasElement}) => {
-        const chart = await within(canvasElement).findByRole('img', {name: 'Repayment schedule'}, SLOW);
-        await expect(chart).toBeVisible();
-    },
-};
-
 /** Its own config: interest and principal of every installment as stacked bars. */
 export const PaymentSplit: Story = {args: {label: 'Monthly payment split', config: PAYMENT_SPLIT}};
-
-/** Configure flips the node to the form TanStack Charts needs; changes apply at once. */
-export const Configure: Story = {
-    args: {label: 'Repayment schedule'},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement);
-        await canvas.findByRole('img', {name: 'Repayment schedule'}, SLOW);
-        await userEvent.click(canvas.getByRole('button', {name: 'Chart actions'}));
-        await userEvent.click(await within(document.body).findByRole('menuitem', {name: 'Configure'}));
-        await expect(await canvas.findByRole('form', {name: 'Chart configuration'})).toBeVisible();
-    },
-};
 
 /** Nothing is wired: the node asks for data. */
 export const Unwired: Story = {args: {wired: false}};

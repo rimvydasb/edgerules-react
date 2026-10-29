@@ -1,7 +1,7 @@
 import {test, expect, type Page} from '@playwright/test';
 import {openStory} from '../support/storybook';
 
-// The loan repayment project of models/loan-repayment in the Shell stories, over the real `@edgerules/web` engine.
+// The loan repayment project of models/loan-repayment in its Models stories (stories/models), over the real `@edgerules/web` engine.
 // The model's own behavior is covered by models/loan-repayment/__tests__; this checks that every part of it renders.
 
 // The engine loads and xyflow measures every node before it shows: the first lookup waits longer.
@@ -12,7 +12,7 @@ function explorer(page: Page) {
 }
 
 test('the Project Explorer lists every entity of the model', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-repayment');
+    await openStory(page, 'models-loan-repayment--overview');
     const nav = explorer(page);
     for (const entry of ['LoanRequest', 'Installment', 'samplePayment', 'mortgageBook', 'termComparisonBook']) {
         await expect(nav.getByText(entry, {exact: true}), entry).toBeVisible(SLOW);
@@ -23,7 +23,7 @@ test('the Project Explorer lists every entity of the model', async ({page}) => {
 });
 
 test('the decision table opened as the root keeps its header row and its columns', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-repayment-decision-table');
+    await openStory(page, 'models-loan-repayment--decision-table');
     await expect(page.getByTestId('row-pricingTier')).toBeVisible(SLOW);
     for (const column of ['creditScore', 'years', 'tier', 'premium', 'approved']) {
         await expect(page.getByTestId(`column-pricingTier-${column}`), column).toBeVisible();
@@ -35,7 +35,7 @@ test('the decision table opened as the root keeps its header row and its columns
 });
 
 test('mortgageBook charts the repayment plan and shows its outputs', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-repayment-mortgage-book');
+    await openStory(page, 'models-loan-repayment--mortgage-book');
     await expect(page.getByRole('img', {name: 'Remaining balance'})).toBeVisible(SLOW);
     await expect(page.getByRole('img', {name: 'Yearly interest and principal'})).toBeVisible();
 
@@ -66,14 +66,14 @@ test('mortgageBook charts the repayment plan and shows its outputs', async ({pag
 });
 
 test('termComparisonBook charts the balance of both terms', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-repayment-term-comparison');
+    await openStory(page, 'models-loan-repayment--term-comparison-book');
     await expect(page.getByRole('img', {name: 'Balance by year'})).toBeVisible(SLOW);
     await expect(page.getByTestId('output-node-output').getByTestId('output-value')).toHaveText('1423.43');
     await expect(page.getByTestId('output-node-output2').getByTestId('output-value')).toHaveText('966.28');
 });
 
 test('the service tests pass when run, and show no result before', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-repayment-service-tests');
+    await openStory(page, 'models-loan-repayment--service-tests');
     const summaries = page.getByTestId(/^assertion-summary-/);
     await expect(summaries).toHaveCount(5, SLOW);
     await expect(summaries.first()).toHaveText('');

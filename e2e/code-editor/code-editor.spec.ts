@@ -2,7 +2,7 @@ import {test, expect} from '@playwright/test';
 import {openStory} from '../support/storybook';
 
 test('Default story renders CodeMirror and allows typing', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditor--default');
+    await openStory(page, 'components-code-editor-code-editor--default');
 
     const editor = page.locator('.cm-content').first();
     await expect(editor).toBeVisible();
@@ -14,7 +14,7 @@ test('Default story renders CodeMirror and allows typing', async ({page}) => {
 });
 
 test('Default story applies EdgeRules syntax highlighting', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditor--default');
+    await openStory(page, 'components-code-editor-code-editor--default');
 
     await expect(page.locator('.tok-keyword').first()).toBeVisible(); // func / type
     await expect(page.locator('.tok-string').first()).toBeVisible(); // "Vilnius"
@@ -23,12 +23,12 @@ test('Default story applies EdgeRules syntax highlighting', async ({page}) => {
 });
 
 test('WithSyntaxError story shows lint error ranges', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditor--with-syntax-error');
+    await openStory(page, 'components-code-editor-code-editor--with-syntax-error');
     await expect(page.locator('.cm-lintRange-error, .cm-lintPoint-error').first()).toBeVisible();
 });
 
 test('Ctrl+Space opens engine completions', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditor--default');
+    await openStory(page, 'components-code-editor-code-editor--default');
 
     const editor = page.locator('.cm-content').first();
     await editor.click();
@@ -48,7 +48,7 @@ test('Ctrl+Space opens engine completions', async ({page}) => {
 });
 
 test('Ctrl+Click navigates to the definition', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditor--default');
+    await openStory(page, 'components-code-editor-code-editor--default');
 
     const usage = page.locator('.cm-line', {hasText: 'riskScore(applicant.age)'}).first();
     await expect(usage).toBeVisible();
@@ -64,7 +64,7 @@ test('Ctrl+Click navigates to the definition', async ({page}) => {
 });
 
 test('Shift+Alt+F formats the document', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditor--default');
+    await openStory(page, 'components-code-editor-code-editor--default');
 
     const editor = page.locator('.cm-content').first();
     await editor.click();

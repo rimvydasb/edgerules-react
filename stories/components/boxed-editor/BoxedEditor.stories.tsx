@@ -1,21 +1,13 @@
 import {useEffect, useMemo, useState, type ReactElement} from 'react';
 import {Box, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import highsLoader from 'highs';
-import highsWasmUrl from 'highs/runtime?url';
-import {
-    mapHighsSolution,
-    MutableDecisionService,
-    toCplexLp,
-    type HighsSolutionLike,
-    type LpOutcome,
-    type LpProblem,
-} from '@edgerules/web/mutable';
+import {MutableDecisionService} from '@edgerules/web/mutable';
 import {BoxedEditor, createBoxedEditorService, type BoxedEditorService} from '../../../src/components/boxed-editor';
 import type {DocumentationService} from '../../../src/components/documentation-service';
 import type {ProjectEngine, ProjectSession} from '../../../src/components/project-session';
 import type {TestCasesService} from '../../../src/components/test-cases-service';
 import {createTestRunner, type TestSubject} from '../../../src/components/tests-manager';
+import {registerHighsSolver} from '../../support/highsSolver';
 import {openStoryProject} from '../../support/storyProject';
 
 const LOAN_ORIGINATION_MODEL = `{
@@ -186,17 +178,7 @@ function ExecutingHarness({
 
 async function buildExecutingService(code: string, withSolver = false): Promise<ExecutingFixture> {
     const fixture = await buildServiceWithMutable(code);
-    if (withSolver) {
-        const highs = await highsLoader({locateFile: () => highsWasmUrl});
-        fixture.mutable.registerSolver(
-            (problem: LpProblem): LpOutcome => {
-                const text = toCplexLp(problem);
-                const options = problem.timeLimit === undefined ? {} : {time_limit: problem.timeLimit / 1000};
-                return mapHighsSolution(highs.solve(text, options) as unknown as HighsSolutionLike, problem);
-            },
-            {name: 'highs-js'},
-        );
-    }
+    if (withSolver) await registerHighsSolver(fixture.mutable);
     return fixture;
 }
 
@@ -273,7 +255,7 @@ function TestCasesAndTestRunnerHarness({
 }
 
 const meta: Meta<typeof BoxedEditor> = {
-    title: 'Boxed Editor/BoxedEditor',
+    title: 'Components/Boxed Editor',
     component: BoxedEditor,
     parameters: {
         docs: {
@@ -294,14 +276,11 @@ const meta: Meta<typeof BoxedEditor> = {
 export default meta;
 type Story = StoryObj<typeof BoxedEditor>;
 
-export const RootModel: Story = {
-    loaders: [async () => ({service: await buildService(LOAN_ORIGINATION_MODEL)})],
-    render: (args, {loaded}) => (
-        <BoxedEditor {...args} service={loaded.service} path="*" languageService={MutableDecisionService} />
-    ),
-};
+// A story tagged `fixture` is a starting state of the e2e/boxed-editor specs. The sidebar hides it by default; the
+// tag filter shows it.
 
 export const EditableExpression: Story = {
+    tags: ['fixture'],
     loaders: [async () => ({service: await buildService(LOAN_ORIGINATION_MODEL)})],
     render: (_args, {loaded}) => <EditableHarness service={loaded.service} path="*" />,
 };
@@ -314,6 +293,7 @@ export const BlankModel: Story = {
 };
 
 export const FocusedContext: Story = {
+    tags: ['fixture'],
     loaders: [async () => ({service: await buildService(LOAN_ORIGINATION_MODEL)})],
     render: (args, {loaded}) => (
         <BoxedEditor {...args} service={loaded.service} path="application" languageService={MutableDecisionService} />
@@ -328,6 +308,7 @@ export const ReadOnly: Story = {
 };
 
 export const ColumnsHidden: Story = {
+    tags: ['fixture'],
     loaders: [async () => ({service: await buildService(LOAN_ORIGINATION_MODEL)})],
     render: (args, {loaded}) => (
         <BoxedEditor
@@ -342,16 +323,19 @@ export const ColumnsHidden: Story = {
 };
 
 export const CollectionsListAndRelation: Story = {
+    tags: ['fixture'],
     loaders: [async () => buildExecutingService(COLLECTIONS_MODEL)],
     render: (_args, {loaded}) => <ExecutingHarness service={loaded.service} mutable={loaded.mutable} />,
 };
 
 export const FatalError: Story = {
+    tags: ['fixture'],
     loaders: [async () => ({service: await buildService(LOAN_ORIGINATION_MODEL)})],
     render: (args, {loaded}) => <BoxedEditor {...args} service={loaded.service} path="does.not.exist" />,
 };
 
 export const LargeModel: Story = {
+    tags: ['fixture'],
     loaders: [async () => ({service: await buildService(LARGE_MODEL)})],
     render: (args, {loaded}) => <BoxedEditor {...args} service={loaded.service} path="*" readOnly />,
 };
@@ -436,9 +420,13 @@ export const FullModel: Story = {
             description: {
                 story:
                     'Every `BoxedRowKind` in one model: a reusable `complexType`, a `list`, a `relation`, ' +
-                    'inline/multi-statement/no-argument/nested `func`s, a full `ruleset`, and a full ' +
-                    '`optimise` — plus a `DocumentationService` overlay with three rows pre-seeded. Hover ' +
-                    'the Description column, or hold **Alt** to reveal every type at once.',
+                    'four `func` shapes — `monthly` (a single inline expression: a synthesized, non-draggable ' +
+                    '`result` row), `compute` (a multi-statement body: ordinary field rows), `answer` (no ' +
+                    'arguments) and `group.nested` (nested in a context) — a `ruleset` with both rule-condition ' +
+                    'forms, its hit policy and its pinned default, and an `optimise` solved by highs-js — plus a ' +
+                    '`DocumentationService` overlay with three rows pre-seeded. Hover the Description column, or ' +
+                    "hold **Alt** to reveal every type at once. A rule's three-dots menu adds, duplicates and " +
+                    'removes rows and columns.',
             },
         },
     },
@@ -463,17 +451,6 @@ export const FullModel: Story = {
 
 // --- ruleset-bearing model: inline rule CRUD ---
 
-const RULESET_MODEL = `{
-  ruleset risk(age: number, income: number): {
-    hitPolicy: "first-match"
-    rules: [
-      { when: { age: 18..25, income: < 30000 }, then: { level: "high", limit: 1000 } }
-      { when: age >= 26 and age <= 64, then: { level: "medium", limit: 5000 } }
-    ]
-    default: { level: "none", limit: 0 }
-  }
-}`;
-
 const DECISION_TABLE_CRUD_MODEL = `{
   ruleset risk(age: number, segment: string, applied: date): {
     hitPolicy: "first-match"
@@ -496,6 +473,7 @@ const DECISION_TABLE_CRUD_MODEL = `{
 }`;
 
 export const DecisionTableCrudPlayground: Story = {
+    tags: ['fixture'],
     loaders: [async () => buildExecutingService(DECISION_TABLE_CRUD_MODEL)],
     render: (_args, {loaded}) => <ExecutingHarness service={loaded.service} mutable={loaded.mutable} />,
 };
@@ -513,25 +491,9 @@ const SETTINGS_RULESET_MODEL = `{
 }`;
 
 export const SettingsRuleFormsPlayground: Story = {
+    tags: ['fixture'],
     loaders: [async () => buildExecutingService(SETTINGS_RULESET_MODEL)],
     render: (_args, {loaded}) => <ExecutingHarness service={loaded.service} mutable={loaded.mutable} />,
-};
-
-export const RulesetCrud: Story = {
-    parameters: {
-        docs: {
-            description: {
-                story:
-                    'A `ruleset` with both rule-condition forms — a cell-map rule (`age`/`income`) and a ' +
-                    'boolean-expression rule — plus `ruleset-hit-policy` and the pinned `ruleset-default` ' +
-                    "row. Use a rule's three-dots menu to add/duplicate/remove rows and columns.",
-            },
-        },
-    },
-    loaders: [async () => ({service: await buildService(RULESET_MODEL)})],
-    render: (args, {loaded}) => (
-        <BoxedEditor {...args} service={loaded.service} path="*" languageService={MutableDecisionService} />
-    ),
 };
 
 // --- optimisation-bearing model: inline variable/objective/constraint CRUD ---
@@ -556,6 +518,7 @@ const OPTIMISE_MODEL = `{
 }`;
 
 export const OptimisationCrud: Story = {
+    tags: ['fixture'],
     parameters: {
         docs: {
             description: {
@@ -582,20 +545,10 @@ const OPTIMISE_SETTINGS_MODEL = `{
 }`;
 
 export const OptimisationSettingsPlayground: Story = {
+    tags: ['fixture'],
     loaders: [async () => buildExecutingService(OPTIMISE_SETTINGS_MODEL, true)],
     render: (_args, {loaded}) => <ExecutingHarness service={loaded.service} mutable={loaded.mutable} />,
 };
-
-// --- func-bearing model: inline, multi-statement, no-argument, nested ---
-
-const FUNCTION_MODEL = `{
-  func monthly(amount: number): amount / 12
-  func compute(x: number): { doubled: x * 2; total: doubled + 1 }
-  func answer(): 42
-  group: {
-    func nested(x: number): x + 1
-  }
-}`;
 
 const FUNCTION_CRUD_MODEL = `{
   principal: 1200
@@ -606,6 +559,7 @@ const FUNCTION_CRUD_MODEL = `{
 }`;
 
 export const FunctionCrudPlayground: Story = {
+    tags: ['fixture'],
     loaders: [async () => buildExecutingService(FUNCTION_CRUD_MODEL)],
     render: (_args, {loaded}) => <ExecutingHarness service={loaded.service} mutable={loaded.mutable} />,
 };
@@ -622,6 +576,7 @@ const FUNCTION_SCOPE_MODEL = `{
 }`;
 
 export const FunctionScopePlayground: Story = {
+    tags: ['fixture'],
     loaders: [async () => buildExecutingService(FUNCTION_SCOPE_MODEL)],
     render: (_args, {loaded}) => <ExecutingHarness service={loaded.service} mutable={loaded.mutable} />,
 };
@@ -635,6 +590,7 @@ const RELATION_CRUD_MODEL = `{
 }`;
 
 export const RelationCrudPlayground: Story = {
+    tags: ['fixture'],
     loaders: [
         async () => {
             const fixture = await buildExecutingService(RELATION_CRUD_MODEL);
@@ -691,6 +647,7 @@ function RenameOverlayHarness({
 }
 
 export const RenameOverlayPlayground: Story = {
+    tags: ['fixture'],
     loaders: [
         async () => {
             const {service, session} = await buildServiceWithMutable(
@@ -713,23 +670,5 @@ export const RenameOverlayPlayground: Story = {
             testCasesService={loaded.testCasesService as TestCasesService}
             testCaseId={loaded.testCaseId as string}
         />
-    ),
-};
-
-export const FunctionBodies: Story = {
-    parameters: {
-        docs: {
-            description: {
-                story:
-                    'Four `func` shapes: `monthly` (single inline expression — a synthesized, non-draggable ' +
-                    '`result` row), `compute` (multi-statement body — ordinary field rows, never a ' +
-                    'synthesized result), `answer` (no arguments), and `group.nested` (a function nested ' +
-                    'inside a context).',
-            },
-        },
-    },
-    loaders: [async () => ({service: await buildService(FUNCTION_MODEL)})],
-    render: (args, {loaded}) => (
-        <BoxedEditor {...args} service={loaded.service} path="*" languageService={MutableDecisionService} />
     ),
 };

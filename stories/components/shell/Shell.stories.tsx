@@ -1,13 +1,6 @@
-import '@xyflow/react/dist/style.css';
-import {useState, type ReactElement} from 'react';
-import {Code, Group, Text} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
 import {expect, userEvent, within} from 'storybook/test';
-import {MutableDecisionService} from '@edgerules/web/mutable';
-import {ProjectProvider, type ProjectSession} from '../../../src/components/project-session';
-import {Shell, type ShellView} from '../../../src/components/shell';
-import {LOAN_ORIGINATION_PROJECT} from '../../../models/loan-origination';
-import {LOAN_REPAYMENT_PROJECT} from '../../../models/loan-repayment';
+import {renderShellHost, SHELL_HOST_ARG_TYPES, ShellHost} from '../../support/ShellHost';
 import {openStoryProject} from '../../support/storyProject';
 
 // The sample model of docs/model-decomposition.md. `risk` is an invocation, so the Flow view shows it as a
@@ -50,88 +43,24 @@ const PROJECT_MODEL = `{
   }
 }`;
 
-interface ShellStoryArgs {
-    defaultPath?: string;
-    defaultView?: ShellView;
-    readOnly?: boolean;
-    defaultExplorerOpen?: boolean;
-    controlled?: boolean; // the host holds the path and the view, and prints them
-}
-
-function HostedShell({
-    defaultPath,
-    defaultView,
-    readOnly,
-    defaultExplorerOpen,
-    controlled,
-}: ShellStoryArgs): ReactElement {
-    const [path, setPath] = useState(defaultPath ?? '*');
-    const [view, setView] = useState<ShellView>(defaultView ?? 'boxed');
-    const [forwarded, setForwarded] = useState<string>();
-    return (
-        <div style={{height: '100vh', display: 'flex', flexDirection: 'column', padding: 12, boxSizing: 'border-box'}}>
-            {controlled && (
-                <Group gap="md" mb="xs" data-testid="host-state">
-                    <Text size="xs">
-                        path <Code>{path}</Code>
-                    </Text>
-                    <Text size="xs">
-                        view <Code>{view}</Code>
-                    </Text>
-                    {forwarded && (
-                        <Text size="xs">
-                            forwarded to the host <Code>{forwarded}</Code>
-                        </Text>
-                    )}
-                </Group>
-            )}
-            <div style={{flex: 1, minHeight: 0}}>
-                <Shell
-                    languageService={MutableDecisionService}
-                    readOnly={readOnly}
-                    defaultExplorerOpen={defaultExplorerOpen}
-                    {...(controlled
-                        ? {path, onPathChange: setPath, view, onViewChange: setView}
-                        : {defaultPath, defaultView})}
-                    onOpenNode={(target) => setForwarded(`${target.kind} ${target.path}`)}
-                />
-            </div>
-        </div>
-    );
-}
-
-const meta: Meta<typeof HostedShell> = {
-    title: 'Shell/Shell',
-    component: HostedShell,
+const meta: Meta<typeof ShellHost> = {
+    title: 'Components/Shell',
+    component: ShellHost,
     parameters: {layout: 'fullscreen'},
+    argTypes: SHELL_HOST_ARG_TYPES,
     loaders: [async () => ({session: await openStoryProject({name: 'Shell story', model: {dsl: SAMPLE_MODEL}})})],
-    render: (args, {loaded}) => (
-        <ProjectProvider session={loaded.session as ProjectSession}>
-            <HostedShell {...args} />
-        </ProjectProvider>
-    ),
+    render: renderShellHost,
 };
 export default meta;
 
-type Story = StoryObj<typeof HostedShell>;
+type Story = StoryObj<typeof ShellHost>;
 
-/** The whole model in the Boxed view. */
-export const Default: Story = {args: {}};
-
-/** The Project Explorer collapsed to its rail of section icons; an icon opens the panel with that section. */
-export const CollapsedProjectExplorer: Story = {args: {defaultExplorerOpen: false}};
-
-/** The DSL code of a context path; an edit commits after 500 ms without typing. */
-export const CodeOfAContext: Story = {args: {defaultPath: 'applicant', defaultView: 'code'}};
-
-/** A function path: the breadcrumb ends with `calculateAge(...)`, and the Boxed view shows its arguments and its body. */
-export const FunctionPath: Story = {args: {defaultPath: 'applicant.calculateAge'}};
-
-/** The Flow Component nodes that are direct fields of the model root. */
-export const Flow: Story = {args: {defaultView: 'flow'}};
-
-/** Every editor is read-only. */
-export const ReadOnly: Story = {args: {readOnly: true}};
+/**
+ * The sample model. Use the controls to open another path or view: `applicant` in the Code view (an edit commits
+ * after 500 ms without typing), the function path `applicant.calculateAge` (the breadcrumb ends with
+ * `calculateAge(...)`), the Flow view, a collapsed Project Explorer, or read-only editors.
+ */
+export const Default: Story = {args: {defaultPath: '*', defaultView: 'boxed', defaultExplorerOpen: true}};
 
 /** The host holds the path and the view; drill-downs the Shell does not open go to the host. */
 export const Controlled: Story = {
@@ -169,88 +98,4 @@ export const Project: Story = {
         await userEvent.click(within(explorer).getAllByText('riskScore()')[1]!);
         await expect(await canvas.findByTestId('shell-tests-view')).toBeInTheDocument();
     },
-};
-
-// The loan repayment project of models/loan-repayment: a decision table, functions, a `@Service`, two workbooks with
-// charts, and tests.
-const loanRepaymentLoaders: Story['loaders'] = [
-    async () => ({session: await openStoryProject(LOAN_REPAYMENT_PROJECT)}),
-];
-
-/** The loan repayment project with the Project Explorer open. */
-export const LoanRepayment: Story = {args: {defaultExplorerOpen: true}, loaders: loanRepaymentLoaders};
-
-/** The `pricingTier` decision table: the credit score and the term select the price tier. */
-export const LoanRepaymentDecisionTable: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'pricingTier'},
-    loaders: loanRepaymentLoaders,
-};
-
-/**
- * The `mortgageBook` workbook: the repayment plan, the monthly payment, the cost of the loan and the repayment schedule
- * as tables, the remaining balance and the yearly split.
- */
-export const LoanRepaymentMortgageBook: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'mortgageBook', defaultView: 'flow'},
-    loaders: loanRepaymentLoaders,
-};
-
-/** The `termComparisonBook` workbook: the same loan over 15 and 30 years, and the balance of both by year. */
-export const LoanRepaymentTermComparison: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'termComparisonBook', defaultView: 'flow'},
-    loaders: loanRepaymentLoaders,
-};
-
-/** The tests of the `loanRepayment` service. Run all to check every case. */
-export const LoanRepaymentServiceTests: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'loanRepayment', defaultView: 'tests'},
-    loaders: loanRepaymentLoaders,
-};
-
-// The loan origination project of models/loan-origination: applicant and application records, a scorecard, policy
-// rules, pricing and decision tables, a `@Service`, two workbooks with charts, and tests.
-const loanOriginationLoaders: Story['loaders'] = [
-    async () => ({session: await openStoryProject(LOAN_ORIGINATION_PROJECT)}),
-];
-
-/** The loan origination project with the Project Explorer open. */
-export const LoanOrigination: Story = {args: {defaultExplorerOpen: true}, loaders: loanOriginationLoaders};
-
-/** The `applicantScorecard` decision table: every characteristic of the applicant falls into one bin of points. */
-export const LoanOriginationScorecard: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'applicantScorecard'},
-    loaders: loanOriginationLoaders,
-};
-
-/** The `decisionMatrix` decision table: knockouts, grade, LTV and DSTI decide APPROVE, REFER or DECLINE. */
-export const LoanOriginationDecisionMatrix: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'decisionMatrix'},
-    loaders: loanOriginationLoaders,
-};
-
-/** The `loanOriginationDecision` service in the Boxed view: the records, the per-applicant decisions, the pricing and the offer. */
-export const LoanOriginationService: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'loanOriginationDecision'},
-    loaders: loanOriginationLoaders,
-};
-
-/**
- * The `originationBook` workbook: the loan terms and two applicants make the joint application; the scorecards of both
- * applicants as charts, and the decision, the offer, the affordability and the household grade as outputs.
- */
-export const LoanOriginationBook: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'originationBook', defaultView: 'flow'},
-    loaders: loanOriginationLoaders,
-};
-
-/** The `capacityBook` workbook: the largest affordable loan of a household for each term. */
-export const LoanOriginationCapacity: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'capacityBook', defaultView: 'flow'},
-    loaders: loanOriginationLoaders,
-};
-
-/** The tests of the `loanOriginationDecision` service: joint and single applications, one per outcome. Run all to check every case. */
-export const LoanOriginationServiceTests: Story = {
-    args: {defaultExplorerOpen: true, defaultPath: 'loanOriginationDecision', defaultView: 'tests'},
-    loaders: loanOriginationLoaders,
 };

@@ -3,7 +3,7 @@ import {openStory} from '../support/storybook';
 import {chooseRowAction, valueCell} from '../boxed-editor/helpers';
 import {expectHeaders, renameHeader, retypeHeader} from '../boxed-editor/columnHelpers';
 
-// The loan origination project of models/loan-origination in the Shell stories, over the real `@edgerules/web` engine.
+// The loan origination project of models/loan-origination in its Models stories (stories/models), over the real `@edgerules/web` engine.
 // The model's own behavior is covered by models/loan-origination/__tests__; this checks that every part of it renders.
 
 // The engine loads and xyflow measures every node before it shows: the first lookup waits longer.
@@ -14,7 +14,7 @@ function explorer(page: Page) {
 }
 
 test('the Project Explorer lists every entity of the model', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-origination');
+    await openStory(page, 'models-loan-origination--overview');
     const nav = explorer(page);
     for (const entry of [
         'Applicant',
@@ -37,7 +37,7 @@ test('the Project Explorer lists every entity of the model', async ({page}) => {
 });
 
 test('the Project Explorer labels a method with arguments as name(...) and one without as name()', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-origination');
+    await openStory(page, 'models-loan-origination--overview');
     const nav = explorer(page);
     await expect(nav.getByText('applicantRecord(...)', {exact: true})).toBeVisible(SLOW);
     await expect(nav.getByText('creditPolicy()', {exact: true})).toBeVisible();
@@ -46,7 +46,7 @@ test('the Project Explorer labels a method with arguments as name(...) and one w
 
 test.describe('a function opened from the Project Explorer', () => {
     test.beforeEach(async ({page}) => {
-        await openStory(page, 'shell-shell--loan-origination-book');
+        await openStory(page, 'models-loan-origination--origination-book');
         await explorer(page).getByText('applicantRecord(...)', {exact: true}).click(SLOW);
         await expect(page.getByRole('navigation', {name: 'Model path'})).toContainText('applicantRecord(...)');
         // The Flow view of the book shows the nodes of the function body; its arguments are edited in the Boxed view.
@@ -85,7 +85,7 @@ test.describe('a function opened from the Project Explorer', () => {
 });
 
 test('the scorecard decision table shows a column per characteristic', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-origination-scorecard');
+    await openStory(page, 'models-loan-origination--scorecard');
     await expect(page.getByTestId('row-applicantScorecard')).toBeVisible(SLOW);
     for (const column of ['age', 'employment', 'yearsEmployed', 'bureauScore', 'delinquencies', 'points']) {
         await expect(page.getByTestId(`column-applicantScorecard-${column}`), column).toBeVisible();
@@ -93,7 +93,7 @@ test('the scorecard decision table shows a column per characteristic', async ({p
 });
 
 test('originationBook charts both scorecards and shows the decision', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-origination-book');
+    await openStory(page, 'models-loan-origination--origination-book');
     await expect(page.getByRole('img', {name: 'Main applicant scorecard'})).toBeVisible(SLOW);
     await expect(page.getByRole('img', {name: 'Co-applicant scorecard'})).toBeVisible();
 
@@ -104,13 +104,13 @@ test('originationBook charts both scorecards and shows the decision', async ({pa
 });
 
 test('capacityBook charts the largest affordable loan by term', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-origination-capacity');
+    await openStory(page, 'models-loan-origination--capacity-book');
     await expect(page.getByRole('img', {name: 'Largest affordable loan'})).toBeVisible(SLOW);
     await expect(page.getByTestId('output-node-output').getByTestId('output-value')).toHaveText('5 rows × 3 columns');
 });
 
 test('the service tests of joint and single applications pass when run', async ({page}) => {
-    await openStory(page, 'shell-shell--loan-origination-service-tests');
+    await openStory(page, 'models-loan-origination--service-tests');
     const summaries = page.getByTestId(/^assertion-summary-/);
     await expect(summaries).toHaveCount(6, SLOW);
     await expect(summaries.first()).toHaveText('');

@@ -1,7 +1,7 @@
 import {expect, type Page} from '@playwright/test';
 import {openStory} from '../support/storybook';
 
-export const STORY_PREFIX = 'boxed-editor-boxededitor--';
+export const STORY_PREFIX = 'components-boxed-editor--';
 
 /** Opens a Boxed Editor story by its short name (e.g. `'editable-expression'`) and asserts the
  * treegrid actually rendered, rather than a fallback error state — every test in this component's

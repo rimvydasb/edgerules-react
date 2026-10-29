@@ -22,10 +22,10 @@ const testsGrid = (page: Page) => page.getByTestId('tests-grid');
 
 const SHOTS: Shot[] = [
     // ---- Boxed editor
-    {name: 'boxed-default', story: 'boxed-editor-boxededitor--editable-expression', target: boxed},
+    {name: 'boxed-default', story: 'components-boxed-editor--editable-expression', target: boxed},
     {
         name: 'boxed-focused-cell',
-        story: 'boxed-editor-boxededitor--editable-expression',
+        story: 'components-boxed-editor--editable-expression',
         target: boxed,
         prepare: async (page) => {
             await page.getByTestId('row-Applicant.name').getByText('name', {exact: true}).click();
@@ -34,7 +34,7 @@ const SHOTS: Shot[] = [
     },
     {
         name: 'boxed-error-popover',
-        story: 'boxed-editor-boxededitor--editable-expression',
+        story: 'components-boxed-editor--editable-expression',
         target: (page) => page.locator('body'),
         prepare: async (page) => {
             await page.getByTestId('row-Applicant.name').getByText('name', {exact: true}).click();
@@ -44,13 +44,13 @@ const SHOTS: Shot[] = [
             await expect(page.getByRole('alert')).toBeVisible();
         },
     },
-    {name: 'boxed-nested-grid', story: 'boxed-editor-boxededitor--collections-list-and-relation', target: boxed},
-    {name: 'boxed-new-item-row', story: 'boxed-editor-boxededitor--blank-model', target: boxed},
+    {name: 'boxed-nested-grid', story: 'components-boxed-editor--collections-list-and-relation', target: boxed},
+    {name: 'boxed-new-item-row', story: 'components-boxed-editor--blank-model', target: boxed},
     // ---- Decision table
-    {name: 'dt-default', story: 'decision-table-decisiontableeditor--decision-table', target: decisionTable},
+    {name: 'dt-default', story: 'components-decision-table-editor--decision-table', target: decisionTable},
     {
         name: 'dt-focused-cell',
-        story: 'decision-table-decisiontableeditor--decision-table',
+        story: 'components-decision-table-editor--decision-table',
         target: decisionTable,
         prepare: async (page) => {
             await decisionTable(page).locator('[data-grid-row="0"][data-grid-col="0"]').focus();
@@ -58,7 +58,7 @@ const SHOTS: Shot[] = [
     },
     {
         name: 'dt-error',
-        story: 'decision-table-decisiontableeditor--decision-table',
+        story: 'components-decision-table-editor--decision-table',
         target: decisionTable,
         prepare: async (page) => {
             const cell = decisionTable(page).locator('[data-grid-row="0"][data-grid-col="0"]');
@@ -70,12 +70,12 @@ const SHOTS: Shot[] = [
             await expect(decisionTable(page).locator('.cm-editor')).toBeVisible();
         },
     },
-    {name: 'dt-nested-scorecard', story: 'decision-table-decisiontableeditor--scorecard', target: decisionTable},
+    {name: 'dt-nested-scorecard', story: 'components-decision-table-editor--scorecard', target: decisionTable},
     // ---- Tests manager
-    {name: 'tm-default', story: 'tests-manager-testsmanager--workbook', target: testsGrid},
+    {name: 'tm-default', story: 'components-tests-manager--workbook', target: testsGrid},
     {
         name: 'tm-focused-cell',
-        story: 'tests-manager-testsmanager--workbook',
+        story: 'components-tests-manager--workbook',
         target: testsGrid,
         prepare: async (page) => {
             await page.getByLabel('input age').first().focus();
@@ -83,7 +83,7 @@ const SHOTS: Shot[] = [
     },
     {
         name: 'tm-error',
-        story: 'tests-manager-testsmanager--workbook',
+        story: 'components-tests-manager--workbook',
         target: testsGrid,
         prepare: async (page) => {
             const input = page.getByLabel('input age').first();
@@ -91,7 +91,7 @@ const SHOTS: Shot[] = [
             await expect(input).toHaveAttribute('aria-invalid', 'true');
         },
     },
-    {name: 'tm-nested-paths', story: 'tests-manager-testsmanager--indexed-array-paths', target: testsGrid},
+    {name: 'tm-nested-paths', story: 'components-tests-manager--indexed-array-paths', target: testsGrid},
 ];
 
 for (const scale of SCALES) {

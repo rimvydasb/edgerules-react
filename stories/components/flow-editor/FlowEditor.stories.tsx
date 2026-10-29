@@ -1,7 +1,6 @@
 import '@xyflow/react/dist/style.css';
 import {useMemo, useState, type ReactElement} from 'react';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import {expect, userEvent, within} from 'storybook/test';
 import {MutableDecisionService} from '@edgerules/web/mutable';
 import {createFlowEditorService, FlowEditor, type FlowLayout} from '../../../src/components/flow-editor';
 import {
@@ -107,7 +106,7 @@ function LayoutReport(): ReactElement {
 }
 
 const meta: Meta<typeof Editor> = {
-    title: 'Flow Editor/FlowEditor',
+    title: 'Components/Flow Editor/Canvas',
     component: Editor,
     parameters: {layout: 'fullscreen'},
     loaders: [async ({args}) => ({session: await openProject(args)})],
@@ -132,16 +131,3 @@ export const ReadOnly: Story = {args: {seeded: true, readOnly: true}};
 
 /** Prints what onLayoutChange reports, for hosts that persist `flow.json`. */
 export const LayoutChanges: Story = {args: {showLayout: true}};
-
-// xyflow hides a node until it is measured, so the first lookup waits longer than the default.
-const SLOW = {timeout: 8000};
-
-/** Clicks a palette item: the node appears in the middle of the canvas. */
-export const AddFromPalette: Story = {
-    args: {},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement);
-        await userEvent.click(await canvas.findByRole('button', {name: 'Add ruleset risk'}, SLOW));
-        await expect(await canvas.findByTestId('function-node-node', {}, SLOW)).toBeVisible();
-    },
-};

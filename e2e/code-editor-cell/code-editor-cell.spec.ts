@@ -2,7 +2,7 @@ import {test, expect} from '@playwright/test';
 import {openStory} from '../support/storybook';
 
 test('Default cell story renders a single-line editor and commits on Enter', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditorcell--default');
+    await openStory(page, 'components-code-editor-code-editor-cell--default');
 
     const editor = page.locator('.cm-content').first();
     await expect(editor).toBeVisible();
@@ -14,7 +14,7 @@ test('Default cell story renders a single-line editor and commits on Enter', asy
 });
 
 test('Cell completions include names from the surrounding model (embed context)', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditorcell--default');
+    await openStory(page, 'components-code-editor-code-editor-cell--default');
 
     const editor = page.locator('.cm-content').first();
     await editor.click();
@@ -28,12 +28,12 @@ test('Cell completions include names from the surrounding model (embed context)'
 });
 
 test('Cell lints against the surrounding model', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditorcell--with-lint-error');
+    await openStory(page, 'components-code-editor-code-editor-cell--with-lint-error');
     await expect(page.locator('.cm-lintRange-error, .cm-lintPoint-error').first()).toBeVisible();
 });
 
 test('Multiline cell keeps Enter as newline and commits with Ctrl+Enter', async ({page}) => {
-    await openStory(page, 'code-editor-codeeditorcell--multiline');
+    await openStory(page, 'components-code-editor-code-editor-cell--multiline');
 
     const editor = page.locator('.cm-content').first();
     await editor.click();

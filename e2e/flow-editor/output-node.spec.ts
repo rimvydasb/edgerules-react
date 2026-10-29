@@ -1,7 +1,7 @@
 import {test, expect, type Page} from '@playwright/test';
 import {openStory} from '../support/storybook';
 
-const PREFIX = 'flow-editor-outputnode--';
+const PREFIX = 'components-flow-editor-output-node--';
 
 async function open(page: Page, story: string) {
     await openStory(page, `${PREFIX}${story}`);

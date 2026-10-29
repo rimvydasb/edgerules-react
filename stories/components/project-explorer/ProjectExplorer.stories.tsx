@@ -10,9 +10,9 @@ async function buildService(code: string) {
 }
 
 const meta: Meta<typeof ProjectExplorer> = {
-    title: 'Project Explorer/ProjectExplorer',
+    title: 'Components/Project Explorer',
     component: ProjectExplorer,
-    args: {onCollapsedChange: fn()},
+    args: {onCollapsedChange: fn(), readOnly: false},
     // A side panel: fixed width, full height, with a frame like the Node palette of the Flow Editor.
     decorators: [
         (Story) => (
@@ -59,11 +59,4 @@ export const CreateEntity: Story = {
         const canvas = within(canvasElement);
         await userEvent.click(await canvas.findByRole('button', {name: 'Add to Methods'}));
     },
-};
-
-/** No add buttons. */
-export const ReadOnly: Story = {
-    args: {readOnly: true, testSubjects: ['*']},
-    loaders: [async () => ({service: await buildService(MODEL_DSL)})],
-    render: (args, {loaded}) => <ProjectExplorer {...args} service={loaded.service} style={{flex: 1}} />,
 };

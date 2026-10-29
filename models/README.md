@@ -26,7 +26,8 @@ models/<model-name>/
 
 - A model MUST link and execute with the engine version of `package.json`. Its `__tests__` prove it: every authored test
   case passes through the Tests Manager runner, and every documentation path, output and chart source exists.
-- Stories open a model with `openStoryProject(<MODEL>_PROJECT)`. Playwright specs of a model are in
+- `stories/models/<Model>.stories.tsx` shows a model in the Shell (the Storybook group Models): it opens the model with
+  `openStoryProject(<MODEL>_PROJECT)`, one story per entity worth a look. Playwright specs of a model are in
   `e2e/models/<model-name>.spec.ts`.
 - Keep values deterministic: tests and specs assert exact engine results.
 - A test row of a list element other than `[0]` (`applicants[1].name`) is `custom: true`. The schema derives only `[0]`,

@@ -1,7 +1,7 @@
 import {test, expect, type Page} from '@playwright/test';
 import {openStory} from '../support/storybook';
 
-const STORY_ID = 'tests-manager-testsmanager--indexed-array-paths';
+const STORY_ID = 'components-tests-manager--indexed-array-paths';
 
 async function openPathEditor(page: Page, path: string) {
     const grid = page.getByTestId('tests-grid');

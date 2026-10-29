@@ -11,7 +11,7 @@ export async function storyIndex(page: Page): Promise<StoryIndex> {
     return (await response.json()) as StoryIndex;
 }
 
-/** Every current story id whose id starts with `prefix` (e.g. `'boxed-editor-boxededitor--'`),
+/** Every current story id whose id starts with `prefix` (e.g. `'components-boxed-editor--'`),
  * sorted — the live source of truth for "one test per story" smoke coverage, so a renamed or
  * removed story is caught instead of silently going untested. */
 export async function storyIdsWithPrefix(page: Page, prefix: string): Promise<string[]> {

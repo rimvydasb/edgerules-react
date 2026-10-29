@@ -1,9 +1,11 @@
 import {useMemo, type ReactElement} from 'react';
 import {Box, Text, Textarea} from '@mantine/core';
 import type {Meta, StoryObj} from '@storybook/react-vite';
-import {createDocumentationService} from '../../src/components/documentation-service/createDocumentationService';
-import {useDescription} from '../../src/components/documentation-service/useDescription';
-import type {DocumentationService} from '../../src/components/documentation-service/documentation-service-types';
+import {
+    createDocumentationService,
+    useDescription,
+    type DocumentationService,
+} from '../../../src/components/documentation-service';
 
 function DescriptionEditor({
     label,
@@ -43,7 +45,7 @@ function TwoConsumersDemo(): ReactElement {
 }
 
 const meta: Meta = {
-    title: 'Documentation Service/DocumentationService',
+    title: 'Services/Documentation Service',
     parameters: {
         docs: {
             description: {

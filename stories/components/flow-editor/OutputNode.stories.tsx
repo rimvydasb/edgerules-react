@@ -167,7 +167,7 @@ function KindsCanvas(): ReactElement {
 }
 
 const meta: Meta<typeof Canvas> = {
-    title: 'Flow Editor/OutputNode',
+    title: 'Components/Flow Editor/Output Node',
     component: Canvas,
     parameters: {layout: 'fullscreen'},
     loaders: [

@@ -43,7 +43,7 @@ function CellHarness({
 }
 
 const meta: Meta<typeof CodeEditorCell> = {
-    title: 'Code Editor/CodeEditorCell',
+    title: 'Components/Code Editor/Code Editor Cell',
     component: CodeEditorCell,
     parameters: {
         docs: {

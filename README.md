@@ -45,6 +45,19 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
 
 **Simple Decision Table:** ![img_2.png](docs/screenshots/img_2.png)
 
+## Storybook layout
+
+The sidebar has three groups:
+
+| Group      | Holds                                                                                                     | Files                                          |
+| ---------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Models     | Each project of [`models/`](models/README.md) in the Shell; one story per entity worth a look             | `stories/models/<Model>.stories.tsx`           |
+| Components | Each component with a few scenario stories; a prop that only changes one aspect (`readOnly`) is a control | `stories/components/<component>/*.stories.tsx` |
+| Services   | Components without their own GUI: Documentation Service, Project Session                                  | `stories/components/<component>/*.stories.tsx` |
+
+A story that only gives an e2e spec its starting state has `tags: ['fixture']`. The sidebar hides it by default (the tag
+filter shows it); its URL always opens it. The order of the sidebar is `storySort` in `.storybook/preview.tsx`.
+
 ## Opening a project in a story
 
 Stories build their model through a project session, as a host application would. `openStoryProject` in
@@ -119,7 +132,7 @@ they actually import — a project that only uses the Code Editor never has to i
 │   ├── hooks/                     # Custom React hooks for EdgeRules
 │   ├── lib/                       # Core logic and utilities shared across components
 │   └── index.ts                   # Root barrel re-exporting the full public API
-├── stories/                        # Storybook stories, mirroring the src/components layout; support/ holds helpers
+├── stories/                        # Storybook stories: components/ mirrors src/components, models/ shows models/; support/ holds helpers
 ├── e2e/                            # Playwright end-to-end/visual tests
 ├── docs/                           # Design notes and feature specs (e.g. stories/completed/project-explorer-story.md)
 ├── dist/                           # Build output (ESM + CJS + .d.ts), git-ignored, published to npm

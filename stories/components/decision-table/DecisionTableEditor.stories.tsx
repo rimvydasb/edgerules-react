@@ -63,8 +63,9 @@ function EditorHarness({
 }
 
 const meta: Meta<typeof DecisionTableEditor> = {
-    title: 'Decision Table/DecisionTableEditor',
+    title: 'Components/Decision Table Editor',
     component: DecisionTableEditor,
+    args: {readOnly: false},
     parameters: {
         docs: {
             description: {
@@ -85,28 +86,36 @@ type Story = StoryObj<typeof DecisionTableEditor>;
 
 export const DecisionTable: Story = {
     loaders: [async () => ({service: await buildService(RISK_MODEL_DSL)})],
-    render: (_args, {loaded}) => (
-        <EditorHarness service={loaded.service as ProjectEngine} path="risk" resultPath="decision" />
+    render: (args, {loaded}) => (
+        <EditorHarness
+            service={loaded.service as ProjectEngine}
+            path="risk"
+            resultPath="decision"
+            readOnly={args.readOnly}
+        />
     ),
 };
 
 export const Scorecard: Story = {
     loaders: [async () => ({service: await buildService(SCORECARD_MODEL_DSL)})],
-    render: (_args, {loaded}) => (
-        <EditorHarness service={loaded.service as ProjectEngine} path="scoreFactors" resultPath="total" />
+    render: (args, {loaded}) => (
+        <EditorHarness
+            service={loaded.service as ProjectEngine}
+            path="scoreFactors"
+            resultPath="total"
+            readOnly={args.readOnly}
+        />
     ),
 };
 
 export const BestMatchPriorities: Story = {
     loaders: [async () => ({service: await buildService(BEST_MATCH_MODEL_DSL)})],
-    render: (_args, {loaded}) => (
-        <EditorHarness service={loaded.service as ProjectEngine} path="tier" resultPath="result" />
-    ),
-};
-
-export const ReadOnly: Story = {
-    loaders: [async () => ({service: await buildService(RISK_MODEL_DSL)})],
-    render: (_args, {loaded}) => (
-        <EditorHarness service={loaded.service as ProjectEngine} path="risk" resultPath="decision" readOnly />
+    render: (args, {loaded}) => (
+        <EditorHarness
+            service={loaded.service as ProjectEngine}
+            path="tier"
+            resultPath="result"
+            readOnly={args.readOnly}
+        />
     ),
 };
