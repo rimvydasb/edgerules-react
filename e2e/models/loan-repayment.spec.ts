@@ -100,3 +100,30 @@ test('the service tests pass when run, and show no result before', async ({page}
     await expect(summaries.nth(4)).toHaveText('6/6');
     await expect(page.locator('[data-mismatch="true"]')).toHaveCount(0);
 });
+
+test('a change in the split screen Boxed Editor shows on the canvas and recalculates the outputs', async ({page}) => {
+    await openStory(page, 'models-loan-repayment--mortgage-book');
+    const yearly = page.locator('.react-flow__node[data-id="mortgageBook.yearly"]');
+    await expect(yearly).toBeVisible(SLOW);
+    await page.getByRole('button', {name: 'Split screen'}).click();
+    const panel = page.getByTestId('shell-split-panel');
+
+    // The selected function node shows the body of `yearlySummary`; a new field of it is a new result of the node.
+    await yearly.click({position: {x: 30, y: 10}});
+    await expect(panel.getByTestId('row-yearlySummary.result')).toBeVisible();
+    await expect(yearly.locator('[data-handleid="out:field"]')).toHaveCount(0);
+    await panel.getByText('(new item)').click();
+    await expect(panel.getByTestId('row-yearlySummary.field')).toBeVisible();
+    await expect(yearly.locator('[data-handleid="out:field"]')).toHaveCount(1);
+
+    // An expression changed in the panel recalculates the output nodes that read it.
+    const payment = page.getByTestId('output-node-output').getByTestId('output-value');
+    await expect(payment).toHaveText('1354.35');
+    await page.locator('.react-flow__node[data-id="mortgageBook.repayment"]').click({position: {x: 30, y: 10}});
+    await panel.getByTestId('row-loanRepayment.payment').locator('[data-column="value"]').click();
+    await page.locator('.cm-content').click();
+    await page.keyboard.press(`${process.platform === 'darwin' ? 'Meta' : 'Control'}+A`);
+    await page.keyboard.insertText('1000');
+    await page.keyboard.press('Enter');
+    await expect(payment).toHaveText('1000');
+});

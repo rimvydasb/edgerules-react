@@ -794,6 +794,10 @@ export function createFlowEditorService(
                 listeners.delete(listener);
             };
         },
+
+        invalidate() {
+            notify();
+        },
     };
 }
 

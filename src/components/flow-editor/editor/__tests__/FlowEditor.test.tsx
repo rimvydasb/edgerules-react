@@ -54,6 +54,27 @@ describe('FlowEditor', () => {
         expect(screen.queryByTestId('object-input-node-scores')).toBeNull();
     });
 
+    it('reads the model again when the revision changes after a change made outside the editor', async () => {
+        const engine = MutableDecisionService.fromCode(SAMPLE_MODEL);
+        const service = createFlowEditorService(engine);
+        service.setCallee('eligibility', 'applicantDecision');
+        const editor = (revision: number) => (
+            <div style={{width: 1000, height: 600}}>
+                <FlowEditor service={service} revision={revision} />
+            </div>
+        );
+        const {rerender} = render(editor(1));
+        const node = await screen.findByTestId('function-node-eligibility');
+        const pin = (name: string) => node.querySelector(`[data-handleid="out:${name}"]`);
+        expect(pin('reason')).not.toBeNull();
+
+        // Another editor of the same engine adds a result to the callee; the node shows it with the next revision.
+        engine.set('applicantDecision.adult', 'person.age >= 21' as never);
+        expect(pin('adult')).toBeNull();
+        rerender(editor(2));
+        await waitFor(() => expect(pin('adult')).not.toBeNull());
+    });
+
     it('selects the node of each new focus request', async () => {
         renderEditor({seeded: true, focusNode: {field: 'decision'}});
         const frame = (testId: string) => screen.getByTestId(testId).closest('.react-flow__node');

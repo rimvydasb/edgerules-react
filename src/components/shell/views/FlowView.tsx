@@ -60,6 +60,7 @@ export function FlowView({
             <div className={classes.splitCanvas}>
                 <FlowEditor
                     service={service}
+                    revision={version}
                     documentation={session.documentation}
                     languageService={languageService}
                     readOnly={readOnly}

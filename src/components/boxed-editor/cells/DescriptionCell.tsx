@@ -24,7 +24,7 @@ export function DescriptionCell({path}: DescriptionCellProps): ReactElement {
     return (
         <input
             className={classes.descriptionInput}
-            placeholder={readOnly ? undefined : 'Add a description…'}
+            placeholder={readOnly ? undefined : '…'}
             value={value}
             disabled={readOnly}
             aria-label={`description ${path}`}

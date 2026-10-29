@@ -5,6 +5,7 @@ import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types
 
 export interface FlowEditorProps {
     service: FlowEditorService; // engine-backed node service from createFlowEditorService()
+    revision?: number; // the model revision; a new value reads every node again after a change made outside this editor
     documentation?: DocumentationService; // stores node descriptions; omit to hide description UI
     languageService?: CodeEditorService; // diagnostics and completions of value cells; omit to show values read-only
     readOnly?: boolean; // hides the palette and disables wiring and removal; nodes still move

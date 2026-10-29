@@ -102,12 +102,20 @@ const WIRE_CLASS: Record<Wire['kind'], string> = {
  */
 export function FlowEditor({
     service,
+    revision,
     documentation,
     languageService,
     readOnly,
     onOpenNode,
     ...layout
 }: FlowEditorProps): ReactElement {
+    // Another editor of the same model changed it: the nodes, the wires and the outputs read it again.
+    const seenRevision = useRef(revision);
+    useEffect(() => {
+        if (revision === seenRevision.current) return;
+        seenRevision.current = revision;
+        service.invalidate();
+    }, [service, revision]);
     return (
         <ReactFlowProvider>
             <FlowEditorProvider

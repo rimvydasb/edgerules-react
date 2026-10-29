@@ -56,7 +56,9 @@ The `ProjectExplorer` side panel is optional. It is 256px wide, below the header
 ### Flow view split screen
 
 With the split screen on, the Flow view shows the selected node in a panel right of the canvas. The panel follows the
-selection (`FlowEditor` `onSelectionChange`). A click on the empty canvas clears the selection and closes the panel.
+selection (`FlowEditor` `onSelectionChange`). A click on the empty canvas clears the selection and closes the panel. The
+Flow view passes the model version as the `FlowEditor` `revision`: a change in the panel updates the nodes, the wires
+and the output values on the canvas.
 
 | Selected node                      | Panel content                                                                                                           |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |

@@ -57,4 +57,5 @@ export interface FlowEditorService {
     inputValueContext(field: string, name: string): CodeEditorEmbedContext; // model text around the value of a field
     readOutput(source: string): Promise<OutputReading>; // evaluates a model path, for example 'decision.level'
     subscribe(listener: () => void): Unsubscribe; // fires after every committed change
+    invalidate(): void; // fires the listeners after a change of the model made outside this service
 }

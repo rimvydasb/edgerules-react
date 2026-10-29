@@ -123,7 +123,7 @@ export function TestRowLine({
                         aria-label={`description ${row.path}`}
                         value={description}
                         disabled={readOnly}
-                        placeholder={readOnly ? undefined : 'Add a description…'}
+                        placeholder={readOnly ? undefined : '…'}
                         className={classes.description}
                         onChange={(event) => documentationService.setDescription(qualifiedPath, event.target.value)}
                     />
