@@ -75,14 +75,16 @@ test('the workbook settings rename the @Workbook annotation and edit the workboo
 
     // The field keeps its name; the annotation gets the new one.
     await page.getByRole('radio', {name: 'Code'}).click();
+    // The model name opens the workbook picker of the model; its code is in the Code view.
     await crumbs(page).getByRole('button', {name: 'Loan Repayment Planner'}).click();
+    await page.getByRole('radio', {name: 'Code'}).click();
     // The workbooks are at the end of the model; CodeMirror renders the lines in view only.
     await page.locator('.cm-content').click();
     await page.keyboard.press(`${process.platform === 'darwin' ? 'Meta' : 'Control'}+End`);
     await expect(page.locator('.cm-content')).toContainText('@Workbook(name: "Family home")');
     await expect(page.locator('.cm-content')).toContainText('mortgageBook: {');
 
-    await page.getByRole('radio', {name: 'Flow'}).click();
+    await crumbs(page).getByRole('button', {name: 'Loan Repayment Planner'}).click();
     const mortgage = page.getByTestId('shell-workbook-mortgageBook');
     await expect(mortgage).toHaveAccessibleName('Family home');
     await expect(mortgage).toContainText('The mortgage of a family home');

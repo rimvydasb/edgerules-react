@@ -1,4 +1,4 @@
-import {Button, Group, Modal, Text, TextInput, Textarea, Tooltip} from '@mantine/core';
+import {Modal, TextInput, Textarea, Tooltip} from '@mantine/core';
 import type {PortableNode} from '@edgerules/portable';
 import {IconSettings} from '@tabler/icons-react';
 import {useState, type ReactElement} from 'react';
@@ -21,10 +21,21 @@ interface SettingsForm {
     description: string;
 }
 
+// A field of the dialog is one ruled row of the sheet: the label (and its hint) on the left, the input on the right.
+const FIELD_CLASSES = {
+    root: classes.settingsField,
+    label: classes.settingsLabel,
+    description: classes.settingsHint,
+    wrapper: classes.settingsInputCell,
+    input: classes.settingsInput,
+};
+
 /**
  * The header cell left of the view switch that opens the settings of the root path: the model ('*') or an annotated
  * entity such as a `@Workbook`. The dialog edits the name (the model name, or the `name` of the annotation), the
- * model version (the model only) and the description of the documentation store.
+ * model version (the model only) and the description of the documentation store. The dialog is a sheet of glass in
+ * the drawing of a Flow node: a one-step header with the kind tile, sharp 1px ruled rows, and a row of step cells at
+ * the bottom; the page behind it shows through, blurred.
  */
 export function ShellSettings({root}: ShellSettingsProps): ReactElement {
     const session = useProjectSession();
@@ -91,7 +102,30 @@ export function ShellSettings({root}: ShellSettingsProps): ReactElement {
                     <IconSettings aria-hidden="true" size={18} />
                 </button>
             </Tooltip>
-            <Modal opened={form !== undefined} onClose={close} title={title} size="md" centered>
+            <Modal
+                opened={form !== undefined}
+                onClose={close}
+                title={
+                    <>
+                        <span className={classes.settingsTile} aria-hidden="true">
+                            <IconSettings size={18} />
+                        </span>
+                        <span className={classes.settingsTitleText}>{title}</span>
+                    </>
+                }
+                size="md"
+                radius={0}
+                centered
+                closeButtonProps={{iconSize: 18}}
+                overlayProps={{backgroundOpacity: 0.12}}
+                classNames={{
+                    content: classes.settingsDialog,
+                    header: classes.settingsHeader,
+                    title: classes.settingsTitle,
+                    close: classes.settingsClose,
+                    body: classes.settingsBody,
+                }}
+            >
                 {form && (
                     <form
                         className={classes.settingsForm}
@@ -102,6 +136,9 @@ export function ShellSettings({root}: ShellSettingsProps): ReactElement {
                     >
                         <TextInput
                             data-autofocus
+                            variant="unstyled"
+                            classNames={FIELD_CLASSES}
+                            inputWrapperOrder={['label', 'input', 'description']}
                             label="Name"
                             description={
                                 isModel
@@ -114,6 +151,8 @@ export function ShellSettings({root}: ShellSettingsProps): ReactElement {
                         />
                         {isModel && (
                             <TextInput
+                                variant="unstyled"
+                                classNames={FIELD_CLASSES}
                                 label="Version"
                                 placeholder="1.0.0"
                                 value={form.version}
@@ -121,6 +160,8 @@ export function ShellSettings({root}: ShellSettingsProps): ReactElement {
                             />
                         )}
                         <Textarea
+                            variant="unstyled"
+                            classNames={FIELD_CLASSES}
                             label="Description"
                             rows={4}
                             resize="vertical"
@@ -128,16 +169,18 @@ export function ShellSettings({root}: ShellSettingsProps): ReactElement {
                             onChange={(event) => setForm({...form, description: event.currentTarget.value})}
                         />
                         {error && (
-                            <Text role="alert" size="sm" c="red">
+                            <div role="alert" className={classes.settingsError}>
                                 {error}
-                            </Text>
+                            </div>
                         )}
-                        <Group justify="flex-end" gap="xs">
-                            <Button variant="default" onClick={close}>
+                        <div className={classes.settingsActions}>
+                            <button type="button" className={classes.settingsAction} onClick={close}>
                                 Cancel
-                            </Button>
-                            <Button type="submit">Save</Button>
-                        </Group>
+                            </button>
+                            <button type="submit" className={cx(classes.settingsAction, classes.settingsSave)}>
+                                Save
+                            </button>
+                        </div>
                     </form>
                 )}
             </Modal>

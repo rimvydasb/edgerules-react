@@ -94,6 +94,8 @@ export function FlowView({
                             onOpenNode={onOpenNode}
                             languageService={languageService}
                             documentationService={session.documentation}
+                            // The split screen is narrow: the selected node shows without its description.
+                            showDescription={false}
                             fitWidth
                         />
                     ) : (

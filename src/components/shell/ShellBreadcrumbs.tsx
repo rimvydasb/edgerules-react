@@ -19,9 +19,9 @@ import * as classes from './shell.module.css';
 export interface ShellBreadcrumbsProps {
     segments: ShellPathSegment[]; // the root path, one segment per field
     rootLabel?: string; // the model name; defaults to 'Model'
-    onNavigate: (path: string) => void;
-    explorerOpen: boolean;
-    onToggleExplorer: () => void;
+    onNavigate: (path: string) => void; // a crumb click; '*' is the model name
+    primaryView: 'flow' | 'boxed'; // the view the kind icon opens: Flow when the root path has it, otherwise Boxed
+    onOpenPrimary: () => void;
     tests?: boolean; // the Tests view: the root path is a test subject
 }
 
@@ -64,19 +64,20 @@ function segmentLabel(segment: ShellPathSegment): string {
     return segment.kind === 'function' || segment.kind === 'ruleset' ? `${segment.name}(...)` : segment.name;
 }
 
-// The kind icon square also opens and closes the Project Explorer, like the rail button of the Node palette.
-function ExplorerToggle({kind, open, onToggle}: {kind: GlyphKind; open: boolean; onToggle: () => void}): ReactElement {
-    const label = open ? 'Hide project explorer' : 'Show project explorer';
+// The kind icon square opens the root path in its main editor: the Flow Editor, or the Boxed Editor when the root
+// path has no Flow view.
+function KindButton({kind, view, onOpen}: {kind: GlyphKind; view: 'flow' | 'boxed'; onOpen: () => void}): ReactElement {
+    const label = view === 'flow' ? 'Open in the Flow view' : 'Open in the Boxed view';
     const fill = KIND_FILL[kind];
     return (
         <Tooltip label={label} position="bottom-start" withArrow>
             <button
                 type="button"
                 aria-label={label}
-                aria-pressed={open}
-                className={cx(classes.kindIcon, open && classes.kindIconOpen)}
+                className={classes.kindIcon}
                 style={fill ? {backgroundColor: fill} : undefined}
-                onClick={onToggle}
+                onClick={onOpen}
+                data-testid="shell-kind-icon"
             >
                 <KindGlyph kind={kind} />
             </button>
@@ -86,14 +87,14 @@ function ExplorerToggle({kind, open, onToggle}: {kind: GlyphKind; open: boolean;
 
 /**
  * `Loan repayment` › `applicant` › `calculateAge(...)`: the fully qualified root path, the last item as plain text. In the
- * Tests view, the path of the test subject.
+ * Tests view, the path of the test subject. The model name is always a button: it opens the model root.
  */
 export function ShellBreadcrumbs({
     segments,
     rootLabel = 'Model',
     onNavigate,
-    explorerOpen,
-    onToggleExplorer,
+    primaryView,
+    onOpenPrimary,
     tests,
 }: ShellBreadcrumbsProps): ReactElement {
     const items = [
@@ -102,23 +103,28 @@ export function ShellBreadcrumbs({
     ];
     return (
         <>
-            <ExplorerToggle
+            <KindButton
                 kind={tests ? 'tests' : (segments.at(-1)?.kind ?? 'model')}
-                open={explorerOpen}
-                onToggle={onToggleExplorer}
+                view={primaryView}
+                onOpen={onOpenPrimary}
             />
             <nav aria-label="Model path" className={classes.breadcrumbs}>
                 {items.map((item, index) => (
                     <Fragment key={item.path}>
                         {index > 0 && <IconChevronRight aria-hidden="true" size={14} className={classes.separator} />}
-                        {index === items.length - 1 ? (
+                        {index === 0 || index < items.length - 1 ? (
+                            <button
+                                type="button"
+                                className={cx(classes.crumb, index === items.length - 1 && classes.crumbCurrent)}
+                                aria-current={index === items.length - 1 ? 'page' : undefined}
+                                onClick={() => onNavigate(item.path)}
+                            >
+                                {item.label}
+                            </button>
+                        ) : (
                             <span className={classes.current} aria-current="page">
                                 {item.label}
                             </span>
-                        ) : (
-                            <button type="button" className={classes.crumb} onClick={() => onNavigate(item.path)}>
-                                {item.label}
-                            </button>
                         )}
                     </Fragment>
                 ))}

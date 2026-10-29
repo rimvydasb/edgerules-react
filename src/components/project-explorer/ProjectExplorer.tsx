@@ -1,4 +1,5 @@
 import {
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -34,6 +35,7 @@ import {
     type ExplorerEntry,
     type ExplorerEntryKind,
     type ExplorerSection,
+    type ExplorerSections,
 } from './tree-model';
 import * as classes from './projectExplorer.module.css';
 
@@ -70,6 +72,12 @@ export interface ProjectExplorerProps {
     onOpen?: (target: ProjectExplorerOpenTarget) => void;
     /** Adds a test to a subject; shows the add button of Tests. The explorer then opens the subject's tests. */
     onCreateTest?: (subjectId: string) => void;
+    /**
+     * The entity the host shows: the explorer expands its section (and workbook) and selects its entry, or the entry of
+     * its nearest listed ancestor. `test` selects the entry of the subject in Tests. A change of the entry reveals it
+     * again.
+     */
+    selected?: {path: string; test?: boolean};
     className?: string;
     style?: CSSProperties;
 }
@@ -132,6 +140,41 @@ interface NodeMeta {
 
 const CODE_KINDS = new Set<IconKind>(['function', 'service', 'ruleset', 'test']);
 
+/** Where an entry is in the tree: its section, its own item, and the item of its workbook for a node. */
+interface EntryLocation {
+    section: ExplorerSection;
+    itemId: string;
+    parentId?: string;
+}
+
+function locate(sections: ExplorerSections, path: string, test: boolean): EntryLocation | undefined {
+    for (const {section} of SECTIONS) {
+        if ((section === 'tests') !== test) continue;
+        for (const entry of sections[section]) {
+            if (entry.path === path) return {section, itemId: entryItemId(entry.kind, entry.path)};
+            const child = entry.children?.find((candidate) => candidate.path === path);
+            if (child) {
+                return {
+                    section,
+                    itemId: entryItemId(child.kind, child.path),
+                    parentId: entryItemId(entry.kind, entry.path),
+                };
+            }
+        }
+    }
+    return undefined;
+}
+
+// The entry of `path`, or of its nearest listed ancestor: a field inside a context is not listed, its root context is.
+// A test subject has no ancestor in Tests.
+function locateEntry(sections: ExplorerSections, path: string, test: boolean): EntryLocation | undefined {
+    if (test) return locate(sections, path, true);
+    for (let current = path; ; current = current.slice(0, current.lastIndexOf('.'))) {
+        const location = locate(sections, current, false);
+        if (location || !current.includes('.')) return location;
+    }
+}
+
 function entryNode(entry: ExplorerEntry): TreeNodeData {
     const meta: NodeMeta = {kind: entry.kind, text: entry.label, target: {kind: entry.kind, path: entry.path}};
     return {
@@ -163,6 +206,7 @@ export function ProjectExplorer({
     readOnly = false,
     onOpen,
     onCreateTest,
+    selected,
     className,
     style,
 }: ProjectExplorerProps): ReactElement {
@@ -217,6 +261,35 @@ export function ProjectExplorer({
             if (!search) setExpanded(state);
         },
     });
+
+    // The entry of the entity the host shows: revealed whenever it changes, also after the user collapsed its section.
+    const rootRef = useRef<HTMLElement>(null);
+    const location = useMemo(
+        () => (sections && selected ? locateEntry(sections, selected.path, selected.test ?? false) : undefined),
+        [sections, selected?.path, selected?.test],
+    );
+    useEffect(() => {
+        if (!selected) return;
+        if (!location) {
+            tree.clearSelected();
+            return;
+        }
+        const {section, itemId, parentId} = location;
+        setExpanded((current) => ({
+            ...current,
+            [sectionItemId(section)]: true,
+            ...(parentId !== undefined && {[parentId]: true}),
+        }));
+        tree.select(itemId);
+        // The entry renders once its section is expanded; it scrolls into view in the next frame.
+        const frame = requestAnimationFrame(() => {
+            const item = rootRef.current?.querySelector(`[role=treeitem][data-value="${CSS.escape(itemId)}"]`);
+            item?.scrollIntoView?.({block: 'nearest'});
+        });
+        return () => cancelAnimationFrame(frame);
+        // `tree` is a new object on every render; the reveal follows the located entry only.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location?.itemId, selected === undefined]);
 
     const expandOnly = (section: ExplorerSection) => {
         setQuery('');
@@ -358,7 +431,11 @@ export function ProjectExplorer({
                 className={cx(elementProps.className, classes.node, meta.section && classes.heading)}
                 onClick={(event) => {
                     elementProps.onClick(event);
-                    if (meta.target) open(meta.target);
+                    // Only an entry is selected: a section header expands or collapses, and the entry stays selected.
+                    if (meta.target) {
+                        tree.select(item.value);
+                        open(meta.target);
+                    }
                 }}
             >
                 <IconChevronRight
@@ -408,7 +485,7 @@ export function ProjectExplorer({
     }
 
     return (
-        <nav className={cx(classes.root, className)} style={style} aria-label="Project explorer">
+        <nav ref={rootRef} className={cx(classes.root, className)} style={style} aria-label="Project explorer">
             {rootLabel || onCollapsedChange ? (
                 <div className={classes.header}>
                     <span className={classes.title}>{rootLabel}</span>
@@ -455,7 +532,6 @@ export function ProjectExplorer({
                         tree={tree}
                         levelOffset={20}
                         expandOnClick
-                        selectOnClick
                         renderNode={renderNode}
                     />
                 )}

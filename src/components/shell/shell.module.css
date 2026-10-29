@@ -40,7 +40,7 @@
 }
 
 /* The collapsed Project Explorer is a rail of section icons, one header icon square wide: its right frame line
- * continues the right line of the kind icon square. */
+ * continues the right line of the kind icon square. A rail icon opens the panel again. */
 .explorerCollapsed {
   flex-basis: 41px;
 }
@@ -62,7 +62,7 @@
   font-size: var(--mantine-font-size-sm);
 }
 
-/* The icon square of the root path kind, like the icon of a Boxed Editor header row. It toggles the Project Explorer. */
+/* The icon square of the root path kind, like the icon of a Boxed Editor header row. It opens the Flow (or Boxed) view. */
 .kindIcon {
   display: flex;
   width: 40px;
@@ -88,10 +88,6 @@
   outline-offset: -2px;
 }
 
-/* While the Project Explorer is open, the icon square is underlined like the active view cell. */
-.kindIconOpen {
-  box-shadow: inset 0 -2px 0 var(--mantine-primary-color-filled);
-}
 
 .breadcrumbs {
   display: flex;
@@ -128,6 +124,12 @@
 .viewButton:focus-visible {
   outline: 2px solid var(--mantine-primary-color-filled);
   outline-offset: -2px;
+}
+
+/* The model name as the only crumb: it reads as the current item, and still opens the model root. */
+.crumbCurrent {
+  color: var(--mantine-color-text);
+  font-weight: 600;
 }
 
 .current {
@@ -205,10 +207,203 @@
   flex-shrink: 0;
 }
 
+/*
+ * The settings dialog: a sheet of glass in the drawing of a Flow node and a Boxed Editor grid. Sharp corners, 1px
+ * lines that each have one owner (a row owns its bottom line), a one-step muted header with the kind tile, and the page
+ * behind it blurred. The dialog is in a portal, outside `.root`: it reads the Mantine colors directly.
+ */
+.settingsDialog {
+  --st-border: var(--mantine-color-default-border);
+  --st-glass: color-mix(in srgb, var(--mantine-color-body) 66%, transparent);
+  --st-muted: color-mix(in srgb, var(--mantine-color-default-hover) 70%, transparent);
+  overflow: hidden;
+  border: 1px solid var(--st-border);
+  border-radius: 0;
+  background-color: var(--st-glass);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.05),
+    0 12px 32px rgb(0 0 0 / 0.14);
+}
+
+.settingsDialog *,
+.settingsDialog *::before,
+.settingsDialog *::after {
+  box-sizing: border-box;
+}
+
+/* The header row of a node: the kind tile, the title, and the close button as a step cell on the right. */
+.settingsHeader {
+  min-height: 0;
+  height: 40px;
+  padding: 0;
+  border-bottom: 1px solid var(--st-border);
+  background-color: var(--st-muted);
+}
+
+.settingsTitle {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  align-self: stretch;
+  min-width: 0;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+}
+
+.settingsTile {
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--st-border);
+  background-color: #17191c; /* KIND_COLORS.model */
+  color: #fff;
+}
+
+.settingsTitleText {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.settingsClose {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  margin: 0;
+  border: 0;
+  border-left: 1px solid var(--st-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--mantine-color-dimmed);
+}
+
+.settingsClose:hover {
+  background-color: var(--st-border);
+  color: var(--mantine-color-text);
+}
+
+.settingsBody {
+  padding: 0;
+}
+
 .settingsForm {
   display: flex;
   flex-direction: column;
-  gap: var(--mantine-spacing-sm);
+}
+
+/* One field row: the label column of a Boxed Editor name cell, and the value cell beside it. */
+.settingsField {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  min-height: 40px;
+  border-bottom: 1px solid var(--st-border);
+}
+
+.settingsLabel {
+  grid-column: 1;
+  grid-row: 1;
+  padding: 10px;
+  color: var(--mantine-color-text);
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+/* The hint of a field is a note row under it across both columns, like the description row of a Flow node. */
+.settingsHint {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  padding: 6px 10px;
+  border-top: 1px solid var(--st-border);
+  background-color: var(--st-muted);
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.4;
+}
+
+/* The label column has its own line, like the name column of the grid. */
+.settingsInputCell {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  border-left: 1px solid var(--st-border);
+}
+
+.settingsField .settingsInputCell .settingsInput {
+  height: 100%;
+  min-height: 39px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--mantine-color-text);
+  font-size: var(--mantine-font-size-sm);
+  line-height: 20px;
+}
+
+/* The focused value cell, as the focused cell of the grid: a 2px primary line inside it. */
+.settingsField .settingsInputCell .settingsInput:focus {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+  background-color: var(--mantine-color-body);
+}
+
+.settingsError {
+  padding: 10px;
+  border-bottom: 1px solid var(--st-border);
+  background-color: color-mix(in srgb, var(--mantine-color-red-filled) 10%, transparent);
+  color: var(--mantine-color-red-text);
+  font-size: var(--mantine-font-size-sm);
+}
+
+/* The bottom row: step cells right-aligned, like the view switch of the Shell header. */
+.settingsActions {
+  display: flex;
+  justify-content: flex-end;
+  height: 40px;
+  background-color: var(--st-muted);
+}
+
+.settingsAction {
+  width: 120px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--st-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--mantine-color-text);
+  font: inherit;
+  font-size: var(--mantine-font-size-sm);
+  cursor: pointer;
+}
+
+.settingsAction:hover {
+  background-color: var(--st-border);
+}
+
+.settingsAction:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+/* Save reads as the active cell: the open fill of the sheet, underlined in the primary color. */
+.settingsSave {
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-primary-color-filled);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--mantine-primary-color-filled);
+}
+
+.settingsSave:hover {
+  background-color: var(--mantine-primary-color-light);
 }
 
 /* ---------------------------------------------------------------- body and status */

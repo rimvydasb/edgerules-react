@@ -276,6 +276,44 @@ describe('ProjectExplorer create', () => {
     });
 });
 
+describe('ProjectExplorer selected', () => {
+    function treeItem(label: string): HTMLElement | null {
+        return screen.queryByText(label)?.closest('[role="treeitem"]') ?? null;
+    }
+
+    it('expands the section and the workbook of the selected entity and selects its entry', async () => {
+        const user = userEvent.setup();
+        const service = buildService();
+        const {rerender} = render(<ProjectExplorer service={service} selected={{path: 'riskScore'}} />);
+        expect(treeItem('riskScore(...)')).toHaveAttribute('aria-selected', 'true');
+
+        // A collapsed section opens again for its next entry.
+        await user.click(screen.getByText('Methods'));
+        expect(treeItem('nested.deep()')).toBeNull();
+        rerender(<ProjectExplorer service={service} selected={{path: 'nested.deep'}} />);
+        expect(treeItem('nested.deep()')).toHaveAttribute('aria-selected', 'true');
+        expect(treeItem('riskScore(...)')).toHaveAttribute('aria-selected', 'false');
+
+        // A node of a collapsed workbook.
+        rerender(<ProjectExplorer service={service} selected={{path: 'loanBook.decision'}} />);
+        expect(treeItem('decision')).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('selects the nearest listed ancestor, the Tests entry of a subject, and nothing for an unlisted path', () => {
+        const service = buildService();
+        const {rerender} = render(
+            <ProjectExplorer service={service} testSubjects={['*']} selected={{path: 'list.a'}} />,
+        );
+        expect(treeItem('list')).toHaveAttribute('aria-selected', 'true');
+
+        rerender(<ProjectExplorer service={service} testSubjects={['*']} selected={{path: '*', test: true}} />);
+        expect(treeItem('Model')).toHaveAttribute('aria-selected', 'true');
+
+        rerender(<ProjectExplorer service={service} testSubjects={['*']} selected={{path: 'missing'}} />);
+        expect(screen.getByRole('tree').querySelector('[aria-selected="true"]')).toBeNull();
+    });
+});
+
 describe('ProjectExplorer header', () => {
     it('renders a hide button only with onCollapsedChange', async () => {
         const onCollapsedChange = vi.fn();

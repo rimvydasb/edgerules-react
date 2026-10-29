@@ -137,6 +137,8 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
         showHeader = true,
         showTestResults: defaultShowTestResults = false,
         showDescription: defaultShowDescription = true,
+        onShowDescriptionChange,
+        onShowTestResultsChange,
         showType = true,
         expanded = true,
         fitWidth: fixedFitWidth,
@@ -144,8 +146,16 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
         style,
     } = props;
     // The header toggles change the column visibility; a changed prop sets it again.
-    const [showDescription, setShowDescription] = useSyncedState(defaultShowDescription);
-    const [showTestResults, setShowTestResults] = useSyncedState(defaultShowTestResults);
+    const [showDescription, setOwnShowDescription] = useSyncedState(defaultShowDescription);
+    const [showTestResults, setOwnShowTestResults] = useSyncedState(defaultShowTestResults);
+    const setShowDescription = (show: boolean): void => {
+        setOwnShowDescription(show);
+        onShowDescriptionChange?.(show);
+    };
+    const setShowTestResults = (show: boolean): void => {
+        setOwnShowTestResults(show);
+        onShowTestResultsChange?.(show);
+    };
     // A host that fixes the fit mode hides the header toggle.
     const [ownFitWidth, setFitWidth] = useState(false);
     const fitWidth = fixedFitWidth ?? ownFitWidth;

@@ -6,9 +6,9 @@ import type {ShellView} from './shell-types';
 import * as classes from './shell.module.css';
 
 const VIEWS: {label: string; value: ShellView; icon: Icon}[] = [
-    {label: 'Code', value: 'code', icon: IconCode},
-    {label: 'Boxed', value: 'boxed', icon: IconTable},
     {label: 'Flow', value: 'flow', icon: IconSchema},
+    {label: 'Boxed', value: 'boxed', icon: IconTable},
+    {label: 'Code', value: 'code', icon: IconCode},
     {label: 'Tests', value: 'tests', icon: IconFlask},
 ];
 
@@ -52,8 +52,8 @@ function UntypedHint({names}: {names: readonly string[]}): ReactElement {
 }
 
 /**
- * Picks the view of the Shell body; the root path stays. One header cell per view, like a radio group: Code, Boxed and
- * Flow show the root path in an editor, Tests shows the tests of the root path. A view that cannot show the root path
+ * Picks the view of the Shell body; the root path stays. One header cell per view, like a radio group: Flow, Boxed and
+ * Code show the root path in an editor, Tests shows the tests of the root path. A view that cannot show the root path
  * is disabled. The Tests cell of a subject without tests opens a menu that creates them; the Tests cell of a generic
  * function opens a menu that tells which arguments need a type.
  */

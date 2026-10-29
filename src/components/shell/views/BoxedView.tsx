@@ -11,6 +11,10 @@ export interface BoxedViewProps {
     languageService: CodeEditorService;
     readOnly?: boolean;
     onOpenNode: (target: BoxedEditorOpenTarget) => void;
+    showDescription: boolean; // the description column toggle of this root path
+    onShowDescriptionChange: (show: boolean) => void;
+    showTestResults: boolean; // the test column toggle of this root path
+    onShowTestResultsChange: (show: boolean) => void;
 }
 
 /**
@@ -19,7 +23,17 @@ export interface BoxedViewProps {
  * function or decision table. Any other root path (a context, a type, a field or a generic function) has no test
  * column.
  */
-export function BoxedView({root, service, languageService, readOnly, onOpenNode}: BoxedViewProps): ReactElement {
+export function BoxedView({
+    root,
+    service,
+    languageService,
+    readOnly,
+    onOpenNode,
+    showDescription,
+    onShowDescriptionChange,
+    showTestResults,
+    onShowTestResultsChange,
+}: BoxedViewProps): ReactElement {
     const session = useProjectSession();
     const {version} = useProjectSlice('model');
     const subject = useMemo<TestSubject | undefined>(() => {
@@ -52,6 +66,10 @@ export function BoxedView({root, service, languageService, readOnly, onOpenNode}
             testCasesService={testCases}
             testRunner={testRunner}
             testSubjectId={subject?.id}
+            showDescription={showDescription}
+            onShowDescriptionChange={onShowDescriptionChange}
+            showTestResults={showTestResults}
+            onShowTestResultsChange={onShowTestResultsChange}
         />
     );
 }

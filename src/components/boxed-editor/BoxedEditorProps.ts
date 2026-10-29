@@ -55,6 +55,10 @@ export interface BoxedEditorProps {
     showTestResults?: boolean;
     // DescriptionColumn, the state of its header toggle; a changed value sets the toggle again. Default true.
     showDescription?: boolean;
+    // A click on the header toggle of the description column, with the new state.
+    onShowDescriptionChange?: (show: boolean) => void;
+    // A click on the header toggle of the test column, with the new state.
+    onShowTestResultsChange?: (show: boolean) => void;
     // Type tooltip (hover + Alt-reveal). Default true.
     showType?: boolean;
     // The value column fills the width of the editor and the header has no fit toggle. Omit it to start fitted to the

@@ -90,6 +90,29 @@ describe('header row', () => {
         testCasesService.dispose();
     });
 
+    it('reports a click on a column toggle with the new state', async () => {
+        const user = userEvent.setup();
+        const testCasesService = createTestCasesService('model', '*', {dbName: uniqueDbName('toggle-reports')});
+        const onShowDescriptionChange = vi.fn();
+        const onShowTestResultsChange = vi.fn();
+        render(
+            <BoxedEditor
+                service={createBoxedEditorService(MutableDecisionService.fromCode(MODEL))}
+                path="band"
+                testCasesService={testCasesService}
+                onShowDescriptionChange={onShowDescriptionChange}
+                onShowTestResultsChange={onShowTestResultsChange}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', {name: 'Hide description'}));
+        expect(onShowDescriptionChange).toHaveBeenCalledWith(false);
+        await user.click(screen.getByRole('button', {name: 'Show test column'}));
+        expect(onShowTestResultsChange).toHaveBeenCalledWith(true);
+
+        testCasesService.dispose();
+    });
+
     it('hides the test column toggle without a TestCasesService', () => {
         render(<BoxedEditor service={createBoxedEditorService(MutableDecisionService.fromCode(MODEL))} path="*" />);
 

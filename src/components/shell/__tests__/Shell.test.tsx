@@ -107,25 +107,20 @@ describe('Shell breadcrumb', () => {
 });
 
 describe('Shell project explorer', () => {
-    it('starts open; its hide button or the kind icon collapses it to a rail, and a rail icon opens one section', async () => {
+    it('starts open; its hide button collapses it to a rail, and a rail icon opens one section', async () => {
         const user = userEvent.setup();
         await renderShell();
         const explorer = () => screen.getByRole('navigation', {name: 'Project explorer'});
         expect(within(explorer()).getByText('limit')).toBeInTheDocument();
-        expect(screen.getAllByRole('button', {name: 'Hide project explorer'})).toHaveLength(2);
+        // The kind icon of the header opens a view; only the panel hides itself.
+        expect(screen.getAllByRole('button', {name: 'Hide project explorer'})).toHaveLength(1);
 
         await user.click(within(explorer()).getByRole('button', {name: 'Hide project explorer'}));
         expect(within(explorer()).queryByRole('tree')).toBeNull();
-        expect(screen.getByRole('button', {name: 'Show project explorer'})).toBeInTheDocument();
 
         await user.click(within(explorer()).getByRole('button', {name: 'Show Variables'}));
         expect(within(explorer()).getByText('limit')).toBeInTheDocument();
         expect(within(explorer()).queryByText('Customer')).toBeNull();
-
-        await user.click(screen.getByRole('button', {name: 'Hide project explorer', pressed: true}));
-        expect(within(explorer()).queryByRole('tree')).toBeNull();
-        await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
-        expect(within(explorer()).getByRole('tree')).toBeInTheDocument();
     });
 
     it('opens a clicked entry at its path in the active view', async () => {
@@ -303,10 +298,10 @@ describe('Shell project explorer', () => {
         expect(screen.getByRole('radio', {name: 'Flow'})).toBeDisabled();
         expect(await screen.findByText('Test Case 1')).toBeInTheDocument();
 
-        // A crumb opens the model entity again, in the Boxed view.
+        // The model name opens the model root in the Flow view.
         await user.click(screen.getByRole('button', {name: 'Model'}));
-        expect(onViewChange).toHaveBeenLastCalledWith('boxed');
-        expect(screen.getByRole('radio', {name: 'Boxed'})).toHaveAttribute('aria-checked', 'true');
+        expect(onViewChange).toHaveBeenLastCalledWith('flow');
+        expect(screen.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
     });
 
     it('creates a test of a method and opens it', async () => {
@@ -349,11 +344,133 @@ describe('Shell project explorer', () => {
     it('follows the controlled visibility and only reports a toggle', async () => {
         const user = userEvent.setup();
         const onExplorerOpenChange = vi.fn();
-        await renderShell({explorerOpen: false, onExplorerOpenChange});
+        await renderShell({explorerOpen: true, onExplorerOpenChange});
 
-        await user.click(screen.getByRole('button', {name: 'Show project explorer'}));
-        expect(onExplorerOpenChange).toHaveBeenCalledWith(true);
-        expect(screen.queryByRole('tree')).toBeNull();
+        await user.click(screen.getByRole('button', {name: 'Hide project explorer'}));
+        expect(onExplorerOpenChange).toHaveBeenCalledWith(false);
+        expect(screen.getByRole('tree')).toBeInTheDocument();
+    });
+});
+
+describe('Shell kind icon', () => {
+    it('opens a context in the Flow view, from any view', async () => {
+        const user = userEvent.setup();
+        const {onViewChange} = await renderShell({defaultPath: 'applicant', defaultView: 'boxed'});
+        await user.click(screen.getByRole('button', {name: 'Open in the Flow view'}));
+        expect(onViewChange).toHaveBeenLastCalledWith('flow');
+        expect(await screen.findByTestId('flow-editor')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('radio', {name: 'Code'}));
+        await user.click(screen.getByRole('button', {name: 'Open in the Flow view'}));
+        expect(onViewChange).toHaveBeenLastCalledWith('flow');
+    });
+
+    it('opens a function, which has no Flow view, in the Boxed view', async () => {
+        const user = userEvent.setup();
+        const {onViewChange, onPathChange} = await renderShell({defaultPath: 'riskScore', defaultView: 'code'});
+        await user.click(screen.getByRole('button', {name: 'Open in the Boxed view'}));
+        expect(onViewChange).toHaveBeenLastCalledWith('boxed');
+        expect(screen.getByRole('treegrid')).toBeInTheDocument();
+        expect(onPathChange).not.toHaveBeenCalled();
+    });
+});
+
+describe('Shell model name', () => {
+    it('is a button at the model root too, and opens the Flow view of the model', async () => {
+        const user = userEvent.setup();
+        const {onViewChange} = await renderShell({defaultView: 'boxed'});
+        const model = screen.getByRole('button', {name: 'Model'});
+        expect(model).toHaveAttribute('aria-current', 'page');
+        await user.click(model);
+        expect(onViewChange).toHaveBeenLastCalledWith('flow');
+        expect(screen.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('opens the workbook picker of the model from a nested path', async () => {
+        const {session} = await openFixtureProject({model: {dsl: WORKBOOK_MODEL}});
+        const user = userEvent.setup();
+        const {onPathChange} = await renderShell({defaultPath: 'riskScore', defaultView: 'code'}, session);
+        await user.click(screen.getByRole('button', {name: 'Model'}));
+        expect(onPathChange).toHaveBeenLastCalledWith('*');
+        expect(screen.getByTestId('shell-workbook-picker')).toBeInTheDocument();
+    });
+});
+
+describe('Shell project explorer selection', () => {
+    function treeItem(label: string): HTMLElement {
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+        return within(explorer).getAllByText(label)[0]!.closest('[role="treeitem"]') as HTMLElement;
+    }
+
+    it('expands the section of the shown entity and selects its entry, also after the user collapsed it', async () => {
+        const user = userEvent.setup();
+        const props = {languageService: MutableDecisionService, defaultExplorerOpen: true};
+        const {session, rerender} = await renderShell({...props, path: 'Customer'});
+        expect(treeItem('Customer')).toHaveAttribute('aria-selected', 'true');
+
+        // The user collapses Methods; opening a method expands it again.
+        await user.click(screen.getByText('Methods'));
+        expect(screen.queryByText('applicant.calculateAge(...)')).toBeNull();
+        rerender(
+            <ProjectProvider session={session}>
+                <Shell {...props} path="applicant.calculateAge" />
+            </ProjectProvider>,
+        );
+        expect(treeItem('applicant.calculateAge(...)')).toHaveAttribute('aria-selected', 'true');
+        expect(treeItem('Customer')).toHaveAttribute('aria-selected', 'false');
+
+        // A nested context is not listed: its root context is selected.
+        rerender(
+            <ProjectProvider session={session}>
+                <Shell {...props} path="applicant.address" />
+            </ProjectProvider>,
+        );
+        expect(treeItem('applicant')).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('selects the Tests entry of a subject in the Tests view, and the method entry in an editor view', async () => {
+        const {session} = await openFixtureProject({model: {dsl: SHELL_MODEL}});
+        session.tests.forSubject('riskScore').addTestCase();
+        const user = userEvent.setup();
+        await renderShell({defaultPath: 'riskScore', defaultView: 'tests', defaultExplorerOpen: true}, session);
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+        const [method, test] = within(explorer)
+            .getAllByText('riskScore(...)')
+            .map((label) => label.closest('[role="treeitem"]'));
+        expect(test).toHaveAttribute('aria-selected', 'true');
+        expect(method).toHaveAttribute('aria-selected', 'false');
+
+        await user.click(screen.getByRole('radio', {name: 'Boxed'}));
+        expect(method).toHaveAttribute('aria-selected', 'true');
+        expect(test).toHaveAttribute('aria-selected', 'false');
+    });
+});
+
+describe('Shell Boxed view columns', () => {
+    it('keeps the description and test column toggles of each root path', async () => {
+        const user = userEvent.setup();
+        await renderShell({defaultPath: 'applicant', defaultView: 'boxed', defaultExplorerOpen: true});
+        const explorer = screen.getByRole('navigation', {name: 'Project explorer'});
+        await user.click(screen.getByRole('button', {name: 'Hide description'}));
+        expect(screen.getByRole('button', {name: 'Show description'})).toBeInTheDocument();
+
+        // Another entity starts with the defaults.
+        await user.click(within(explorer).getAllByText('riskScore(...)')[0]!);
+        expect(screen.getByRole('button', {name: 'Hide description'})).toBeInTheDocument();
+        await user.click(screen.getByRole('button', {name: 'Show test column'}));
+        expect(screen.getByRole('button', {name: 'Hide test column'})).toBeInTheDocument();
+
+        // Each entity gets its own toggles back.
+        await user.click(within(explorer).getByText('applicant'));
+        expect(screen.getByRole('button', {name: 'Show description'})).toBeInTheDocument();
+        await user.click(within(explorer).getAllByText('riskScore(...)')[0]!);
+        expect(screen.getByRole('button', {name: 'Hide description'})).toBeInTheDocument();
+        expect(screen.getByRole('button', {name: 'Hide test column'})).toBeInTheDocument();
+
+        // The toggles survive another view.
+        await user.click(screen.getByRole('radio', {name: 'Code'}));
+        await user.click(screen.getByRole('radio', {name: 'Boxed'}));
+        expect(screen.getByRole('button', {name: 'Hide test column'})).toBeInTheDocument();
     });
 });
 
@@ -406,19 +523,24 @@ describe('Shell view switch', () => {
         const {onViewChange} = await renderShell({defaultView: 'code'});
         expect(screen.getByRole('radio', {name: 'Code'})).toHaveAttribute('aria-checked', 'true');
 
-        // The kind icon, the Project Explorer toggle, comes first.
+        // The kind icon comes first, then the model name, which is always a button.
         await user.tab();
-        expect(screen.getByRole('button', {name: 'Hide project explorer', pressed: true})).toHaveFocus();
+        expect(screen.getByRole('button', {name: 'Open in the Flow view'})).toHaveFocus();
+        await user.tab();
+        expect(screen.getByRole('button', {name: 'Model'})).toHaveFocus();
         // The settings of the root path come before the view switch.
         await user.tab();
         expect(screen.getByRole('button', {name: 'Model settings'})).toHaveFocus();
         await user.tab();
         expect(screen.getByRole('radio', {name: 'Code'})).toHaveFocus();
-        await user.keyboard('{ArrowRight}');
+        // Flow, Boxed, Code; the Tests cell of a subject without tests opens a menu and is skipped.
+        await user.keyboard('{ArrowLeft}');
         expect(onViewChange).toHaveBeenLastCalledWith('boxed');
         expect(screen.getByRole('radio', {name: 'Boxed'})).toHaveFocus();
-        await user.keyboard('{ArrowLeft}{ArrowLeft}');
+        await user.keyboard('{ArrowLeft}');
         expect(onViewChange).toHaveBeenLastCalledWith('flow');
+        await user.keyboard('{ArrowLeft}');
+        expect(onViewChange).toHaveBeenLastCalledWith('code');
     });
 });
 

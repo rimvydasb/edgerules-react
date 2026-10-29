@@ -33,6 +33,12 @@ import * as classes from './shell.module.css';
 
 type OpenTarget = BoxedEditorOpenTarget | FlowEditorOpenTarget;
 
+// The column toggles of the Boxed view of one root path; an unset toggle has the Boxed Editor default.
+interface BoxedColumns {
+    description?: boolean;
+    tests?: boolean;
+}
+
 // The `@parameters` of the callable at `path` of `model`.
 function parametersAt(model: unknown, path: string): Record<string, unknown> {
     let node = model;
@@ -73,6 +79,8 @@ export function Shell({
     const [ownExplorerOpen, setOwnExplorerOpen] = useState(defaultExplorerOpen);
     // The split screen of the Flow view: off by default.
     const [split, setSplit] = useState(false);
+    // The description and test column toggles of the Boxed view, per root path: each entity keeps its own.
+    const [boxedColumns, setBoxedColumns] = useState<Record<string, BoxedColumns>>({});
     const explorerOpen = explorerOpenProp ?? ownExplorerOpen;
     const requested = path ?? ownPath;
     const requestedView = viewProp ?? ownView;
@@ -183,6 +191,12 @@ export function Shell({
         }
     };
 
+    const setBoxedColumn = (column: keyof BoxedColumns, show: boolean) =>
+        setBoxedColumns((current) => ({...current, [root]: {...current[root], [column]: show}}));
+
+    // The kind icon opens the root path in the Flow view when it has one, otherwise in the Boxed view.
+    const primaryView = views.includes('flow') ? 'flow' : 'boxed';
+
     const setExplorerOpen = (open: boolean) => {
         if (explorerOpenProp === undefined) setOwnExplorerOpen(open);
         onExplorerOpenChange?.(open);
@@ -223,6 +237,8 @@ export function Shell({
             revision={version}
             rootLabel="Project"
             testSubjects={testSubjects}
+            // The entry of the open editor, or of the Flow node it centers: its section expands and it is selected.
+            selected={{path: focus?.field ?? root, test: view === 'tests'}}
             readOnly={readOnly}
             onCollapsedChange={(collapsed) => setExplorerOpen(!collapsed)}
             onOpen={(target) => navigate(explorerRoute(target, view, session.engine.toPortable()))}
@@ -236,10 +252,17 @@ export function Shell({
                 <ShellBreadcrumbs
                     segments={segments}
                     rootLabel={rootLabel}
-                    // A crumb of the Tests view opens the model entity, not its tests.
-                    onNavigate={(next) => navigate({path: next, view: view === 'tests' ? 'boxed' : undefined})}
-                    explorerOpen={explorerOpen}
-                    onToggleExplorer={() => setExplorerOpen(!explorerOpen)}
+                    // The model name opens the Flow view of the model: its workbooks. Another crumb of the Tests view
+                    // opens the model entity, not its tests.
+                    onNavigate={(next) =>
+                        navigate(
+                            next === '*'
+                                ? {path: next, view: 'flow'}
+                                : {path: next, view: view === 'tests' ? 'boxed' : undefined},
+                        )
+                    }
+                    primaryView={primaryView}
+                    onOpenPrimary={() => navigate({view: primaryView})}
                     tests={view === 'tests'}
                 />
                 {hasSettings && !readOnly && <ShellSettings key={root} root={root} />}
@@ -275,6 +298,10 @@ export function Shell({
                                 languageService={languageService}
                                 readOnly={readOnly}
                                 onOpenNode={openNode}
+                                showDescription={boxedColumns[root]?.description ?? true}
+                                onShowDescriptionChange={(show) => setBoxedColumn('description', show)}
+                                showTestResults={boxedColumns[root]?.tests ?? false}
+                                onShowTestResultsChange={(show) => setBoxedColumn('tests', show)}
                             />
                         )}
                         {view === 'flow' && workbooks.length > 0 && (
