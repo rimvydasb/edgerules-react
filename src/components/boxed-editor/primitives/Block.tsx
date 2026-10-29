@@ -1,6 +1,7 @@
 import type {ReactElement, ReactNode} from 'react';
 import * as classes from '../boxedEditor.module.css';
 import type {BoxedRowData} from '../boxed-editor-types';
+import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import {CELL, isBlock} from './layout';
 
 export interface BlockProps {
@@ -18,12 +19,13 @@ export interface BlockProps {
  * one place (`isBlock`) and a new row kind is separated just by being listed there.
  */
 export function Block({row, children}: BlockProps): ReactElement {
+    const {baseDepth} = useBoxedLayout();
     if (!isBlock(row)) return <>{children}</>;
     return (
         <div
             data-block={row.path}
             className={classes.block}
-            style={{['--block-indent' as string]: `${row.depth * CELL}px`}}
+            style={{['--block-indent' as string]: `${Math.max(0, row.depth - baseDepth) * CELL}px`}}
         >
             {children}
         </div>

@@ -94,7 +94,7 @@ export function GenericRow({
     onActivate,
 }: GenericRowProps): ReactElement {
     const {showType} = useBoxedEditorContext();
-    const {template, showDescription, showTestResults: showTestResultsColumn} = useBoxedLayout();
+    const {template, showDescription, showTestResults: showTestResultsColumn, baseDepth} = useBoxedLayout();
     const {rowErrors} = useBoxedEditorUi();
     const rowError = row ? rowErrors.get(row.path) : undefined;
     const height = tall ? TALL_ROW_HEIGHT : ROW_HEIGHT;
@@ -129,7 +129,7 @@ export function GenericRow({
             }}
         >
             <div className={cx(classes.nameColumn, occupiesNameAndValue && classes.span2)}>
-                {Array.from({length: depth}, (_, index) => (
+                {Array.from({length: Math.max(0, depth - baseDepth)}, (_, index) => (
                     <div key={index} aria-hidden="true" className={classes.indent} />
                 ))}
                 {showDragHandle && !iconActsAsDragHandle && (

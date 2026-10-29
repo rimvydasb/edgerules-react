@@ -45,7 +45,7 @@ export function SettingRow({
     subGrid = false,
     actions = [],
 }: SettingRowProps): ReactElement {
-    const {template, showDescription, showTestResults} = useBoxedLayout();
+    const {template, showDescription, showTestResults, baseDepth} = useBoxedLayout();
     const {rowErrors} = useBoxedEditorUi();
     const rowError = row ? rowErrors.get(row.path) : undefined;
 
@@ -56,7 +56,7 @@ export function SettingRow({
             style={{gridTemplateColumns: template, height: CELL}}
         >
             <div className={cx(classes.nameColumn, occupiesNameAndValue && classes.span2)}>
-                {Array.from({length: depth}, (_, index) => (
+                {Array.from({length: Math.max(0, depth - baseDepth)}, (_, index) => (
                     <div key={index} className={classes.indent} />
                 ))}
                 <div aria-hidden="true" className={classes.settingIcon}>

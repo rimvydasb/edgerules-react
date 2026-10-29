@@ -310,9 +310,41 @@ describe('row kinds: relation', () => {
 
         render(<BoxedEditor service={service} path="offices" languageService={languageService} />);
 
-        expect(screen.getByText('address')).toBeInTheDocument();
+        // The column header of the opened relation and the drill-down row of the record.
+        expect(screen.getAllByText('address')).toHaveLength(2);
         expect(screen.getByText("'Vilnius'")).toBeInTheDocument();
         expect(screen.queryByText(/"city"/)).not.toBeInTheDocument();
+    });
+});
+
+describe('row kinds: a nested root path', () => {
+    const code = `{
+      book: {
+        team: { workers: 2 }
+        clients: [
+          { id: 'C1', wealth: 10 }
+        ]
+      }
+    }`;
+    const indents = (path: string): number =>
+        screen.getByTestId(`row-${path}`).querySelectorAll('[class*="indent"]').length;
+
+    it('keeps the name row and the column headers of an opened relation', () => {
+        const service = createBoxedEditorService(MutableDecisionService.fromCode(code));
+        render(<BoxedEditor service={service} path="book.clients" languageService={languageService} />);
+
+        expect(screen.getByRole('heading', {name: 'Relation'})).toBeInTheDocument();
+        expect(screen.getByTestId('row-book.clients')).toHaveTextContent('clients');
+        expect(screen.getByText('id')).toBeInTheDocument();
+        expect(screen.getByText('wealth')).toBeInTheDocument();
+    });
+
+    it('indents the rows relative to the opened path, not to the model', () => {
+        const service = createBoxedEditorService(MutableDecisionService.fromCode(code));
+        render(<BoxedEditor service={service} path="book.team" languageService={languageService} />);
+
+        expect(indents('book.team')).toBe(0);
+        expect(indents('book.team.workers')).toBe(1);
     });
 });
 
