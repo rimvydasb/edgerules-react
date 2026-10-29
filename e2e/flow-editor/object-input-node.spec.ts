@@ -1,7 +1,7 @@
 import {test, expect, type Page} from '@playwright/test';
 import {openStory} from '../support/storybook';
 
-const PREFIX = 'components-flow-editor-input-node--';
+const PREFIX = 'components-flow-editor-object-input-node--';
 
 async function open(page: Page, story: string) {
     await openStory(page, `${PREFIX}${story}`);
@@ -68,7 +68,7 @@ test('edits a value in a code editor cell', async ({page}) => {
 
 test('the value pin stays on the right edge of the node', async ({page}) => {
     await open(page, 'default');
-    const node = await page.getByTestId('input-node-applicant').boundingBox();
+    const node = await page.getByTestId('object-input-node-applicant').boundingBox();
     const pin = await handle(page, 'applicant', 'out:age').boundingBox();
     const value = await page.getByRole('button', {name: 'Value of age'}).boundingBox();
     if (!node || !pin || !value) throw new Error('no box');
@@ -79,13 +79,13 @@ test('the value pin stays on the right edge of the node', async ({page}) => {
 test('read-only mode shows values without an editor', async ({page}) => {
     await open(page, 'read-only');
 
-    await expect(page.getByTestId('input-node-applicant')).toContainText('25000');
+    await expect(page.getByTestId('object-input-node-applicant')).toContainText('25000');
     await expect(page.getByRole('button', {name: 'Value of age'})).toHaveCount(0);
 });
 
 test('the node keeps its right border on every row', async ({page}) => {
     await open(page, 'default');
-    const node = page.getByTestId('input-node-applicant');
+    const node = page.getByTestId('object-input-node-applicant');
     const box = await node.boundingBox();
     const row = await page.getByRole('button', {name: 'segment', exact: true}).boundingBox();
     if (!box || !row) throw new Error('no box');

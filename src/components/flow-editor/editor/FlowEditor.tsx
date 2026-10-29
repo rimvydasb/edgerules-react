@@ -36,7 +36,8 @@ import type {ChartNodeData} from '../chart-node/types';
 import {FlowEditorProvider, useFlowEditor} from '../FlowEditorProvider';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import {FunctionNode} from '../function-node/FunctionNode';
-import {InputNode} from '../input-node/InputNode';
+import {ListInputNode} from '../list-input-node/ListInputNode';
+import {ObjectInputNode} from '../object-input-node/ObjectInputNode';
 import {OutputNode, sourcePath} from '../output-node/OutputNode';
 import {autoLayout, findFreeSpot, modelWires, outputWires, type LayoutKind, type Wire} from './graph';
 import {ICON_COLOR, NodePalette} from './NodePalette';
@@ -44,23 +45,32 @@ import {DRAG_TYPE, paletteItems} from './paletteItems';
 import type {FlowChart, FlowEditorProps, FlowFocusRequest, FlowLayout, FlowOutput, PaletteItem} from './types';
 import styles from './flowEditor.module.css';
 
-const NODE_TYPES = {functionNode: FunctionNode, inputNode: InputNode, outputNode: OutputNode, chartNode: ChartNode};
+const NODE_TYPES = {
+    functionNode: FunctionNode,
+    objectInputNode: ObjectInputNode,
+    listInputNode: ListInputNode,
+    outputNode: OutputNode,
+    chartNode: ChartNode,
+};
 const TYPE_OF: Record<LayoutKind, keyof typeof NODE_TYPES> = {
     function: 'functionNode',
-    input: 'inputNode',
+    'object-input': 'objectInputNode',
+    'list-input': 'listInputNode',
     output: 'outputNode',
     chart: 'chartNode',
 };
 const KIND_OF: Record<string, LayoutKind> = {
     functionNode: 'function',
-    inputNode: 'input',
+    objectInputNode: 'object-input',
+    listInputNode: 'list-input',
     outputNode: 'output',
     chartNode: 'chart',
 };
 // Output and chart nodes exist on the canvas only: the model never adds or removes them.
 const CANVAS_TYPES = new Set(['outputNode', 'chartNode']);
 const MINIMAP_COLOR: Record<LayoutKind, string> = {
-    input: ICON_COLOR.input,
+    'object-input': ICON_COLOR.input,
+    'list-input': ICON_COLOR.input,
     function: ICON_COLOR.function,
     output: ICON_COLOR.output,
     chart: ICON_COLOR.chart,
@@ -116,7 +126,10 @@ function useServiceVersion(service: FlowEditorService): number {
 function estimateSize(service: FlowEditorService, id: string, kind: LayoutKind): {width: number; height: number} {
     if (kind === 'output') return {width: 240, height: 2 * ROW};
     if (kind === 'chart') return CHART_SIZE;
-    if (kind === 'input') return {width: 280, height: (3 + Math.max(1, service.getInputNode(id).fields.length)) * ROW};
+    if (kind === 'object-input')
+        return {width: 280, height: (3 + Math.max(1, service.getObjectInputNode(id).fields.length)) * ROW};
+    if (kind === 'list-input')
+        return {width: 280, height: (3 + Math.max(1, service.getListInputNode(id).itemFields.length)) * ROW};
     const model = service.getFunctionNode(id);
     if (!model.callee) return {width: 320, height: 3 * ROW};
     return {width: 360, height: (3 + Math.max(model.arguments.length, model.results.length)) * ROW};
@@ -368,8 +381,8 @@ function FlowCanvas({
             return;
         }
         if (action.kind === 'input') {
-            place(action.record);
-            if (isPortableError(service.addInputNode(action.record))) pending.current.delete(action.record);
+            place(action.field);
+            if (isPortableError(service.addInputNode(action.field))) pending.current.delete(action.field);
             return;
         }
         if (action.kind === 'new-input') {

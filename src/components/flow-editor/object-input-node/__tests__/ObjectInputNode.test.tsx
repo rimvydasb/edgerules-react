@@ -6,13 +6,13 @@ import type {FlowEditorOpenTarget} from '../../flow-editor-types';
 import {renderNode} from '../../testing/renderNode';
 
 const renderInput = (options: Parameters<typeof renderNode>[1] = {}) =>
-    renderNode('applicant', {...options, input: true});
+    renderNode('applicant', {...options, input: 'object'});
 
-describe('InputNode', () => {
+describe('ObjectInputNode', () => {
     it('shows the record structure: one pin and one name per field', () => {
         renderInput();
         const container = document.body;
-        expect(screen.getByTestId('input-node-applicant')).toBeInTheDocument();
+        expect(screen.getByTestId('object-input-node-applicant')).toBeInTheDocument();
         for (const name of ['age', 'income', 'segment']) {
             expect(screen.getByRole('button', {name: new RegExp(`^${name}$`)})).toBeInTheDocument();
             expect(container.querySelector(`[data-handleid="out:${name}"]`)).not.toBeNull();
@@ -82,12 +82,12 @@ describe('InputNode', () => {
         it('is read-only in read-only mode', () => {
             renderInput({readOnly: true});
             expect(screen.queryByRole('button', {name: 'Value of age'})).toBeNull();
-            expect(screen.getByTestId('input-node-applicant')).toHaveTextContent('25000');
+            expect(screen.getByTestId('object-input-node-applicant')).toHaveTextContent('25000');
         });
     });
 
     it('reads Field in the singular for a one-field record', () => {
-        renderNode('application', {input: true});
+        renderNode('application', {input: 'object'});
         expect(screen.getByText('field')).toBeInTheDocument();
     });
 
@@ -97,7 +97,9 @@ describe('InputNode', () => {
         const input = await screen.findByLabelText('Rename field age');
         fireEvent.change(input, {target: {value: 'years'}});
         fireEvent.keyDown(input, {key: 'Enter'});
-        await waitFor(() => expect(service.getInputNode('applicant').fields.map((f) => f.name)).toContain('years'));
+        await waitFor(() =>
+            expect(service.getObjectInputNode('applicant').fields.map((f) => f.name)).toContain('years'),
+        );
         expect(JSON.stringify(mutable.toPortable())).not.toContain('applicant.age');
         expect(JSON.stringify(mutable.toPortable())).toContain('applicant.years');
     });
@@ -138,7 +140,7 @@ describe('InputNode', () => {
         const input = await screen.findByLabelText('Name of node applicant');
         fireEvent.change(input, {target: {value: 'Applicant data'}});
         fireEvent.keyDown(input, {key: 'Enter'});
-        await waitFor(() => expect(service.getInputNode('applicant').label).toBe('Applicant data'));
+        await waitFor(() => expect(service.getObjectInputNode('applicant').label).toBe('Applicant data'));
     });
 
     it('is read-only: no rename buttons and no mutating menu items', async () => {
@@ -150,7 +152,7 @@ describe('InputNode', () => {
 
     describe('field menu', () => {
         const names = (service: ReturnType<typeof renderNode>['service']) =>
-            service.getInputNode('applicant').fields.map((item) => item.name);
+            service.getObjectInputNode('applicant').fields.map((item) => item.name);
         const open = async (name: string) => {
             fireEvent.click(screen.getByRole('button', {name: `Actions for field ${name}`}));
             return screen.findByRole('menu');

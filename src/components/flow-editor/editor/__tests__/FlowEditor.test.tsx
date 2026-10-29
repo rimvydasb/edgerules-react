@@ -36,16 +36,29 @@ describe('FlowEditor', () => {
 
     it('renders the annotated fields of the model as nodes', async () => {
         renderEditor({seeded: true});
-        expect(await screen.findByTestId('input-node-applicant')).toBeInTheDocument();
+        expect(await screen.findByTestId('object-input-node-applicant')).toBeInTheDocument();
         expect(screen.getByTestId('function-node-decision')).toBeInTheDocument();
         expect(screen.queryByTestId('flow-editor-empty')).toBeNull();
+    });
+
+    it('renders an annotated list as a list input node', async () => {
+        const service = createFlowEditorService(
+            MutableDecisionService.fromCode('{\n @InputNode(name: "Scores")\n scores: [1, 2, 3]\n}'),
+        );
+        render(
+            <div style={{width: 1000, height: 600}}>
+                <FlowEditor service={service} />
+            </div>,
+        );
+        expect(await screen.findByTestId('list-input-node-scores')).toHaveTextContent('Scores');
+        expect(screen.queryByTestId('object-input-node-scores')).toBeNull();
     });
 
     it('selects the node of each new focus request', async () => {
         renderEditor({seeded: true, focusNode: {field: 'decision'}});
         const frame = (testId: string) => screen.getByTestId(testId).closest('.react-flow__node');
         await waitFor(() => expect(frame('function-node-decision')).toHaveClass('selected'));
-        expect(frame('input-node-applicant')).not.toHaveClass('selected');
+        expect(frame('object-input-node-applicant')).not.toHaveClass('selected');
     });
 
     it('clicking a callee creates a draft node with that callee', async () => {
@@ -58,8 +71,8 @@ describe('FlowEditor', () => {
     it('Enter on an item adds it, as a click does', async () => {
         const {service} = renderEditor();
         fireEvent.keyDown(palette().getByRole('button', {name: 'Add input application'}), {key: 'Enter'});
-        expect(await screen.findByTestId('input-node-application')).toBeInTheDocument();
-        expect(service.listNodes()).toEqual([{field: 'application', kind: 'input'}]);
+        expect(await screen.findByTestId('object-input-node-application')).toBeInTheDocument();
+        expect(service.listNodes()).toEqual([{field: 'application', kind: 'object-input'}]);
         expect(palette().queryByRole('button', {name: 'Add input application'})).toBeNull();
     });
 

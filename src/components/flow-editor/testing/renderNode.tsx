@@ -6,11 +6,13 @@ import {FlowEditorProvider} from '../FlowEditorProvider';
 import type {DocumentationService} from '../../documentation-service';
 import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
 import {FunctionNode} from '../function-node/FunctionNode';
-import {InputNode} from '../input-node/InputNode';
+import {ListInputNode} from '../list-input-node/ListInputNode';
+import {ObjectInputNode} from '../object-input-node/ObjectInputNode';
 import {createFlowEditorService, type FlowEditorEngine} from '../service/createFlowEditorService';
 import {SAMPLE_MODEL} from './sampleModel';
 
-const nodeTypes = {functionNode: FunctionNode, inputNode: InputNode};
+const nodeTypes = {functionNode: FunctionNode, objectInputNode: ObjectInputNode, listInputNode: ListInputNode};
+const INPUT_TYPES = {object: 'objectInputNode', list: 'listInputNode'} as const;
 
 export interface RenderedNode {
     service: FlowEditorService;
@@ -24,7 +26,7 @@ export function renderNode(
     options: {
         model?: string;
         draft?: boolean;
-        input?: boolean; // render an InputNode; the record at `field` is annotated first
+        input?: 'object' | 'list'; // render an input node; the record or list at `field` is annotated first
         readOnly?: boolean;
         onOpenNode?: (target: FlowEditorOpenTarget) => void;
     } = {},
@@ -48,7 +50,7 @@ export function renderNode(
                         nodes={[
                             {
                                 id: nodeField,
-                                type: options.input ? 'inputNode' : 'functionNode',
+                                type: options.input ? INPUT_TYPES[options.input] : 'functionNode',
                                 position: {x: 0, y: 0},
                                 data: {field: nodeField},
                                 width: 400,

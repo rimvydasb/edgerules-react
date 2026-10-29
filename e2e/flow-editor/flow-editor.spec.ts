@@ -56,7 +56,7 @@ test.describe('canvas', () => {
     test('draws the flow nodes of the model, their wires and the output values', async ({page}) => {
         await openSeeded(page);
 
-        await expect(page.getByTestId('input-node-applicant')).toBeVisible();
+        await expect(page.getByTestId('object-input-node-applicant')).toBeVisible();
         await expect(page.getByTestId('function-node-score')).toBeVisible();
         await expect(page.getByTestId('output-node-output')).toContainText("'high'");
         await expect(page.getByTestId('output-node-output2')).toContainText('371');
@@ -221,7 +221,7 @@ test.describe('adding nodes', () => {
 
         await paletteItem(page, 'Add new input').dragTo(page.locator('.react-flow__pane'));
 
-        const added = page.getByTestId('input-node-input');
+        const added = page.getByTestId('object-input-node-input');
         await expect(added).toBeVisible({timeout: 15_000});
         await expect(added.getByRole('button', {name: 'value', exact: true})).toBeVisible();
         await expect(handle(page, 'input', 'out:value')).toBeVisible();
@@ -254,7 +254,7 @@ test.describe('removing', () => {
     test('Delete removes a node from the flow; its record is offered again', async ({page}) => {
         await openSeeded(page);
 
-        await page.getByTestId('input-node-applicant').locator('strong').first().click();
+        await page.getByTestId('object-input-node-applicant').locator('strong').first().click();
         await page.keyboard.press('Delete');
 
         await expect(node(page, 'applicant')).toHaveCount(0);
@@ -290,7 +290,7 @@ test.describe('read-only', () => {
         await openSeeded(page, 'read-only');
 
         await expect(page.getByRole('navigation', {name: 'Node palette'})).toHaveCount(0);
-        await page.getByTestId('input-node-applicant').locator('strong').first().click();
+        await page.getByTestId('object-input-node-applicant').locator('strong').first().click();
         await page.keyboard.press('Delete');
         await expect(node(page, 'applicant')).toBeVisible();
     });
@@ -357,14 +357,14 @@ test.describe('input values', () => {
 
         await editValue(page, 'age', '30 +');
 
-        await expect(page.getByTestId('input-node-applicant').getByRole('alert')).toBeVisible();
+        await expect(page.getByTestId('object-input-node-applicant').getByRole('alert')).toBeVisible();
         await expect(page.getByTestId('value-editor-age')).toBeVisible();
         await expect(page.getByTestId('output-node-output')).toContainText("'high'");
         await expect(page.getByTestId('output-node-output2')).toContainText('371');
 
         await page.keyboard.press('Escape');
         await expect(page.getByRole('button', {name: 'Value of age'})).toHaveText('23');
-        await expect(page.getByTestId('input-node-applicant').getByRole('alert')).toHaveCount(0);
+        await expect(page.getByTestId('object-input-node-applicant').getByRole('alert')).toHaveCount(0);
     });
 
     test('typing in a value does not delete the selected node', async ({page}) => {
@@ -377,7 +377,7 @@ test.describe('input values', () => {
         await page.keyboard.type('41');
         await page.keyboard.press('Enter');
 
-        await expect(page.getByTestId('input-node-applicant')).toBeVisible();
+        await expect(page.getByTestId('object-input-node-applicant')).toBeVisible();
         await expect(page.getByRole('button', {name: 'Value of age'})).toHaveText('41');
         await expect(page.getByTestId('output-node-output2')).toContainText('407');
     });

@@ -103,6 +103,31 @@ assume that the row the user edited last caused it.
 **Expected behaviour:** an error code and a message in the E113 style, for example
 `function 'risk' argument 'segment' expects string, found number`, ideally with the field path (`d`).
 
+## [VALID] `get` returns the inferred item type of a list literal with its fields in name order
+
+**What is wrong:** for a list literal, `get(path)` infers the item type (`items` is a `type-definition`), but it lists
+the item fields sorted by name, not in the authored order. A record field, a declared `type` and the executed value keep
+the authored order, so the same shape reads differently depending on where it is written. Verified on `@edgerules/node`
+`0.1.1-alpha.202610291103`.
+
+```edgerules
+{
+    type P: { zeta: <string>; alpha: <number> }
+    rec: { zeta: "a"; alpha: 1 }
+    list: [{ zeta: "a"; alpha: 1 }]
+}
+// get('rec', 'FIELDS')  → zeta, alpha
+// get('P', 'ALL')       → zeta, alpha
+// execute('list')       → [{ zeta: "a", alpha: 1 }]
+// get('list').items     → alpha, zeta
+```
+
+The Flow Editor `ListInputNode` shows one row per item field from `get(path).items`. For `models/client-outreach` the
+`Clients` node lists `daysSinceContact, hasEmail, id, name, …` instead of `id, name, wealth, …`.
+
+**Expected behaviour:** the inferred item type keeps the field order of the first list element, as a record and a
+declared type do (`API_SPEC.md`: the key order is the stored entity order).
+
 ## [NOT A BUG] `getCode('*')` drops source comments
 
 **What happens:** `fromCode` followed by `getCode('*')` returns the code without its comments. (Output formatting is

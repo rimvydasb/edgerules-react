@@ -8,7 +8,7 @@ import {
     createFlowEditorService,
     FlowEditorProvider,
     FunctionNode,
-    InputNode,
+    ObjectInputNode,
 } from '../../../src/components/flow-editor';
 
 // The sample model of the FunctionNode design proposal.
@@ -27,7 +27,7 @@ const SAMPLE_MODEL = `{
   decision: risk(age: applicant.age, income: applicant.income, segment: applicant.segment)
 }`;
 
-const nodeTypes = {inputNode: InputNode, functionNode: FunctionNode};
+const nodeTypes = {objectInputNode: ObjectInputNode, functionNode: FunctionNode};
 
 function Canvas({
     field,
@@ -55,7 +55,7 @@ function Canvas({
     }, []);
 
     const nodes: Node[] = [
-        {id: field, type: 'inputNode', position: {x: 20, y: 40}, data: {field}},
+        {id: field, type: 'objectInputNode', position: {x: 20, y: 40}, data: {field}},
         ...(wired
             ? [{id: 'decision', type: 'functionNode', position: {x: 460, y: 40}, data: {field: 'decision'}}]
             : []),
@@ -104,7 +104,7 @@ function Canvas({
 }
 
 const meta: Meta<typeof Canvas> = {
-    title: 'Components/Flow Editor/Input Node',
+    title: 'Components/Flow Editor/Object Input Node',
     component: Canvas,
     parameters: {layout: 'fullscreen'},
     loaders: [

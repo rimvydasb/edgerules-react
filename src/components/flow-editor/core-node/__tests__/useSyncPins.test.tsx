@@ -14,21 +14,21 @@ const callsFor = (id: string) => updateNodeInternals.mock.calls.filter(([nodeId]
 beforeEach(() => updateNodeInternals.mockClear());
 
 describe('pin positions are measured again when the rows change', () => {
-    it('measures an InputNode once on mount', () => {
-        renderNode('applicant', {input: true});
+    it('measures an ObjectInputNode once on mount', () => {
+        renderNode('applicant', {input: 'object'});
         expect(callsFor('applicant')).toBeGreaterThan(0);
     });
 
-    it('measures an InputNode again after Move down', async () => {
-        renderNode('applicant', {input: true});
+    it('measures an ObjectInputNode again after Move down', async () => {
+        renderNode('applicant', {input: 'object'});
         const before = callsFor('applicant');
         fireEvent.click(screen.getByRole('button', {name: 'Actions for field age'}));
         fireEvent.click(await screen.findByRole('menuitem', {name: 'Move down'}));
         await waitFor(() => expect(callsFor('applicant')).toBeGreaterThan(before));
     });
 
-    it('measures an InputNode again after a field is added', async () => {
-        const {service} = renderNode('applicant', {input: true});
+    it('measures an ObjectInputNode again after a field is added', async () => {
+        const {service} = renderNode('applicant', {input: 'object'});
         const before = callsFor('applicant');
         service.addInputField('applicant');
         await waitFor(() => expect(callsFor('applicant')).toBeGreaterThan(before));
@@ -43,11 +43,11 @@ describe('pin positions are measured again when the rows change', () => {
     });
 
     it('does not measure again when nothing changed', async () => {
-        const {service} = renderNode('applicant', {input: true});
+        const {service} = renderNode('applicant', {input: 'object'});
         await waitFor(() => expect(callsFor('applicant')).toBeGreaterThan(0));
         const before = callsFor('applicant');
         service.setNodeName('applicant', 'Applicant'); // changes the label, not the pins
-        await waitFor(() => expect(service.getInputNode('applicant').label).toBe('Applicant'));
+        await waitFor(() => expect(service.getObjectInputNode('applicant').label).toBe('Applicant'));
         expect(callsFor('applicant')).toBe(before);
     });
 });

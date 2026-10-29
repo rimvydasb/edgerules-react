@@ -2,7 +2,7 @@ import {IconBox, IconChartLine, IconListCheck, IconMathFunction} from '@tabler/i
 import type {ReactElement} from 'react';
 import {KIND_COLORS} from '#ui/kindColors';
 import type {InputDeclarationKind} from './types';
-import styles from './inputNode.module.css';
+import styles from './objectInputNode.module.css';
 
 const KINDS = {
     function: {Icon: IconMathFunction, color: KIND_COLORS.function, label: 'Function'},

@@ -17,23 +17,23 @@ import {
     useServiceRead,
     useSyncPins,
 } from '../core-node';
-import {inputFieldMenuFooter, inputFieldMenuItems, inputNodeMenuItems} from './inputNodeMenus';
+import {objectInputFieldMenuFooter, objectInputFieldMenuItems, objectInputNodeMenuItems} from './objectInputNodeMenus';
 import {DeclarationIcon} from './DeclarationIcon';
 import {InputValueCell} from './InputValueCell';
-import {recordSummary, useInputNodeLayout} from './layout';
-import type {InputField, InputNodeRowEditing, InputNodeType} from './types';
+import {recordSummary, useObjectInputNodeLayout} from './layout';
+import type {ObjectInputField, ObjectInputNodeRowEditing, ObjectInputNodeType} from './types';
 
 const INPUT_COLOR = '#ed6c02';
 
 /**
- * The EdgeRules InputNode: one `@InputNode` record as a table of fields and values, with an output pin per field.
+ * The EdgeRules ObjectInputNode: one `@InputNode` record as a table of fields and values, with an output pin per field.
  * A value edit writes the expression to the model, so every node and output that reads the field recalculates.
  */
-export function InputNode({id, data, selected}: NodeProps<InputNodeType>): ReactElement {
+export function ObjectInputNode({id, data, selected}: NodeProps<ObjectInputNodeType>): ReactElement {
     const {service, languageService, readOnly, onOpenNode, editing, setEditing, menu} =
-        useCoreNode<InputNodeRowEditing>(data.field);
-    const model = useServiceRead(service, data.field, () => service.getInputNode(data.field));
-    const layout = useInputNodeLayout(model);
+        useCoreNode<ObjectInputNodeRowEditing>(data.field);
+    const model = useServiceRead(service, data.field, () => service.getObjectInputNode(data.field));
+    const layout = useObjectInputNodeLayout(model);
     useSyncPins(id, `${layout.width}|${model.fields.map((item) => (item.declaration ? '' : item.name)).join(',')}`);
     const [valueError, setValueError] = useState<{name: string; message: string} | undefined>();
     const {field} = model;
@@ -42,13 +42,13 @@ export function InputNode({id, data, selected}: NodeProps<InputNodeType>): React
     const addField = (after?: string) => {
         const before = new Set(model.fields.map((item) => item.name));
         if (runCommand(() => service.addInputField(field, after))) return;
-        const added = service.getInputNode(field).fields.find((item) => !before.has(item.name));
+        const added = service.getObjectInputNode(field).fields.find((item) => !before.has(item.name));
         if (added) setEditing({kind: 'input-field', name: added.name});
     };
 
-    const menuItems = inputNodeMenuItems({...menu, field, onOpenNode, onAddField: () => addField()});
+    const menuItems = objectInputNodeMenuItems({...menu, field, onOpenNode, onAddField: () => addField()});
 
-    const renderField = (item: InputField) => (
+    const renderField = (item: ObjectInputField) => (
         <Track width={layout.inputTrack}>
             <TrackName side="in">
                 {item.declaration && <DeclarationIcon kind={item.declaration} />}
@@ -68,8 +68,8 @@ export function InputNode({id, data, selected}: NodeProps<InputNodeType>): React
                     <NodeMenuButton
                         variant="row"
                         ariaLabel={`Actions for field ${item.name}`}
-                        footer={inputFieldMenuFooter(model)}
-                        items={inputFieldMenuItems({
+                        footer={objectInputFieldMenuFooter(model)}
+                        items={objectInputFieldMenuItems({
                             model,
                             item,
                             onMove: (direction) =>
@@ -83,7 +83,7 @@ export function InputNode({id, data, selected}: NodeProps<InputNodeType>): React
         </Track>
     );
 
-    const renderValue = (item: InputField) => (
+    const renderValue = (item: ObjectInputField) => (
         <Track width={layout.outputTrack}>
             <InputValueCell
                 name={item.name}
@@ -113,7 +113,7 @@ export function InputNode({id, data, selected}: NodeProps<InputNodeType>): React
         <NodeFrame
             field={field}
             label={model.label}
-            testId={`input-node-${field}`}
+            testId={`object-input-node-${field}`}
             selected={selected}
             width={layout.width}
             color={INPUT_COLOR}

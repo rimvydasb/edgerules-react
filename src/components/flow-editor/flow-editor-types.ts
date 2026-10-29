@@ -5,7 +5,8 @@ import type {Unsubscribe} from '#lib/changeBatch';
 import type {DocumentationService} from '../documentation-service';
 import type {FlowEditorOpenTarget} from './core-node/types';
 import type {CalleeRef, FunctionNodeModel} from './function-node/types';
-import type {InputNodeModel} from './input-node/types';
+import type {ListInputNodeModel} from './list-input-node/types';
+import type {ObjectInputNodeModel} from './object-input-node/types';
 import type {OutputReading} from './output-node/types';
 
 export type {FlowEditorOpenTarget, Unsubscribe};
@@ -22,7 +23,7 @@ export interface FlowEditorProviderProps {
 /** One model field that the canvas draws as a node; the node id is the field path. */
 export interface FlowNodeRef {
     field: string;
-    kind: 'function' | 'input';
+    kind: 'function' | 'object-input' | 'list-input'; // an `@InputNode` record or list
 }
 
 export interface FlowEditorService {
@@ -43,9 +44,10 @@ export interface FlowEditorService {
     renameArgument(field: string, from: string, to: string): PortableError | void; // names a new argument; migrates call sites
     removeArgument(field: string, parameter: string): PortableError | void; // refused when the body uses it
     renameResult(field: string, from: string, to: string): PortableError | void; // link-checked, reverted on failure
-    getInputNode(field: string): InputNodeModel; // the record annotated @InputNode; no fields when it does not exist
-    listInputCandidates(): string[]; // record fields of the model that are not yet an InputNode
-    addInputNode(field: string): PortableError | void; // annotates an existing record with '@node: InputNode'
+    getObjectInputNode(field: string): ObjectInputNodeModel; // the record annotated @InputNode; no fields when it does not exist
+    getListInputNode(field: string): ListInputNodeModel; // the list annotated @InputNode; no item fields when it does not exist
+    listInputCandidates(): FlowNodeRef[]; // records and list literals of the model that are not yet an input node
+    addInputNode(field: string): PortableError | void; // annotates an existing record or list with '@node: InputNode'
     createInputNode(): string | PortableError; // a new '@InputNode' record 'input…' with one number field
     addInputField(field: string, after?: string): PortableError | void; // appends a number field; after = undefined appends
     moveInputField(field: string, name: string, direction: 'up' | 'down'): PortableError | void;

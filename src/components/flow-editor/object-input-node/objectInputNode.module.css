@@ -1,4 +1,4 @@
-/* The value cell of an InputNode row: the field value as code, a CodeEditorCell while editing. */
+/* The value cell of an ObjectInputNode row: the field value as code, a CodeEditorCell while editing. */
 .value {
   display: flex;
   flex: 1;

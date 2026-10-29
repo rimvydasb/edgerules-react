@@ -41,6 +41,27 @@ describe('modelWires', () => {
             ['decision:segment', 'applicant', 'out:segment', 'in:segment', 'string'],
         ]);
     });
+
+    it('wires a list input from its one whole-list pin', () => {
+        const service = createFlowEditorService(
+            MutableDecisionService.fromCode(`{
+                type Person: { age: <number> }
+                func oldest(people: Person[]): { result: max(for p in people return p.age) }
+                @InputNode
+                people: [{ age: 30 }, { age: 41 }]
+                @FunctionNode
+                pick: oldest(people: people)
+            }`),
+        );
+        expect(service.listNodes()).toEqual([
+            {field: 'people', kind: 'list-input'},
+            {field: 'pick', kind: 'function'},
+        ]);
+        const wires = modelWires(service.listNodes(), (field) => service.getFunctionNode(field));
+        expect(wires.map((wire) => [wire.source, wire.sourceHandle, wire.target, wire.targetHandle])).toEqual([
+            ['people', 'out:*', 'pick', 'in:people'],
+        ]);
+    });
 });
 
 describe('qualifyBinding', () => {
@@ -155,7 +176,7 @@ describe('autoLayout', () => {
                 {id: 'out', kind: 'output', ...size},
                 {id: 'second', kind: 'function', ...size},
                 {id: 'first', kind: 'function', ...size},
-                {id: 'in', kind: 'input', ...size},
+                {id: 'in', kind: 'object-input', ...size},
             ],
             [
                 {source: 'in', target: 'first'},
@@ -174,8 +195,8 @@ describe('autoLayout', () => {
     it('stacks the nodes of one column with a gap', () => {
         const positions = autoLayout(
             [
-                {id: 'a', kind: 'input', width: 200, height: 160},
-                {id: 'b', kind: 'input', width: 200, height: 120},
+                {id: 'a', kind: 'object-input', width: 200, height: 160},
+                {id: 'b', kind: 'list-input', width: 200, height: 120},
             ],
             [],
         );
@@ -200,7 +221,7 @@ describe('autoLayout', () => {
     it('puts a chart one column after its source, as an output', () => {
         const positions = autoLayout(
             [
-                {id: 'in', kind: 'input', ...size},
+                {id: 'in', kind: 'object-input', ...size},
                 {id: 'f', kind: 'function', ...size},
                 {id: 'chart', kind: 'chart', width: 440, height: 340},
                 {id: 'idle', kind: 'chart', width: 440, height: 340},

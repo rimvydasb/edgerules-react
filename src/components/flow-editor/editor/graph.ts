@@ -24,6 +24,11 @@ export interface Box {
 
 export type LayoutKind = FlowNodeRef['kind'] | 'output' | 'chart';
 
+/** Input nodes only feed: they sit in the first column. */
+function isSource(kind: LayoutKind | undefined): boolean {
+    return kind === 'object-input' || kind === 'list-input';
+}
+
 /** Output and chart nodes only read: they sit one column after their source. */
 function isSink(kind: LayoutKind | undefined): boolean {
     return kind === 'output' || kind === 'chart';
@@ -139,13 +144,13 @@ export function autoLayout(
         if (!kinds.has(link.source) || !kinds.has(link.target)) continue;
         sourcesOf.set(link.target, [...(sourcesOf.get(link.target) ?? []), link.source]);
     }
-    const firstFunctionColumn = nodes.some((node) => node.kind === 'input') ? 1 : 0;
+    const firstFunctionColumn = nodes.some((node) => isSource(node.kind)) ? 1 : 0;
     const columns = new Map<string, number>();
     const columnOf = (id: string, visiting: Set<string>): number => {
         const known = columns.get(id);
         if (known !== undefined) return known;
         const kind = kinds.get(id);
-        if (kind === 'input') return 0;
+        if (isSource(kind)) return 0;
         if (visiting.has(id)) return firstFunctionColumn; // a cycle cannot link; keep the walk finite
         visiting.add(id);
         const sources = sourcesOf.get(id) ?? [];

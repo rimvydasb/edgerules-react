@@ -27,12 +27,12 @@ export type PaletteGroup = 'input' | 'function' | 'output' | 'chart';
 /** What a palette item creates. */
 export type PaletteAction =
     | {kind: 'new-input'}
-    | {kind: 'input'; record: string} // annotate an existing record
+    | {kind: 'input'; field: string} // annotate an existing record or list
     | {kind: 'function'; callee?: string} // a draft node, with its callee picked when given
     | {kind: 'output'}
     | {kind: 'chart'};
 
-export type PaletteIcon = 'input' | 'function' | 'ruleset' | 'output' | 'chart';
+export type PaletteIcon = 'input' | 'list-input' | 'function' | 'ruleset' | 'output' | 'chart';
 
 export interface PaletteItem {
     id: string; // stable key, also the drag payload

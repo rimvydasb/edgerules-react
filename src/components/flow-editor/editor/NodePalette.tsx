@@ -5,6 +5,7 @@ import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
     IconListCheck,
+    IconListDetails,
     IconLogin2,
     IconLogout2,
     IconMathFunction,
@@ -19,6 +20,7 @@ import styles from './flowEditor.module.css';
 
 export const ICON_COLOR: Record<PaletteIcon, string> = {
     input: '#ed6c02',
+    'list-input': '#ed6c02',
     function: KIND_COLOR.function,
     ruleset: KIND_COLOR.ruleset,
     output: '#2f9e44',
@@ -27,6 +29,7 @@ export const ICON_COLOR: Record<PaletteIcon, string> = {
 
 const ICONS = {
     input: IconLogin2,
+    'list-input': IconListDetails,
     function: IconMathFunction,
     ruleset: IconListCheck,
     output: IconLogout2,

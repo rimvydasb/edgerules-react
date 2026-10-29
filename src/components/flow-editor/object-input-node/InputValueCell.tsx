@@ -2,7 +2,7 @@ import {useMemo, type ReactElement} from 'react';
 import {CodeEditorCell, type CodeEditorEmbedContext, type CodeEditorService} from '../../code-editor-cell';
 import {HighlightedCode} from '../../code-editor-cell/internal';
 import {RECORD_VALUE} from './layout';
-import styles from './inputNode.module.css';
+import styles from './objectInputNode.module.css';
 
 export interface InputValueCellProps {
     name: string; // field name, for the accessible labels
@@ -20,7 +20,7 @@ export interface InputValueCellProps {
 }
 
 /**
- * The value of one InputNode field: highlighted text, and a `CodeEditorCell` while editing. Enter or blur writes
+ * The value of one ObjectInputNode field: highlighted text, and a `CodeEditorCell` while editing. Enter or blur writes
  * the expression to the model; Escape restores the value.
  */
 export function InputValueCell({

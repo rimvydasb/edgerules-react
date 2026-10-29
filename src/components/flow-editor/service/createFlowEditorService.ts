@@ -21,9 +21,11 @@ import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor';
 import {childPath, formatPortableValue, isRecord, parentPath, portableAtPath, typeText} from '#lib/portableUtils';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
-import type {InputDeclarationKind, InputField, InputNodeModel} from '../input-node/types';
+import type {ListInputNodeModel} from '../list-input-node/types';
+import type {InputDeclarationKind, ObjectInputField, ObjectInputNodeModel} from '../object-input-node/types';
 
 type GetFilter = 'FIELDS' | 'ALL' | 'EXTERNAL_DEFINITIONS';
+type InputKind = Exclude<FlowNodeRef['kind'], 'function'>;
 
 /** Structural subset of `MutableDecisionService` that the flow editor service uses. */
 export interface FlowEditorEngine extends CallableSource, LinkCheckService {
@@ -167,8 +169,24 @@ export function createFlowEditorService(
         return isInvocation(node) ? node : undefined;
     };
 
-    // The record at `field` when it is annotated `@node: 'InputNode'`.
+    // The input node kind of a model field: a record, or an expression whose value is a list.
+    const inputKindOf = (field: string, node: unknown): InputKind | undefined => {
+        if (!isRecord(node)) return undefined;
+        if (node['@kind'] === 'context') return 'object-input';
+        if (node['@kind'] !== 'expression') return undefined;
+        ensureLinked();
+        const type = typeText(engine.get(field));
+        return type?.endsWith('[]') ? 'list-input' : undefined;
+    };
+
+    // The record or the list at `field` when it is annotated `@node: 'InputNode'`.
     const inputAt = (field: string): Record<string, unknown> | undefined => {
+        const node = portableAtPath(engine.toPortable() as PortableNode, field);
+        return isRecord(node) && node['@node'] === 'InputNode' && inputKindOf(field, node) ? node : undefined;
+    };
+
+    // The record at `field` when it is annotated `@node: 'InputNode'`.
+    const objectInputAt = (field: string): Record<string, unknown> | undefined => {
         const node = portableAtPath(engine.toPortable() as PortableNode, field);
         return isRecord(node) && node['@kind'] === 'context' && node['@node'] === 'InputNode' ? node : undefined;
     };
@@ -178,7 +196,7 @@ export function createFlowEditorService(
         field: string,
         edit: (entries: [string, unknown][]) => [string, unknown][] | undefined,
     ): PortableError | void => {
-        const input = inputAt(field);
+        const input = objectInputAt(field);
         if (!input) return failure(`node '${field}' does not exist`);
         const entries = Object.entries(input).filter(([key]) => !key.startsWith('@'));
         const next = edit(entries);
@@ -322,8 +340,10 @@ export function createFlowEditorService(
                 if (key.startsWith('@') || !isRecord(child)) continue;
                 const field = childPath(root, key);
                 if (isInvocation(child) && child['@node'] === 'FunctionNode') nodes.push({field, kind: 'function'});
-                else if (child['@kind'] === 'context' && child['@node'] === 'InputNode')
-                    nodes.push({field, kind: 'input'});
+                else if (child['@node'] === 'InputNode') {
+                    const kind = inputKindOf(field, child);
+                    if (kind) nodes.push({field, kind});
+                }
             }
             const listed = new Set(nodes.map((node) => node.field));
             for (const field of drafts.keys()) {
@@ -602,12 +622,12 @@ export function createFlowEditorService(
             notify();
         },
 
-        getInputNode(field): InputNodeModel {
-            const input = inputAt(field);
+        getObjectInputNode(field): ObjectInputNodeModel {
+            const input = objectInputAt(field);
             if (!input) return {field, fields: []};
             ensureLinked();
             const schema = engine.get(field, 'FIELDS');
-            const fields: InputField[] = isRecord(schema)
+            const fields: ObjectInputField[] = isRecord(schema)
                 ? Object.entries(schema)
                       .filter(([name]) => !name.startsWith('@'))
                       .map(([name, type]) => ({
@@ -622,16 +642,40 @@ export function createFlowEditorService(
             return {field, label: typeof label === 'string' ? label : undefined, fields};
         },
 
+        getListInputNode(field): ListInputNodeModel {
+            const input = inputAt(field);
+            if (!input || input['@kind'] !== 'expression') return {field, type: 'any[]', itemFields: []};
+            ensureLinked();
+            const schema = engine.get(field);
+            const items = isRecord(schema) ? schema.items : undefined;
+            const itemFields = isRecord(items)
+                ? Object.entries(items)
+                      .filter(([name]) => !name.startsWith('@'))
+                      .map(([name, type]) => ({name, type: typeText(type) ?? 'object'}))
+                : [];
+            const label = input['@node-name'];
+            return {
+                field,
+                label: typeof label === 'string' ? label : undefined,
+                type: typeText(schema) ?? 'any[]',
+                itemFields,
+            };
+        },
+
         listInputCandidates() {
-            return Object.entries(contextAt(root) ?? {})
-                .filter(([key, child]) => !key.startsWith('@') && isRecord(child) && child['@kind'] === 'context')
-                .filter(([, child]) => (child as Record<string, unknown>)['@node'] === undefined)
-                .map(([key]) => childPath(root, key));
+            // Authored data only: a record, or a list literal. A computed list is not an input.
+            return Object.entries(contextAt(root) ?? {}).flatMap(([key, child]): FlowNodeRef[] => {
+                if (key.startsWith('@') || !isRecord(child) || child['@node'] !== undefined) return [];
+                const field = childPath(root, key);
+                if (child['@kind'] === 'context') return [{field, kind: 'object-input'}];
+                const literal = child['@kind'] === 'expression' && String(child.expression).trim().startsWith('[');
+                return literal && inputKindOf(field, child) === 'list-input' ? [{field, kind: 'list-input'}] : [];
+            });
         },
 
         addInputNode(field) {
             const node = portableAtPath(engine.toPortable() as PortableNode, field);
-            if (!isRecord(node) || node['@kind'] !== 'context') return failure(`'${field}' is not a record`);
+            if (!isRecord(node) || !inputKindOf(field, node)) return failure(`'${field}' is not a record or a list`);
             const result = setWithLinkCheck(
                 engine,
                 field,
@@ -676,7 +720,7 @@ export function createFlowEditorService(
 
         renameInputField(field, from, to) {
             if (from === to) return;
-            const input = inputAt(field);
+            const input = objectInputAt(field);
             if (!input) return failure(`node '${field}' does not exist`);
             if (!IDENTIFIER.test(to)) return failure(`'${to}' is not a valid field name`);
             const record = portableAtPath(engine.toPortable() as PortableNode, field);
@@ -701,7 +745,7 @@ export function createFlowEditorService(
         },
 
         setInputFieldValue(field, name, text) {
-            const input = inputAt(field);
+            const input = objectInputAt(field);
             if (!input) return failure(`node '${field}' does not exist`);
             if (!(name in input) || name.startsWith('@')) return failure(`'${name}' does not exist`);
             if (valueText(input[name]) === undefined) return failure(`'${field}.${name}' is a record`);

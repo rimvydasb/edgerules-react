@@ -1,8 +1,8 @@
 import {describe, expect, it} from 'vitest';
-import {computeInputNodeLayout, recordSummary} from '../layout';
-import type {InputNodeModel} from '../types';
+import {computeObjectInputNodeLayout, recordSummary} from '../layout';
+import type {ObjectInputNodeModel} from '../types';
 
-const applicant: InputNodeModel = {
+const applicant: ObjectInputNodeModel = {
     field: 'applicant',
     fields: [
         {name: 'age', type: 'number', value: '23', used: true},
@@ -10,14 +10,14 @@ const applicant: InputNodeModel = {
     ],
 };
 
-describe('InputNode layout', () => {
+describe('ObjectInputNode layout', () => {
     it('summarizes the record shape', () => {
         expect(recordSummary(applicant)).toBe('{ age, income }');
         expect(recordSummary({field: 'empty', fields: []})).toBe('{  }');
     });
 
     it('has a field track and a value track in whole steps', () => {
-        const layout = computeInputNodeLayout(applicant);
+        const layout = computeObjectInputNodeLayout(applicant);
         expect(layout.inputTrack).toBeGreaterThan(0);
         expect(layout.outputTrack).toBeGreaterThan(0);
         expect(layout.width).toBe(layout.inputTrack + layout.outputTrack);
@@ -26,8 +26,8 @@ describe('InputNode layout', () => {
     });
 
     it('widens the value track for a long value', () => {
-        const short = computeInputNodeLayout(applicant);
-        const long = computeInputNodeLayout({
+        const short = computeObjectInputNodeLayout(applicant);
+        const long = computeObjectInputNodeLayout({
             ...applicant,
             fields: [{name: 'age', type: 'number', value: 'applicant.income / 1000 + 42', used: false}],
         });

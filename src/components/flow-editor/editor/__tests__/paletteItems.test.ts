@@ -33,6 +33,18 @@ describe('paletteItems', () => {
         });
     });
 
+    it('offers a list literal as an existing list', () => {
+        const service = createFlowEditorService(
+            MutableDecisionService.fromCode('{ scores: [1, 2, 3]\n doubled: for s in scores return s * 2 }'),
+        );
+        const inputs = paletteItems(service).filter((item) => item.group === 'input');
+        expect(inputs.map((item) => [item.id, item.icon, item.detail])).toEqual([
+            ['new-input', 'input', 'Empty record with one field'],
+            ['input:scores', 'list-input', 'Existing list'],
+        ]);
+        expect(inputs[1].action).toEqual({kind: 'input', field: 'scores'});
+    });
+
     it('drops a record once it is an input node', () => {
         const {service} = items();
         service.addInputNode('applicant');

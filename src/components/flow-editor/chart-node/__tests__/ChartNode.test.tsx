@@ -93,7 +93,7 @@ describe('ChartNode', () => {
     it('draws again after the model changes', async () => {
         const {service} = renderChart({wire: SCHEDULE});
         await waitFor(() => expect(screen.getByTestId('chart-summary')).toHaveTextContent('36 rows'));
-        // Input values are edited through an InputNode.
+        // Input values are edited through an ObjectInputNode.
         expect(service.addInputNode('loan')).toBeUndefined();
         expect(service.setInputFieldValue('loan', 'years', '5')).toBeUndefined();
         await waitFor(() => expect(screen.getByTestId('chart-summary')).toHaveTextContent('60 rows'));

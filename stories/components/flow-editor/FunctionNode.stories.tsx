@@ -8,7 +8,7 @@ import {
     createFlowEditorService,
     FlowEditorProvider,
     FunctionNode,
-    InputNode,
+    ObjectInputNode,
     OutputNode,
     type FlowEditorService,
 } from '../../../src/components/flow-editor';
@@ -35,7 +35,7 @@ const SAMPLE_MODEL = `{
   eligibility: applicantDecision(person: applicant)
 }`;
 
-const nodeTypes = {functionNode: FunctionNode, inputNode: InputNode, outputNode: OutputNode};
+const nodeTypes = {functionNode: FunctionNode, objectInputNode: ObjectInputNode, outputNode: OutputNode};
 
 interface Built {
     service: FlowEditorService;
@@ -106,7 +106,7 @@ function Canvas({
             ? [
                   {
                       id: 'applicant',
-                      type: 'inputNode',
+                      type: 'objectInputNode',
                       position: {x: 20, y: 60},
                       data: {field: 'applicant'},
                   },
@@ -173,5 +173,5 @@ export const UnnamedReturn: Story = {args: {field: 'payment'}};
 export const RecordArgument: Story = {args: {field: 'eligibility'}};
 export const NoCallee: Story = {args: {field: null}};
 export const Wired: Story = {args: {field: 'decision', wired: true}};
-/** A draft next to the InputNode: wire the two open arguments to complete it. */
+/** A draft next to the ObjectInputNode: wire the two open arguments to complete it. */
 export const WiredDraft: Story = {args: {field: null, partial: true, wired: true}};

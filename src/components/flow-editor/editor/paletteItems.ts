@@ -24,14 +24,14 @@ export function paletteItems(service: FlowEditorService): PaletteItem[] {
             label: 'Add new input',
             action: {kind: 'new-input'},
         },
-        ...service.listInputCandidates().map((record): PaletteItem => ({
-            id: `input:${record}`,
+        ...service.listInputCandidates().map(({field, kind}): PaletteItem => ({
+            id: `input:${field}`,
             group: 'input',
-            icon: 'input',
-            title: record,
-            detail: 'Existing record',
-            label: `Add input ${record}`,
-            action: {kind: 'input', record},
+            icon: kind === 'list-input' ? 'list-input' : 'input',
+            title: field,
+            detail: kind === 'list-input' ? 'Existing list' : 'Existing record',
+            label: `Add input ${field}`,
+            action: {kind: 'input', field},
         })),
         {
             id: 'function',

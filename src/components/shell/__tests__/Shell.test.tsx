@@ -216,7 +216,7 @@ describe('Shell project explorer', () => {
         await user.click(within(explorer).getByText('Model'));
         expect(onViewChange).toHaveBeenLastCalledWith('flow');
         expect(breadcrumbItems()).toEqual(['Model']);
-        expect(await screen.findByTestId('input-node-applicant')).toBeInTheDocument();
+        expect(await screen.findByTestId('object-input-node-applicant')).toBeInTheDocument();
     });
 
     it('opens the tests of a subject in the Tests view, with no other view', async () => {
@@ -378,7 +378,7 @@ describe('Shell drill-down', () => {
     it('opens a record of the Flow view in the Boxed view at its path', async () => {
         const {session} = await openFixtureProject({model: {dsl: FLOW_MODEL}});
         const {onPathChange, onViewChange, onOpenNode} = await renderShell({defaultView: 'flow'}, session);
-        await openNodeMenu('input-node-applicant', 'Open in boxed editor');
+        await openNodeMenu('object-input-node-applicant', 'Open in boxed editor');
 
         expect(onPathChange).toHaveBeenCalledWith('applicant');
         expect(onViewChange).toHaveBeenCalledWith('boxed');
@@ -588,14 +588,14 @@ describe('Shell Flow view', () => {
         const user = userEvent.setup();
         await renderShell({defaultView: 'flow'}, session);
 
-        expect(await screen.findByTestId('input-node-applicant')).toBeInTheDocument();
-        expect(screen.queryByTestId('input-node-applicant.profile')).toBeNull();
+        expect(await screen.findByTestId('object-input-node-applicant')).toBeInTheDocument();
+        expect(screen.queryByTestId('object-input-node-applicant.profile')).toBeNull();
         expect(screen.getByText('Model output')).toBeInTheDocument();
 
         // Another root mounts another canvas with its own layout.
         await user.click(screen.getByRole('radio', {name: 'Code'}));
         await user.click(screen.getByRole('radio', {name: 'Flow'}));
-        expect(await screen.findByTestId('input-node-applicant')).toBeInTheDocument();
+        expect(await screen.findByTestId('object-input-node-applicant')).toBeInTheDocument();
     });
 
     it('stores the layout of a root path under that root', async () => {
@@ -608,7 +608,7 @@ describe('Shell Flow view', () => {
         await user.click(await screen.findByRole('button', {name: 'Show node palette'}));
 
         await user.click(screen.getByRole('button', {name: 'Add input applicant.profile'}));
-        expect(await screen.findByTestId('input-node-applicant.profile')).toBeInTheDocument();
+        expect(await screen.findByTestId('object-input-node-applicant.profile')).toBeInTheDocument();
 
         await waitFor(() =>
             expect(session.getSlice('flow').layouts.applicant?.positions).toHaveProperty(['applicant.profile']),
