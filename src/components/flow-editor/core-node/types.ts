@@ -75,6 +75,21 @@ export interface DescriptionRowProps {
     onEditingChange: (editing: boolean) => void;
 }
 
+export interface DescriptionLineProps {
+    description?: string;
+    ariaLabel: string; // label of the inline input
+    placeholder: string;
+    editing: boolean;
+    readOnly?: boolean;
+    onCommit: (text: string) => void; // trimmed; an empty text deletes the description
+    onEditingChange: (editing: boolean) => void;
+}
+
+/** Canvas actions of the FlowEditor that a canvas-only node cannot do through xyflow alone. */
+export interface CanvasActions {
+    duplicateOutput: (id: string) => void; // a copy of the output node with its wire, below it
+}
+
 export interface NodeMenuButtonProps {
     items: RowMenuItem[];
     ariaLabel: string;
@@ -128,7 +143,6 @@ export interface CoreNodeMenuContext {
 }
 
 export interface CoreNodeMenuSlots {
-    afterRename?: RowMenuItem[]; // "This node" items between Rename field and Duplicate
     middle?: RowMenuItem[]; // a node-kind group between "This node" and "Remove"
     middleGroup?: ReactNode; // label of the middle group
 }

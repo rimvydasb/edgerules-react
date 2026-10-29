@@ -33,12 +33,14 @@ import {
 import {isPortableError} from '#lib/portable';
 import {CHART_SIZE, ChartNode} from '../chart-node/ChartNode';
 import type {ChartNodeData} from '../chart-node/types';
+import {CanvasActionsProvider} from '../core-node';
 import {FlowEditorProvider, useFlowEditor} from '../FlowEditorProvider';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import {FunctionNode} from '../function-node/FunctionNode';
 import {ListInputNode} from '../list-input-node/ListInputNode';
 import {ObjectInputNode} from '../object-input-node/ObjectInputNode';
 import {OutputNode, sourcePath} from '../output-node/OutputNode';
+import type {OutputNodeData} from '../output-node/types';
 import {autoLayout, findFreeSpot, modelWires, outputWires, type LayoutKind, type Wire} from './graph';
 import {ICON_COLOR, NodePalette} from './NodePalette';
 import {DRAG_TYPE, paletteItems} from './paletteItems';
@@ -172,7 +174,7 @@ function toEdge(wire: Wire, selected: ReadonlySet<string>): Edge {
 }
 
 function sameData(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
-    return a.field === b.field && a.label === b.label && a.config === b.config;
+    return a.field === b.field && a.label === b.label && a.description === b.description && a.config === b.config;
 }
 
 /** 'output', then 'output2', 'output3'…: the first id with `prefix` that is not taken. */
@@ -202,6 +204,19 @@ function syncCharts(charts: FlowChart[], changes: NodeChange[]): FlowChart[] {
             const {width, height} = change.dimensions;
             patch(change.id, {size: {width: Math.round(width), height: Math.round(height)}});
         }
+    }
+    return next;
+}
+
+/** Keeps the output entries of the layout in step with their nodes: an OutputNode writes its title and description. */
+function syncOutputs(outputs: FlowOutput[], changes: NodeChange[]): FlowOutput[] {
+    let next = outputs;
+    for (const change of changes) {
+        if (change.type !== 'replace' || change.item.type !== 'outputNode') continue;
+        const {label, description} = change.item.data as OutputNodeData;
+        const output = next.find((candidate) => candidate.id === change.id);
+        if (!output || (output.label === label && output.description === description)) continue;
+        next = next.map((candidate) => (candidate.id === change.id ? {...candidate, label, description} : candidate));
     }
     return next;
 }
@@ -279,7 +294,11 @@ function FlowCanvas({
             size?: {width: number; height: number};
         }[] = [
             ...refs.map((ref: FlowNodeRef) => ({id: ref.field, kind: ref.kind, data: {field: ref.field}})),
-            ...outputs.map((output) => ({id: output.id, kind: 'output' as const, data: {label: output.label}})),
+            ...outputs.map((output) => ({
+                id: output.id,
+                kind: 'output' as const,
+                data: {label: output.label, description: output.description} satisfies OutputNodeData,
+            })),
             ...charts.map((chart) => ({
                 id: chart.id,
                 kind: 'chart' as const,
@@ -528,9 +547,7 @@ function FlowCanvas({
                 setOutputs((current) =>
                     current
                         .filter((output) => !removedOutputs.has(output.id))
-                        .map((output) =>
-                            unwiredOutputs.has(output.id) ? {id: output.id, label: output.label} : output,
-                        ),
+                        .map((output) => (unwiredOutputs.has(output.id) ? {...output, source: undefined} : output)),
                 );
             }
             if (removedCharts.size > 0 || unwiredCharts.size > 0) {
@@ -548,8 +565,31 @@ function FlowCanvas({
 
     const onNodesChange = useCallback((changes: NodeChange[]) => {
         setNodes((current) => applyNodeChanges(changes, current));
+        setOutputs((current) => syncOutputs(current, changes));
         setCharts((current) => syncCharts(current, changes));
     }, []);
+
+    // A copy of an output goes under it, wired to the same pin, and becomes the selected node.
+    const canvasActions = useMemo(
+        () => ({
+            duplicateOutput(id: string) {
+                const original = outputs.find((output) => output.id === id);
+                const node = nodesRef.current.find((candidate) => candidate.id === id);
+                if (!original || !node) return;
+                const taken = new Set([
+                    ...outputs.map((output) => output.id),
+                    ...charts.map((chart) => chart.id),
+                    ...nodeIds,
+                ]);
+                const copy = {...original, id: nextCanvasId('output', taken)};
+                const height = sizeOf(node, service).height;
+                pending.current.set(copy.id, {x: node.position.x, y: node.position.y + height + 2 * ROW});
+                select.current = copy.id;
+                setOutputs([...outputs, copy]);
+            },
+        }),
+        [outputs, charts, nodeIds, service],
+    );
 
     const arrange = useCallback(
         (animate: boolean) => {
@@ -602,67 +642,78 @@ function FlowCanvas({
                 />
             )}
             <div className={styles.canvas} ref={wrapper} onDrop={onDrop} onDragOver={onDragOver}>
-                <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    nodeTypes={NODE_TYPES}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={(changes) =>
-                        setSelectedEdges((current) => {
-                            const next = new Set(current);
-                            for (const change of changes) {
-                                if (change.type !== 'select') continue;
-                                if (change.selected) next.add(change.id);
-                                else next.delete(change.id);
-                            }
-                            return next;
-                        })
-                    }
-                    onConnect={onConnect}
-                    isValidConnection={isValidConnection}
-                    onBeforeDelete={onBeforeDelete}
-                    nodesConnectable={!readOnly}
-                    deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
-                    colorMode={colorScheme}
-                    snapToGrid
-                    snapGrid={[20, 20]}
-                    minZoom={0.2}
-                    maxZoom={2}
-                    fitView={fitOnInit}
-                    fitViewOptions={FIT_VIEW}
-                    proOptions={{hideAttribution: true}}
-                >
-                    <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} className={styles.background} />
-                    <Controls position="bottom-left" showInteractive={false} className={styles.controls}>
-                        <ControlButton onClick={() => arrange(true)} title="Arrange nodes" aria-label="Arrange nodes">
-                            <IconLayoutDistributeHorizontal size={14} />
-                        </ControlButton>
-                    </Controls>
-                    {nodes.length > 0 && (
-                        <MiniMap
-                            position="bottom-right"
-                            pannable
-                            zoomable
-                            ariaLabel="Flow overview"
-                            className={styles.minimap}
-                            nodeColor={(node) => MINIMAP_COLOR[KIND_OF[node.type ?? ''] ?? 'function']}
-                            nodeBorderRadius={2}
+                <CanvasActionsProvider value={canvasActions}>
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        nodeTypes={NODE_TYPES}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={(changes) =>
+                            setSelectedEdges((current) => {
+                                const next = new Set(current);
+                                for (const change of changes) {
+                                    if (change.type !== 'select') continue;
+                                    if (change.selected) next.add(change.id);
+                                    else next.delete(change.id);
+                                }
+                                return next;
+                            })
+                        }
+                        onConnect={onConnect}
+                        isValidConnection={isValidConnection}
+                        onBeforeDelete={onBeforeDelete}
+                        nodesConnectable={!readOnly}
+                        deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
+                        colorMode={colorScheme}
+                        snapToGrid
+                        snapGrid={[20, 20]}
+                        minZoom={0.2}
+                        maxZoom={2}
+                        fitView={fitOnInit}
+                        fitViewOptions={FIT_VIEW}
+                        proOptions={{hideAttribution: true}}
+                    >
+                        <Background
+                            variant={BackgroundVariant.Dots}
+                            gap={20}
+                            size={1.2}
+                            className={styles.background}
                         />
-                    )}
-                    {nodes.length === 0 && (
-                        <Panel position="top-center" className={styles.emptyPanel}>
-                            <div className={styles.empty} data-testid="flow-editor-empty">
-                                <IconRoute size={28} stroke={1.5} className={styles.emptyIcon} />
-                                <strong>This flow has no nodes yet</strong>
-                                <span>
-                                    {readOnly
-                                        ? 'Nodes appear here when the model has fields annotated for the flow.'
-                                        : 'Drag a node from the palette onto the canvas, or click it to add it here.'}
-                                </span>
-                            </div>
-                        </Panel>
-                    )}
-                </ReactFlow>
+                        <Controls position="bottom-left" showInteractive={false} className={styles.controls}>
+                            <ControlButton
+                                onClick={() => arrange(true)}
+                                title="Arrange nodes"
+                                aria-label="Arrange nodes"
+                            >
+                                <IconLayoutDistributeHorizontal size={14} />
+                            </ControlButton>
+                        </Controls>
+                        {nodes.length > 0 && (
+                            <MiniMap
+                                position="bottom-right"
+                                pannable
+                                zoomable
+                                ariaLabel="Flow overview"
+                                className={styles.minimap}
+                                nodeColor={(node) => MINIMAP_COLOR[KIND_OF[node.type ?? ''] ?? 'function']}
+                                nodeBorderRadius={2}
+                            />
+                        )}
+                        {nodes.length === 0 && (
+                            <Panel position="top-center" className={styles.emptyPanel}>
+                                <div className={styles.empty} data-testid="flow-editor-empty">
+                                    <IconRoute size={28} stroke={1.5} className={styles.emptyIcon} />
+                                    <strong>This flow has no nodes yet</strong>
+                                    <span>
+                                        {readOnly
+                                            ? 'Nodes appear here when the model has fields annotated for the flow.'
+                                            : 'Drag a node from the palette onto the canvas, or click it to add it here.'}
+                                    </span>
+                                </div>
+                            </Panel>
+                        )}
+                    </ReactFlow>
+                </CanvasActionsProvider>
             </div>
         </div>
     );

@@ -1,4 +1,4 @@
-import {useCallback, useMemo, useState, type ReactElement} from 'react';
+import {useCallback, useEffect, useMemo, useState, type ReactElement} from 'react';
 import {BoxedEditor, type BoxedEditorOpenTarget, type BoxedEditorService} from '../../boxed-editor';
 import type {CodeEditorService} from '../../code-editor';
 import {
@@ -9,7 +9,7 @@ import {
     type FlowLayout,
     type FlowSelection,
 } from '../../flow-editor';
-import {SinkSheet} from '../../flow-editor/internal';
+import {SinkSheet, useReducedOutput} from '../../flow-editor/internal';
 import {useProjectSession, useProjectSlice} from '../../project-session';
 import * as classes from '../shell.module.css';
 
@@ -22,13 +22,15 @@ export interface FlowViewProps {
     onOpenNode: (target: FlowEditorOpenTarget | BoxedEditorOpenTarget) => void;
     focusNode?: FlowFocusRequest; // the node a Project Explorer click centers
     split?: boolean; // shows the selected node right of the canvas
+    onSplitOpen?: () => void; // a selected Output node shows only a part of its value: open the split screen
 }
 
 /**
  * The Flow Component nodes that are direct fields of the root path context, on the canvas of that root. With the split
  * screen on, the selected node shows on the right in a Boxed Editor: a function node as the body of its callee, an
- * input node at its field path. An Output or a Chart node shows the full data wired into it. A click on the empty
- * canvas clears the selection and closes the panel.
+ * input node at its field path. An Output or a Chart node shows the full data wired into it. Selecting an Output node
+ * that shows only a part of its value opens the split screen. A click on the empty canvas clears the selection and
+ * closes the panel.
  */
 export function FlowView({
     root,
@@ -39,6 +41,7 @@ export function FlowView({
     onOpenNode,
     focusNode,
     split,
+    onSplitOpen,
 }: FlowViewProps): ReactElement {
     const session = useProjectSession();
     const {version} = useProjectSlice('model');
@@ -54,6 +57,13 @@ export function FlowView({
         // `version` re-reads the callee after a model change.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [service, selection, version]);
+    const output = selection?.kind === 'output' ? selection : undefined;
+    const reduced = useReducedOutput(service, output?.source);
+    useEffect(() => {
+        if (output && reduced) onSplitOpen?.();
+        // Once per selected output: the user may close the split screen again while the node stays selected.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [output?.id, reduced]);
     // The canvas keeps its place in the tree when the split screen opens or closes, so it is never mounted again.
     return (
         <div className={classes.split}>

@@ -31,7 +31,6 @@ export function coreNodeMenuItems(context: CoreNodeMenuContext, slots: CoreNodeM
         const thisNode: RowMenuItem[] = [
             {id: 'rename-node', label: 'Rename node', icon: IconTag, onSelect: context.onRenameNode},
             {id: 'rename-field', label: 'Rename field', icon: IconPencil, onSelect: context.onRenameField},
-            ...(slots.afterRename ?? []),
             {id: 'duplicate', label: 'Duplicate', icon: IconCopy, onSelect: context.onDuplicate},
         ];
         if (context.canDescribe) {

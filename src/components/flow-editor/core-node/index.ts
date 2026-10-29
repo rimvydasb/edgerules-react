@@ -1,5 +1,6 @@
 // Building blocks shared by every node kind of the Flow Editor. Internal: not part of the npm public API.
-export {DescriptionRow} from './DescriptionRow';
+export {CanvasActionsProvider, useCanvasActions} from './canvasActions';
+export {DescriptionLine, DescriptionRow} from './DescriptionRow';
 export {EditableName} from './EditableName';
 export {InlineInput} from './InlineInput';
 export {NodeFrame, NodeSummary} from './NodeFrame';

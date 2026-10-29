@@ -38,6 +38,7 @@ const SAMPLE_MODEL = `{
 
 // One function whose result has a field of every value shape that an OutputNode draws.
 const KINDS_MODEL = `{
+  type Offer: { tier: <string>; rate: <number>; approved: <boolean> }
   func showcase(seed: number): {
     amount: seed * 1250.5
     label: "approved"
@@ -53,6 +54,7 @@ const KINDS_MODEL = `{
       { tier: "near-prime"; rate: 0.07; approved: false }
     ]
     schedule: amortizationSchedule(12000, 0.05 / 12, 12)
+    noOffers: <Offer[], []>
   }
   samples: showcase(seed: 2)
 }`;
@@ -76,6 +78,7 @@ const KIND_COLUMNS: [string, string][][] = [
     [
         ['offers', 'List of records'],
         ['schedule', 'Amortization schedule'],
+        ['noOffers', 'Empty list of records'],
     ],
 ];
 
@@ -112,7 +115,7 @@ function Canvas({
 
 // The kinds story's canvas: the function on the left, its outputs in columns on the right.
 const KIND_OUTPUTS = KIND_COLUMNS.flatMap((column, x) =>
-    column.map(([field, label], y) => ({field, label, position: {x: 1000 + x * 480, y: y * (x === 0 ? 120 : 400)}})),
+    column.map(([field, label], y) => ({field, label, position: {x: 1100 + x * 480, y: y * (x === 0 ? 120 : 640)}})),
 );
 const KIND_NODES: Node[] = [
     {id: 'samples', type: 'functionNode', position: {x: 0, y: 0}, data: {field: 'samples'}},
@@ -204,7 +207,8 @@ export const MissingPath: Story = {args: {source: 'decision', handle: 'out:missi
 
 /**
  * Every value shape side by side: a single value shows in the value row; a list, a list of records and a record show
- * as a table under it. The wheel scrolls a long table, not the canvas.
+ * as a table under it. A table shows at most 10 rows and 5 value columns and ends with a `…` row or column; an empty
+ * list of records shows the columns of its type and an Empty row.
  */
 export const Kinds: Story = {
     render: () => <KindsCanvas />,
@@ -221,5 +225,10 @@ export const Kinds: Story = {
         await expectShape('offers', 'table');
         await expectShape('schedule', 'table');
         await expect(canvas.getByText('12 rows × 5 columns')).toBeVisible();
+        await expect(
+            within(canvas.getByTestId('output-node-output-schedule')).getByTestId('output-more-rows'),
+        ).toBeVisible();
+        await expectShape('noOffers', 'table');
+        await expect(within(canvas.getByTestId('output-node-output-noOffers')).getByText('Empty')).toBeVisible();
     },
 };

@@ -230,7 +230,6 @@ The node menu and the argument menu use `RowActionsMenu`. Disabled items show th
 | -------- | ------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Node     | This node          | Rename node                   | `setNodeName`                                                                                                  |
 | Node     | This node          | Rename field                  | `renameField`                                                                                                  |
-| Node     | This node          | Change callee…                | opens `CalleePicker`, then `setCallee`                                                                         |
 | Node     | This node          | Duplicate                     | `duplicate`                                                                                                    |
 | Node     | This node          | Add description               | shows the description row in edit mode; no description exists                                                  |
 | Node     | This node          | Remove description            | `documentation.setDescription(field, '')`; a description exists                                                |
@@ -705,6 +704,7 @@ interface FlowLayout {
 interface FlowOutput {
     id: string; // 'output', 'output2'
     label?: string;
+    description?: string; // note under the title, from the node menu
     source?: {node: string; handle: string}; // the result pin wired into the output
 }
 

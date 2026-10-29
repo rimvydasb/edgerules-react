@@ -807,4 +807,47 @@ describe('Shell split screen', () => {
         expect(await within(sheet).findByText('score')).toBeInTheDocument();
         expect(within(sheet).getByText('50')).toBeInTheDocument();
     });
+
+    it('opens for an output node that shows only a part of its value', async () => {
+        const {session} = await openFixtureProject({
+            model: {
+                dsl: `{
+    func counting(count: number): for i in 1..count return i
+    @Workbook
+    countBook: {
+        @FunctionNode
+        many: counting(count: 12)
+        @FunctionNode
+        few: counting(count: 3)
+    }
+}`,
+            },
+            flow: {
+                schemaVersion: 2,
+                layouts: {
+                    countBook: {
+                        positions: {},
+                        outputs: [
+                            {id: 'output', source: {node: 'countBook.few', handle: 'out:result'}},
+                            {id: 'output2', source: {node: 'countBook.many', handle: 'out:result'}},
+                        ],
+                    },
+                },
+            },
+        });
+        await renderShell({defaultPath: 'countBook', defaultView: 'flow'}, session);
+        const toggle = await screen.findByRole('button', {name: 'Split screen'});
+
+        // Three items fit in the node: the split screen stays off.
+        await waitFor(() => expect(screen.getByTestId('output-node-output')).toHaveAttribute('data-shape', 'list'));
+        fireEvent.click(nodeOf('output-node-output'));
+        await waitFor(() => expect(nodeOf('output-node-output')).toHaveClass('selected'));
+        expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+        // Twelve items do not: the split screen opens with the full list.
+        fireEvent.click(nodeOf('output-node-output2'));
+        await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'));
+        const sheet = await screen.findByTestId('sink-sheet');
+        expect(await within(sheet).findByText('[12]')).toBeInTheDocument();
+    });
 });

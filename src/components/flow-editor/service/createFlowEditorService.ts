@@ -129,6 +129,20 @@ export function createFlowEditorService(
         for (const listener of [...listeners]) listener();
     };
 
+    // The type of a list path from the linked model, and the field names of its items when they are records.
+    const declaredListType = (path: string): {type: string; columns?: string[]} => {
+        let schema: unknown;
+        try {
+            schema = engine.get(path);
+        } catch {
+            return {type: 'any[]'};
+        }
+        if (!isRecord(schema) || schema['@kind'] === 'error') return {type: 'any[]'};
+        const items = schema.items;
+        const columns = isRecord(items) ? Object.keys(items).filter((name) => !name.startsWith('@')) : [];
+        return {type: typeText(schema) ?? 'any[]', ...(columns.length > 0 && {columns})};
+    };
+
     // Schemas exist only for a linked model; a model that fails to link has no callees to offer.
     const ensureLinked = () => {
         try {
@@ -783,6 +797,8 @@ export function createFlowEditorService(
                     value = isRecord(value) ? value[key] : undefined;
                 }
                 if (value === undefined) return {error: `no ${source}`};
+                // An empty list has no item to show its fields: the declared type of the path names them.
+                if (Array.isArray(value) && value.length === 0) return {value, ...declaredListType(source)};
                 return {value, type: valueType(value)};
             }
             return {error: firstError ?? `no ${source}`};

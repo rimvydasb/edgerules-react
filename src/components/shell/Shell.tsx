@@ -227,6 +227,7 @@ export function Shell({
                                 onOpenNode={openNode}
                                 focusNode={focus}
                                 split={split}
+                                onSplitOpen={() => setSplit(true)}
                             />
                         )}
                         {view === 'tests' && (

@@ -45,16 +45,14 @@ describe('coreNodeMenuItems', () => {
         expect(items).not.toContain('remove-description');
     });
 
-    it('puts node-kind items after Rename field and a labelled group before Remove', () => {
+    it('puts a labelled node-kind group before Remove', () => {
         const items = coreNodeMenuItems(context(), {
-            afterRename: [extra('change-callee')],
             middle: [extra('open-editor'), extra('view-code')],
             middleGroup: 'Record',
         });
         expect(ids(items)).toEqual([
             'rename-node',
             'rename-field',
-            'change-callee',
             'duplicate',
             'add-description',
             'open-editor',

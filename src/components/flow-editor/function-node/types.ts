@@ -58,7 +58,7 @@ export interface CalleePickerProps {
     callees: CalleeRef[];
     selected?: CalleeRef;
     disabled?: boolean;
-    opened: boolean; // controlled: the node menu opens it through Change callee…
+    opened: boolean; // controlled
     onOpenedChange: (opened: boolean) => void;
     onSelect: (method: string) => void;
 }
@@ -72,7 +72,6 @@ export interface KindIconProps {
 export interface FunctionNodeMenuContext extends CoreNodeMenuContext {
     model: FunctionNodeModel;
     onOpenNode?: (target: FlowEditorOpenTarget) => void;
-    onChangeCallee: () => void;
     onAddArgument: () => void;
 }
 

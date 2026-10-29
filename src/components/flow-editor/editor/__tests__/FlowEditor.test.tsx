@@ -129,6 +129,89 @@ describe('FlowEditor', () => {
         expect(applicant.style.transform).toBe('translate(40px,80px)');
     });
 
+    describe('output node menu', () => {
+        const RISK = {id: 'output', label: 'Risk', source: {node: 'decision', handle: 'out:level'}};
+        // xyflow hides a node it has not measured, and jsdom measures nothing; the menu opens inside the node.
+        const openMenu = async () => {
+            fireEvent.click(await screen.findByLabelText('Output actions'));
+            return screen.findByRole('menu', {hidden: true});
+        };
+        // A hidden element has no accessible name: find the item by its text.
+        const item = (name: string) =>
+            within(screen.getByRole('menu', {hidden: true}))
+                .getByText(name)
+                .closest('[role="menuitem"]')!;
+        const lastOutputs = (onLayoutChange: ReturnType<typeof vi.fn>) =>
+            (onLayoutChange.mock.lastCall?.[0] as FlowLayout | undefined)?.outputs;
+
+        it('offers Rename node, Duplicate, Add description and Delete', async () => {
+            renderEditor({seeded: true, defaultLayout: {positions: {}, outputs: [RISK]}});
+            const menu = await openMenu();
+            expect(
+                within(menu)
+                    .getAllByRole('menuitem', {hidden: true})
+                    .map((menuItem) => menuItem.textContent),
+            ).toEqual(['Rename node', 'Duplicate', 'Add description', 'Delete']);
+        });
+
+        it('renames the node in the layout', async () => {
+            const onLayoutChange = vi.fn();
+            renderEditor({seeded: true, onLayoutChange, defaultLayout: {positions: {}, outputs: [RISK]}});
+            await openMenu();
+            fireEvent.click(item('Rename node'));
+            const input = await screen.findByLabelText('Name of output output');
+            fireEvent.change(input, {target: {value: 'Risk level'}});
+            fireEvent.keyDown(input, {key: 'Enter'});
+            expect(await screen.findByTestId('output-node-output')).toHaveTextContent('Risk level');
+            await waitFor(() => expect(lastOutputs(onLayoutChange)).toEqual([{...RISK, label: 'Risk level'}]));
+        });
+
+        it('adds and removes a description in the layout', async () => {
+            const onLayoutChange = vi.fn();
+            renderEditor({seeded: true, onLayoutChange, defaultLayout: {positions: {}, outputs: [RISK]}});
+            await openMenu();
+            fireEvent.click(item('Add description'));
+            const input = await screen.findByLabelText('Description of output output');
+            fireEvent.change(input, {target: {value: 'The band of the applicant'}});
+            fireEvent.keyDown(input, {key: 'Enter'});
+            expect(await screen.findByText('The band of the applicant')).toBeInTheDocument();
+            await waitFor(() =>
+                expect(lastOutputs(onLayoutChange)).toEqual([{...RISK, description: 'The band of the applicant'}]),
+            );
+
+            await openMenu();
+            fireEvent.click(item('Remove description'));
+            await waitFor(() => expect(screen.queryByText('The band of the applicant')).toBeNull());
+            await waitFor(() => expect(lastOutputs(onLayoutChange)).toEqual([RISK]));
+        });
+
+        it('duplicates the node with its wire', async () => {
+            const onLayoutChange = vi.fn();
+            renderEditor({seeded: true, onLayoutChange, defaultLayout: {positions: {}, outputs: [RISK]}});
+            await openMenu();
+            fireEvent.click(item('Duplicate'));
+            const copy = await screen.findByTestId('output-node-output2');
+            expect(copy).toHaveTextContent('Risk');
+            await waitFor(() => expect(copy).toHaveTextContent("'high'"));
+            await waitFor(() => expect(lastOutputs(onLayoutChange)).toEqual([RISK, {...RISK, id: 'output2'}]));
+        });
+
+        it('deletes the node from the canvas', async () => {
+            const onLayoutChange = vi.fn();
+            renderEditor({seeded: true, onLayoutChange, defaultLayout: {positions: {}, outputs: [RISK]}});
+            await openMenu();
+            fireEvent.click(item('Delete'));
+            await waitFor(() => expect(screen.queryByTestId('output-node-output')).toBeNull());
+            await waitFor(() => expect(lastOutputs(onLayoutChange)).toEqual([]));
+        });
+
+        it('has no menu in read-only mode', async () => {
+            renderEditor({seeded: true, readOnly: true, defaultLayout: {positions: {}, outputs: [RISK]}});
+            await screen.findByTestId('output-node-output');
+            expect(screen.queryByLabelText('Output actions')).toBeNull();
+        });
+    });
+
     it('hides the palette in read-only mode', () => {
         renderEditor({readOnly: true});
         expect(screen.queryByRole('navigation', {name: 'Node palette'})).toBeNull();

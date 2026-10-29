@@ -11,6 +11,7 @@ export interface FlowLayout {
 export interface FlowOutput {
     id: string; // node id, for example 'output' or 'output2'
     label?: string; // title; falls back to 'Output'
+    description?: string; // note under the title; absent hides it
     source?: {node: string; handle: string}; // the result pin wired into the output
 }
 

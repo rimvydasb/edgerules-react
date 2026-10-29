@@ -1,10 +1,10 @@
 import type {ReactElement} from 'react';
 import {useDescription} from '../../documentation-service';
 import {InlineInput} from './InlineInput';
-import type {DescriptionRowProps} from './types';
+import type {DescriptionLineProps, DescriptionRowProps} from './types';
 import styles from './coreNode.module.css';
 
-/** The node description under the header. Full node width; it never changes the node width. */
+/** The node description under the header, from the documentation service. */
 export function DescriptionRow({
     documentation,
     field,
@@ -13,16 +13,38 @@ export function DescriptionRow({
     onEditingChange,
 }: DescriptionRowProps): ReactElement | null {
     const description = useDescription(documentation, field);
+    return (
+        <DescriptionLine
+            description={description}
+            ariaLabel={`Description of ${field}`}
+            placeholder="Describe what this node decides"
+            editing={editing}
+            readOnly={readOnly}
+            onCommit={(text) => documentation.setDescription(field, text)}
+            onEditingChange={onEditingChange}
+        />
+    );
+}
+
+/** A description row: full node width; it never changes the node width. An empty commit deletes the description. */
+export function DescriptionLine({
+    description,
+    ariaLabel,
+    placeholder,
+    editing,
+    readOnly,
+    onCommit,
+    onEditingChange,
+}: DescriptionLineProps): ReactElement | null {
     if (editing) {
         return (
             <div className={`${styles.row} ${styles.descRow} ${styles.descEditing}`}>
                 <InlineInput
                     value={description ?? ''}
-                    ariaLabel={`Description of ${field}`}
-                    placeholder="Describe what this node decides"
+                    ariaLabel={ariaLabel}
+                    placeholder={placeholder}
                     onCommit={(text) => {
-                        // An empty text deletes the description.
-                        documentation.setDescription(field, text.trim());
+                        onCommit(text.trim());
                         onEditingChange(false);
                     }}
                     onCancel={() => onEditingChange(false)}

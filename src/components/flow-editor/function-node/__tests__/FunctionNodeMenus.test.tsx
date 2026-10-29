@@ -89,7 +89,6 @@ describe('node menu', () => {
         expect(labels).toEqual([
             'Rename node',
             'Rename field',
-            'Change callee…',
             'Duplicate',
             'Add description',
             'Add argument',
@@ -154,11 +153,10 @@ describe('node menu', () => {
         expect(input).toHaveAttribute('aria-invalid', 'true');
     });
 
-    it('Change callee opens the picker', async () => {
+    it('has no Change callee item: the callee picker changes the callee', async () => {
         renderNode('decision');
         await open();
-        fireEvent.click(screen.getByRole('menuitem', {name: 'Change callee…'}));
-        expect(await screen.findByLabelText('Search functions and rulesets')).toBeInTheDocument();
+        expect(screen.queryByRole('menuitem', {name: 'Change callee…'})).toBeNull();
     });
 
     it('adds and removes a description', async () => {

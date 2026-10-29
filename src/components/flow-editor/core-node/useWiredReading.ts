@@ -37,16 +37,15 @@ export function useWiredReading(handleId: string): {source?: string; reading?: W
 
 /**
  * What the engine computes for the model path `source`; it reads again after every committed change of the service.
- * Undefined while `source` is undefined and until the first read settles.
+ * Undefined while `source` is undefined and until the first read of `source` settles.
  */
 export function useModelReading(service: FlowEditorService, source: string | undefined): WiredReading | undefined {
     const [reading, setReading] = useState<WiredReading | undefined>();
 
     useEffect(() => {
-        if (!source) {
-            setReading(undefined);
-            return;
-        }
+        // The reading of another path never shows for this one.
+        setReading(undefined);
+        if (!source) return;
         let current = true;
         const refresh = () => {
             void service.readOutput(source).then((next) => {

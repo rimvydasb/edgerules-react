@@ -68,7 +68,6 @@ export function FunctionNode({id, data, selected}: NodeProps<FunctionNodeType>):
         ...menu,
         model,
         onOpenNode,
-        onChangeCallee: () => setPickerOpened(true),
         onAddArgument: () => addArgument(),
     });
 

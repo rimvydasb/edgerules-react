@@ -1,8 +1,9 @@
 /**
  * How an OutputNode draws an engine value:
- * - `scalar`: one line of text, for a number, a string, a boolean, null, an empty list or an empty record;
- * - `list`: a list of other values, one row per item;
- * - `table`: a list of records, one row per record and one column per field name;
+ * - `scalar`: one line of text, for a number, a string, a boolean, null or an empty record;
+ * - `list`: a list of other values, one row per item; an empty list without declared item fields has no rows;
+ * - `table`: a list of records, one row per record and one column per field name; an empty list of records has the
+ *   columns of its declared type and no rows;
  * - `record`: a record, one row per field with the field name and its value.
  */
 export type OutputShape =
@@ -17,6 +18,10 @@ export type CellKind = 'number' | 'string' | 'boolean' | 'empty' | 'nested';
 // A list of scalars this short shows its items inside a cell; a longer one shows its length.
 const INLINE_ITEMS = 5;
 
+/** The node shows at most this many rows and columns; the full value shows beside the canvas. */
+export const ROW_LIMIT = 10;
+export const COLUMN_LIMIT = 5;
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -26,9 +31,10 @@ export function formatValue(value: unknown): string {
     return typeof value === 'string' ? `'${value}'` : (JSON.stringify(value) ?? String(value));
 }
 
-export function outputShape(value: unknown): OutputShape {
+/** `columns`: the item fields of an empty list, from its declared type. */
+export function outputShape(value: unknown, columns?: string[]): OutputShape {
     if (Array.isArray(value)) {
-        if (value.length === 0) return {kind: 'scalar', text: '[]'};
+        if (value.length === 0) return columns?.length ? {kind: 'table', columns, rows: []} : {kind: 'list', items: []};
         if (value.every(isRecord)) {
             const columns: string[] = [];
             const seen = new Set<string>();
@@ -62,6 +68,20 @@ export function shapeSummary(shape: OutputShape): string {
             return `${plural(shape.rows.length, 'row')} × ${plural(shape.columns.length, 'column')}`;
         case 'record':
             return plural(shape.entries.length, 'field');
+    }
+}
+
+/** True when the node shows only a part of a list, table or record. */
+export function isReduced(shape: OutputShape): boolean {
+    switch (shape.kind) {
+        case 'scalar':
+            return false;
+        case 'list':
+            return shape.items.length > ROW_LIMIT;
+        case 'table':
+            return shape.rows.length > ROW_LIMIT || shape.columns.length > COLUMN_LIMIT;
+        case 'record':
+            return shape.entries.length > ROW_LIMIT;
     }
 }
 

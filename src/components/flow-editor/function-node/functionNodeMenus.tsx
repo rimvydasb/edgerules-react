@@ -1,4 +1,4 @@
-import {IconArrowsExchange, IconCode, IconExternalLink, IconFlask, IconPlus} from '@tabler/icons-react';
+import {IconCode, IconExternalLink, IconFlask, IconPlus} from '@tabler/icons-react';
 import type {ReactNode} from 'react';
 import type {RowMenuItem} from '#ui/RowActionsMenu';
 import {coreNodeMenuItems, rowMenuItems} from '../core-node';
@@ -8,7 +8,7 @@ function callers(count: number): string {
     return `${count} ${count === 1 ? 'caller' : 'callers'}`;
 }
 
-/** The node menu of the Menus table: the core groups plus Change callee… and the callee group. */
+/** The node menu of the Menus table: the core groups plus the callee group. The callee picker changes the callee. */
 export function functionNodeMenuItems(context: FunctionNodeMenuContext): RowMenuItem[] {
     const {model, readOnly, onOpenNode} = context;
     const {callee} = model;
@@ -48,9 +48,6 @@ export function functionNodeMenuItems(context: FunctionNodeMenuContext): RowMenu
     }
 
     return coreNodeMenuItems(context, {
-        afterRename: [
-            {id: 'change-callee', label: 'Change callee…', icon: IconArrowsExchange, onSelect: context.onChangeCallee},
-        ],
         middle: calleeItems,
         middleGroup: callee && (
             <>
