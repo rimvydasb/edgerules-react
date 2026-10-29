@@ -22,6 +22,11 @@ import {
     type Client,
 } from '..';
 
+interface Offer {
+    allowed: boolean;
+    value: number;
+}
+
 interface PlanRow {
     clientId: string;
     name: string;
@@ -44,9 +49,8 @@ interface Task {
 }
 
 interface Outreach {
-    records: {data: Client; tier: string; segment: string}[];
-    segments: Record<string, {clients: number}>;
-    mix: Record<string, number | string> & {status: string; objective: number};
+    records: {data: Client; tier: string; call: Offer; email: Offer; sms: Offer}[];
+    mix: {status: string; objective: number; call: number[]; email: number[]; sms: number[]};
     plan: PlanRow[];
     schedule: Task[];
     byChannel: {channel: string; clients: number; minutes: number; expectedValue: number}[];
@@ -80,14 +84,6 @@ function engine() {
 
 async function plan(clients: Client[] = CLIENTS, team = TEAM): Promise<Outreach> {
     return (await engine().execute('contactPlan', {clients, team})) as Outreach;
-}
-
-// The solver's count of a channel in a segment: `premiumFullCalls` for `premium-full` and `call`.
-function solverCount(mix: Outreach['mix'], segment: string, channel: string): number {
-    const [tier, reach] = segment.split('-') as [string, string];
-    const suffix = {call: 'Calls', email: 'Emails', sms: 'Sms'}[channel]!;
-    const name = `${tier}${reach[0]!.toUpperCase()}${reach.slice(1)}${suffix}`;
-    return (mix[name] as number | undefined) ?? 0;
 }
 
 describe('client outreach model', () => {
@@ -144,23 +140,23 @@ describe('client outreach model', () => {
             const {summary, byChannel, byTier} = await plan();
             expect(summary).toEqual({
                 status: 'optimal',
-                contacted: 53,
-                notContacted: 47,
+                contacted: 54,
+                notContacted: 46,
                 minutesUsed: 840,
                 minutesAvailable: 840,
-                expectedRevenue: 8516.05,
-                plannedRevenue: 8494.77,
+                expectedRevenue: 9873.66,
+                plannedRevenue: 9873.66,
             });
             expect(byChannel.map(({channel, clients, minutes}) => [channel, clients, minutes])).toEqual([
-                ['call', 19, 570],
-                ['email', 10, 150],
-                ['sms', 24, 120],
+                ['call', 16, 480],
+                ['email', 17, 255],
+                ['sms', 21, 105],
             ]);
             expect(byTier).toEqual([
-                {tier: 'private', calls: 6, emails: 1, sms: 0, none: 1},
-                {tier: 'premium', calls: 11, emails: 2, sms: 3, none: 1},
-                {tier: 'affluent', calls: 2, emails: 7, sms: 20, none: 6},
-                {tier: 'mass', calls: 0, emails: 0, sms: 1, none: 39},
+                {tier: 'private', calls: 4, emails: 3, sms: 0, none: 1},
+                {tier: 'premium', calls: 5, emails: 3, sms: 5, none: 4},
+                {tier: 'affluent', calls: 7, emails: 8, sms: 7, none: 13},
+                {tier: 'mass', calls: 0, emails: 3, sms: 9, none: 28},
             ]);
         });
 
@@ -179,15 +175,16 @@ describe('client outreach model', () => {
             }
         });
 
-        it('gives out exactly the counts of the solver in every segment', async () => {
+        it('follows the decision of the solver: at most one allowed channel per client', async () => {
             const {records, plan: rows, mix} = await plan();
-            for (const segment of new Set(records.map((record) => record.segment))) {
-                if (segment.endsWith('-none')) continue;
-                for (const channel of ['call', 'email', 'sms']) {
-                    const given = rows.filter((row, i) => records[i]!.segment === segment && row.action === channel);
-                    expect(given.length, `${segment} ${channel}`).toBe(solverCount(mix, segment, channel));
-                }
-            }
+            const channels = ['call', 'email', 'sms'] as const;
+            for (const channel of channels) expect(mix[channel]).toHaveLength(CLIENTS.length);
+            rows.forEach((row, i) => {
+                const picked = channels.filter((channel) => mix[channel][i] === 1);
+                expect(picked.length, row.clientId).toBeLessThanOrEqual(1);
+                expect(row.action, row.clientId).toBe(picked[0] ?? 'none');
+                if (picked[0]) expect(records[i]![picked[0]].allowed, row.clientId).toBe(true);
+            });
         });
 
         it('never breaks the contact policy', async () => {

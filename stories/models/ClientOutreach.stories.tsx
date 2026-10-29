@@ -29,7 +29,7 @@ type Story = StoryObj<typeof ShellHost>;
 /** The whole project with the Project Explorer open. */
 export const Overview: Story = {};
 
-/** The `contactMix` optimisation: how many clients of each segment to call, email or text within the working day. */
+/** The `contactMix` optimisation: whom to call, email or text within the working day, one decision per client. */
 export const ContactMix: Story = {args: {defaultPath: 'contactMix'}};
 
 /** The `outreachBook` workbook: the team and the clients feed the contact plan; its summary, plan and schedule as outputs. */
