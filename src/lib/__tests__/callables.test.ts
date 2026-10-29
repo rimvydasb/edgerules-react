@@ -1,6 +1,6 @@
 import {MutableDecisionService} from '@edgerules/node/mutable';
 import {describe, expect, it} from 'vitest';
-import {listCallables} from '../callables';
+import {listCallables, untypedParameters} from '../callables';
 
 const MODEL = `{
     library: {
@@ -54,5 +54,17 @@ describe('listCallables', () => {
 
     it('returns an empty list for a model without callables', () => {
         expect(listCallables(MutableDecisionService.fromCode('{ a: 1 }'))).toEqual([]);
+    });
+});
+
+describe('untypedParameters', () => {
+    it('lists the arguments without a type, in declaration order', () => {
+        const service = MutableDecisionService.fromCode(`{
+            func total(plan, tier: string, extra): { r: tier }
+            func typed(age: number): { r: age }
+        }`);
+        expect(untypedParameters(service.get('total'))).toEqual(['plan', 'extra']);
+        expect(untypedParameters(service.get('typed'))).toEqual([]);
+        expect(untypedParameters(undefined)).toEqual([]);
     });
 });

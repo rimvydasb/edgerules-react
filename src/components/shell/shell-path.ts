@@ -1,4 +1,5 @@
 import {isRecord} from '#lib/portableUtils';
+import type {ShellView} from './shell-types';
 
 /** What a root path segment is; it picks the icon of the header and the views that can show it. */
 export type ShellPathKind = 'context' | 'workbook' | 'function' | 'ruleset' | 'type' | 'field';
@@ -60,14 +61,32 @@ export function isRootPath(model: unknown, path: string): boolean {
     return resolveRootPath(model, path) === path;
 }
 
-/** The Flow view shows the nodes of the model, a context, a workbook or a function body. */
-export function isFlowRoot(segments: ShellPathSegment[]): boolean {
-    const kind = segments.at(-1)?.kind;
-    return kind === undefined || kind === 'context' || kind === 'workbook' || kind === 'function';
+/** What a root path is: the whole model ('*') or the kind of its last segment. */
+export type ShellRootKind = 'model' | ShellPathKind;
+
+/**
+ * The views of each root path kind; the view switch, the view fallback and the Project Explorer routing all read it.
+ * - Code and Boxed show every entity.
+ * - Flow is the canvas of the Flow Component nodes of a context: the model, a workbook or another context. A function,
+ *   a ruleset, a type and a plain field have no nodes.
+ * - Tests are the tests of a callable: the model, a function or a ruleset. A function is a test subject only when
+ *   every argument has a type (see `untypedParameters`).
+ */
+export const ROOT_VIEWS: Record<ShellRootKind, readonly ShellView[]> = {
+    model: ['code', 'boxed', 'flow', 'tests'],
+    workbook: ['code', 'boxed', 'flow'],
+    context: ['code', 'boxed', 'flow'],
+    function: ['code', 'boxed', 'tests'],
+    ruleset: ['code', 'boxed', 'tests'],
+    type: ['code', 'boxed'],
+    field: ['code', 'boxed'],
+};
+
+export function rootKind(segments: ShellPathSegment[]): ShellRootKind {
+    return segments.at(-1)?.kind ?? 'model';
 }
 
-/** A test subject is the model ('*'), a function or a ruleset. */
-export function isTestSubject(segments: ShellPathSegment[]): boolean {
-    const kind = segments.at(-1)?.kind;
-    return kind === undefined || kind === 'function' || kind === 'ruleset';
+/** The views of a root path, from `ROOT_VIEWS`. */
+export function rootViews(segments: ShellPathSegment[]): readonly ShellView[] {
+    return ROOT_VIEWS[rootKind(segments)];
 }

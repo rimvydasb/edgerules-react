@@ -15,23 +15,29 @@ export interface BoxedViewProps {
 
 /**
  * The boxed expression rows of the root path; a function path shows its header row with its arguments, then its body.
- * The test column shows the tests of the root when it is a callable (a function or a decision table), otherwise the
- * tests of the whole model.
+ * The test column shows the tests of the root path when it is a test subject: the model ('*') or a fully typed
+ * function or decision table. Any other root path (a context, a type, a field or a generic function) has no test
+ * column.
  */
 export function BoxedView({root, service, languageService, readOnly, onOpenNode}: BoxedViewProps): ReactElement {
     const session = useProjectSession();
     const {version} = useProjectSlice('model');
-    const subject = useMemo<TestSubject>(() => {
+    const subject = useMemo<TestSubject | undefined>(() => {
+        if (root === '*') return {id: '*', kind: 'model', name: '*'};
         const callable = listCallables(session.engine).find((candidate) => candidate.path === root);
-        return callable
-            ? {id: callable.path, kind: callable.kind, name: callable.path}
-            : {id: '*', kind: 'model', name: '*'};
+        return callable && {id: callable.path, kind: callable.kind, name: callable.path};
         // `version` re-reads the callables after a model change.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session, root, version]);
-    const testCases = useMemo(() => session.tests.forSubject(subject.id), [session, subject.id]);
+    const testCases = useMemo(
+        () => (subject ? session.tests.forSubject(subject.id) : undefined),
+        [session, subject?.id],
+    );
     const testRunner = useMemo(
-        () => createTestRunner(session.engine, testCases, subject, {modelRevision: String(version)}),
+        () =>
+            subject && testCases
+                ? createTestRunner(session.engine, testCases, subject, {modelRevision: String(version)})
+                : undefined,
         [session, testCases, subject, version],
     );
     return (
@@ -45,7 +51,7 @@ export function BoxedView({root, service, languageService, readOnly, onOpenNode}
             documentationService={session.documentation}
             testCasesService={testCases}
             testRunner={testRunner}
-            testSubjectId={subject.id}
+            testSubjectId={subject?.id}
         />
     );
 }

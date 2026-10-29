@@ -1,6 +1,6 @@
 import {MutableDecisionService} from '@edgerules/node/mutable';
 import {describe, expect, it} from 'vitest';
-import {isFlowRoot, isRootPath, isTestSubject, resolveRootPath, rootPathSegments} from '../shell-path';
+import {isRootPath, resolveRootPath, rootPathSegments, rootViews} from '../shell-path';
 
 const model = MutableDecisionService.fromCode(
     `{
@@ -45,19 +45,18 @@ describe('rootPathSegments', () => {
     });
 });
 
-describe('isFlowRoot and isTestSubject', () => {
+describe('rootViews', () => {
     it.each([
-        ['*', true, true],
-        ['applicant', true, false],
-        ['book', true, false],
-        ['riskScore', true, true],
-        ['band', false, true],
-        ['Customer', false, false],
-        ['applicant.age', false, false],
-    ])('%s: flow %s, test subject %s', (path, flow, subject) => {
-        const segments = rootPathSegments(model, path);
-        expect(isFlowRoot(segments)).toBe(flow);
-        expect(isTestSubject(segments)).toBe(subject);
+        ['*', ['code', 'boxed', 'flow', 'tests']],
+        ['applicant', ['code', 'boxed', 'flow']],
+        ['book', ['code', 'boxed', 'flow']],
+        // A function has no nodes, so no Flow view.
+        ['riskScore', ['code', 'boxed', 'tests']],
+        ['band', ['code', 'boxed', 'tests']],
+        ['Customer', ['code', 'boxed']],
+        ['applicant.age', ['code', 'boxed']],
+    ])('%s: %o', (path, views) => {
+        expect(rootViews(rootPathSegments(model, path))).toEqual(views);
     });
 });
 

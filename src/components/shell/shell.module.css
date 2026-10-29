@@ -181,6 +181,23 @@
   cursor: not-allowed;
 }
 
+/* The note under a disabled menu item: why the Tests cell of a generic function creates no tests. */
+.menuHint {
+  display: flex;
+  max-width: 280px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 12px 8px;
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.4;
+}
+
+.menuHint strong {
+  color: var(--mantine-color-text);
+  font-weight: 600;
+}
+
 /* ---------------------------------------------------------------- body and status */
 .body {
   flex: 1;

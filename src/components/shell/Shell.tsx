@@ -1,11 +1,12 @@
 import {Alert} from '@mantine/core';
 import {useCallback, useEffect, useMemo, useRef, useState, type ReactElement} from 'react';
+import {listCallables, untypedParameters} from '#lib/callables';
 import {cx} from '#ui/cx';
 import {createBoxedEditorService, type BoxedEditorOpenTarget} from '../boxed-editor';
 import {createFlowEditorService, type FlowEditorOpenTarget, type FlowFocusRequest} from '../flow-editor';
 import {ProjectExplorer} from '../project-explorer';
 import {useProjectSession, useProjectSlice, useProjectSnapshot} from '../project-session';
-import {isFlowRoot, isRootPath, isTestSubject, rootPathSegments} from './shell-path';
+import {isRootPath, rootPathSegments, rootViews} from './shell-path';
 import {explorerRoute} from './shell-routing';
 import type {ShellProps, ShellView} from './shell-types';
 import {ShellBreadcrumbs} from './ShellBreadcrumbs';
@@ -21,7 +22,7 @@ type OpenTarget = BoxedEditorOpenTarget | FlowEditorOpenTarget;
 /**
  * One part of the model of the open `ProjectSession`, from a root path: the whole model ('*') or the path of an
  * entity. Shows it in one of three editors (Code, Boxed, Flow), or the tests of a subject in the Tests Manager, and
- * follows the drill-downs of the editors. Render it inside a `ProjectProvider`.
+ * follows the drill-downs of the editors. The view switch offers all four views at any root path. Render it inside a `ProjectProvider`.
  */
 export function Shell({
     languageService,
@@ -51,18 +52,35 @@ export function Shell({
     const requested = path ?? ownPath;
     const requestedView = viewProp ?? ownView;
 
+    // The test subjects of the Tests Manager: the model ('*') and every fully typed callable.
+    const subjectPaths = useMemo(
+        () => new Set(['*', ...listCallables(session.engine).map((callable) => callable.path)]),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [session, version],
+    );
+
     // The requested path, or its nearest valid ancestor that exists in the current model. A test subject that does
     // not exist falls back to the tests of the model.
     const segments = useMemo(() => {
         const resolved = rootPathSegments(session.engine.toPortable(), requested);
-        return requestedView === 'tests' && !isTestSubject(resolved) ? [] : resolved;
+        return requestedView === 'tests' && !subjectPaths.has(resolved.at(-1)?.path ?? '*') ? [] : resolved;
         // `version` changes with every model change, which can remove or rename the path.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session, requested, requestedView, version]);
+    }, [session, requested, requestedView, version, subjectPaths]);
     const root = segments.at(-1)?.path ?? '*';
-    const flowRoot = isFlowRoot(segments);
-    // A ruleset, a type or a plain field has no Flow view: the Boxed view shows it.
-    const view = requestedView === 'flow' && !flowRoot ? 'boxed' : requestedView;
+    // A generic function: the arguments that need a type before it can be tested.
+    const untypedArguments = useMemo(
+        () => (segments.at(-1)?.kind === 'function' ? untypedParameters(session.engine.get(root)) : []),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [session, root, segments, version],
+    );
+    // The views of the root path; Tests only for a test subject. A view the root path does not have falls back to
+    // the Boxed view, which every root path has.
+    const views = useMemo(
+        () => rootViews(segments).filter((candidate) => candidate !== 'tests' || subjectPaths.has(root)),
+        [segments, subjectPaths, root],
+    );
+    const view = views.includes(requestedView) ? requestedView : 'boxed';
 
     const boxedService = useMemo(() => createBoxedEditorService(session.engine), [session]);
     const flowService = useMemo(() => createFlowEditorService(session.engine, {root}), [session, root]);
@@ -125,6 +143,12 @@ export function Shell({
         else onOpenNode?.(target);
     };
 
+    // The first test of the root path, opened in the Tests view.
+    const createTests = () => {
+        session.tests.forSubject(root).addTestCase();
+        navigate({view: 'tests'});
+    };
+
     // The Tests view has no commit; the Code view commit error belongs to the editors of the model.
     const dslError = dslValidity.status === 'invalid' ? dslValidity.message : undefined;
     const status = view === 'tests' ? undefined : root === '*' ? dslError : codeErrors[root];
@@ -155,7 +179,14 @@ export function Shell({
                     onToggleExplorer={() => setExplorerOpen(!explorerOpen)}
                     tests={view === 'tests'}
                 />
-                <ShellViewSwitch view={view} flowDisabled={!flowRoot} onChange={(next) => navigate({view: next})} />
+                <ShellViewSwitch
+                    view={view}
+                    views={views}
+                    untypedArguments={untypedArguments}
+                    hasTests={testSubjects.includes(root)}
+                    onCreateTests={readOnly ? undefined : createTests}
+                    onChange={(next) => navigate({view: next})}
+                />
             </div>
             <div className={classes.content}>
                 {explorer}

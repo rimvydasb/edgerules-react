@@ -1,4 +1,5 @@
 import type {PortableContext, PortableNode} from '@edgerules/portable';
+import {untypedParameters} from '#lib/callables';
 
 /** Literal `get()` argument for the root context. */
 export const ROOT_FETCH_PATH = '*';
@@ -27,6 +28,7 @@ export interface ExplorerEntry {
     path: string; // the fully qualified model path; the test subject ID for a test
     label: string;
     children?: ExplorerEntry[]; // the nodes of a workbook
+    untypedArguments?: string[]; // a generic function: the arguments without a type, which keep it from being tested
 }
 
 export type ExplorerSections = Record<ExplorerSection, ExplorerEntry[]>;
@@ -98,8 +100,15 @@ function collectMethods(contextPath: string, context: Record<string, unknown>, m
     for (const [name, node] of fields(context)) {
         const path = joinPath(contextPath, name);
         const kind = methodKind(node);
-        if (kind) methods.push({kind, path, label: methodLabel(path, node as Record<string, unknown>)});
-        else if (isContext(node) && !isWorkbook(node)) collectMethods(path, node, methods);
+        if (kind) {
+            const untypedArguments = untypedParameters(node);
+            methods.push({
+                kind,
+                path,
+                label: methodLabel(path, node as Record<string, unknown>),
+                ...(untypedArguments.length > 0 && {untypedArguments}),
+            });
+        } else if (isContext(node) && !isWorkbook(node)) collectMethods(path, node, methods);
     }
 }
 

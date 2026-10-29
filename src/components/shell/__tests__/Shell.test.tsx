@@ -219,7 +219,7 @@ describe('Shell project explorer', () => {
         expect(await screen.findByTestId('object-input-node-applicant')).toBeInTheDocument();
     });
 
-    it('opens the tests of a subject in the Tests view, with no other view', async () => {
+    it('opens the tests of a subject in the Tests view, with the editor views next to it', async () => {
         const {session} = await openFixtureProject({model: {dsl: SHELL_MODEL}});
         session.tests.forSubject('riskScore').addTestCase();
         const user = userEvent.setup();
@@ -230,14 +230,16 @@ describe('Shell project explorer', () => {
         await user.click(within(explorer).getAllByText('riskScore(...)')[1]!);
         expect(onViewChange).toHaveBeenLastCalledWith('tests');
         expect(breadcrumbItems()).toEqual(['Model', 'riskScore(...)']);
-        expect(screen.queryByRole('radiogroup', {name: 'View'})).toBeNull();
-        expect(screen.getByTestId('shell-tests-view')).toHaveTextContent('Tests');
+        expect(screen.getByRole('radio', {name: 'Tests'})).toHaveAttribute('aria-checked', 'true');
+        for (const name of ['Code', 'Boxed']) expect(screen.getByRole('radio', {name})).toBeEnabled();
+        // A function has no nodes, so no Flow view.
+        expect(screen.getByRole('radio', {name: 'Flow'})).toBeDisabled();
         expect(await screen.findByText('Test Case 1')).toBeInTheDocument();
 
         // A crumb opens the model entity again, in the Boxed view.
         await user.click(screen.getByRole('button', {name: 'Model'}));
         expect(onViewChange).toHaveBeenLastCalledWith('boxed');
-        expect(screen.getByRole('radiogroup', {name: 'View'})).toBeInTheDocument();
+        expect(screen.getByRole('radio', {name: 'Boxed'})).toHaveAttribute('aria-checked', 'true');
     });
 
     it('creates a test of a method and opens it', async () => {
@@ -252,7 +254,7 @@ describe('Shell project explorer', () => {
         // The Tests section lists the new subject next to the method.
         expect(within(explorer).getAllByText('riskScore(...)')).toHaveLength(2);
         expect(breadcrumbItems()).toEqual(['Model', 'riskScore(...)']);
-        expect(screen.getByTestId('shell-tests-view')).toBeInTheDocument();
+        expect(screen.getByRole('radio', {name: 'Tests'})).toHaveAttribute('aria-checked', 'true');
     });
 
     it('creates a workbook and opens it', async () => {
@@ -295,6 +297,13 @@ describe('Shell view switch', () => {
         expect(screen.getByRole('radio', {name: 'Flow'})).toBeDisabled();
         expect(screen.getByRole('radio', {name: 'Boxed'})).toHaveAttribute('aria-checked', 'true');
         expect(screen.getByRole('treegrid')).toHaveTextContent('income');
+    });
+
+    it('shows a function in the Boxed view, with Flow disabled', async () => {
+        const {onViewChange} = await renderShell({defaultPath: 'riskScore', defaultView: 'flow'});
+        await waitFor(() => expect(onViewChange).toHaveBeenCalledWith('boxed'));
+        expect(screen.getByRole('radio', {name: 'Flow'})).toBeDisabled();
+        expect(screen.queryByTestId('flow-editor')).toBeNull();
     });
 
     it('shows the code of a type in the Code view', async () => {
@@ -340,6 +349,110 @@ describe('Shell view switch', () => {
         expect(screen.getByRole('radio', {name: 'Boxed'})).toHaveFocus();
         await user.keyboard('{ArrowLeft}{ArrowLeft}');
         expect(onViewChange).toHaveBeenLastCalledWith('flow');
+    });
+});
+
+const RULESET_MODEL = `{
+    ruleset band(age: number): {
+        hitPolicy: "first-match"
+        rules: [{ when: { age: < 30 }, then: { level: "young" } }]
+        default: { level: "none" }
+    }
+    applicant: { age: 21 }
+}`;
+
+describe('Shell Tests view switch', () => {
+    it('opens the existing tests of a function from an editor view', async () => {
+        const {session} = await openFixtureProject({model: {dsl: SHELL_MODEL}});
+        session.tests.forSubject('applicant.calculateAge').addTestCase();
+        const user = userEvent.setup();
+        const {onViewChange, onPathChange} = await renderShell(
+            {defaultPath: 'applicant.calculateAge', defaultView: 'code'},
+            session,
+        );
+
+        await user.click(screen.getByRole('radio', {name: 'Tests'}));
+        expect(onViewChange).toHaveBeenLastCalledWith('tests');
+        expect(onPathChange).not.toHaveBeenCalled();
+        expect(breadcrumbItems()).toEqual(['Model', 'applicant', 'calculateAge(...)']);
+        expect(await screen.findByText('Test Case 1')).toBeInTheDocument();
+    });
+
+    it('offers to create the tests of a function without tests, and opens them', async () => {
+        const user = userEvent.setup();
+        const {session, onViewChange} = await renderShell({defaultPath: 'riskScore'});
+
+        await user.click(screen.getByRole('radio', {name: 'Tests'}));
+        expect(onViewChange).not.toHaveBeenCalled();
+        await user.click(await screen.findByRole('menuitem', {name: 'Create Tests'}));
+
+        expect(session.tests.forSubject('riskScore').listTestCases()).toHaveLength(1);
+        expect(onViewChange).toHaveBeenLastCalledWith('tests');
+        expect(screen.getByRole('radio', {name: 'Tests'})).toHaveAttribute('aria-checked', 'true');
+        expect(await screen.findByText('Test Case 1')).toBeInTheDocument();
+    });
+
+    it('disables Tests for a path that is no test subject, and for a subject without tests when read-only', async () => {
+        const {unmount} = await renderShell({defaultPath: 'applicant'});
+        expect(screen.getByRole('radio', {name: 'Tests'})).toBeDisabled();
+        unmount();
+
+        await renderShell({defaultPath: 'riskScore', readOnly: true});
+        expect(screen.getByRole('radio', {name: 'Tests'})).toBeDisabled();
+    });
+
+    it('tells why a generic function has no tests, and names its untyped arguments', async () => {
+        const {session} = await openFixtureProject({
+            model: {dsl: `{ func tierTotals(plan, tier: string, extra): { result: tier } }`},
+        });
+        const user = userEvent.setup();
+        const {onViewChange} = await renderShell({defaultPath: 'tierTotals'}, session);
+
+        await user.click(screen.getByRole('radio', {name: 'Tests'}));
+        expect(await screen.findByRole('menuitem', {name: 'Create Tests'})).toBeDisabled();
+        expect(screen.getByTestId('shell-untyped-hint')).toHaveTextContent(
+            'Only functions with typed arguments can be tested.Add types to plan, extra.',
+        );
+        await user.click(screen.getByRole('menuitem', {name: 'Create Tests'}));
+        expect(onViewChange).not.toHaveBeenCalled();
+        expect(session.tests.forSubject('tierTotals').listTestCases()).toHaveLength(0);
+    });
+
+    it('shows the test column toggle of the Boxed view for a test subject only', async () => {
+        const toggle = () => screen.queryByRole('button', {name: /test column/});
+        const {session} = await openFixtureProject({
+            model: {dsl: `{ ${SHELL_MODEL.slice(1, -1)}\n func generic(plan): { result: plan } }`},
+        });
+        const {rerender} = await renderShell({path: '*'}, session);
+        const at = (path: string) =>
+            rerender(
+                <ProjectProvider session={session}>
+                    <div style={{width: 1000, height: 700}}>
+                        <Shell languageService={MutableDecisionService} path={path} />
+                    </div>
+                </ProjectProvider>,
+            );
+        expect(toggle()).toBeInTheDocument();
+        at('riskScore');
+        expect(toggle()).toBeInTheDocument();
+        for (const path of ['Customer', 'applicant', 'limit', 'generic']) {
+            at(path);
+            expect(breadcrumbItems().at(-1)).toMatch(new RegExp(`^${path}`));
+            expect(toggle(), path).toBeNull();
+        }
+    });
+
+    it('opens the code of a decision table from its tests, with Flow disabled', async () => {
+        const {session} = await openFixtureProject({model: {dsl: RULESET_MODEL}});
+        session.tests.forSubject('band').addTestCase();
+        const user = userEvent.setup();
+        const {onViewChange} = await renderShell({defaultPath: 'band', defaultView: 'tests'}, session);
+        expect(screen.getByRole('radio', {name: 'Flow'})).toBeDisabled();
+
+        await user.click(screen.getByRole('radio', {name: 'Code'}));
+        expect(onViewChange).toHaveBeenLastCalledWith('code');
+        expect(codeView().state.doc.toString()).toBe(session.engine.getCode('band'));
+        expect(breadcrumbItems()).toEqual(['Model', 'band(...)']);
     });
 });
 
@@ -406,7 +519,7 @@ describe('Shell drill-down', () => {
         expect(onOpenNode).not.toHaveBeenCalled();
         expect(onPathChange).toHaveBeenCalledWith('riskScore');
         expect(onViewChange).toHaveBeenCalledWith('tests');
-        expect(screen.getByTestId('shell-tests-view')).toBeInTheDocument();
+        expect(screen.getByRole('radio', {name: 'Tests'})).toHaveAttribute('aria-checked', 'true');
     });
 
     it('forwards the target kinds it does not open', async () => {

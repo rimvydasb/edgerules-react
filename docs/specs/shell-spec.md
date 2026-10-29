@@ -13,7 +13,9 @@
 | Code  | `CodeEditor`   | The DSL code of the root path, `engine.getCode(path)`. All fields and all annotations.     |
 | Boxed | `BoxedEditor`  | The boxed expression rows of the root path. It hides `@ChartNode` and `@OutputNode` nodes. |
 | Flow  | `FlowEditor`   | The Flow Component nodes that are direct fields of the root path context.                  |
-| Tests | `TestsManager` | The tests of the root path: `'*'`, a function or a ruleset.                                |
+| Tests | `TestsManager` | The tests of the root path: `'*'`, a fully typed function or a ruleset.                    |
+
+`ROOT_VIEWS` in [shell-path.ts](../../src/components/shell/shell-path.ts) gives the views of each root path kind.
 
 `Shell` is a library component at `src/components/shell`, with the npm subpath export `edgerules-react/shell`.
 
@@ -30,7 +32,7 @@ The `ProjectExplorer` side panel is optional. It is 256px wide, below the header
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ƒx │ Model › applicant › calculateAge(...)          │ Code │ Boxed │ Flow    │
+│ ƒx │ Model › applicant › calculateAge(...)  │ Code │ Boxed │ Flow │ Tests   │
 ├──────────────────┬───────────────────────────────────────────────────────────┤
 │ Project       [«]│                                                           │
 │ ▸ TYPES       1  │               active editor (one at a time)               │
@@ -46,8 +48,7 @@ The `ProjectExplorer` side panel is optional. It is 256px wide, below the header
 | `ShellBreadcrumbs` | Kind icon square, then one `button` per item                     | The first item is `Model` and opens `'*'`. The last item is text.            |
 | Kind icon square   | Toggle `button` with `aria-pressed`                              | Shows and hides the `ProjectExplorer` side panel.                            |
 | `ProjectExplorer`  | Side panel below the header, left of the body                    | Mounted only while open. Its close button hides it.                          |
-| `ShellViewSwitch`  | `radiogroup` of three 3-step header cells                        | Changes the active view. The root path does not change.                      |
-| Tests view cell    | One fixed header cell                                            | Replaces `ShellViewSwitch` in the Tests view, which has no other view.       |
+| `ShellViewSwitch`  | `radiogroup` of four 3-step header cells                         | Changes the active view. The root path does not change.                      |
 | Editor body        | One of `CodeEditor`, `BoxedEditor`, `FlowEditor`, `TestsManager` | Only the active editor is mounted.                                           |
 | `ShellStatus`      | Mantine `Alert`                                                  | Shows the last commit error of the Code view. It is hidden without an error. |
 
@@ -140,7 +141,7 @@ interface ShellProps {
 - `Shell` creates `createBoxedEditorService(session.engine)` once per session.
 - `Shell` creates `createFlowEditorService(session.engine, {root})` once per session and root path.
 - `Shell` passes `session.documentation` to `BoxedEditor` and `FlowEditor`.
-- `Shell` passes `session.tests.forSubject('*')` as the `testCasesService` of `BoxedEditor`.
+- `Shell` passes `session.tests.forSubject(root)` as the `testCasesService` of `BoxedEditor` for a test subject only.
 - `Shell` passes `useProjectSlice('model').version` as the `revision` of `BoxedEditor` and `ProjectExplorer`.
 - `Shell` passes `session.engine` as the `service` of `ProjectExplorer` and `TestsManager`.
 - `Shell` passes the subject IDs of `useProjectSlice('tests').subjects` as `testSubjects` of `ProjectExplorer`.
@@ -156,9 +157,10 @@ A valid root path is `'*'` or the path of an entity. `ProjectExplorer` opens eac
 
 | Path segment                 | Valid in a root path | Views                    | Example                      |
 | ---------------------------- | -------------------- | ------------------------ | ---------------------------- |
+| Model                        | Yes, as `'*'`        | Code, Boxed, Flow, Tests | `'*'`                        |
 | Context field                | Yes, at any position | Code, Boxed, Flow        | `applicant`                  |
 | Workbook (`@Workbook`)       | Yes, at any position | Code, Boxed, Flow        | `loanBook`                   |
-| Function (`func`)            | Yes, last only       | Code, Boxed, Flow, Tests | `applicant.calculateAge`     |
+| Function (`func`)            | Yes, last only       | Code, Boxed, Tests       | `applicant.calculateAge`     |
 | Ruleset                      | Yes, last only       | Code, Boxed, Tests       | `band`                       |
 | Type definition              | Yes, last only       | Code, Boxed              | `Customer`                   |
 | Plain value or invocation    | Yes, last only       | Code, Boxed              | `limit`, `loanBook.decision` |
@@ -168,8 +170,24 @@ A valid root path is `'*'` or the path of an entity. `ProjectExplorer` opens eac
 - `Shell` MUST NOT support indexed paths. A path that contains `[` is not a valid root path.
 - A root path MUST NOT go below a function, or below any other entity that is not a context.
 - `Shell` opens the nearest valid ancestor for an invalid root path, and then calls `onPathChange`.
-- The Flow view cell is disabled for a root path without Flow. `Shell` shows the Boxed view and calls `onViewChange`.
+- A function has no Flow view. Its body is a function, not a canvas of Flow Component nodes.
+- A function is a test subject only if every argument has a type. The engine types a generic function at each call site.
+- `ShellViewSwitch` disables the cell of each view that the root path does not have.
+- A root path in a view that it does not have shows the Boxed view. `Shell` calls `onViewChange`.
 - In the Tests view, a root path that is not a test subject falls back to `'*'`.
+
+### The Tests cell opens, creates, or explains the tests of the root path
+
+| Root path                               | A click on the Tests cell                                                             |
+| --------------------------------------- | ------------------------------------------------------------------------------------- |
+| Test subject with tests                 | Opens the Tests view.                                                                 |
+| Test subject without tests              | Opens a menu with `Create Tests`. The item adds a test case and opens the Tests view. |
+| Generic function                        | Opens a menu with a disabled `Create Tests` and names the untyped arguments.          |
+| Context, workbook, type, or plain value | None. The cell is disabled.                                                           |
+
+- `readOnly` disables the Tests cell of a test subject without tests.
+- The Boxed view shows the test column toggle only for a test subject.
+- The `Add to Tests` menu of `ProjectExplorer` disables each generic function and shows its untyped arguments.
 - The Boxed view of a plain value shows the own row of the field.
 
 ### The breadcrumb shows the fully qualified root path
@@ -212,14 +230,13 @@ The breadcrumb has one item for the model and one item for each path segment.
 | ------------- | ------------------------------------------------- | ------------- | -------------------------- |
 | Any           | A test                                            | Subject ID    | Tests                      |
 | Code or Boxed | Any other entry                                   | Entry path    | Unchanged                  |
-| Flow          | A context, a workbook or a function               | Entry path    | Flow                       |
+| Flow          | A context or a workbook                           | Entry path    | Flow                       |
 | Flow          | A node of a workbook, for example `function-node` | Workbook path | Flow, the node is centered |
-| Flow          | A type, a ruleset or a plain value                | Entry path    | Boxed                      |
+| Flow          | A function, a ruleset, a type or a plain value    | Entry path    | Boxed                      |
 | Tests         | A workbook                                        | Entry path    | Flow                       |
 | Tests         | Any other entry                                   | Entry path    | Boxed                      |
 
 - `FlowEditor` selects and centers the node of each new `focusNode` request.
-- The Tests view is the only view of a test.
 - `onCreateTest(subjectId)` calls `session.tests.forSubject(subjectId).addTestCase()`.
 - `readOnly` hides the add buttons of the explorer.
 - A model change re-reads the model in the explorer. The expanded sections stay expanded.
@@ -296,7 +313,6 @@ annotation as a node.
 
 - `createFlowEditorService(engine, {root})` does not descend into a child context. A nested Flow Component appears only
   when its parent context is the root path.
-- The root path of a function path is the function body context.
 - Node ids stay fully qualified field paths, for example `applicant.score`.
 - A new node, for example from the palette, is a direct field of the root path context.
 - Each root path has its own `FlowLayout`: node positions, output nodes and chart nodes.

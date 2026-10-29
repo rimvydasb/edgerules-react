@@ -20,10 +20,23 @@ function isRecord(value: unknown): value is PortableNodeLike {
 }
 
 // The engine reports an untyped callable parameter as the bare string `"any"` in a schema view.
-// A row with no declared type has no parsing rule, so such a callable is not listed.
+function untypedNames(parameters: unknown): string[] {
+    if (!isRecord(parameters)) return [];
+    return Object.entries(parameters)
+        .filter(([, param]) => param === 'any')
+        .map(([name]) => name);
+}
+
+/**
+ * The untyped arguments of a callable schema (`func total(plan, tier: string)` -> `['plan']`). Such a function is
+ * generic: the engine types it at each call site and refuses to execute it directly, so it cannot be tested.
+ */
+export function untypedParameters(schema: unknown): string[] {
+    return isRecord(schema) ? untypedNames(schema['@parameters']) : [];
+}
+
 function hasOnlyTypedParameters(parameters: unknown): boolean {
-    if (!isRecord(parameters)) return true;
-    return Object.values(parameters).every((param) => param !== 'any');
+    return untypedNames(parameters).length === 0;
 }
 
 const SCHEMA_KINDS: Record<string, CallableKind> = {

@@ -246,10 +246,15 @@ export function ProjectExplorer({
     }, [sections]);
 
     const canCreate = !readOnly && service.set !== undefined;
-    const testSubjectOptions = [
+    const testSubjectOptions: {path: string; label: string; untypedArguments?: string[]}[] = [
         {path: '*', label: 'Model'},
-        ...(sections?.methods ?? []).map((entry) => ({path: entry.path, label: entry.label})),
+        ...(sections?.methods ?? []).map((entry) => ({
+            path: entry.path,
+            label: entry.label,
+            untypedArguments: entry.untypedArguments,
+        })),
     ];
+    const hasGenericMethod = testSubjectOptions.some((subject) => subject.untypedArguments);
 
     const open = (target: ProjectExplorerOpenTarget) => onOpenRef.current?.(target);
 
@@ -291,10 +296,26 @@ export function ProjectExplorer({
                         <Menu.Dropdown>
                             <Menu.Label>New test of</Menu.Label>
                             {testSubjectOptions.map((subject) => (
-                                <Menu.Item key={subject.path} onClick={() => createTest(subject.path)}>
+                                <Menu.Item
+                                    key={subject.path}
+                                    disabled={subject.untypedArguments !== undefined}
+                                    rightSection={
+                                        subject.untypedArguments && (
+                                            <span className={classes.menuItemNote}>
+                                                untyped: {subject.untypedArguments.join(', ')}
+                                            </span>
+                                        )
+                                    }
+                                    onClick={() => createTest(subject.path)}
+                                >
                                     {subject.label}
                                 </Menu.Item>
                             ))}
+                            {hasGenericMethod && (
+                                <div className={classes.menuHint} data-testid="explorer-untyped-hint">
+                                    Only functions with typed arguments can be tested.
+                                </div>
+                            )}
                         </Menu.Dropdown>
                     </Menu>
                 </span>

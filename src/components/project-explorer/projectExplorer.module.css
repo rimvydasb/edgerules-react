@@ -222,3 +222,18 @@
     opacity: 1;
   }
 }
+
+/* The Add to Tests menu: a generic function is listed, disabled, with its untyped arguments, and a note says why. */
+.menuItemNote {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.menuHint {
+  max-width: 260px;
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--mantine-color-default-border);
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.4;
+}

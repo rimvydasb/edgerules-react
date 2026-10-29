@@ -96,6 +96,6 @@ export const Project: Story = {
         await expect(canvas.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
         // The second `riskScore()` is the entry of the Tests section.
         await userEvent.click(within(explorer).getAllByText('riskScore()')[1]!);
-        await expect(await canvas.findByTestId('shell-tests-view')).toBeInTheDocument();
+        await expect(await canvas.findByRole('radio', {name: 'Tests'})).toHaveAttribute('aria-checked', 'true');
     },
 };

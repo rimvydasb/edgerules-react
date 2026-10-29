@@ -241,6 +241,28 @@ describe('ProjectExplorer create', () => {
         expect(onOpen).toHaveBeenCalledWith({kind: 'test', path: 'risk'});
     });
 
+    it('lists a generic function as a disabled test subject, with its untyped arguments and why', async () => {
+        const onCreateTest = vi.fn();
+        const user = userEvent.setup();
+        const service = buildService(`{
+            func tierTotals(plan, tierName: string): { tier: tierName }
+            func wealthBand(wealth: number): { band: wealth }
+        }`);
+        render(<ProjectExplorer service={service} onCreateTest={onCreateTest} />);
+
+        await user.click(screen.getByRole('button', {name: 'Add to Tests'}));
+        const generic = await screen.findByRole('menuitem', {name: /tierTotals/});
+        expect(generic).toBeDisabled();
+        expect(generic).toHaveTextContent('untyped: plan');
+        expect(screen.getByRole('menuitem', {name: 'wealthBand(...)'})).toBeEnabled();
+        expect(screen.getByTestId('explorer-untyped-hint')).toHaveTextContent(
+            'Only functions with typed arguments can be tested.',
+        );
+
+        await user.click(generic);
+        expect(onCreateTest).not.toHaveBeenCalled();
+    });
+
     it('shows no add button when read-only, or where the service or host cannot create', () => {
         const {get} = buildService();
         const {rerender} = render(<ProjectExplorer service={{get}} />);
