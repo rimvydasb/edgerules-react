@@ -38,7 +38,8 @@ export interface TestsManagerBaseProps {
     readOnly?: boolean;
     // Test-case columns per page. Defaults to 10.
     pageSize?: number;
-    // Whether committing an input re-runs its case automatically. Defaults to true.
+    // Whether cases run automatically: on opening a subject and on a `revision` change, each case without a fresh
+    // result set; on committing an input, its case. Defaults to true.
     autoRun?: boolean;
     // Fired after each completed run, successful or failed.
     onRunComplete?: (set: TestResultSet) => void;

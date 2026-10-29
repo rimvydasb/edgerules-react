@@ -307,6 +307,7 @@ describe('test-results: rendering', () => {
         s: ''
         arr: []
         obj: { }
+        nested: { a: 0  b: '' }
         skipped: 0
       }
     }`);
@@ -336,7 +337,10 @@ describe('test-results: rendering', () => {
                 b: {path: 'b', value: true, status: 'ok'},
                 s: {path: 's', value: 'hello world', status: 'ok'},
                 arr: {path: 'arr', value: [1, 2, 3], status: 'ok'},
-                obj: {path: 'obj', value: {x: 1}, status: 'ok'},
+                obj: {path: 'obj', value: {x: 1, y: {z: true}}, status: 'ok'},
+                // A context row has no result of its own — only its leaf paths do.
+                'nested.a': {path: 'nested.a', value: 1, status: 'ok'},
+                'nested.b': {path: 'nested.b', value: 'x', status: 'ok'},
                 // 'skipped' deliberately has no entry — "no result / not yet run" renders empty.
             },
         });
@@ -359,9 +363,10 @@ describe('test-results: rendering', () => {
         expect(screen.getByText('3 items')).toBeInTheDocument();
         const resultText = (path: string) =>
             screen.getByTestId(`row-${path}`).querySelector('[data-column="test-results"]')?.textContent;
-        expect(resultText('creditDecision.obj')).toBe('{…}');
-        // The subject's own row shows every result path of the run.
-        expect(resultText('creditDecision')).toBe('{…}');
+        expect(resultText('creditDecision.obj')).toBe('x: 1, y: {z: true}');
+        expect(resultText('creditDecision.nested')).toBe('a: 1, b: x');
+        // Every part of the result shows in its own row, so the subject's own row stays empty.
+        expect(resultText('creditDecision')).toBe('');
 
         const skippedRow = screen.getByTestId('row-creditDecision.skipped');
         expect(skippedRow.querySelector('[data-column="test-results"]')?.textContent).toBe('');

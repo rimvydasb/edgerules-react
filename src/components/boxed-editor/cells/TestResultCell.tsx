@@ -10,18 +10,33 @@ import {useRowTestResult} from '../hooks/useRowTestResult';
 
 export interface TestResultCellProps {
     path: string;
+    /** On the subject's own row: show the whole result there (a decision table, whose rows are rules). */
+    showSubjectResult?: boolean;
+}
+
+// One value as cell text. An object lists its fields inline (`grade: A, probabilityOfDefault: 0.005`); a nested one
+// keeps its braces.
+function formatInline(value: unknown, nested = false): string {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'number') return value.toLocaleString();
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`;
+    if (typeof value === 'object') {
+        const fields = Object.entries(value)
+            .map(([key, field]) => `${key}: ${formatInline(field, true)}`)
+            .join(', ');
+        return nested ? `{${fields}}` : fields;
+    }
+    return String(value);
 }
 
 function formatResultValue(value: unknown): {text: string; tooltip?: string} {
-    if (value === undefined) return {text: ''};
-    if (typeof value === 'number') return {text: value.toLocaleString()};
-    if (typeof value === 'boolean') return {text: value ? 'true' : 'false'};
-    if (Array.isArray(value)) return {text: `${value.length} item${value.length === 1 ? '' : 's'}`};
-    if (typeof value === 'string') return {text: value, tooltip: value};
-    if (typeof value === 'object' && value !== null) {
-        return {text: '{…}', tooltip: JSON.stringify(value, null, 2)};
+    const text = formatInline(value);
+    if (typeof value === 'string') return {text, tooltip: value};
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        return {text, tooltip: JSON.stringify(value, null, 2)};
     }
-    return {text: String(value)};
+    return {text};
 }
 
 /**
@@ -81,8 +96,8 @@ export function TestResultsHeader(): ReactElement {
 }
 
 /** That row's value for the selected test case (Section 8, "Result formatting"). */
-export function TestResultCell({path}: TestResultCellProps): ReactElement {
-    const {result, pending, stale} = useRowTestResult(path);
+export function TestResultCell({path, showSubjectResult}: TestResultCellProps): ReactElement {
+    const {result, pending, stale} = useRowTestResult(path, showSubjectResult);
 
     if (pending) {
         return <span className={cx(classes.ellipsis, classes.disabledText, classes.italic)}>…</span>;

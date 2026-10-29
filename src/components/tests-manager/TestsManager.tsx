@@ -1,4 +1,4 @@
-import {useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement} from 'react';
+import {useEffect, useLayoutEffect, useMemo, useState, type ReactElement} from 'react';
 import {createTestCasesService} from '../test-cases-service';
 import {TestsManagerProvider} from './context/TestsManagerContext';
 import {TestsManagerUiProvider} from './context/TestsManagerUiContext';
@@ -72,15 +72,24 @@ export function TestsManager(props: TestsManagerProps): ReactElement {
         }
     }, [ready, service, subject, testCasesService, revision]);
 
-    // Re-runs every case on a genuine `revision` change (not on the initial mount) when `autoRun` is
-    // on — see Stale results / Execution triggers.
-    const previousRevisionRef = useRef(revision);
+    // Opening a subject and every `revision` change (a new `runner`) runs, one by one, each case without a fresh result
+    // set — never run before, or run against an older revision — when `autoRun` is on. Runs after the rows sync above.
     useEffect(() => {
-        if (!ready) return;
-        if (previousRevisionRef.current === revision) return;
-        previousRevisionRef.current = revision;
-        if (autoRun) void runner.runAll();
-    }, [ready, revision, autoRun, runner]);
+        if (!ready || !autoRun) return undefined;
+        const modelRevision = revision !== undefined ? String(revision) : undefined;
+        let cancelled = false;
+        void (async () => {
+            for (const testCase of testCasesService.listTestCases()) {
+                if (cancelled) return;
+                const set = testCasesService.getResultSet(testCase.id);
+                if (set !== undefined && set.modelRevision === modelRevision) continue;
+                await runner.run(testCase.id);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [ready, autoRun, runner, testCasesService]);
 
     useEffect(() => {
         if (!onRunComplete) return undefined;

@@ -720,11 +720,15 @@ sequenceDiagram
 | string                         | as-is, truncated with a tooltip past one cell       |
 | date / duration / special      | the engine's string form                            |
 | array                          | `N items`                                           |
-| nested object                  | `{…}`, full value in the tooltip                    |
+| object                         | `key: value, …` inline, full value in the tooltip   |
 | `status: 'error'` for the path | the message, muted                                  |
 | no result / not yet run        | empty cell                                          |
 | stale result set               | last known value, muted and italic                  |
 | run in flight                  | muted placeholder while `getRunning()` has the case |
+
+A run keeps only leaf paths, so an object row (a context, or a call such as `grade: riskGrade(score)`) composes its
+value from the results beneath it. The subject's own row stays empty because every part of the result shows in its own
+row. A decision table is the exception: its rows are rules, so its own row shows the whole result.
 
 `TestResultSet.results` is keyed by **subject-relative** path while rows carry fully qualified paths, so a cell derives
 its key with `qualifyPath(subjectId, path)` before reading — see Task 0 (Resolved Decision #17).

@@ -77,6 +77,7 @@ describe('TestsManager execution', () => {
         await user.click(screen.getByLabelText('row menu bonus'));
         await user.click(screen.getByRole('menuitem', {name: 'Move to Assertions'}));
         await waitFor(() => expect(screen.getByLabelText('assertion bonus')).toBeInTheDocument());
+        await user.clear(screen.getByLabelText('assertion bonus'));
         await user.type(screen.getByLabelText('assertion bonus'), '5');
         await user.click(document.body);
         await user.click(screen.getByRole('button', {name: 'Run all'}));

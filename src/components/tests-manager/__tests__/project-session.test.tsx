@@ -48,11 +48,44 @@ describe('TestsManager — project session tests', () => {
                 },
             },
         });
-        render(<TestsManager service={session.engine} testCases={session.tests} subjectId="risk" />);
+        render(
+            <TestsManager service={session.engine} testCases={session.tests} subjectId="risk" autoRun={false} />,
+        );
 
         const assertion = await screen.findByLabelText('assertion level');
         expect(assertion).toHaveAttribute('data-mismatch', 'false');
         expect(screen.getByTestId('assertion-summary-young')).toHaveTextContent('');
+    });
+
+    it('runs every case that has not run as soon as the subject opens, and only those', async () => {
+        const {session} = await openFixtureProject({
+            tests: {
+                schemaVersion: 1,
+                subjects: {
+                    risk: {
+                        cases: [
+                            {id: 'young', name: 'Young', order: 0, inputs: {age: '20'}, assertions: {level: 'low'}},
+                            {id: 'old', name: 'Old', order: 1, inputs: {age: '70'}, assertions: {level: 'low'}},
+                        ],
+                        rows: [
+                            {path: 'age', section: 'inputs', order: 0, type: 'number', present: true},
+                            {path: 'level', section: 'assertions', order: 0, type: 'string', present: true},
+                        ],
+                    },
+                },
+            },
+        });
+        const {unmount} = render(<TestsManager service={session.engine} testCases={session.tests} subjectId="risk" />);
+
+        await waitFor(() => expect(screen.getByTestId('assertion-summary-young')).toHaveTextContent('0/1'));
+        await waitFor(() => expect(screen.getByTestId('assertion-summary-old')).toHaveTextContent('1/1'));
+        const ranAt = session.tests.forSubject('risk').getResultSet('young')?.ranAt;
+
+        // Opening the subject again keeps the fresh results instead of running them again.
+        unmount();
+        render(<TestsManager service={session.engine} testCases={session.tests} subjectId="risk" />);
+        expect(await screen.findByTestId('assertion-summary-young')).toHaveTextContent('0/1');
+        expect(session.tests.forSubject('risk').getResultSet('young')?.ranAt).toBe(ranAt);
     });
 
     it('pre-generates into the session, which marks the tests slice dirty', async () => {
