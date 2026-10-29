@@ -11,7 +11,7 @@ export const LOAN_ORIGINATION_PROJECT: ProjectBundleInput = {
     name: 'Loan origination',
     description: 'Scores, checks, prices and decides a joint mortgage application',
     tags: ['finance', 'loan', 'origination', 'scorecard', 'decision-table', 'workbook'],
-    model: {dsl: LOAN_ORIGINATION_DSL},
+    model: {dsl: LOAN_ORIGINATION_DSL, name: 'Mortgage Origination', version: '2.0.0'},
     documentation: LOAN_ORIGINATION_DOCUMENTATION,
     tests: LOAN_ORIGINATION_TESTS,
     flow: LOAN_ORIGINATION_FLOW,

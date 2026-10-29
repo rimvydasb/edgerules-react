@@ -4,6 +4,7 @@ import type {DocumentationDocument} from '../../src/components/project-session';
 export const LOAN_ORIGINATION_DOCUMENTATION: DocumentationDocument = {
     schemaVersion: 1,
     byPath: {
+        '*': 'Originates joint mortgage applications: scores every applicant with a scorecard, applies the knockout rules of the credit policy, prices the loan by risk grade and loan-to-value, and tests affordability before it makes an offer',
         Applicant: 'One borrower of the application: identity, employment, monthly budget and credit bureau data',
         LoanTerms: 'The requested loan: the application date, the amount, the property value and the term in years',
         Application: 'A mortgage application: the loan terms and one or more applicants',
@@ -28,7 +29,7 @@ export const LOAN_ORIGINATION_DOCUMENTATION: DocumentationDocument = {
         sampleApplication: 'An example joint mortgage application',
         sampleDecision: 'The decision on the example application',
         originationBook:
-            'A joint mortgage application from the loan terms and two applicants to the decision and the offer',
+            'A joint mortgage application from the loan terms and two applicants, through both scorecards, to the decision and the offer',
         'originationBook.loan': 'The requested loan',
         'originationBook.mainApplicant': 'The main applicant',
         'originationBook.coApplicant': 'The co-applicant',
@@ -36,7 +37,8 @@ export const LOAN_ORIGINATION_DOCUMENTATION: DocumentationDocument = {
         'originationBook.mainScorecard': 'The scorecard of the main applicant',
         'originationBook.coScorecard': 'The scorecard of the co-applicant',
         'originationBook.origination': 'The origination decision on the application',
-        capacityBook: 'How much a household can borrow for each term',
+        capacityBook:
+            'How much a household can borrow for each term from 10 to 30 years, from its income, its debt payments and the offered rate',
         'capacityBook.household': 'The monthly income, the monthly debt payments and the offered rate of the household',
         'capacityBook.capacity': 'The largest affordable payment and loan for each term',
     },

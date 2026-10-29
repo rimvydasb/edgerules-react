@@ -10,10 +10,6 @@ export interface BoxedEditorUiValue {
      * slot as `${path}#name` so it never collides with that same row's value cell. */
     activeCellPath: string | null;
     setActiveCellPath: (path: string | null) => void;
-    /** The model-level `Model Settings` dialog — opened from the `model` row's menu. */
-    modelSettingsOpen: boolean;
-    openModelSettings: () => void;
-    closeModelSettings: () => void;
     /** Mutation failures that cannot live inside an editing cell (menus and append placeholders). */
     rowErrors: ReadonlyMap<string, PortableError>;
     setRowError: (path: string, error: PortableError | undefined) => void;
@@ -35,7 +31,6 @@ export function BoxedEditorUiProvider({children, defaultExpanded = true}: BoxedE
     const altHeld = useAltHeldState();
     const [overrides, setOverrides] = useState<Map<string, boolean>>(() => new Map());
     const [activeCellPath, setActiveCellPath] = useState<string | null>(null);
-    const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
     const [rowErrors, setRowErrors] = useState<Map<string, PortableError>>(() => new Map());
     const [modelError, setModelError] = useState<PortableError | undefined>();
 
@@ -54,8 +49,6 @@ export function BoxedEditorUiProvider({children, defaultExpanded = true}: BoxedE
         [defaultExpanded],
     );
 
-    const openModelSettings = useCallback(() => setModelSettingsOpen(true), []);
-    const closeModelSettings = useCallback(() => setModelSettingsOpen(false), []);
     const setRowError = useCallback((path: string, error: PortableError | undefined) => {
         setRowErrors((previous) => {
             const next = new Map(previous);
@@ -71,25 +64,12 @@ export function BoxedEditorUiProvider({children, defaultExpanded = true}: BoxedE
             toggleExpand,
             activeCellPath,
             setActiveCellPath,
-            modelSettingsOpen,
-            openModelSettings,
-            closeModelSettings,
             rowErrors,
             setRowError,
             modelError,
             setModelError,
         }),
-        [
-            isExpanded,
-            toggleExpand,
-            activeCellPath,
-            modelSettingsOpen,
-            openModelSettings,
-            closeModelSettings,
-            rowErrors,
-            setRowError,
-            modelError,
-        ],
+        [isExpanded, toggleExpand, activeCellPath, rowErrors, setRowError, modelError],
     );
 
     return (

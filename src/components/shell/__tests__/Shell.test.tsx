@@ -353,6 +353,9 @@ describe('Shell view switch', () => {
         // The kind icon, the Project Explorer toggle, comes first.
         await user.tab();
         expect(screen.getByRole('button', {name: 'Hide project explorer', pressed: true})).toHaveFocus();
+        // The settings of the root path come before the view switch.
+        await user.tab();
+        expect(screen.getByRole('button', {name: 'Model settings'})).toHaveFocus();
         await user.tab();
         expect(screen.getByRole('radio', {name: 'Code'})).toHaveFocus();
         await user.keyboard('{ArrowRight}');

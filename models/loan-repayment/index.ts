@@ -11,7 +11,7 @@ export const LOAN_REPAYMENT_PROJECT: ProjectBundleInput = {
     name: 'Loan repayment',
     description: 'Prices a loan request and returns its monthly repayment schedule',
     tags: ['finance', 'loan', 'decision-table', 'workbook'],
-    model: {dsl: LOAN_REPAYMENT_DSL},
+    model: {dsl: LOAN_REPAYMENT_DSL, name: 'Loan Repayment Planner', version: '1.2.0'},
     documentation: LOAN_REPAYMENT_DOCUMENTATION,
     tests: LOAN_REPAYMENT_TESTS,
     flow: LOAN_REPAYMENT_FLOW,

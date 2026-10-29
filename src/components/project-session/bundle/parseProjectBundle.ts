@@ -76,6 +76,8 @@ function checkManifest(c: Checker, manifest: unknown): void {
     if (c.record(manifest.model, 'manifest.model')) {
         c.equals(manifest.model.format, 'dsl', 'manifest.model.format');
         c.string(manifest.model.source, 'manifest.model.source', {nonEmpty: true});
+        c.string(manifest.model.name, 'manifest.model.name', {optional: true});
+        c.string(manifest.model.version, 'manifest.model.version', {optional: true});
     }
 }
 

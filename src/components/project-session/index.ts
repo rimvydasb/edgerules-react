@@ -4,6 +4,7 @@ export type {
     DocumentationDocument,
     FlowMetadataDocument,
     LoadedProject,
+    ModelMetadata,
     ProjectBundle,
     ProjectDescriptor,
     ProjectLocator,

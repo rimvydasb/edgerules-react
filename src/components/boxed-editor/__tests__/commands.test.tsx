@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from 'vitest';
-import {act, render, screen, waitFor} from '@testing-library/react';
+import {act, render, screen} from '@testing-library/react';
 import {renderHook} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {EditorView} from '@codemirror/view';
@@ -630,47 +630,5 @@ describe('commands: readOnly enablement', () => {
         await chooseAction(user, 0, 'Duplicate');
 
         expect(mutable.toPortable()).toMatchObject({amount: 10, amount2: 10});
-    });
-});
-
-describe('commands: Model Settings', () => {
-    it('opens with the current name/version, and closes on Save', async () => {
-        const user = userEvent.setup();
-        const mutable = MutableDecisionService.fromCode('{ amount: 10 }');
-        const service = createBoxedEditorService(mutable);
-        const onChange = vi.fn();
-
-        render(<BoxedEditor service={service} path="*" languageService={languageService} onChange={onChange} />);
-        await user.click(screen.getByRole('button', {name: 'Model settings'}));
-
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-        expect(screen.getByLabelText('Name')).toHaveValue('Model');
-
-        await user.clear(screen.getByLabelText('Version'));
-        await user.type(screen.getByLabelText('Version'), '1.0.0');
-        await user.click(screen.getByRole('button', {name: 'Save'}));
-
-        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-        // The rest of the model survives the commit (a regression risk fixed in this phase: the
-        // `model` row prop always has `children` stripped, since every path does — denormalizing it
-        // as-is would silently wipe the whole model).
-        expect(mutable.toPortable()).toMatchObject({amount: 10});
-        // Root metadata writes are accepted (no PortableError) but not yet persisted by the engine —
-        // see docs/engine-bug-reports.md ("Root metadata … is silently dropped by `set('*', …)`").
-        expect(onChange).toHaveBeenCalledTimes(1);
-    });
-
-    it('closes without committing on Cancel', async () => {
-        const user = userEvent.setup();
-        const mutable = MutableDecisionService.fromCode('{ amount: 10 }');
-        const service = createBoxedEditorService(mutable);
-        const onChange = vi.fn();
-
-        render(<BoxedEditor service={service} path="*" languageService={languageService} onChange={onChange} />);
-        await user.click(screen.getByRole('button', {name: 'Model settings'}));
-        await user.click(screen.getByRole('button', {name: 'Cancel'}));
-
-        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-        expect(onChange).not.toHaveBeenCalled();
     });
 });

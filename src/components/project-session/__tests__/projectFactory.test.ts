@@ -43,6 +43,18 @@ describe('ProjectFactory.createBundle', () => {
         expect(MutableDecisionService.fromCode(bundle.model).toPortable()).toEqual(portable);
     });
 
+    it('keeps the model name and version in the manifest, from the input or the Portable root metadata', () => {
+        const fromDsl = factory.createBundle({name: 'Loans', model: {dsl: '{ a: 1 }', name: 'Desk', version: '1.0'}});
+        expect(fromDsl.manifest.model).toMatchObject({name: 'Desk', version: '1.0'});
+        const portable = {'@kind': 'context', '@model-name': 'Portable desk', '@model-version': '3', a: 1} as const;
+        const fromPortable = factory.createBundle({name: 'Loans', model: {portable}});
+        expect(fromPortable.manifest.model).toMatchObject({name: 'Portable desk', version: '3'});
+        expect(factory.createBundle({name: 'Loans', model: {dsl: '{ a: 1 }'}}).manifest.model).toEqual({
+            format: 'dsl',
+            source: 'model/main.edge',
+        });
+    });
+
     it('carries the optional slices', () => {
         const bundle = factory.createBundle({
             name: 'Loans',

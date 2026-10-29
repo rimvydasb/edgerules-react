@@ -1,11 +1,11 @@
 import {expect, test} from '@playwright/test';
 import {openBoxedEditorStory} from './helpers';
 
-// The one-step header row on top of every opened Boxed Expression: the title, the column toggles, the Model settings
-// button and the `plus` menu of the model root.
+// The one-step header row on top of every opened Boxed Expression: the title, the column toggles and the `plus` menu of
+// the model root. The model settings belong to the Shell (`e2e/models/model-settings.spec.ts`).
 
 test.describe('Boxed Editor / header row', () => {
-    test('the model root shows its name, a settings button and a plus menu that only adds', async ({page}) => {
+    test('the model root shows its name and a plus menu that only adds', async ({page}) => {
         await openBoxedEditorStory(page, 'test-cases-and-test-runner');
         const header = page.getByTestId('row-*');
         await expect(header.getByRole('heading')).toHaveText('Model');
@@ -14,17 +14,14 @@ test.describe('Boxed Editor / header row', () => {
         await expect(page.getByRole('menuitem', {name: 'Add field'})).toBeVisible();
         await expect(page.getByRole('menuitem', {name: 'Model settings'})).toHaveCount(0);
         await page.keyboard.press('Escape');
-
-        await header.getByRole('button', {name: 'Model settings'}).click();
-        await expect(page.getByRole('dialog', {name: 'Model settings'})).toBeVisible();
+        await expect(header.getByRole('button', {name: 'Model settings'})).toHaveCount(0);
     });
 
-    test('an opened entity shows its metaphor name without the settings button and the plus menu', async ({page}) => {
+    test('an opened entity shows its metaphor name without the plus menu', async ({page}) => {
         await openBoxedEditorStory(page, 'focused-context');
         const header = page.getByTestId('header-row');
         await expect(header.getByRole('heading')).toHaveText('Context');
         await expect(header.getByRole('button', {name: 'Open row actions'})).toHaveCount(0);
-        await expect(header.getByRole('button', {name: 'Model settings'})).toHaveCount(0);
     });
 
     test('the description and test column toggles show their columns and their pressed state', async ({page}) => {

@@ -49,9 +49,9 @@ service.toPortable();
 // { '@kind': 'context', amount: 10 }  — '@model-version' is missing; 'amount' did commit
 ```
 
-`BoxedEditor`'s `Model Settings` dialog (`docs/boxed-editor/phase-05-context-menus-and-actions.md` §4) commits through
-this `set('*', …)` path. Neither field that it edits persists after the next reload. The dialog is implemented as
-specified, but this engine gap blocks it end-to-end.
+The DSL has no syntax for either key, so `getCode('*')` drops both as well. The `Shell` settings dialog
+(`docs/specs/shell-spec.md`) works around it: the project manifest keeps `model.name` and `model.version`, and the
+session engine adds them to the model root as `@model-name` and `@model-version`.
 
 **Expected behaviour:** a root `set('*', …)` persists `@model-version` exactly as `fromPortable` does. For
 `@model-name`, it persists the key or rejects the write (the sibling gap in `API_SPEC.md`).

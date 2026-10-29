@@ -6,17 +6,26 @@ import {createBoxedEditorService, type BoxedEditorOpenTarget} from '../boxed-edi
 import {createFlowEditorService, type FlowEditorOpenTarget, type FlowFocusRequest} from '../flow-editor';
 import {ProjectExplorer} from '../project-explorer';
 import {useProjectSession, useProjectSlice, useProjectSnapshot} from '../project-session';
-import {isRootPath, modelWorkbooks, rootPathSegments, rootViews} from './shell-path';
+import {
+    annotationAt,
+    isRootPath,
+    modelName,
+    modelWorkbooks,
+    rootPathSegments,
+    rootViews,
+    workbookNodeCounts,
+} from './shell-path';
 import {explorerRoute} from './shell-routing';
 import type {ShellProps, ShellView} from './shell-types';
 import {ShellBreadcrumbs} from './ShellBreadcrumbs';
+import {ShellSettings} from './ShellSettings';
 import {ShellSplitToggle} from './ShellSplitToggle';
 import {ShellViewSwitch} from './ShellViewSwitch';
 import {BoxedView} from './views/BoxedView';
 import {CodeView} from './views/CodeView';
 import {FlowView} from './views/FlowView';
 import {TestsView} from './views/TestsView';
-import {WorkbookPicker} from './views/WorkbookPicker';
+import {WorkbookPicker, type WorkbookSummary} from './views/WorkbookPicker';
 import * as classes from './shell.module.css';
 
 type OpenTarget = BoxedEditorOpenTarget | FlowEditorOpenTarget;
@@ -47,6 +56,7 @@ export function Shell({
     const {subjects} = useProjectSlice('tests');
     const testSubjects = useMemo(() => Object.keys(subjects), [subjects]);
     const {dslValidity} = useProjectSnapshot();
+    const {byPath: descriptions} = useProjectSlice('documentation');
     const [ownPath, setOwnPath] = useState(defaultPath);
     const [ownView, setOwnView] = useState<ShellView>(defaultView);
     const [ownExplorerOpen, setOwnExplorerOpen] = useState(defaultExplorerOpen);
@@ -86,12 +96,25 @@ export function Shell({
     );
     const view = views.includes(requestedView) ? requestedView : 'boxed';
 
-    // The Flow view of the model root offers the workbooks to open, when the model has any.
-    const workbooks = useMemo(
-        () => (root === '*' ? modelWorkbooks(session.engine.toPortable()) : []),
+    // The model name, and whether the root path has settings: the model and every annotated entity have.
+    const {rootLabel, hasSettings} = useMemo(() => {
+        const model = session.engine.toPortable();
+        return {rootLabel: modelName(model), hasSettings: root === '*' || annotationAt(model, root) !== undefined};
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [session, root, version],
-    );
+    }, [session, root, version]);
+
+    // The Flow view of the model root offers the workbooks to open, when the model has any.
+    const workbooks = useMemo<WorkbookSummary[]>(() => {
+        if (root !== '*') return [];
+        const model = session.engine.toPortable();
+        return modelWorkbooks(model).map((workbook) => ({
+            path: workbook,
+            ...(annotationAt(model, workbook)?.name !== undefined && {name: annotationAt(model, workbook)!.name}),
+            ...(descriptions[workbook] !== undefined && {description: descriptions[workbook]}),
+            ...workbookNodeCounts(model, workbook),
+        }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session, root, version, descriptions]);
 
     const boxedService = useMemo(() => createBoxedEditorService(session.engine), [session]);
     const flowService = useMemo(() => createFlowEditorService(session.engine, {root}), [session, root]);
@@ -184,12 +207,14 @@ export function Shell({
             <div className={classes.header}>
                 <ShellBreadcrumbs
                     segments={segments}
+                    rootLabel={rootLabel}
                     // A crumb of the Tests view opens the model entity, not its tests.
                     onNavigate={(next) => navigate({path: next, view: view === 'tests' ? 'boxed' : undefined})}
                     explorerOpen={explorerOpen}
                     onToggleExplorer={() => setExplorerOpen(!explorerOpen)}
                     tests={view === 'tests'}
                 />
+                {hasSettings && !readOnly && <ShellSettings key={root} root={root} />}
                 <ShellViewSwitch
                     view={view}
                     views={views}

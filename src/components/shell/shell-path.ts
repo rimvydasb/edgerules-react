@@ -96,3 +96,37 @@ export function modelWorkbooks(model: unknown): string[] {
     if (!isRecord(model)) return [];
     return Object.keys(model).filter((name) => !name.startsWith('@') && pathKind(model[name]) === 'workbook');
 }
+
+/** The `@InputNode` and `@FunctionNode` fields of the workbook `name` of `model`. */
+export function workbookNodeCounts(model: unknown, name: string): {inputs: number; functions: number} {
+    const workbook = isRecord(model) ? model[name] : undefined;
+    const counts = {inputs: 0, functions: 0};
+    if (!isRecord(workbook)) return counts;
+    for (const [key, field] of Object.entries(workbook)) {
+        if (key.startsWith('@') || !isRecord(field)) continue;
+        if (field['@node'] === 'InputNode') counts.inputs += 1;
+        else if (field['@node'] === 'FunctionNode') counts.functions += 1;
+    }
+    return counts;
+}
+
+/** The annotation of an entity: `@Workbook(name: "Mortgage")` is `{node: 'Workbook', name: 'Mortgage'}`. */
+export interface ShellAnnotation {
+    node: string;
+    name?: string;
+}
+
+/** The annotation of the entity at `path` of `model`, when it has one. */
+export function annotationAt(model: unknown, path: string): ShellAnnotation | undefined {
+    if (path === '*') return undefined;
+    let node = model;
+    for (const name of path.split('.')) node = isRecord(node) ? node[name] : undefined;
+    if (!isRecord(node) || typeof node['@node'] !== 'string') return undefined;
+    return {node: node['@node'], ...(typeof node['@node-name'] === 'string' && {name: node['@node-name']})};
+}
+
+/** The model name of the `@model-name` of `model`, or 'Model'. */
+export function modelName(model: unknown): string {
+    const name = isRecord(model) ? model['@model-name'] : undefined;
+    return typeof name === 'string' && name !== '' ? name : 'Model';
+}

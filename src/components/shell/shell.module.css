@@ -198,6 +198,19 @@
   font-weight: 600;
 }
 
+/* ---------------------------------------------------------------- settings of the root path */
+/* One step cell left of the view switch, like the split screen toggle on its right. */
+.settingsButton {
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.settingsForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+}
+
 /* ---------------------------------------------------------------- body and status */
 .body {
   flex: 1;
@@ -248,6 +261,8 @@
   min-width: 0;
   min-height: 0;
   margin-left: -1px;
+  /* Positioned like the canvas, and later in the tree: its line paints over the canvas's last pixel, not under it. */
+  position: relative;
   overflow: auto;
   border-left: 1px solid var(--sh-border);
   background-color: var(--mantine-color-body);
@@ -283,13 +298,113 @@
 
 .workbookPanel {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 280px;
-  height: 160px;
+  flex-direction: column;
+  gap: 12px;
+  width: 340px;
+  min-height: 196px;
+  padding: 20px;
+  border: 1px solid var(--sh-border);
+  border-radius: var(--mantine-radius-md);
+  background-color: var(--mantine-color-body);
+  box-shadow: var(--mantine-shadow-xs);
+  color: var(--mantine-color-text);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
 }
 
 .workbookPanel:hover {
-  background: var(--sh-muted);
+  border-color: var(--mantine-primary-color-filled);
+  box-shadow: var(--mantine-shadow-md);
+  transform: translateY(-2px);
+}
+
+.workbookPanel:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+}
+
+.workbookHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* The kind icon square of a workbook, as in the Shell header. */
+.workbookIcon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--mantine-radius-sm);
+}
+
+.workbookTitles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.workbookTitle {
+  overflow: hidden;
+  font-size: var(--mantine-font-size-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbookField {
+  overflow: hidden;
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: var(--mantine-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Three lines at most; the panels of one row keep one height. */
+.workbookDescription,
+.workbookNoDescription {
+  display: -webkit-box;
+  flex: 1;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-size: var(--mantine-font-size-sm);
+  line-height: 1.5;
+}
+
+.workbookDescription {
+  color: var(--mantine-color-text);
+}
+
+.workbookNoDescription {
+  color: var(--mantine-color-dimmed);
+  font-style: italic;
+}
+
+.workbookFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--sh-border);
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.workbookOpen {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--mantine-primary-color-filled);
+  font-weight: 600;
 }

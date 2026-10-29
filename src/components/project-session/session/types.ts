@@ -1,6 +1,7 @@
 import type {Unsubscribe} from '#lib/changeBatch';
 import type {
     DocumentationDocument,
+    ModelMetadata,
     FlowMetadataDocument,
     ProjectBundle,
     ProjectLocator,
@@ -35,6 +36,7 @@ export interface ProjectSessionSnapshot {
 export interface ModelSnapshot {
     version: number; // increments with every model change; pass it as an editor's `revision`
     dsl: string; // the committed model as canonical DSL
+    metadata: ModelMetadata; // the model name and version; not part of the DSL
 }
 
 export interface ProjectSliceSnapshots {
@@ -49,7 +51,9 @@ export type ProjectCommand =
     | {type: 'commitDsl'; source: string}
     // Renames the field at `path` to `newName` and moves its documentation, tests and flow layout with it. Fails,
     // changing nothing, when the model no longer links afterwards: the engine moves references only for callables.
-    | {type: 'renamePath'; path: string; newName: string};
+    | {type: 'renamePath'; path: string; newName: string}
+    // Replaces the model name and version. An omitted or blank value removes it.
+    | {type: 'setModelMetadata'; metadata: ModelMetadata};
 
 export type CommandResult = {ok: true} | {ok: false; error: ProjectError};
 

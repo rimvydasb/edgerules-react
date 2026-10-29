@@ -171,7 +171,7 @@ export const CLIENT_OUTREACH_DSL = `{
             plannedRevenue: round(mix.objective, 2)
         }
     }
-    @Workbook
+    @Workbook(name: "Daily outreach plan")
     outreachBook: {
         @InputNode(name: "Team")
         team: { workers: 2; dayHours: 7 }

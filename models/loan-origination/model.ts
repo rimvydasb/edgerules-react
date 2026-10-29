@@ -168,7 +168,7 @@ export const LOAN_ORIGINATION_DSL = `{
         ]
     }
     sampleDecision: loanOriginationDecision(application: sampleApplication).decision.outcome
-    @Workbook
+    @Workbook(name: "Joint mortgage application")
     originationBook: {
         @InputNode(name: "Loan terms")
         loan: { applicationDate: date("2026-10-01"); loanAmount: 240000; propertyValue: 320000; termYears: 25 }
@@ -185,7 +185,7 @@ export const LOAN_ORIGINATION_DSL = `{
         @FunctionNode(name: "Origination decision")
         origination: loanOriginationDecision(application: application)
     }
-    @Workbook
+    @Workbook(name: "Borrowing capacity")
     capacityBook: {
         @InputNode(name: "Household")
         household: { monthlyIncome: 6800; monthlyDebtPayments: 250; rate: 0.0425 }

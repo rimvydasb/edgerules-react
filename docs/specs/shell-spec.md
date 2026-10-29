@@ -24,7 +24,7 @@
 ### Shell layout
 
 The header is one row of the Boxed Editor ruled sheet: 40px tall, 1px border lines, the muted header fill. The kind icon
-and the breadcrumb are on the left, and the view switch is on the right.
+and the breadcrumb are on the left. The settings button, the view switch and the split screen toggle are on the right.
 
 The active editor fills the body.
 
@@ -32,7 +32,7 @@ The `ProjectExplorer` side panel is optional. It is 256px wide, below the header
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ƒx │ Model › applicant › calculateAge(...)  │ Code │ Boxed │ Flow │ Tests   │
+│ ƒx │ Loan desk › loanBook        │ ⚙ │ Code │ Boxed │ Flow │ Tests │ ◫        │
 ├──────────────────┬───────────────────────────────────────────────────────────┤
 │ Project       [«]│                                                           │
 │ ▸ TYPES       1  │               active editor (one at a time)               │
@@ -43,15 +43,16 @@ The `ProjectExplorer` side panel is optional. It is 256px wide, below the header
 └──────────────────┴───────────────────────────────────────────────────────────┘
 ```
 
-| Element            | Implementation                                                   | Behavior                                                                     |
-| ------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `ShellBreadcrumbs` | Kind icon square, then one `button` per item                     | The first item is `Model` and opens `'*'`. The last item is text.            |
-| Kind icon square   | Toggle `button` with `aria-pressed`                              | Shows and hides the `ProjectExplorer` side panel.                            |
-| `ProjectExplorer`  | Side panel below the header, left of the body                    | Mounted only while open. Its close button hides it.                          |
-| `ShellViewSwitch`  | `radiogroup` of four 3-step header cells                         | Changes the active view. The root path does not change.                      |
-| `ShellSplitToggle` | Toggle `button` with `aria-pressed`, one step right of Tests     | Off by default. Enabled only in the Flow view. Splits the Flow view.         |
-| Editor body        | One of `CodeEditor`, `BoxedEditor`, `FlowEditor`, `TestsManager` | Only the active editor is mounted.                                           |
-| `ShellStatus`      | Mantine `Alert`                                                  | Shows the last commit error of the Code view. It is hidden without an error. |
+| Element            | Implementation                                                      | Behavior                                                                     |
+| ------------------ | ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `ShellBreadcrumbs` | Kind icon square, then one `button` per item                        | The first item is the model name and opens `'*'`. The last item is text.     |
+| Kind icon square   | Toggle `button` with `aria-pressed`                                 | Shows and hides the `ProjectExplorer` side panel.                            |
+| `ProjectExplorer`  | Side panel below the header, left of the body                       | Mounted only while open. Its close button hides it.                          |
+| `ShellSettings`    | Header cell `button` left of the view switch, and a Mantine `Modal` | Only for `'*'` and an annotated entity, and not when `readOnly`.             |
+| `ShellViewSwitch`  | `radiogroup` of four 3-step header cells                            | Changes the active view. The root path does not change.                      |
+| `ShellSplitToggle` | Toggle `button` with `aria-pressed`, one step right of Tests        | Off by default. Enabled only in the Flow view. Splits the Flow view.         |
+| Editor body        | One of `CodeEditor`, `BoxedEditor`, `FlowEditor`, `TestsManager`    | Only the active editor is mounted.                                           |
+| `ShellStatus`      | Mantine `Alert`                                                     | Shows the last commit error of the Code view. It is hidden without an error. |
 
 ### Flow view split screen
 
@@ -122,6 +123,7 @@ src/components/shell/
 ├── Shell.tsx                 # layout, path and view state, onOpenNode routing
 ├── ShellBreadcrumbs.tsx
 ├── ShellViewSwitch.tsx
+├── ShellSettings.tsx         # the settings button and dialog of the root path
 ├── views/                    # CodeView, BoxedView, FlowView, TestsView: one adapter per editor
 ├── shell-path.ts             # path segments, path validation, nearest existing path
 ├── shell.module.css
@@ -209,6 +211,8 @@ A valid root path is `'*'` or the path of an entity. `ProjectExplorer` opens eac
 
 The breadcrumb has one item for the model and one item for each path segment.
 
+The first item is the model name (`@model-name` of the model root), or `Model` when the model has no name.
+
 | Root path                | Breadcrumb items                            |
 | ------------------------ | ------------------------------------------- |
 | `'*'`                    | `Model`                                     |
@@ -256,6 +260,39 @@ The breadcrumb has one item for the model and one item for each path segment.
 - `readOnly` hides the add buttons of the explorer.
 - A model change re-reads the model in the explorer. The expanded sections stay expanded.
 - A segment with a `@node-name` annotation shows the field name. The breadcrumb shows model paths, not node titles.
+
+### The settings dialog edits the name and the description of the root path
+
+The settings button (`IconSettings`) is in the header left of the view switch. It shows for the model (`'*'`) and for an
+annotated entity: a field with an `@node` annotation, such as `@Workbook`, `@InputNode`, `@FunctionNode` or `@Service`.
+It does not show for another entity or when `readOnly` is set. A click opens the dialog immediately.
+
+| Root path        | Dialog title      | Name field                                  | Version field     | Description field           |
+| ---------------- | ----------------- | ------------------------------------------- | ----------------- | --------------------------- |
+| `'*'`            | `Model settings`  | The model name (`setModelMetadata`)         | The model version | `documentation` at `'*'`    |
+| Annotated entity | `<Node> settings` | The `name` of the annotation (`@node-name`) | None              | `documentation` at the path |
+
+- Save writes all fields in one `session.transaction`. A failed write changes nothing and shows the error in the dialog.
+- An empty annotation name removes the name: `@Workbook(name: "Loan book")` becomes `@Workbook`. The field name does not
+  change. Use the rename of the Project Explorer or the Boxed Editor to rename the field.
+- An annotation name write uses `setWithLinkCheck` on the authored entity with the new `@node-name`.
+- The model name and version are not part of the DSL: the engine has no syntax for them and drops `@model-name`. The
+  project manifest keeps them as `model.name` and `model.version`. The session engine adds them to the model root as
+  `@model-name` and `@model-version` in `get('*')` and `toPortable()`, so the Boxed Editor header and the Tests Manager
+  show the model name.
+- The Boxed Editor has no settings dialog. The Shell settings replace it.
+
+### The Flow view of the model offers the workbooks
+
+The Flow view of `'*'` shows one panel for each workbook of the model when the model has workbooks. A click on a panel
+opens the Flow view of the workbook.
+
+| Panel part  | Content                                                                    |
+| ----------- | -------------------------------------------------------------------------- |
+| Title       | The `name` of the `@Workbook` annotation, or the field name without a name |
+| Subtitle    | The field name, when the annotation has a name                             |
+| Description | The description of the workbook, three lines at most, or `No description`  |
+| Footer      | The number of `@InputNode` and `@FunctionNode` fields, and `Open flow`     |
 
 ### Navigation changes the root path or the view
 
@@ -378,6 +415,10 @@ current model on mount, so it shows the changes of the other views.
 - [x] Accept the path of every entity as a root path. Disable the Flow view cell for a root path without Flow.
 - [x] Add the Tests view with `TestsManager`, and route the `tests` target of the editors to it.
 - [x] Open each Project Explorer entry in the default view of its section.
+- [x] Add the settings button and dialog of the model and of annotated entities. Remove the Boxed Editor
+      `Model settings`.
+- [x] Keep the model name and version in the project manifest, with the `setModelMetadata` session command.
+- [x] Show the name, the description and the node counts of each workbook in the Flow view of the model.
 
 ## Limitations
 

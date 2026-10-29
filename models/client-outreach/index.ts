@@ -13,7 +13,7 @@ export const CLIENT_OUTREACH_PROJECT: ProjectBundleInput = {
     name: 'Client outreach',
     description: 'Decides whom to call, email or text in one working day for the largest expected revenue',
     tags: ['sales', 'outreach', 'optimisation', 'decision-table', 'workbook'],
-    model: {dsl: CLIENT_OUTREACH_DSL},
+    model: {dsl: CLIENT_OUTREACH_DSL, name: 'Client Outreach Planner', version: '1.0.0'},
     documentation: CLIENT_OUTREACH_DOCUMENTATION,
     tests: CLIENT_OUTREACH_TESTS,
     flow: CLIENT_OUTREACH_FLOW,

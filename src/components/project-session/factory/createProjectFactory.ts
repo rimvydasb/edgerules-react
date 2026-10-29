@@ -8,6 +8,7 @@ import {
     emptyTests,
     type DocumentationDocument,
     type FlowMetadataDocument,
+    type ModelMetadata,
     type ProjectBundle,
     type TestSuitesDocument,
 } from '../bundle/types';
@@ -18,8 +19,9 @@ export interface ProjectBundleInput {
     name: string;
     description?: string;
     tags?: string[];
-    // DSL is kept as written; Portable is converted to canonical DSL.
-    model: {dsl: string} | {portable: PortableRootContext};
+    // DSL is kept as written; Portable is converted to canonical DSL. `name` and `version` default to the
+    // `@model-name` and `@model-version` of a Portable model.
+    model: ({dsl: string} | {portable: PortableRootContext}) & ModelMetadata;
     // Optional slices, in the form `exportBundle` produces them; each defaults to empty.
     documentation?: DocumentationDocument;
     tests?: TestSuitesDocument;
@@ -59,6 +61,15 @@ export function createProjectFactory({engine}: ProjectFactoryOptions): ProjectFa
         }
     }
 
+    // The model name and version of the input; blank values are left out.
+    function metadataOf(model: ProjectBundleInput['model']): ModelMetadata {
+        const root = 'portable' in model ? model.portable : undefined;
+        const name = model.name ?? (typeof root?.['@model-name'] === 'string' ? root['@model-name'] : undefined);
+        const version =
+            model.version ?? (typeof root?.['@model-version'] === 'string' ? root['@model-version'] : undefined);
+        return {...(name?.trim() ? {name: name.trim()} : {}), ...(version?.trim() ? {version: version.trim()} : {})};
+    }
+
     return {
         createBundle(input) {
             return parseProjectBundle({
@@ -69,7 +80,7 @@ export function createProjectFactory({engine}: ProjectFactoryOptions): ProjectFa
                     name: input.name,
                     ...(input.description !== undefined && {description: input.description}),
                     ...(input.tags !== undefined && {tags: input.tags}),
-                    model: {format: 'dsl', source: DEFAULT_MODEL_SOURCE},
+                    model: {format: 'dsl', source: DEFAULT_MODEL_SOURCE, ...metadataOf(input.model)},
                 },
                 model: toDsl(input.model),
                 documentation: input.documentation ?? emptyDocumentation(),

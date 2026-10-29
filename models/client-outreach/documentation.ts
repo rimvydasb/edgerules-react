@@ -4,6 +4,7 @@ import type {DocumentationDocument} from '../../src/components/project-session';
 export const CLIENT_OUTREACH_DOCUMENTATION: DocumentationDocument = {
     schemaVersion: 1,
     byPath: {
+        '*': 'Plans one working day of sales outreach: prices a call, an email and an SMS for every prospect, respects the contact policy, and lets the MILP solver pick the channels with the largest expected revenue',
         Client: 'One prospect: wealth, propensity to buy, preferred channel, consent and the days since the last contact',
         Team: 'The sales team of the day: the number of workers and the working hours of each worker',
         Action: 'The channel chosen for one client, its time and its expected value',
@@ -30,7 +31,8 @@ export const CLIENT_OUTREACH_DOCUMENTATION: DocumentationDocument = {
         tierTotals: 'The calls, emails, SMS and not contacted clients of one wealth tier',
         contactPlan:
             'Plans the outreach of one day: prices every channel for every client, lets the solver choose the channel of every client, and returns the action, the worker and the start time for every client',
-        outreachBook: 'The outreach of one day for two workers and 100 prospects',
+        outreachBook:
+            'One working day for two workers and 100 prospects: the channel, the worker and the start time for every client, with the totals by channel and wealth tier',
         'outreachBook.team': 'Two workers, seven hours each',
         'outreachBook.clients': 'The 100 prospects of the day',
         'outreachBook.outreach': 'The contact plan: what to do with every client, and the totals by channel and tier',

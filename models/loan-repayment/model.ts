@@ -46,7 +46,7 @@ export const LOAN_REPAYMENT_DSL = `{
     }
     sampleRequest: { amount: 25000; years: 3; creditScore: 700 }
     samplePayment: loanRepayment(request: sampleRequest).payment
-    @Workbook
+    @Workbook(name: "Mortgage plan")
     mortgageBook: {
         @InputNode(name: "Mortgage request")
         mortgage: { amount: 250000; years: 25; creditScore: 780 }
@@ -55,7 +55,7 @@ export const LOAN_REPAYMENT_DSL = `{
         @FunctionNode(name: "Yearly summary")
         yearly: yearlySummary(schedule: repayment.schedule)
     }
-    @Workbook
+    @Workbook(name: "15 vs 30 years")
     termComparisonBook: {
         @InputNode(name: "15-year loan")
         shortTerm: { amount: 180000; years: 15; creditScore: 720 }

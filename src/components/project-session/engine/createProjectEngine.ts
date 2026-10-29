@@ -1,4 +1,6 @@
+import type {PortableError, PortableNode, PortableRootContext} from '@edgerules/portable';
 import type {SolverHandler, SolverInfo} from '@edgerules/web';
+import type {ModelMetadata} from '../bundle/types';
 import {ProjectError, messageOf} from '../errors';
 import type {EngineService, ProjectEngine, ProjectEngineClass} from './types';
 
@@ -29,8 +31,27 @@ function build(engineClass: ProjectEngineClass, dsl: string, link: boolean): Eng
     }
 }
 
-// `onChange` runs after every write through the facade.
-export function createProjectEngine(engineClass: ProjectEngineClass, dsl: string, onChange: () => void): EngineHandle {
+// The model root with the metadata the engine does not keep.
+function withMetadata<T extends PortableNode | PortableError | PortableRootContext>(
+    root: T,
+    metadata: ModelMetadata,
+): T {
+    if (typeof root !== 'object' || root === null || Array.isArray(root)) return root;
+    if ((root as {'@kind'?: unknown})['@kind'] === 'error') return root;
+    return {
+        ...root,
+        ...(metadata.name !== undefined && {'@model-name': metadata.name}),
+        ...(metadata.version !== undefined && {'@model-version': metadata.version}),
+    };
+}
+
+// `onChange` runs after every write through the facade; `metadata` is read on every read of the model root.
+export function createProjectEngine(
+    engineClass: ProjectEngineClass,
+    dsl: string,
+    onChange: () => void,
+    metadata: () => ModelMetadata = () => ({}),
+): EngineHandle {
     let current = build(engineClass, dsl, true);
     const solvers = new Set<SolverRegistration>();
 
@@ -43,9 +64,10 @@ export function createProjectEngine(engineClass: ProjectEngineClass, dsl: string
     }
 
     const facade: ProjectEngine = {
-        get: (path, filter) => current.get(path, filter),
+        get: (path, filter) =>
+            path === '*' ? withMetadata(current.get(path, filter), metadata()) : current.get(path, filter),
         getCode: (path, filter) => current.getCode(path, filter),
-        toPortable: () => current.toPortable(),
+        toPortable: () => withMetadata(current.toPortable(), metadata()),
         execute: (method, input) => current.execute(method, input),
         requiresSolver: () => current.requiresSolver(),
         get solverHandler() {

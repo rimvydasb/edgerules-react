@@ -278,6 +278,60 @@ describe('ProjectSession — commands', () => {
     });
 });
 
+describe('ProjectSession — model metadata', () => {
+    it('loads the model name and version of the manifest and reports them on the model root', async () => {
+        const {session} = await openFixtureProject({model: {dsl: '{ a: 1 }', name: 'Risk desk', version: '1.0.0'}});
+        expect(session.getSlice('model').metadata).toEqual({name: 'Risk desk', version: '1.0.0'});
+        expect(session.engine.toPortable()).toMatchObject({'@model-name': 'Risk desk', '@model-version': '1.0.0'});
+        expect(session.engine.get('*')).toMatchObject({'@model-name': 'Risk desk', '@model-version': '1.0.0'});
+        // Only the root has the metadata, and the DSL never does.
+        expect(session.engine.exportDsl()).not.toContain('Risk desk');
+    });
+
+    it('replaces the metadata, marks the model dirty and saves it in the manifest', async () => {
+        const {session, repository, locator} = await openFixtureProject({model: {dsl: '{ a: 1 }', name: 'Old'}});
+        const {version} = session.getSlice('model');
+
+        expect(session.execute({type: 'setModelMetadata', metadata: {name: ' New ', version: '2.0'}})).toEqual({
+            ok: true,
+        });
+        expect(session.getSlice('model')).toMatchObject({
+            version: version + 1,
+            metadata: {name: 'New', version: '2.0'},
+        });
+        expect(session.getSnapshot().dirtySlices).toEqual(['model']);
+
+        await session.save();
+        expect((await repository.load(locator)).bundle.manifest.model).toEqual({
+            format: 'dsl',
+            source: 'model/main.edge',
+            name: 'New',
+            version: '2.0',
+        });
+    });
+
+    it('removes a blank value and counts an equal value as no change', async () => {
+        const {session} = await openFixtureProject({model: {dsl: '{ a: 1 }', name: 'Desk', version: '1'}});
+        const before = session.getSnapshot().localVersion;
+        session.execute({type: 'setModelMetadata', metadata: {name: 'Desk', version: '1'}});
+        expect(session.getSnapshot().localVersion).toBe(before);
+
+        session.execute({type: 'setModelMetadata', metadata: {name: '  ', version: '1'}});
+        expect(session.getSlice('model').metadata).toEqual({version: '1'});
+        expect(session.engine.toPortable()).not.toHaveProperty('@model-name');
+    });
+
+    it('rolls the metadata back with a failed transaction', async () => {
+        const {session} = await openFixtureProject({model: {dsl: '{ a: 1 }', name: 'Desk'}});
+        const result = session.transaction(() => {
+            session.execute({type: 'setModelMetadata', metadata: {name: 'Other'}});
+            throw new Error('stop');
+        });
+        expect(result.ok).toBe(false);
+        expect(session.getSlice('model').metadata).toEqual({name: 'Desk'});
+    });
+});
+
 describe('ProjectSession — save', () => {
     it('saves one bundle against the loaded revision and clears dirty state', async () => {
         const {session, repository, locator} = await openFixtureProject();

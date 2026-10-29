@@ -48,12 +48,10 @@ describe('header row', () => {
 
         await user.click(within(header).getByRole('button', {name: 'Open row actions'}));
         expect(await screen.findByRole('menuitem', {name: 'Add field'})).toBeInTheDocument();
-        // Model settings is its own header button, not an item of the add menu.
+        // The model settings belong to the Shell: neither the add menu nor the header offers them.
         expect(screen.queryByRole('menuitem', {name: 'Model settings'})).not.toBeInTheDocument();
         await user.keyboard('{Escape}');
-
-        await user.click(within(header).getByRole('button', {name: 'Model settings'}));
-        expect(await screen.findByRole('dialog', {name: 'Model settings'})).toBeInTheDocument();
+        expect(within(header).queryByRole('button', {name: 'Model settings'})).not.toBeInTheDocument();
     });
 
     it('shows the metaphor name and no plus menu for an opened entity', () => {

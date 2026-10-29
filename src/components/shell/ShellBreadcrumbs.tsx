@@ -18,6 +18,7 @@ import * as classes from './shell.module.css';
 
 export interface ShellBreadcrumbsProps {
     segments: ShellPathSegment[]; // the root path, one segment per field
+    rootLabel?: string; // the model name; defaults to 'Model'
     onNavigate: (path: string) => void;
     explorerOpen: boolean;
     onToggleExplorer: () => void;
@@ -84,18 +85,19 @@ function ExplorerToggle({kind, open, onToggle}: {kind: GlyphKind; open: boolean;
 }
 
 /**
- * `Model` › `applicant` › `calculateAge(...)`: the fully qualified root path, the last item as plain text. In the
+ * `Loan repayment` › `applicant` › `calculateAge(...)`: the fully qualified root path, the last item as plain text. In the
  * Tests view, the path of the test subject.
  */
 export function ShellBreadcrumbs({
     segments,
+    rootLabel = 'Model',
     onNavigate,
     explorerOpen,
     onToggleExplorer,
     tests,
 }: ShellBreadcrumbsProps): ReactElement {
     const items = [
-        {label: 'Model', path: '*'},
+        {label: rootLabel, path: '*'},
         ...segments.map((segment) => ({label: segmentLabel(segment), path: segment.path})),
     ];
     return (

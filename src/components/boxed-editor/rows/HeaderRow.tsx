@@ -1,5 +1,5 @@
 import {Tooltip} from '@mantine/core';
-import {IconArrowAutofitContent, IconFlask, IconNotes, IconPlus, IconSettings} from '@tabler/icons-react';
+import {IconArrowAutofitContent, IconFlask, IconNotes, IconPlus} from '@tabler/icons-react';
 import {Fragment, type ReactElement, type ReactNode} from 'react';
 import {RowActionsMenu} from '#ui/RowActionsMenu';
 import {cx} from '#ui/cx';
@@ -7,12 +7,10 @@ import type {BoxedRowData, BoxedRowKind} from '../boxed-editor-types';
 import {DescriptionCell} from '../cells/DescriptionCell';
 import {TestResultsHeader} from '../cells/TestResultCell';
 import {useBoxedEditorContext} from '../context/BoxedEditorContext';
-import {useBoxedEditorUi} from '../context/BoxedEditorUiContext';
 import {useBoxedLayout} from '../context/BoxedLayoutContext';
 import {useRowActions} from '../hooks/useRowActions';
 import * as classes from '../boxedEditor.module.css';
 import {Cell, RowActionsButton, ROW_HEIGHT} from '../primitives';
-import {ModelSettingsDialog} from './ModelSettingsDialog';
 
 /** The metaphor name the header shows when the editor opens one entity instead of the whole model. */
 const METAPHOR_NAMES: Partial<Record<BoxedRowKind, string>> = {
@@ -66,14 +64,18 @@ export interface HeaderRowProps {
 
 /**
  * The one-step header on top of every opened Boxed Expression: the model name (root) or the metaphor name, the
- * fit-width toggle, the description and test-results column toggles, and — at the model root only — the
- * `Model settings` button and the `plus` menu that adds entities.
+ * fit-width toggle, the description and test-results column toggles, and — at the model root only — the `plus` menu
+ * that adds entities. The model name, version and description are edited in the settings of the Shell.
  * Above the two overlay columns it shows their headings: the model description and the test case selector.
  */
 export function HeaderRow({row}: HeaderRowProps): ReactElement {
-    const {readOnly, testCasesService, fitWidth = false, setFitWidth, setShowDescription, setShowTestResults} =
-        useBoxedEditorContext();
-    const {openModelSettings} = useBoxedEditorUi();
+    const {
+        testCasesService,
+        fitWidth = false,
+        setFitWidth,
+        setShowDescription,
+        setShowTestResults,
+    } = useBoxedEditorContext();
     const {template, showDescription, showTestResults} = useBoxedLayout();
     const actions = useRowActions(row);
     const isModel = row.kind === 'model';
@@ -118,11 +120,6 @@ export function HeaderRow({row}: HeaderRowProps): ReactElement {
                             <IconFlask size={18} />
                         </HeaderButton>
                     )}
-                    {isModel && !readOnly && (
-                        <HeaderButton label="Model settings" onClick={openModelSettings}>
-                            <IconSettings size={18} />
-                        </HeaderButton>
-                    )}
                 </div>
                 {isModel && actions.length > 0 ? (
                     <RowActionsMenu items={actions}>
@@ -146,7 +143,6 @@ export function HeaderRow({row}: HeaderRowProps): ReactElement {
                     </Cell>
                 )}
             </div>
-            {isModel && <ModelSettingsDialog row={row} />}
         </Fragment>
     );
 }
