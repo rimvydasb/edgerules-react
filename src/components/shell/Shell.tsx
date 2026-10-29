@@ -6,7 +6,7 @@ import {createBoxedEditorService, type BoxedEditorOpenTarget} from '../boxed-edi
 import {createFlowEditorService, type FlowEditorOpenTarget, type FlowFocusRequest} from '../flow-editor';
 import {ProjectExplorer} from '../project-explorer';
 import {useProjectSession, useProjectSlice, useProjectSnapshot} from '../project-session';
-import {isRootPath, rootPathSegments, rootViews} from './shell-path';
+import {isRootPath, modelWorkbooks, rootPathSegments, rootViews} from './shell-path';
 import {explorerRoute} from './shell-routing';
 import type {ShellProps, ShellView} from './shell-types';
 import {ShellBreadcrumbs} from './ShellBreadcrumbs';
@@ -16,6 +16,7 @@ import {BoxedView} from './views/BoxedView';
 import {CodeView} from './views/CodeView';
 import {FlowView} from './views/FlowView';
 import {TestsView} from './views/TestsView';
+import {WorkbookPicker} from './views/WorkbookPicker';
 import * as classes from './shell.module.css';
 
 type OpenTarget = BoxedEditorOpenTarget | FlowEditorOpenTarget;
@@ -84,6 +85,13 @@ export function Shell({
         [segments, subjectPaths, root],
     );
     const view = views.includes(requestedView) ? requestedView : 'boxed';
+
+    // The Flow view of the model root offers the workbooks to open, when the model has any.
+    const workbooks = useMemo(
+        () => (root === '*' ? modelWorkbooks(session.engine.toPortable()) : []),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [session, root, version],
+    );
 
     const boxedService = useMemo(() => createBoxedEditorService(session.engine), [session]);
     const flowService = useMemo(() => createFlowEditorService(session.engine, {root}), [session, root]);
@@ -216,7 +224,13 @@ export function Shell({
                                 onOpenNode={openNode}
                             />
                         )}
-                        {view === 'flow' && (
+                        {view === 'flow' && workbooks.length > 0 && (
+                            <WorkbookPicker
+                                workbooks={workbooks}
+                                onSelect={(workbook) => navigate({path: workbook, view: 'flow'})}
+                            />
+                        )}
+                        {view === 'flow' && workbooks.length === 0 && (
                             <FlowView
                                 key={root}
                                 root={root}

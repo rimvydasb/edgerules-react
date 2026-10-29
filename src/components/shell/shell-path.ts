@@ -90,3 +90,9 @@ export function rootKind(segments: ShellPathSegment[]): ShellRootKind {
 export function rootViews(segments: ShellPathSegment[]): readonly ShellView[] {
     return ROOT_VIEWS[rootKind(segments)];
 }
+
+/** The names of the workbooks that are direct fields of the model. */
+export function modelWorkbooks(model: unknown): string[] {
+    if (!isRecord(model)) return [];
+    return Object.keys(model).filter((name) => !name.startsWith('@') && pathKind(model[name]) === 'workbook');
+}

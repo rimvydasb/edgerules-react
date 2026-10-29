@@ -256,3 +256,40 @@
 .splitPanel > * {
   margin-left: -1px;
 }
+
+/* ---------------------------------------------------------------- workbook picker */
+/* The dotted canvas of the Flow Editor, with the panels in the very center. */
+.workbooks {
+  --wb-canvas: var(--mantine-color-gray-0);
+  --wb-dot: #ced4da;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  align-content: center;
+  height: 100%;
+  padding: 24px;
+  overflow: auto;
+  background-color: var(--wb-canvas);
+  background-image: radial-gradient(circle, var(--wb-dot) 0.7px, transparent 0.8px);
+  background-size: 20px 20px;
+}
+
+:global([data-mantine-color-scheme='dark']) .workbooks {
+  --wb-canvas: var(--mantine-color-dark-8);
+  --wb-dot: #3a3a3a;
+}
+
+.workbookPanel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 280px;
+  height: 160px;
+  cursor: pointer;
+}
+
+.workbookPanel:hover {
+  background: var(--sh-muted);
+}

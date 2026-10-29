@@ -205,6 +205,17 @@ describe('Shell project explorer', () => {
         expect(await screen.findByTestId('function-node-loanBook.decision')).toBeInTheDocument();
     });
 
+    it('offers a panel per workbook in the Flow view of the model root, and opens the clicked one', async () => {
+        const {session} = await openFixtureProject({model: {dsl: WORKBOOK_MODEL}});
+        const user = userEvent.setup();
+        await renderShell({defaultPath: '*', defaultView: 'flow'}, session);
+
+        expect(screen.queryByText('This flow has no nodes yet')).not.toBeInTheDocument();
+        await user.click(within(screen.getByTestId('shell-workbook-picker')).getByRole('button', {name: 'loanBook'}));
+        expect(breadcrumbItems()).toEqual(['Model', 'loanBook']);
+        expect(await screen.findByTestId('function-node-loanBook.decision')).toBeInTheDocument();
+    });
+
     it('opens the model root as the workbook when its nodes have no @Workbook context', async () => {
         const {session} = await openFixtureProject({
             model: {dsl: `{ @InputNode applicant: { income: 5000 }\n limit: 10 }`},
