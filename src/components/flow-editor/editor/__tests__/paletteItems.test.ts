@@ -10,27 +10,36 @@ function items() {
 }
 
 describe('paletteItems', () => {
-    it('offers a generic item per node type, then the records and callees of the model', () => {
+    it('offers a new input of each kind and the records of the model, then one Invocation, Output and Chart', () => {
         const ids = items().items.map((item) => item.id);
-        expect(ids.slice(0, 3)).toEqual(['new-input', 'input:applicant', 'input:application']);
-        expect(ids).toContain('function');
-        expect(ids.filter((id) => id.startsWith('callee:')).sort()).toEqual([
-            'callee:applicantDecision',
-            'callee:creditScore',
-            'callee:monthly',
-            'callee:risk',
+        expect(ids).toEqual([
+            'new-input',
+            'new-list-input',
+            'new-value-input',
+            'input:applicant',
+            'input:application',
+            'function',
+            'output',
+            'chart',
         ]);
-        expect(ids.slice(-2)).toEqual(['output', 'chart']);
     });
 
-    it('describes a callee by its signature and kind', () => {
-        const risk = items().items.find((item) => item.id === 'callee:risk');
-        expect(risk).toMatchObject({
-            icon: 'ruleset',
-            label: 'Add ruleset risk',
-            detail: '(age, income, segment) → { level, limit }',
-            action: {kind: 'function', callee: 'risk'},
-        });
+    it('offers one Invocation item that picks the callee on the node', () => {
+        const invocations = items().items.filter((item) => item.group === 'function');
+        expect(invocations).toEqual([
+            expect.objectContaining({title: 'Invocation', label: 'Add invocation', action: {kind: 'function'}}),
+        ]);
+    });
+
+    it('creates each input kind from its own item', () => {
+        const actions = items()
+            .items.filter((item) => item.id.startsWith('new-'))
+            .map((item) => [item.title, item.action]);
+        expect(actions).toEqual([
+            ['Object input', {kind: 'new-input', input: 'object-input'}],
+            ['List input', {kind: 'new-input', input: 'list-input'}],
+            ['Value input', {kind: 'new-input', input: 'value-input'}],
+        ]);
     });
 
     it('offers a list literal as an existing list', () => {
@@ -39,10 +48,12 @@ describe('paletteItems', () => {
         );
         const inputs = paletteItems(service).filter((item) => item.group === 'input');
         expect(inputs.map((item) => [item.id, item.icon, item.detail])).toEqual([
-            ['new-input', 'input', 'Empty record with one field'],
+            ['new-input', 'input', 'Record with one field'],
+            ['new-list-input', 'list-input', 'List of numbers'],
+            ['new-value-input', 'value-input', 'One number'],
             ['input:scores', 'list-input', 'Existing list'],
         ]);
-        expect(inputs[1].action).toEqual({kind: 'input', field: 'scores'});
+        expect(inputs[3].action).toEqual({kind: 'input', field: 'scores'});
     });
 
     it('drops a record once it is an input node', () => {
@@ -55,10 +66,11 @@ describe('paletteItems', () => {
 describe('filterItems', () => {
     it('matches every word against title, detail and group, ignoring case', () => {
         const all = items().items;
-        expect(filterItems(all, 'CREDIT').map((item) => item.id)).toEqual(['callee:creditScore']);
+        expect(filterItems(all, 'APPLICANT').map((item) => item.id)).toEqual(['input:applicant']);
         expect(filterItems(all, 'outputs').map((item) => item.id)).toEqual(['output']);
         expect(filterItems(all, 'charts').map((item) => item.id)).toEqual(['chart']);
-        expect(filterItems(all, 'segment level').map((item) => item.id)).toEqual(['callee:risk']);
+        expect(filterItems(all, 'invocation').map((item) => item.id)).toEqual(['function']);
+        expect(filterItems(all, 'list input').map((item) => item.id)).toEqual(['new-list-input']);
         expect(filterItems(all, '  ')).toBe(all);
     });
 });

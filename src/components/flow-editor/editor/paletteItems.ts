@@ -5,24 +5,45 @@ export const DRAG_TYPE = 'application/x-edgerules-flow-node';
 
 export const GROUP_LABEL: Record<PaletteGroup, string> = {
     input: 'Inputs',
-    function: 'Functions & rulesets',
+    function: 'Invocations',
     output: 'Outputs',
     chart: 'Charts',
 };
 
 export const GROUP_ORDER: PaletteGroup[] = ['input', 'function', 'output', 'chart'];
 
-/** Every node the palette offers: one generic item per node type, then the model items of that type. */
+/**
+ * Every node the palette offers: a new input of each kind and the records and lists of the model, one Invocation that
+ * picks what it invokes on the node, an Output and a Chart.
+ */
 export function paletteItems(service: FlowEditorService): PaletteItem[] {
     const items: PaletteItem[] = [
         {
             id: 'new-input',
             group: 'input',
             icon: 'input',
-            title: 'New input',
-            detail: 'Empty record with one field',
-            label: 'Add new input',
-            action: {kind: 'new-input'},
+            title: 'Object input',
+            detail: 'Record with one field',
+            label: 'Add object input',
+            action: {kind: 'new-input', input: 'object-input'},
+        },
+        {
+            id: 'new-list-input',
+            group: 'input',
+            icon: 'list-input',
+            title: 'List input',
+            detail: 'List of numbers',
+            label: 'Add list input',
+            action: {kind: 'new-input', input: 'list-input'},
+        },
+        {
+            id: 'new-value-input',
+            group: 'input',
+            icon: 'value-input',
+            title: 'Value input',
+            detail: 'One number',
+            label: 'Add value input',
+            action: {kind: 'new-input', input: 'value-input'},
         },
         ...service.listInputCandidates().map(({field, kind}): PaletteItem => ({
             id: `input:${field}`,
@@ -37,20 +58,11 @@ export function paletteItems(service: FlowEditorService): PaletteItem[] {
             id: 'function',
             group: 'function',
             icon: 'function',
-            title: 'Function call',
-            detail: 'Pick the callee on the node',
-            label: 'Add function call',
+            title: 'Invocation',
+            detail: 'Pick a function or ruleset on the node',
+            label: 'Add invocation',
             action: {kind: 'function'},
         },
-        ...service.listCallees().map((callee): PaletteItem => ({
-            id: `callee:${callee.path}`,
-            group: 'function',
-            icon: callee.kind,
-            title: callee.path,
-            detail: `(${callee.parameters.map((parameter) => parameter.name).join(', ')}) → ${callee.returnLabel}`,
-            label: `Add ${callee.kind} ${callee.path}`,
-            action: {kind: 'function', callee: callee.path},
-        })),
         {
             id: 'output',
             group: 'output',

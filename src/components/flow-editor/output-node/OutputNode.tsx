@@ -12,16 +12,9 @@ import {
 } from '../core-node';
 import {useFlowEditor} from '../FlowEditorProvider';
 import {outputNodeMenuItems} from './outputNodeMenus';
-import {
-    cellKind,
-    COLUMN_LIMIT,
-    formatCell,
-    outputShape,
-    ROW_LIMIT,
-    shapeSummary,
-    type OutputShape,
-} from './outputShape';
+import {outputShape, shapeSummary} from './outputShape';
 import type {OutputNodeData, OutputNodeType} from './types';
+import {ValueTable} from './ValueTable';
 import styles from '../core-node/coreNode.module.css';
 import outputStyles from './outputNode.module.css';
 
@@ -30,7 +23,6 @@ export {formatValue} from './outputShape';
 
 const OUTPUT_COLOR = '#2f9e44';
 const WIDTH = 240;
-const MORE = '…';
 
 /**
  * The EdgeRules OutputNode: one value row with an input pin. It shows what the engine computes for the path that
@@ -127,90 +119,7 @@ export function OutputNode({id, data, selected}: NodeProps<OutputNodeType>): Rea
                     {shape ? shapeSummary(shape) : source ? (failed ? '' : '…') : '—'}
                 </div>
             </TrackRow>
-            {tabular && <OutputTable shape={shape} />}
+            {tabular && <ValueTable shape={shape} testId="output" />}
         </div>
     );
-}
-
-/**
- * A list, a list of records or a record as a table of at most ROW_LIMIT rows and COLUMN_LIMIT value columns. A
- * longer table ends with a row of `…`, a wider one with a column of `…`; an empty list shows one Empty row.
- */
-function OutputTable({shape}: {shape: Exclude<OutputShape, {kind: 'scalar'}>}): ReactElement {
-    const {header, rows} = tableOf(shape);
-    const moreRows = rows.length > ROW_LIMIT;
-    const moreColumns = header.length - 1 > COLUMN_LIMIT;
-    const shownHeader = header.slice(0, COLUMN_LIMIT + 1);
-    const span = shownHeader.length + (moreColumns ? 1 : 0);
-    return (
-        <div className={outputStyles.tableBox}>
-            <table className={outputStyles.table} data-testid="output-table">
-                <thead>
-                    <tr>
-                        {shownHeader.map((name, index) => (
-                            <th key={index} className={index === 0 ? outputStyles.key : undefined} title={name}>
-                                {name}
-                            </th>
-                        ))}
-                        {moreColumns && <th className={outputStyles.more}>{MORE}</th>}
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.length === 0 && (
-                        <tr>
-                            <td colSpan={span} className={outputStyles.emptyRow}>
-                                Empty
-                            </td>
-                        </tr>
-                    )}
-                    {rows.slice(0, ROW_LIMIT).map(([key, cells], row) => (
-                        <tr key={row}>
-                            <th scope="row" className={outputStyles.key}>
-                                {key}
-                            </th>
-                            {cells.slice(0, COLUMN_LIMIT).map((cell, column) => {
-                                const text = formatCell(cell);
-                                return (
-                                    <td key={column} className={outputStyles[cellKind(cell)]} title={text}>
-                                        {text}
-                                    </td>
-                                );
-                            })}
-                            {moreColumns && <td className={outputStyles.more}>{MORE}</td>}
-                        </tr>
-                    ))}
-                    {moreRows && (
-                        <tr data-testid="output-more-rows">
-                            {Array.from({length: span}, (_, index) => (
-                                <td
-                                    key={index}
-                                    className={`${outputStyles.more} ${index === 0 ? outputStyles.key : ''}`}
-                                >
-                                    {MORE}
-                                </td>
-                            ))}
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-    );
-}
-
-// The header row and the body rows of a table; the first column holds the row number or the field name.
-function tableOf(shape: Exclude<OutputShape, {kind: 'scalar'}>): {header: string[]; rows: [string, unknown[]][]} {
-    switch (shape.kind) {
-        case 'list':
-            return {header: ['#', 'value'], rows: shape.items.map((item, index) => [String(index + 1), [item]])};
-        case 'table':
-            return {
-                header: ['#', ...shape.columns],
-                rows: shape.rows.map((record, index) => [
-                    String(index + 1),
-                    shape.columns.map((column) => record[column]),
-                ]),
-            };
-        case 'record':
-            return {header: ['field', 'value'], rows: shape.entries.map(([name, item]) => [name, [item]])};
-    }
 }

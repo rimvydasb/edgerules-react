@@ -17,6 +17,7 @@ export function NodeFrame({
     testId,
     selected,
     width,
+    fit = false,
     color,
     icon,
     badge,
@@ -32,7 +33,11 @@ export function NodeFrame({
     const stopEditing = () => onEditingChange(null);
 
     return (
-        <div className={`${styles.node} ${selected ? styles.selected : ''}`} style={{width}} data-testid={testId}>
+        <div
+            className={`${styles.node} ${fit ? styles.fit : ''} ${selected ? styles.selected : ''}`}
+            style={fit ? {minWidth: width} : {width}}
+            data-testid={testId}
+        >
             <div className={`${styles.row} ${styles.tall}`}>
                 <div className={styles.tile} style={{background: color}} aria-hidden>
                     {icon}

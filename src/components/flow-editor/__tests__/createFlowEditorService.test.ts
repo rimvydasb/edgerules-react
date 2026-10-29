@@ -690,6 +690,70 @@ describe('FlowEditorService flow nodes', () => {
     });
 });
 
+describe('FlowEditorService value inputs', () => {
+    const VALUE_MODEL = `{
+        @InputNode(name: "Age")
+        age: 23
+        adult: age >= 18
+        plain: 5
+    }`;
+    const valueService = () => {
+        const mutable = MutableDecisionService.fromCode(VALUE_MODEL);
+        return {mutable, service: createFlowEditorService(mutable)};
+    };
+
+    it('lists an annotated single value as a value input', () => {
+        const {service} = valueService();
+        expect(service.listNodes()).toEqual([{field: 'age', kind: 'value-input'}]);
+    });
+
+    it('reads the type, the label and the expression of the value', () => {
+        const {service} = valueService();
+        expect(service.getValueInputNode('age')).toEqual({field: 'age', label: 'Age', type: 'number', value: '23'});
+        expect(service.getValueInputNode('nope')).toEqual({field: 'nope', type: 'any'});
+    });
+
+    it('writes a new value, keeps the annotation and recalculates what reads it', async () => {
+        const {mutable, service} = valueService();
+        const listener = vi.fn();
+        service.subscribe(listener);
+        expect(service.setInputValue('age', '12')).toBeUndefined();
+        expect(mutable.toPortable().age).toMatchObject({expression: '12', '@node': 'InputNode', '@node-name': 'Age'});
+        expect(await service.readOutput('adult')).toEqual({value: false, type: 'boolean'});
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses an empty or a broken value and keeps the old one', () => {
+        const {mutable, service} = valueService();
+        expect(isPortableError(service.setInputValue('age', ' ') as never)).toBe(true);
+        expect(isPortableError(service.setInputValue('age', 'age +') as never)).toBe(true);
+        expect(mutable.toPortable().age).toMatchObject({expression: '23'});
+    });
+
+    it('does not annotate an existing single value or a computed one', () => {
+        const {service} = valueService();
+        expect(isPortableError(service.addInputNode('plain') as never)).toBe(true);
+        expect(isPortableError(service.addInputNode('adult') as never)).toBe(true);
+        expect(service.listInputCandidates()).toEqual([]);
+    });
+
+    it('creates a new list input and a new value input', async () => {
+        const {mutable, service} = valueService();
+        expect(service.createInputNode('list-input')).toBe('list');
+        expect(service.createInputNode('value-input')).toBe('value');
+        expect(mutable.toPortable()).toMatchObject({
+            list: {'@kind': 'expression', expression: '[1, 2, 3]', '@node': 'InputNode'},
+            value: {'@kind': 'expression', expression: '0', '@node': 'InputNode'},
+        });
+        expect(service.listNodes()).toEqual([
+            {field: 'age', kind: 'value-input'},
+            {field: 'list', kind: 'list-input'},
+            {field: 'value', kind: 'value-input'},
+        ]);
+        expect(await service.readOutput('list')).toEqual({value: [1, 2, 3], type: 'number[]'});
+    });
+});
+
 describe('FlowEditorService list inputs', () => {
     const LIST_MODEL = `{
         type Person: { id: <string>; age: <number> }

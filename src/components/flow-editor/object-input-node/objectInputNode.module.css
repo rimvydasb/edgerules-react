@@ -54,3 +54,12 @@
   border-radius: 4px;
   color: #fff;
 }
+
+/* The `…` row of a record with more fields than the node shows. */
+.more {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  color: var(--mantine-color-dimmed);
+}

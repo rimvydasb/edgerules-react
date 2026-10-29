@@ -1,7 +1,7 @@
 import type {FlowLayout} from '#lib/flowLayout';
 import type {CodeEditorService} from '../../code-editor-cell';
 import type {DocumentationService} from '../../documentation-service';
-import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
+import type {FlowEditorOpenTarget, FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 
 export interface FlowEditorProps {
     service: FlowEditorService; // engine-backed node service from createFlowEditorService()
@@ -22,7 +22,7 @@ export interface FlowEditorProps {
  * shows the value of the model path wired into it (`source`, undefined while nothing is wired).
  */
 export type FlowSelection =
-    | {kind: 'function' | 'object-input' | 'list-input'; field: string}
+    | {kind: 'function' | 'object-input' | 'list-input' | 'value-input'; field: string}
     | {kind: 'output' | 'chart'; id: string; label?: string; source?: string};
 
 /** Asks the canvas to select one node and center it; each new object is a new request. */
@@ -36,13 +36,13 @@ export type PaletteGroup = 'input' | 'function' | 'output' | 'chart';
 
 /** What a palette item creates. */
 export type PaletteAction =
-    | {kind: 'new-input'}
+    | {kind: 'new-input'; input: Exclude<FlowNodeRef['kind'], 'function'>} // a new record, list or single value
     | {kind: 'input'; field: string} // annotate an existing record or list
-    | {kind: 'function'; callee?: string} // a draft node, with its callee picked when given
+    | {kind: 'function'} // a draft invocation; the user picks what it invokes on the node
     | {kind: 'output'}
     | {kind: 'chart'};
 
-export type PaletteIcon = 'input' | 'list-input' | 'function' | 'ruleset' | 'output' | 'chart';
+export type PaletteIcon = 'input' | 'list-input' | 'value-input' | 'function' | 'output' | 'chart';
 
 export interface PaletteItem {
     id: string; // stable key, also the drag payload
@@ -50,7 +50,7 @@ export interface PaletteItem {
     icon: PaletteIcon;
     title: string;
     detail: string; // second line: signature or hint
-    label: string; // accessible name, for example 'Add ruleset risk'
+    label: string; // accessible name, for example 'Add list input'
     action: PaletteAction;
 }
 

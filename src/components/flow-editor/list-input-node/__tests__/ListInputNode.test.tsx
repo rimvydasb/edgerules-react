@@ -1,4 +1,4 @@
-import {fireEvent, screen, waitFor} from '@testing-library/react';
+import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {describe, expect, it, vi} from 'vitest';
 import type {FlowEditorOpenTarget} from '../../flow-editor-types';
 import {renderNode} from '../../testing/renderNode';
@@ -7,6 +7,8 @@ const LIST_MODEL = `{
     @InputNode(name: "People")
     people: [{ id: "a"; age: 30 }, { id: "b"; age: 41 }, { id: "c"; age: 25 }]
     scores: [1, 2, 3]
+    many: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    none: []
     oldest: max(for p in people return p.age)
 }`;
 
@@ -27,22 +29,49 @@ describe('ListInputNode', () => {
         expect(await screen.findByText('object[] · 3 items')).toBeInTheDocument();
     });
 
-    it('shows the shape of an item: one row per field with its type', () => {
+    it('shows the items: one row per item and one column per item field', async () => {
         renderList();
-        expect(screen.getByText('item fields')).toBeInTheDocument();
-        expect(screen.getByText('types')).toBeInTheDocument();
-        for (const [name, type] of [
-            ['id', 'string'],
-            ['age', 'number'],
-        ]) {
-            expect(screen.getByTitle(`${name} : ${type}`)).toHaveTextContent(name);
-        }
+        const table = await screen.findByTestId('list-input-table');
+        expect(
+            within(table)
+                .getAllByRole('columnheader')
+                .map((cell) => cell.textContent),
+        ).toEqual(['#', 'id', 'age']);
+        const rows = within(table).getAllByRole('row').slice(1);
+        expect(rows.map((row) => row.textContent)).toEqual(['1a30', '2b41', '3c25']);
     });
 
-    it('describes a list of plain values', async () => {
+    it('shows a list of plain values: one row per value', async () => {
         renderList('scores');
-        expect(screen.getByText('A list of number values.')).toBeInTheDocument();
         expect(await screen.findByText('number[] · 3 items')).toBeInTheDocument();
+        const table = screen.getByTestId('list-input-table');
+        expect(
+            within(table)
+                .getAllByRole('columnheader')
+                .map((cell) => cell.textContent),
+        ).toEqual(['#', 'value']);
+        expect(
+            within(table)
+                .getAllByRole('row')
+                .slice(1)
+                .map((row) => row.textContent),
+        ).toEqual(['11', '22', '33']);
+    });
+
+    it('shows at most 10 items, then a row of …', async () => {
+        renderList('many');
+        expect(await screen.findByText('number[] · 12 items')).toBeInTheDocument();
+        const table = screen.getByTestId('list-input-table');
+        // The header row, 10 items and the `…` row.
+        expect(within(table).getAllByRole('row')).toHaveLength(12);
+        expect(within(table).getByTestId('list-input-more-rows')).toHaveTextContent('……');
+        expect(within(table).queryByText('11')).toBeNull();
+    });
+
+    it('shows a value that is not a list as text: the engine reads an untyped [] as Missing', async () => {
+        renderList('none');
+        expect(await screen.findByText("'Missing('empty list')'")).toBeInTheDocument();
+        expect(screen.queryByTestId('list-input-table')).toBeNull();
     });
 
     it('counts the items again after the list changes', async () => {

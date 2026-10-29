@@ -4,12 +4,12 @@ import {
     IconGripVertical,
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
-    IconListCheck,
     IconListDetails,
     IconLogin2,
     IconLogout2,
     IconMathFunction,
     IconSearch,
+    IconVariable,
 } from '@tabler/icons-react';
 import {useState, type DragEvent, type KeyboardEvent, type ReactElement} from 'react';
 import {CHART_COLOR} from '../chart-node/ChartNode';
@@ -21,8 +21,8 @@ import styles from './flowEditor.module.css';
 export const ICON_COLOR: Record<PaletteIcon, string> = {
     input: '#ed6c02',
     'list-input': '#ed6c02',
+    'value-input': '#ed6c02',
     function: KIND_COLOR.function,
-    ruleset: KIND_COLOR.ruleset,
     output: '#2f9e44',
     chart: CHART_COLOR,
 };
@@ -30,14 +30,14 @@ export const ICON_COLOR: Record<PaletteIcon, string> = {
 const ICONS = {
     input: IconLogin2,
     'list-input': IconListDetails,
+    'value-input': IconVariable,
     function: IconMathFunction,
-    ruleset: IconListCheck,
     output: IconLogout2,
     chart: IconChartLine,
 };
 
 // The rail keeps the generic item of each node type one click away.
-const GENERIC_ITEMS = new Set(['new-input', 'function', 'output', 'chart']);
+const GENERIC_ITEMS = new Set(['new-input', 'new-list-input', 'new-value-input', 'function', 'output', 'chart']);
 
 function PaletteTile({icon, size = 28}: {icon: PaletteIcon; size?: number}): ReactElement {
     const Icon = ICONS[icon];
@@ -134,10 +134,7 @@ export function NodePalette({items, collapsed, onCollapsedChange, onAdd}: NodePa
                     if (members.length === 0) return null;
                     return (
                         <section key={group} className={styles.group} aria-label={GROUP_LABEL[group]}>
-                            <div className={styles.groupLabel}>
-                                {GROUP_LABEL[group]}
-                                <span className={styles.groupCount}>{members.length}</span>
-                            </div>
+                            <div className={styles.groupLabel}>{GROUP_LABEL[group]}</div>
                             {members.map((item) => (
                                 <div
                                     key={item.id}

@@ -23,6 +23,7 @@ import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
 import type {ListInputNodeModel} from '../list-input-node/types';
 import type {InputDeclarationKind, ObjectInputField, ObjectInputNodeModel} from '../object-input-node/types';
+import type {ValueInputNodeModel} from '../value-input-node/types';
 
 type GetFilter = 'FIELDS' | 'ALL' | 'EXTERNAL_DEFINITIONS';
 type InputKind = Exclude<FlowNodeRef['kind'], 'function'>;
@@ -183,14 +184,14 @@ export function createFlowEditorService(
         return isInvocation(node) ? node : undefined;
     };
 
-    // The input node kind of a model field: a record, or an expression whose value is a list.
+    // The input node kind of a model field: a record, an expression whose value is a list, or another expression.
     const inputKindOf = (field: string, node: unknown): InputKind | undefined => {
         if (!isRecord(node)) return undefined;
         if (node['@kind'] === 'context') return 'object-input';
         if (node['@kind'] !== 'expression') return undefined;
         ensureLinked();
         const type = typeText(engine.get(field));
-        return type?.endsWith('[]') ? 'list-input' : undefined;
+        return type?.endsWith('[]') ? 'list-input' : 'value-input';
     };
 
     // The record or the list at `field` when it is annotated `@node: 'InputNode'`.
@@ -656,6 +657,19 @@ export function createFlowEditorService(
             return {field, label: typeof label === 'string' ? label : undefined, fields};
         },
 
+        getValueInputNode(field): ValueInputNodeModel {
+            const input = inputAt(field);
+            if (!input || input['@kind'] !== 'expression') return {field, type: 'any'};
+            ensureLinked();
+            const label = input['@node-name'];
+            return {
+                field,
+                label: typeof label === 'string' ? label : undefined,
+                type: typeText(engine.get(field)) ?? 'any',
+                value: typeof input.expression === 'string' ? input.expression : undefined,
+            };
+        },
+
         getListInputNode(field): ListInputNodeModel {
             const input = inputAt(field);
             if (!input || input['@kind'] !== 'expression') return {field, type: 'any[]', itemFields: []};
@@ -689,7 +703,11 @@ export function createFlowEditorService(
 
         addInputNode(field) {
             const node = portableAtPath(engine.toPortable() as PortableNode, field);
-            if (!isRecord(node) || !inputKindOf(field, node)) return failure(`'${field}' is not a record or a list`);
+            // A single value input is authored or created new: any expression has a value, computed ones too.
+            const kind = inputKindOf(field, node);
+            if (!isRecord(node) || (kind !== 'object-input' && kind !== 'list-input')) {
+                return failure(`'${field}' is not a record or a list`);
+            }
             const result = setWithLinkCheck(
                 engine,
                 field,
@@ -700,10 +718,9 @@ export function createFlowEditorService(
             notify();
         },
 
-        createInputNode() {
-            const field = newRootField('input');
-            const record = {'@kind': 'context', '@node': 'InputNode', value: 0} as unknown as PortableNode;
-            const result = setWithLinkCheck(engine, field, record, undefined);
+        createInputNode(kind = 'object-input') {
+            const field = newRootField(NEW_INPUT[kind].base);
+            const result = setWithLinkCheck(engine, field, NEW_INPUT[kind].node, undefined);
             if (isPortableError(result)) return result;
             notify();
             return field;
@@ -774,8 +791,22 @@ export function createFlowEditorService(
             notify();
         },
 
+        setInputValue(field, text) {
+            const input = inputAt(field);
+            if (!input || input['@kind'] !== 'expression') return failure(`node '${field}' does not exist`);
+            if (text.trim() === '') return failure('A value is required.');
+            const result = setWithLinkCheck(
+                engine,
+                field,
+                {...input, expression: text} as unknown as PortableNode,
+                input as unknown as PortableNode,
+            );
+            if (isPortableError(result)) return result;
+            notify();
+        },
+
         inputValueContext(field, name) {
-            return buildExpressionEmbedContext(engine.toPortable(), `${field}.${name}`);
+            return buildExpressionEmbedContext(engine.toPortable(), name === undefined ? field : `${field}.${name}`);
         },
 
         async readOutput(source) {
@@ -816,6 +847,22 @@ export function createFlowEditorService(
         },
     };
 }
+
+// What a new input node of each kind holds: a record with one number field, a list of numbers, or one number.
+const NEW_INPUT: Record<InputKind, {base: string; node: PortableNode}> = {
+    'object-input': {
+        base: 'input',
+        node: {'@kind': 'context', '@node': 'InputNode', value: 0} as unknown as PortableNode,
+    },
+    'list-input': {
+        base: 'list',
+        node: {'@kind': 'expression', expression: '[1, 2, 3]', '@node': 'InputNode'} as unknown as PortableNode,
+    },
+    'value-input': {
+        base: 'value',
+        node: {'@kind': 'expression', expression: '0', '@node': 'InputNode'} as unknown as PortableNode,
+    },
+};
 
 const DECLARATION_KINDS: Record<string, InputDeclarationKind> = {
     function: 'function',

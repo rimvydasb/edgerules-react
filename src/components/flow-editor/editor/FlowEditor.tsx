@@ -41,6 +41,7 @@ import {ListInputNode} from '../list-input-node/ListInputNode';
 import {ObjectInputNode} from '../object-input-node/ObjectInputNode';
 import {OutputNode, sourcePath} from '../output-node/OutputNode';
 import type {OutputNodeData} from '../output-node/types';
+import {ValueInputNode} from '../value-input-node/ValueInputNode';
 import {autoLayout, findFreeSpot, modelWires, outputWires, type LayoutKind, type Wire} from './graph';
 import {ICON_COLOR, NodePalette} from './NodePalette';
 import {DRAG_TYPE, paletteItems} from './paletteItems';
@@ -59,6 +60,7 @@ const NODE_TYPES = {
     functionNode: FunctionNode,
     objectInputNode: ObjectInputNode,
     listInputNode: ListInputNode,
+    valueInputNode: ValueInputNode,
     outputNode: OutputNode,
     chartNode: ChartNode,
 };
@@ -66,6 +68,7 @@ const TYPE_OF: Record<LayoutKind, keyof typeof NODE_TYPES> = {
     function: 'functionNode',
     'object-input': 'objectInputNode',
     'list-input': 'listInputNode',
+    'value-input': 'valueInputNode',
     output: 'outputNode',
     chart: 'chartNode',
 };
@@ -73,6 +76,7 @@ const KIND_OF: Record<string, LayoutKind> = {
     functionNode: 'function',
     objectInputNode: 'object-input',
     listInputNode: 'list-input',
+    valueInputNode: 'value-input',
     outputNode: 'output',
     chartNode: 'chart',
 };
@@ -81,6 +85,7 @@ const CANVAS_TYPES = new Set(['outputNode', 'chartNode']);
 const MINIMAP_COLOR: Record<LayoutKind, string> = {
     'object-input': ICON_COLOR.input,
     'list-input': ICON_COLOR.input,
+    'value-input': ICON_COLOR.input,
     function: ICON_COLOR.function,
     output: ICON_COLOR.output,
     chart: ICON_COLOR.chart,
@@ -148,6 +153,7 @@ function estimateSize(service: FlowEditorService, id: string, kind: LayoutKind):
         return {width: 280, height: (3 + Math.max(1, service.getObjectInputNode(id).fields.length)) * ROW};
     if (kind === 'list-input')
         return {width: 280, height: (3 + Math.max(1, service.getListInputNode(id).itemFields.length)) * ROW};
+    if (kind === 'value-input') return {width: 240, height: 3 * ROW};
     const model = service.getFunctionNode(id);
     if (!model.callee) return {width: 320, height: 3 * ROW};
     return {width: 360, height: (3 + Math.max(model.arguments.length, model.results.length)) * ROW};
@@ -460,13 +466,11 @@ function FlowCanvas({
             return;
         }
         if (action.kind === 'new-input') {
-            const created = service.createInputNode();
+            const created = service.createInputNode(action.input);
             if (!isPortableError(created)) place(created);
             return;
         }
-        const field = service.createDraftNode();
-        place(field);
-        if (action.callee) service.setCallee(field, action.callee);
+        place(service.createDraftNode());
     };
 
     const onDrop = (event: DragEvent) => {

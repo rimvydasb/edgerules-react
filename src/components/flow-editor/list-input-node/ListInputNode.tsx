@@ -1,59 +1,45 @@
 import type {NodeProps} from '@xyflow/react';
 import {IconListDetails} from '@tabler/icons-react';
-import {useEffect, useState, type ReactElement} from 'react';
+import {useMemo, type ReactElement} from 'react';
 import {
     NodeEmptyState,
     NodeFrame,
     NodeSummary,
     Pin,
-    Track,
-    TrackBand,
-    TrackName,
-    TrackNameText,
-    TrackRow,
     useCoreNode,
+    useModelReading,
     useServiceRead,
     useSyncPins,
 } from '../core-node';
-import type {FlowEditorService} from '../flow-editor-types';
+import {formatValue, outputShape} from '../output-node/outputShape';
+import {ValueTable} from '../output-node/ValueTable';
 import {listInputNodeMenuItems} from './listInputNodeMenus';
-import {listSummary, useListInputNodeLayout} from './layout';
+import {listSummary, useListInputNodeWidth} from './layout';
 import type {ListInputNodeType} from './types';
 
 const INPUT_COLOR = '#ed6c02';
 
-/** The number of items of the list at `field`, as the engine evaluates it; reads again after every change. */
-function useItemCount(service: FlowEditorService, field: string): number | undefined {
-    const [count, setCount] = useState<number>();
-    useEffect(() => {
-        let current = true;
-        const refresh = () => {
-            void service.readOutput(field).then((reading) => {
-                if (current)
-                    setCount('value' in reading && Array.isArray(reading.value) ? reading.value.length : undefined);
-            });
-        };
-        refresh();
-        const unsubscribe = service.subscribe(refresh);
-        return () => {
-            current = false;
-            unsubscribe();
-        };
-    }, [service, field]);
-    return count;
-}
-
 /**
  * The EdgeRules ListInputNode: one `@InputNode` list with a single output pin for the whole list. The body shows the
- * shape of an item, one row per field; the items themselves are edited in the Boxed Editor or as code.
+ * items as the engine evaluates them, in the table of an OutputNode: at most ROW_LIMIT items and COLUMN_LIMIT item
+ * fields, then `…`. A value that is not a list, such as the Missing value of an untyped `[]`, shows as text. The items
+ * themselves are edited in the Boxed Editor or as code.
  */
 export function ListInputNode({id, data, selected}: NodeProps<ListInputNodeType>): ReactElement {
     const {service, onOpenNode, editing, setEditing, menu} = useCoreNode(data.field);
     const model = useServiceRead(service, data.field, () => service.getListInputNode(data.field));
-    const count = useItemCount(service, data.field);
-    const layout = useListInputNodeLayout(model, count);
-    useSyncPins(id, `${layout.width}`);
-    const {field, itemFields} = model;
+    const reading = useModelReading(service, data.field);
+    const failed = reading !== undefined && 'error' in reading;
+    const items = reading && !failed && Array.isArray(reading.value) ? reading.value : undefined;
+    const shape = useMemo(() => {
+        if (!items) return undefined;
+        // An empty list of records names its columns from the declared item type.
+        const columns = reading && 'columns' in reading ? reading.columns : undefined;
+        return outputShape(items, columns ?? model.itemFields.map((item) => item.name));
+    }, [items, reading, model]);
+    const width = useListInputNodeWidth(model, items?.length);
+    useSyncPins(id, `${width}|${items?.length}`);
+    const {field} = model;
 
     return (
         <NodeFrame
@@ -61,13 +47,14 @@ export function ListInputNode({id, data, selected}: NodeProps<ListInputNodeType>
             label={model.label}
             testId={`list-input-node-${field}`}
             selected={selected}
-            width={layout.width}
+            width={width}
+            fit
             color={INPUT_COLOR}
             icon={<IconListDetails size={19} stroke={2} />}
             summaryLabel="input"
             summary={
                 <>
-                    <NodeSummary>{listSummary(model, count)}</NodeSummary>
+                    <NodeSummary>{listSummary(model, items?.length)}</NodeSummary>
                     <Pin id="out:*" side="out" type={model.type} title={`${field} : ${model.type}`} />
                 </>
             }
@@ -75,30 +62,9 @@ export function ListInputNode({id, data, selected}: NodeProps<ListInputNodeType>
             editing={editing}
             onEditingChange={setEditing}
         >
-            {itemFields.length === 0 ? (
-                <NodeEmptyState>{`A list of ${model.type.replace(/\[\]$/, '')} values.`}</NodeEmptyState>
-            ) : (
-                <>
-                    <TrackRow>
-                        <TrackBand width={layout.inputTrack} side="in" noun="item field" count={itemFields.length} />
-                        <TrackBand width={layout.outputTrack} side="out" noun="type" count={itemFields.length} />
-                    </TrackRow>
-                    {itemFields.map((item) => (
-                        <TrackRow key={item.name}>
-                            <Track width={layout.inputTrack}>
-                                <TrackName side="in" title={`${item.name} : ${item.type}`}>
-                                    <TrackNameText>{item.name}</TrackNameText>
-                                </TrackName>
-                            </Track>
-                            <Track width={layout.outputTrack}>
-                                <TrackName side="out">
-                                    <TrackNameText>{item.type}</TrackNameText>
-                                </TrackName>
-                            </Track>
-                        </TrackRow>
-                    ))}
-                </>
-            )}
+            {failed && <NodeEmptyState>{reading.error}</NodeEmptyState>}
+            {reading && !failed && !items && <NodeEmptyState>{formatValue(reading.value)}</NodeEmptyState>}
+            {shape && shape.kind !== 'scalar' && <ValueTable shape={shape} testId="list-input" />}
         </NodeFrame>
     );
 }

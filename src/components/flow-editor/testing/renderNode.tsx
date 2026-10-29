@@ -9,10 +9,16 @@ import {FunctionNode} from '../function-node/FunctionNode';
 import {ListInputNode} from '../list-input-node/ListInputNode';
 import {ObjectInputNode} from '../object-input-node/ObjectInputNode';
 import {createFlowEditorService, type FlowEditorEngine} from '../service/createFlowEditorService';
+import {ValueInputNode} from '../value-input-node/ValueInputNode';
 import {SAMPLE_MODEL} from './sampleModel';
 
-const nodeTypes = {functionNode: FunctionNode, objectInputNode: ObjectInputNode, listInputNode: ListInputNode};
-const INPUT_TYPES = {object: 'objectInputNode', list: 'listInputNode'} as const;
+const nodeTypes = {
+    functionNode: FunctionNode,
+    objectInputNode: ObjectInputNode,
+    listInputNode: ListInputNode,
+    valueInputNode: ValueInputNode,
+};
+const INPUT_TYPES = {object: 'objectInputNode', list: 'listInputNode', value: 'valueInputNode'} as const;
 
 export interface RenderedNode {
     service: FlowEditorService;
@@ -26,7 +32,7 @@ export function renderNode(
     options: {
         model?: string;
         draft?: boolean;
-        input?: 'object' | 'list'; // render an input node; the record or list at `field` is annotated first
+        input?: 'object' | 'list' | 'value'; // render an input node; the record, list or value at `field` is annotated first
         readOnly?: boolean;
         onOpenNode?: (target: FlowEditorOpenTarget) => void;
     } = {},

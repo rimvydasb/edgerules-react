@@ -573,6 +573,12 @@ one.
 - `setInputFieldValue` writes the text with `set('<field>.<name>', text)` and a link check. A value whose type breaks a
   reader, for example a string for `risk(age: number)`, is reverted.
 - A nested record shows `{ … }` and is not editable. Without `languageService`, or in read-only mode, values are text.
+- The node shows at most 128 fields (`FIELD_LIMIT`), then a row of `…`. The summary line names at most 5 fields, then
+  `…`, so a large record keeps a narrow header.
+- In the Shell, selecting an input node that shows only a part of its data opens the split screen with the Boxed Editor
+  at the field path, as for an OutputNode (`useReducedSelection`). An ObjectInputNode shows a part when it has more than
+  128 fields or a value is cut off; a ListInputNode when its table is cut at 10 rows or 5 columns; a ValueInputNode when
+  its value is cut off.
 - The value editor has the `nodrag nowheel nokey` classes. Typing Backspace in it does not delete the selected node.
 - Dragging a wire from an ObjectInputNode is out of this story. Wires are written by the target FunctionNode
   (`bindArgument`).
@@ -602,8 +608,10 @@ one.
 `ListInputNode` is a source node of the Flow Editor. It renders one model field annotated `@InputNode` whose value is a
 list (`@kind: 'expression'` with a list type).
 
-The node has one output pin, `out:*`, for the whole list. The body shows the shape of an item: one row per item field,
-with its type.
+The node has one output pin, `out:*`, for the whole list. The body shows the items as the engine evaluates them, in the
+table of an OutputNode (`output-node/ValueTable.tsx`): one row per item, one column per item field (or one `value`
+column for a list of plain values). The node shows at most 10 rows and 5 columns, then a row or column of `…`. The node
+grows to fit its table, from its header width up to 640px.
 
 ## Technical Breakdown
 
@@ -632,17 +640,17 @@ getListInputNode(field: string): ListInputNodeModel; // no item fields when the 
 listInputCandidates(): FlowNodeRef[]; // records ('object-input') and list literals ('list-input')
 ```
 
-| Element      | Source                                | Content                                                       |
-| ------------ | ------------------------------------- | ------------------------------------------------------------- |
-| Summary line | `type`, `readOutput(field)`           | `object[] · 100 items`; the count shows after the engine read |
-| Pin          | `out:*`                               | The whole list; a path binding `people` wires to it           |
-| Item rows    | `itemFields`, from `get(field).items` | Field name on the left, type on the right; no pins            |
-| Node menu    | `listInputNodeMenuItems`              | Core groups; "List": Open in boxed editor, View as code       |
+| Element      | Source                      | Content                                                       |
+| ------------ | --------------------------- | ------------------------------------------------------------- |
+| Summary line | `type`, `readOutput(field)` | `object[] · 100 items`; the count shows after the engine read |
+| Pin          | `out:*`                     | The whole list; a path binding `people` wires to it           |
+| Item table   | `readOutput(field)`         | The items: at most 10 rows and 5 columns, then `…`; no pins   |
+| Node menu    | `listInputNodeMenuItems`    | Core groups; "List": Open in boxed editor, View as code       |
 
 ### Clarifications
 
-- `FlowNodeRef.kind` is `'function'`, `'object-input'` or `'list-input'`. Both input kinds use the `@InputNode`
-  annotation.
+- `FlowNodeRef.kind` is `'function'`, `'object-input'`, `'list-input'` or `'value-input'`. Every input kind uses the
+  `@InputNode` annotation.
 - A list candidate is a list literal: the expression starts with `[`. A computed list is not offered in the palette.
 - `setNodeName`, `renameField`, `duplicate`, `removeFromFlow` and `deleteField` act on a list input as on a record
   input.
@@ -651,7 +659,7 @@ listInputCandidates(): FlowNodeRef[]; // records ('object-input') and list liter
 ## Limitations
 
 - The node does not edit items. The user edits the list in the Boxed Editor or as code.
-- The palette "New input" creates a record. It does not create a list.
+- An untyped empty list `[]` evaluates to `Missing('empty list')`. The node shows that value as text.
 
 ## Tasks
 
@@ -660,6 +668,43 @@ listInputCandidates(): FlowNodeRef[]; // records ('object-input') and list liter
 - [x] Add tests: `ListInputNode.test.tsx`, `layout.test.ts`, the list input block in `createFlowEditorService.test.ts`
 - [x] Add the Storybook stories: Default, ReadOnly
 - [ ] Manual: `npm run storybook`, the ListInputNode stories in light and dark themes
+
+# Flow Editor: ValueInputNode
+
+## Summary
+
+`ValueInputNode` is a source node of the Flow Editor. It renders one model field annotated `@InputNode` whose value is a
+single expression that is not a list, for example `age: 23` or `name: "Ann"`.
+
+The node has one row: the value, editable in a `CodeEditorCell` as in an ObjectInputNode, with one output pin `out:*`.
+The summary line shows the value type.
+
+| File                                                                 | Purpose                                                    |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `src/components/flow-editor/value-input-node/ValueInputNode.tsx`     | The `@xyflow/react` custom node component                  |
+| `src/components/flow-editor/value-input-node/valueInputNodeMenus.ts` | Node menu: the core groups and the "Value" group           |
+| `src/components/flow-editor/value-input-node/layout.ts`              | One output track; `isReducedValueInput`                    |
+| `stories/components/flow-editor/ValueInputNode.stories.tsx`          | Storybook stories against the real `@edgerules/web` engine |
+
+```typescript
+interface ValueInputNodeModel {
+    field: string; // model field path
+    label?: string; // '@node-name'
+    type: string; // the value type, for example 'number' or 'string'
+    value?: string; // expression text; undefined when the field does not exist
+}
+
+getValueInputNode(field: string): ValueInputNodeModel;
+setInputValue(field: string, text: string): PortableError | void; // link-checked; keeps the annotations
+createInputNode(kind?: 'object-input' | 'list-input' | 'value-input'): string | PortableError;
+```
+
+### Clarifications
+
+- The engine accepts `@InputNode` on an expression. A plain value such as `amount: 5` is stored as a bare primitive, so
+  `addInputNode` does not annotate a single value: it accepts records and lists only. A value input comes from the
+  palette "Value input" (`value: 0`) or from an authored `@InputNode`.
+- `addInputNode` refuses a computed single value, such as `age * 2`, for the same reason.
 
 # Flow Editor: Canvas
 
@@ -718,18 +763,21 @@ createInputNode(): string | PortableError; // a new '@InputNode' record 'input�
 
 ### Palette
 
-| Group                | Item                            | Action                                                |
-| -------------------- | ------------------------------- | ----------------------------------------------------- |
-| Inputs               | New input                       | `createInputNode()`                                   |
-| Inputs               | One per `listInputCandidates()` | `addInputNode(record)`; the item leaves the palette   |
-| Functions & rulesets | Function call                   | `createDraftNode()`; the callee is picked on the node |
-| Functions & rulesets | One per `listCallees()`         | `createDraftNode()`, then `setCallee(field, path)`    |
-| Outputs              | Output                          | A canvas-only output node                             |
+| Group       | Item                            | Action                                                |
+| ----------- | ------------------------------- | ----------------------------------------------------- |
+| Inputs      | Object input                    | `createInputNode('object-input')`: a record           |
+| Inputs      | List input                      | `createInputNode('list-input')`: `[1, 2, 3]`          |
+| Inputs      | Value input                     | `createInputNode('value-input')`: `0`                 |
+| Inputs      | One per `listInputCandidates()` | `addInputNode(record)`; the item leaves the palette   |
+| Invocations | Invocation                      | `createDraftNode()`; the callee is picked on the node |
+| Outputs     | Output                          | A canvas-only output node                             |
+| Charts      | Chart                           | A canvas-only chart node                              |
 
 - A dropped node has its top-left corner at the drop point. A clicked node goes in the middle of the view, below any
   node in the way. The new node is selected.
-- Search matches every word against the title, the signature and the group name.
-- The collapsed palette is a 48px rail with the three generic items.
+- Search matches every word against the title, the detail line and the group name.
+- A group label has no item count.
+- The collapsed palette is a 48px rail with the generic items: the three new inputs, Invocation, Output and Chart.
 
 ### Canvas
 

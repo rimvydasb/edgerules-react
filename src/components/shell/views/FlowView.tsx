@@ -9,7 +9,7 @@ import {
     type FlowLayout,
     type FlowSelection,
 } from '../../flow-editor';
-import {SinkSheet, useReducedOutput} from '../../flow-editor/internal';
+import {SinkSheet, useReducedSelection} from '../../flow-editor/internal';
 import {useProjectSession, useProjectSlice} from '../../project-session';
 import * as classes from '../shell.module.css';
 
@@ -22,15 +22,15 @@ export interface FlowViewProps {
     onOpenNode: (target: FlowEditorOpenTarget | BoxedEditorOpenTarget) => void;
     focusNode?: FlowFocusRequest; // the node a Project Explorer click centers
     split?: boolean; // shows the selected node right of the canvas
-    onSplitOpen?: () => void; // a selected Output node shows only a part of its value: open the split screen
+    onSplitOpen?: () => void; // a selected Output or Input node shows only a part of its data: open the split screen
 }
 
 /**
  * The Flow Component nodes that are direct fields of the root path context, on the canvas of that root. With the split
  * screen on, the selected node shows on the right in a Boxed Editor: a function node as the body of its callee, an
- * input node at its field path. An Output or a Chart node shows the full data wired into it. Selecting an Output node
- * that shows only a part of its value opens the split screen. A click on the empty canvas clears the selection and
- * closes the panel.
+ * input node at its field path. An Output or a Chart node shows the full data wired into it. Selecting an Output or
+ * an Input node that shows only a part of its data opens the split screen. A click on the empty canvas clears the
+ * selection and closes the panel.
  */
 export function FlowView({
     root,
@@ -57,13 +57,13 @@ export function FlowView({
         // `version` re-reads the callee after a model change.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [service, selection, version]);
-    const output = selection?.kind === 'output' ? selection : undefined;
-    const reduced = useReducedOutput(service, output?.source);
+    const reduced = useReducedSelection(service, selection);
+    const selected = selection && ('id' in selection ? selection.id : selection.field);
     useEffect(() => {
-        if (output && reduced) onSplitOpen?.();
-        // Once per selected output: the user may close the split screen again while the node stays selected.
+        if (selected !== undefined && reduced) onSplitOpen?.();
+        // Once per selected node: the user may close the split screen again while the node stays selected.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [output?.id, reduced]);
+    }, [selected, reduced]);
     // The canvas keeps its place in the tree when the split screen opens or closes, so it is never mounted again.
     return (
         <div className={classes.split}>

@@ -102,14 +102,6 @@
   text-transform: uppercase;
 }
 
-.groupCount {
-  padding: 0 5px;
-  border-radius: 8px;
-  background: var(--fe-muted);
-  font-size: 10px;
-  letter-spacing: 0;
-}
-
 .item {
   display: flex;
   align-items: center;

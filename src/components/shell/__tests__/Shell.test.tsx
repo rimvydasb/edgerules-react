@@ -850,4 +850,33 @@ describe('Shell split screen', () => {
         const sheet = await screen.findByTestId('sink-sheet');
         expect(await within(sheet).findByText('[12]')).toBeInTheDocument();
     });
+
+    it('opens for an input node that shows only a part of its data', async () => {
+        const {session} = await openFixtureProject({
+            model: {
+                dsl: `{
+    @Workbook
+    listBook: {
+        @InputNode
+        many: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        @InputNode
+        few: [1, 2, 3]
+    }
+}`,
+            },
+        });
+        await renderShell({defaultPath: 'listBook', defaultView: 'flow'}, session);
+        const toggle = await screen.findByRole('button', {name: 'Split screen'});
+
+        // Three items fit in the node: the split screen stays off.
+        await waitFor(() => expect(screen.getAllByTestId('list-input-table')).toHaveLength(2));
+        fireEvent.click(nodeOf('list-input-node-listBook.few'));
+        await waitFor(() => expect(nodeOf('list-input-node-listBook.few')).toHaveClass('selected'));
+        expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+        // Twelve items do not: the split screen opens with the list in a Boxed Editor.
+        fireEvent.click(nodeOf('list-input-node-listBook.many'));
+        await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'));
+        expect(await screen.findByTestId('shell-split-panel')).toBeInTheDocument();
+    });
 });

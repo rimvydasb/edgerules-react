@@ -103,7 +103,8 @@ export interface NodeFrameProps {
     label?: string; // '@node-name'; the title falls back to the field
     testId: string;
     selected?: boolean;
-    width: number; // px, from the node layout
+    width: number; // px, from the node layout; the least width when `fit` is set
+    fit?: boolean; // the node grows to fit its body, for example a data table, up to a limit
     color: string; // tile background
     icon: ReactNode; // tile content
     badge?: ReactNode; // after the field name, for example the draft badge

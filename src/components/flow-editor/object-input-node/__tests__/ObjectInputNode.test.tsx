@@ -21,6 +21,21 @@ describe('ObjectInputNode', () => {
         expect(screen.getByText('fields')).toBeInTheDocument();
     });
 
+    it('shows at most 128 fields, then a row of …', () => {
+        const fields = Array.from({length: 130}, (_, index) => `f${index + 1}: ${index}`).join('\n');
+        renderNode('big', {model: `{\n  big: {\n${fields}\n  }\n}`, input: 'object'});
+        expect(screen.getByRole('button', {name: 'Value of f128'})).toBeInTheDocument();
+        expect(screen.queryByRole('button', {name: 'Value of f129'})).toBeNull();
+        expect(document.querySelector('[data-handleid="out:f129"]')).toBeNull();
+        expect(screen.getByTestId('object-input-more-fields')).toHaveTextContent('…');
+        expect(screen.getByText('{ f1, f2, f3, f4, f5, … }')).toBeInTheDocument();
+    });
+
+    it('has no row of … for a record that fits', () => {
+        renderInput();
+        expect(screen.queryByTestId('object-input-more-fields')).toBeNull();
+    });
+
     it('shows a Field column and a Value column', () => {
         renderInput();
         expect(screen.getByText('values')).toBeInTheDocument();

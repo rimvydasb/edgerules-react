@@ -8,6 +8,7 @@ import type {CalleeRef, FunctionNodeModel} from './function-node/types';
 import type {ListInputNodeModel} from './list-input-node/types';
 import type {ObjectInputNodeModel} from './object-input-node/types';
 import type {OutputReading} from './output-node/types';
+import type {ValueInputNodeModel} from './value-input-node/types';
 
 export type {FlowEditorOpenTarget, Unsubscribe};
 
@@ -23,7 +24,7 @@ export interface FlowEditorProviderProps {
 /** One model field that the canvas draws as a node; the node id is the field path. */
 export interface FlowNodeRef {
     field: string;
-    kind: 'function' | 'object-input' | 'list-input'; // an `@InputNode` record or list
+    kind: 'function' | 'object-input' | 'list-input' | 'value-input'; // an `@InputNode` record, list or single value
 }
 
 export interface FlowEditorService {
@@ -46,15 +47,17 @@ export interface FlowEditorService {
     renameResult(field: string, from: string, to: string): PortableError | void; // link-checked, reverted on failure
     getObjectInputNode(field: string): ObjectInputNodeModel; // the record annotated @InputNode; no fields when it does not exist
     getListInputNode(field: string): ListInputNodeModel; // the list annotated @InputNode; no item fields when it does not exist
+    getValueInputNode(field: string): ValueInputNodeModel; // the single value annotated @InputNode; no value when it does not exist
     listInputCandidates(): FlowNodeRef[]; // records and list literals of the model that are not yet an input node
     addInputNode(field: string): PortableError | void; // annotates an existing record or list with '@node: InputNode'
-    createInputNode(): string | PortableError; // a new '@InputNode' record 'input…' with one number field
+    createInputNode(kind?: Exclude<FlowNodeRef['kind'], 'function'>): string | PortableError; // a new '@InputNode': record 'input…' with one number field (default), list 'list…' of numbers or number 'value…'
     addInputField(field: string, after?: string): PortableError | void; // appends a number field; after = undefined appends
     moveInputField(field: string, name: string, direction: 'up' | 'down'): PortableError | void;
     removeInputField(field: string, name: string): PortableError | void; // link-checked, reverted when something reads it
     renameInputField(field: string, from: string, to: string): PortableError | void; // link-checked, reverted on failure
     setInputFieldValue(field: string, name: string, text: string): PortableError | void; // an expression; link-checked
-    inputValueContext(field: string, name: string): CodeEditorEmbedContext; // model text around the value of a field
+    setInputValue(field: string, text: string): PortableError | void; // the expression of a single value input; link-checked
+    inputValueContext(field: string, name?: string): CodeEditorEmbedContext; // model text around the value of a field; no name: of a single value input
     readOutput(source: string): Promise<OutputReading>; // evaluates a model path, for example 'decision.level'
     subscribe(listener: () => void): Unsubscribe; // fires after every committed change
     invalidate(): void; // fires the listeners after a change of the model made outside this service

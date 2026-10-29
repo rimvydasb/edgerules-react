@@ -26,7 +26,7 @@ export type LayoutKind = FlowNodeRef['kind'] | 'output' | 'chart';
 
 /** Input nodes only feed: they sit in the first column. */
 function isSource(kind: LayoutKind | undefined): boolean {
-    return kind === 'object-input' || kind === 'list-input';
+    return kind === 'object-input' || kind === 'list-input' || kind === 'value-input';
 }
 
 /** Output and chart nodes only read: they sit one column after their source. */

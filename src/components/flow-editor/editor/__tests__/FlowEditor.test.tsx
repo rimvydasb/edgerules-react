@@ -29,9 +29,12 @@ describe('FlowEditor', () => {
     it('shows the empty state and the palette on a model without flow nodes', () => {
         renderEditor();
         expect(screen.getByTestId('flow-editor-empty')).toHaveTextContent('This flow has no nodes yet');
-        for (const group of ['Inputs', 'Functions & rulesets', 'Outputs']) {
-            expect(palette().getByRole('region', {name: group})).toBeInTheDocument();
+        for (const group of ['Inputs', 'Invocations', 'Outputs', 'Charts']) {
+            expect(palette().getByRole('region', {name: group})).toHaveTextContent(new RegExp(`^${group}`, 'i'));
         }
+        // A group label has no item count after it.
+        expect(palette().getByText('Charts')).toHaveTextContent(/^Charts$/);
+        expect(palette().queryByRole('button', {name: 'Add ruleset risk'})).toBeNull();
     });
 
     it('renders the annotated fields of the model as nodes', async () => {
@@ -82,11 +85,22 @@ describe('FlowEditor', () => {
         expect(frame('object-input-node-applicant')).not.toHaveClass('selected');
     });
 
-    it('clicking a callee creates a draft node with that callee', async () => {
+    it('clicking Invocation creates a draft node without a callee', async () => {
         const {service} = renderEditor();
-        fireEvent.click(palette().getByRole('button', {name: 'Add ruleset risk'}));
+        fireEvent.click(palette().getByRole('button', {name: 'Add invocation'}));
         expect(await screen.findByTestId('function-node-node')).toBeInTheDocument();
-        expect(service.getFunctionNode('node')).toMatchObject({draft: true, callee: {path: 'risk'}});
+        expect(service.getFunctionNode('node')).toMatchObject({draft: true, callee: undefined});
+    });
+
+    it.each([
+        ['Add object input', 'object-input-node-input', 'object-input'],
+        ['Add list input', 'list-input-node-list', 'list-input'],
+        ['Add value input', 'value-input-node-value', 'value-input'],
+    ])('clicking %s creates an input node of that kind', async (name, testId, kind) => {
+        const {service} = renderEditor();
+        fireEvent.click(palette().getByRole('button', {name}));
+        expect(await screen.findByTestId(testId)).toBeInTheDocument();
+        expect(service.listNodes()).toEqual([{field: testId.split('-').at(-1), kind}]);
     });
 
     it('Enter on an item adds it, as a click does', async () => {

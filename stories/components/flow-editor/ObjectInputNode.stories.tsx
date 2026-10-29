@@ -1,6 +1,7 @@
 import '@xyflow/react/dist/style.css';
 import {useEffect, useMemo, useState, type ReactElement} from 'react';
 import type {Meta, StoryObj} from '@storybook/react-vite';
+import {expect, within} from 'storybook/test';
 import {ReactFlow, ReactFlowProvider, type Edge, type Node} from '@xyflow/react';
 import {init, MutableDecisionService} from '@edgerules/web/mutable';
 import {createDocumentationService} from '../../../src/components/documentation-service';
@@ -27,25 +28,34 @@ const SAMPLE_MODEL = `{
   decision: risk(age: applicant.age, income: applicant.income, segment: applicant.segment)
 }`;
 
+// A record with more fields than the node shows: it ends with a row of `…`.
+const MANY_FIELDS_MODEL = `{
+  survey: {
+${Array.from({length: 140}, (_, index) => `    q${index + 1}: ${index % 5}`).join('\n')}
+  }
+}`;
+
 const nodeTypes = {objectInputNode: ObjectInputNode, functionNode: FunctionNode};
 
 function Canvas({
     field,
+    model = SAMPLE_MODEL,
     wired = false,
     readOnly = false,
     description,
 }: {
     field: string;
+    model?: string;
     wired?: boolean;
     readOnly?: boolean;
     description?: string;
 }): ReactElement {
     const service = useMemo(() => {
-        const created = createFlowEditorService(MutableDecisionService.fromCode(SAMPLE_MODEL) as never);
+        const created = createFlowEditorService(MutableDecisionService.fromCode(model) as never);
         created.addInputNode(field);
         if (wired) created.setCallee('decision', 'risk'); // writes the same invocation with @node: FunctionNode, keeping its bindings
         return created;
-    }, [field, wired]);
+    }, [field, model, wired]);
     const documentation = useMemo(() => {
         const created = createDocumentationService(`input-story-${Math.random()}`);
         if (description) created.setDescription(field, description);
@@ -123,3 +133,12 @@ export const Default: Story = {args: {field: 'applicant'}};
 export const Wired: Story = {args: {field: 'applicant', wired: true}};
 /** Values are shown as code and cannot be edited. */
 export const ReadOnly: Story = {args: {field: 'applicant', readOnly: true}};
+/** 140 fields: the node shows the first 128, then a row of `…`; the header names the first 5. */
+export const ManyFields: Story = {
+    args: {field: 'survey', model: MANY_FIELDS_MODEL},
+    play: async ({canvasElement}) => {
+        const node = await within(canvasElement).findByTestId('object-input-node-survey');
+        await expect(within(node).getByTestId('object-input-more-fields')).toBeInTheDocument();
+        await expect(within(node).queryByRole('button', {name: 'Value of q129'})).toBeNull();
+    },
+};

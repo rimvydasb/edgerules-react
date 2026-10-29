@@ -20,21 +20,25 @@ import {
 import {objectInputFieldMenuFooter, objectInputFieldMenuItems, objectInputNodeMenuItems} from './objectInputNodeMenus';
 import {DeclarationIcon} from './DeclarationIcon';
 import {InputValueCell} from './InputValueCell';
-import {recordSummary, useObjectInputNodeLayout} from './layout';
+import {FIELD_LIMIT, recordSummary, shownFields, useObjectInputNodeLayout} from './layout';
 import type {ObjectInputField, ObjectInputNodeRowEditing, ObjectInputNodeType} from './types';
+import styles from './objectInputNode.module.css';
 
 const INPUT_COLOR = '#ed6c02';
+const MORE = '…';
 
 /**
  * The EdgeRules ObjectInputNode: one `@InputNode` record as a table of fields and values, with an output pin per field.
- * A value edit writes the expression to the model, so every node and output that reads the field recalculates.
+ * A value edit writes the expression to the model, so every node and output that reads the field recalculates. The
+ * node shows at most FIELD_LIMIT fields, then a `…` row; the full record shows beside the canvas.
  */
 export function ObjectInputNode({id, data, selected}: NodeProps<ObjectInputNodeType>): ReactElement {
     const {service, languageService, readOnly, onOpenNode, editing, setEditing, menu} =
         useCoreNode<ObjectInputNodeRowEditing>(data.field);
     const model = useServiceRead(service, data.field, () => service.getObjectInputNode(data.field));
     const layout = useObjectInputNodeLayout(model);
-    useSyncPins(id, `${layout.width}|${model.fields.map((item) => (item.declaration ? '' : item.name)).join(',')}`);
+    const fields = shownFields(model);
+    useSyncPins(id, `${layout.width}|${fields.map((item) => (item.declaration ? '' : item.name)).join(',')}`);
     const [valueError, setValueError] = useState<{name: string; message: string} | undefined>();
     const {field} = model;
     const stopEditing = () => setEditing(null);
@@ -137,7 +141,7 @@ export function ObjectInputNode({id, data, selected}: NodeProps<ObjectInputNodeT
                         <TrackBand width={layout.inputTrack} side="in" noun="field" count={model.fields.length} />
                         <TrackBand width={layout.outputTrack} side="out" noun="value" count={model.fields.length} />
                     </TrackRow>
-                    {model.fields.map((item) => (
+                    {fields.map((item) => (
                         <TrackRow
                             key={item.name}
                             error={valueError?.name === item.name ? valueError.message : undefined}
@@ -146,6 +150,18 @@ export function ObjectInputNode({id, data, selected}: NodeProps<ObjectInputNodeT
                             {renderValue(item)}
                         </TrackRow>
                     ))}
+                    {model.fields.length > FIELD_LIMIT && (
+                        <TrackRow>
+                            <Track width={layout.inputTrack}>
+                                <div className={styles.more} data-testid="object-input-more-fields">
+                                    {MORE}
+                                </div>
+                            </Track>
+                            <Track width={layout.outputTrack}>
+                                <div className={styles.more}>{MORE}</div>
+                            </Track>
+                        </TrackRow>
+                    )}
                 </>
             )}
         </NodeFrame>

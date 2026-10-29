@@ -192,3 +192,13 @@ test('renames the node and adds a description', async ({page}) => {
     await description.press('Enter');
     await expect(page.getByText('Who applies')).toBeVisible();
 });
+
+test('a record with more than 128 fields shows the first 128, then a row of …', async ({page}) => {
+    await open(page, 'many-fields');
+
+    const survey = page.getByTestId('object-input-node-survey');
+    await expect(survey.getByTestId('object-input-more-fields')).toBeAttached();
+    await expect(survey.getByRole('button', {name: 'Value of q128'})).toBeAttached();
+    await expect(survey.getByRole('button', {name: 'Value of q129'})).toHaveCount(0);
+    await expect(survey).toContainText('{ q1, q2, q3, q4, q5, … }');
+});

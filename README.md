@@ -20,7 +20,7 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
   - [x] FlowEditor canvas ([spec](docs/stories/completed/flow-editor-story.md#flow-editor-canvas)): node palette with
         drag or click to add, wires from the model, automatic layout, zoom, minimap. The host imports
         `@xyflow/react/dist/style.css`.
-  - [x] ObjectInputNode / ListInputNode / TermsNode
+  - [x] ObjectInputNode / ListInputNode / ValueInputNode / TermsNode
         ([spec](docs/stories/completed/flow-editor-story.md#flow-editor-objectinputnode),
         [list](docs/stories/completed/flow-editor-story.md#flow-editor-listinputnode))
   - [x] FunctionNode / RulesetNode ([spec and story](docs/stories/completed/flow-editor-story.md))

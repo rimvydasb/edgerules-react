@@ -26,6 +26,12 @@ function paletteItem(page: Page, name: string) {
     return page.getByRole('navigation', {name: 'Node palette'}).getByRole('button', {name, exact: true});
 }
 
+// Opens the callee picker of the function node at `field` and picks the function or ruleset `path`.
+async function pickCallee(page: Page, field: string, path: string) {
+    await page.getByTestId(`function-node-${field}`).getByRole('button', {name: 'Select callee'}).click();
+    await page.getByRole('option', {name: new RegExp(`^${path}\\(`)}).click();
+}
+
 async function box(locator: Locator) {
     const result = await locator.boundingBox();
     if (!result) throw new Error('element has no box');
@@ -103,42 +109,43 @@ test.describe('canvas', () => {
 });
 
 test.describe('palette', () => {
-    test('lists every node type, grouped, with the model records and callees', async ({page}) => {
+    test('lists every node type, grouped, with the model records and one Invocation', async ({page}) => {
         await open(page, 'empty');
         const palette = page.getByRole('navigation', {name: 'Node palette'});
 
-        for (const group of ['Inputs', 'Functions & rulesets', 'Outputs']) {
-            await expect(palette.getByRole('region', {name: group})).toBeVisible();
+        for (const group of ['Inputs', 'Invocations', 'Outputs', 'Charts']) {
+            // The group label has no item count after it.
+            await expect(palette.getByText(group, {exact: true})).toBeVisible();
         }
         for (const name of [
-            'Add new input',
+            'Add object input',
+            'Add list input',
+            'Add value input',
             'Add input applicant',
             'Add input application',
-            'Add function call',
-            'Add ruleset risk',
-            'Add function creditScore',
-            'Add function monthly',
+            'Add invocation',
             'Add output',
+            'Add chart',
         ]) {
             await expect(paletteItem(page, name)).toBeVisible();
         }
-        await expect(paletteItem(page, 'Add ruleset risk')).toContainText('(age, income, segment) → { level, limit }');
+        await expect(paletteItem(page, 'Add ruleset risk')).toHaveCount(0);
     });
 
     test('search narrows the items and says when nothing matches', async ({page}) => {
         await open(page, 'empty');
         const search = page.getByRole('textbox', {name: 'Search nodes'});
 
-        await search.fill('credit');
-        await expect(paletteItem(page, 'Add function creditScore')).toBeVisible();
-        await expect(paletteItem(page, 'Add ruleset risk')).toHaveCount(0);
+        await search.fill('applicant');
+        await expect(paletteItem(page, 'Add input applicant')).toBeVisible();
+        await expect(paletteItem(page, 'Add invocation')).toHaveCount(0);
         await expect(page.getByRole('region', {name: 'Outputs'})).toHaveCount(0);
 
         await search.fill('zzz');
         await expect(page.getByText('No nodes match “zzz”')).toBeVisible();
 
         await page.getByRole('button', {name: 'Clear search'}).click();
-        await expect(paletteItem(page, 'Add ruleset risk')).toBeVisible();
+        await expect(paletteItem(page, 'Add invocation')).toBeVisible();
     });
 
     test('a record that becomes an input leaves the palette', async ({page}) => {
@@ -152,7 +159,9 @@ test.describe('palette', () => {
 
         await page.getByRole('button', {name: 'Hide node palette'}).click();
         await expect(page.getByRole('textbox', {name: 'Search nodes'})).toHaveCount(0);
-        await expect(paletteItem(page, 'Add function call')).toBeVisible();
+        for (const name of ['Add object input', 'Add list input', 'Add value input', 'Add invocation']) {
+            await expect(paletteItem(page, name)).toBeVisible();
+        }
 
         // The rail still adds nodes.
         await paletteItem(page, 'Add output').click();
@@ -164,22 +173,23 @@ test.describe('palette', () => {
 });
 
 test.describe('adding nodes', () => {
-    test('clicking a callee adds a draft function node with that callee', async ({page}) => {
+    test('clicking Invocation adds a draft node; the callee is picked on the node', async ({page}) => {
         await open(page, 'empty');
 
-        await paletteItem(page, 'Add ruleset risk').click();
+        await paletteItem(page, 'Add invocation').click();
 
         const added = page.getByTestId('function-node-node');
         await expect(added).toBeVisible({timeout: 15_000});
+        await pickCallee(page, 'node', 'risk');
         await expect(added.getByRole('button', {name: 'Callee risk'})).toBeVisible();
         await expect(added.getByText('draft', {exact: true})).toBeVisible();
         await expect(node(page, 'node')).toHaveClass(/selected/);
         await expect(page.getByTestId('flow-editor-empty')).toHaveCount(0);
     });
 
-    test('clicking Function call adds a node without a callee', async ({page}) => {
+    test('clicking Invocation adds a node without a callee', async ({page}) => {
         await open(page, 'empty');
-        await paletteItem(page, 'Add function call').click();
+        await paletteItem(page, 'Add invocation').click();
         await expect(page.getByTestId('function-node-node')).toContainText('Pick a function or ruleset', {
             timeout: 15_000,
         });
@@ -187,9 +197,9 @@ test.describe('adding nodes', () => {
 
     test('clicking twice places the second node below the first', async ({page}) => {
         await open(page, 'empty');
-        await paletteItem(page, 'Add function monthly').click();
+        await paletteItem(page, 'Add invocation').click();
         await expect(node(page, 'node')).toBeVisible({timeout: 15_000});
-        await paletteItem(page, 'Add function monthly').click();
+        await paletteItem(page, 'Add invocation').click();
         await expect(node(page, 'node2')).toBeVisible({timeout: 15_000});
 
         const first = await box(node(page, 'node'));
@@ -216,10 +226,10 @@ test.describe('adding nodes', () => {
         await expect(paletteItem(page, 'Add input application')).toHaveCount(0);
     });
 
-    test('dragging New input creates a record with one field', async ({page}) => {
+    test('dragging Object input creates a record with one field', async ({page}) => {
         await open(page, 'empty');
 
-        await paletteItem(page, 'Add new input').dragTo(page.locator('.react-flow__pane'));
+        await paletteItem(page, 'Add object input').dragTo(page.locator('.react-flow__pane'));
 
         const added = page.getByTestId('object-input-node-input');
         await expect(added).toBeVisible({timeout: 15_000});
@@ -227,15 +237,38 @@ test.describe('adding nodes', () => {
         await expect(handle(page, 'input', 'out:value')).toBeVisible();
     });
 
-    test('dragging a callee and an output builds a working flow', async ({page}) => {
+    test('dragging List input creates a list of numbers that shows its items', async ({page}) => {
+        await open(page, 'empty');
+
+        await paletteItem(page, 'Add list input').dragTo(page.locator('.react-flow__pane'));
+
+        const added = page.getByTestId('list-input-node-list');
+        await expect(added).toBeVisible({timeout: 15_000});
+        await expect(added.getByTestId('list-input-table')).toContainText('#value112233');
+        await expect(handle(page, 'list', 'out:*')).toBeVisible();
+    });
+
+    test('dragging Value input creates a single number', async ({page}) => {
+        await open(page, 'empty');
+
+        await paletteItem(page, 'Add value input').dragTo(page.locator('.react-flow__pane'));
+
+        const added = page.getByTestId('value-input-node-value');
+        await expect(added).toBeVisible({timeout: 15_000});
+        await expect(added.getByRole('button', {name: 'Value of value'})).toHaveText('0');
+        await expect(handle(page, 'value', 'out:*')).toBeVisible();
+    });
+
+    test('dragging an invocation and an output builds a working flow', async ({page}) => {
         await open(page, 'empty');
         const pane = page.locator('.react-flow__pane');
         const canvas = await box(pane);
 
         await paletteItem(page, 'Add input application').dragTo(pane, {targetPosition: {x: 40, y: 60}});
         await expect(node(page, 'application')).toBeVisible({timeout: 15_000});
-        await paletteItem(page, 'Add function monthly').dragTo(pane, {targetPosition: {x: 420, y: 60}});
+        await paletteItem(page, 'Add invocation').dragTo(pane, {targetPosition: {x: 420, y: 60}});
         await expect(node(page, 'node')).toBeVisible({timeout: 15_000});
+        await pickCallee(page, 'node', 'monthly');
         await paletteItem(page, 'Add output').dragTo(pane, {
             targetPosition: {x: Math.min(860, canvas.width - 260), y: 60},
         });
