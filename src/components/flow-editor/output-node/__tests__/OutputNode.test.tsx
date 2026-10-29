@@ -113,9 +113,24 @@ describe('OutputNode', () => {
 
 describe('OutputNode helpers', () => {
     it('maps pins to model paths', () => {
-        expect(sourcePath('decision', 'out:level')).toBe('decision.level');
-        expect(sourcePath('decision', 'out:*')).toBe('decision');
-        expect(sourcePath('payment', 'out:result')).toBe('payment');
+        const service = createFlowEditorService(
+            MutableDecisionService.fromCode(
+                SAMPLE_MODEL.replace(
+                    /}$/,
+                    `  func halve(amount: number): { result: amount / 2; rest: amount / 2 }
+  halves: halve(amount: 10)
+}`,
+                ),
+            ),
+        );
+        service.setCallee('decision', 'risk');
+        service.setCallee('payment', 'monthly');
+        service.setCallee('halves', 'halve');
+        expect(sourcePath(service, 'decision', 'out:level')).toBe('decision.level');
+        expect(sourcePath(service, 'decision', 'out:*')).toBe('decision');
+        // The unnamed return is the whole value; a record field named `result` is that field.
+        expect(sourcePath(service, 'payment', 'out:result')).toBe('payment');
+        expect(sourcePath(service, 'halves', 'out:result')).toBe('halves.result');
     });
 
     it('quotes strings only', () => {

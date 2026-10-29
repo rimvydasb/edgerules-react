@@ -48,7 +48,7 @@ const GRID = 20;
 /** The node and the output pin that a path binding reads, when that node is on the canvas. */
 export function resolveSource(
     text: string,
-    nodes: ReadonlyMap<string, {results?: string[]}>,
+    nodes: ReadonlyMap<string, {whole?: boolean}>,
 ): {node: string; handle: string} | undefined {
     let best: string | undefined;
     for (const id of nodes.keys()) {
@@ -58,8 +58,7 @@ export function resolveSource(
     const rest = text.slice(best.length + 1);
     if (rest === '') {
         // An unnamed return has its own pin; a record result or an input record uses the whole-value pin.
-        const results = nodes.get(best)?.results;
-        return {node: best, handle: results?.length === 1 && results[0] === 'result' ? 'out:result' : 'out:*'};
+        return {node: best, handle: nodes.get(best)?.whole ? 'out:result' : 'out:*'};
     }
     // A deeper path such as `applicant.address.city` has no pin of its own.
     return rest.includes('.') || rest.includes('[') ? undefined : {node: best, handle: `out:${rest}`};
@@ -82,8 +81,8 @@ export function modelWires(refs: FlowNodeRef[], functionModel: (field: string) =
     const models = new Map(
         refs.filter((ref) => ref.kind === 'function').map((ref) => [ref.field, functionModel(ref.field)]),
     );
-    const sources = new Map<string, {results?: string[]}>(
-        refs.map((ref) => [ref.field, {results: models.get(ref.field)?.results.map((result) => result.name)}]),
+    const sources = new Map<string, {whole?: boolean}>(
+        refs.map((ref) => [ref.field, {whole: models.get(ref.field)?.results.some((result) => result.whole)}]),
     );
     const wires: Wire[] = [];
     for (const [field, model] of models) {

@@ -67,7 +67,7 @@ describe('FlowEditorService reads', () => {
         const {service} = build();
         const node = service.getFunctionNode('payment');
         expect(node.arguments[0].binding).toEqual({kind: 'value', text: 'application.amount * 1.1'});
-        expect(node.results).toEqual([{name: 'result', type: 'number', renamable: false}]);
+        expect(node.results).toEqual([{name: 'result', type: 'number', renamable: false, whole: true}]);
     });
 
     it('reads a record argument type', () => {

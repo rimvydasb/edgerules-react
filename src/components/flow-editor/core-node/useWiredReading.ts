@@ -2,13 +2,23 @@ import {useNodeConnections} from '@xyflow/react';
 import {useEffect, useState} from 'react';
 import {useFlowEditor} from '../FlowEditorProvider';
 import type {FlowEditorService} from '../flow-editor-types';
+import {useServiceRead} from './hooks';
 
 export type WiredReading = Awaited<ReturnType<FlowEditorService['readOutput']>>;
 
-/** The model path a wire into a node reads: `out:level` of `decision` reads `decision.level`. */
-export function sourcePath(nodeId: string, handleId: string | null | undefined): string {
+/**
+ * The model path a wire into a node reads: `out:level` of `decision` reads `decision.level`. `out:result` reads the
+ * whole node while it is the unnamed return of its callee, and the field `result` once the callee returns a record.
+ */
+export function sourcePath(
+    service: Pick<FlowEditorService, 'getFunctionNode'>,
+    nodeId: string,
+    handleId: string | null | undefined,
+): string {
     const name = handleId?.replace(/^out:/, '');
-    return !name || name === '*' || name === 'result' ? nodeId : `${nodeId}.${name}`;
+    if (!name || name === '*') return nodeId;
+    if (name === 'result' && service.getFunctionNode(nodeId).results.some((result) => result.whole)) return nodeId;
+    return `${nodeId}.${name}`;
 }
 
 /**
@@ -18,7 +28,10 @@ export function sourcePath(nodeId: string, handleId: string | null | undefined):
 export function useWiredReading(handleId: string): {source?: string; reading?: WiredReading} {
     const {service} = useFlowEditor();
     const [connection] = useNodeConnections({handleType: 'target', handleId});
-    const source = connection ? sourcePath(connection.source, connection.sourceHandle) : undefined;
+    // The path follows the callee: its unnamed `result` becomes a field when its body becomes a record.
+    const source = useServiceRead(service, `${connection?.source}:${connection?.sourceHandle}`, () =>
+        connection ? sourcePath(service, connection.source, connection.sourceHandle) : undefined,
+    );
     return {source, reading: useModelReading(service, source)};
 }
 

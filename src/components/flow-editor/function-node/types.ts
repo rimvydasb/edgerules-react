@@ -34,6 +34,7 @@ export interface NodeResult {
     name: string; // field name, or 'result' for an unnamed return
     type: string;
     renamable: boolean; // false for the unnamed return of a func
+    whole?: true; // the unnamed return: its pin reads the whole value of the node, not a field named 'result'
 }
 
 export interface FunctionNodeModel {

@@ -64,7 +64,7 @@ function resultsOf(schema: unknown, kind: CalleeRef['kind']): NodeResult[] {
             .filter(([name]) => !name.startsWith('@'))
             .map(([name, type]) => ({name, type: typeText(type) ?? 'any', renamable: true}));
     }
-    return [{name: 'result', type: typeText(ret) ?? 'any', renamable: kind === 'ruleset'}];
+    return [{name: 'result', type: typeText(ret) ?? 'any', renamable: kind === 'ruleset', whole: true}];
 }
 
 function returnLabelOf(results: NodeResult[], schema: unknown): string {

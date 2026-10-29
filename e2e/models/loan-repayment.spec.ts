@@ -108,6 +108,11 @@ test('a change in the split screen Boxed Editor shows on the canvas and recalcul
     await page.getByRole('button', {name: 'Split screen'}).click();
     const panel = page.getByTestId('shell-split-panel');
 
+    // The chart is wired to the unnamed return of `yearlySummary`: the whole list of the node.
+    const chart = page.locator('.react-flow__node[data-id="chart2"]');
+    await expect(chart.getByRole('img', {name: 'Yearly interest and principal'})).toBeVisible();
+    await expect(chart).toContainText('mortgageBook.yearly');
+
     // The selected function node shows the body of `yearlySummary`; a new field of it is a new result of the node.
     await yearly.click({position: {x: 30, y: 10}});
     await expect(panel.getByTestId('row-yearlySummary.result')).toBeVisible();
@@ -115,6 +120,11 @@ test('a change in the split screen Boxed Editor shows on the canvas and recalcul
     await panel.getByText('(new item)').click();
     await expect(panel.getByTestId('row-yearlySummary.field')).toBeVisible();
     await expect(yearly.locator('[data-handleid="out:field"]')).toHaveCount(1);
+
+    // The body is a record now: the wire on the `result` pin reads the field `result`, the same list, not the record.
+    await expect(chart).toContainText('mortgageBook.yearly.result');
+    await expect(chart.getByRole('img', {name: 'Yearly interest and principal'})).toBeVisible();
+    await expect(page.getByTestId('rf__edge-chart2:data')).toHaveCount(1);
 
     // An expression changed in the panel recalculates the output nodes that read it.
     const payment = page.getByTestId('output-node-output').getByTestId('output-value');

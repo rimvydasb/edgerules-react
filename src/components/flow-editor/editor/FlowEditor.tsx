@@ -207,14 +207,19 @@ function syncCharts(charts: FlowChart[], changes: NodeChange[]): FlowChart[] {
 }
 
 /** The one selected node, or undefined when none or several are selected. */
-function selectionOf(nodes: Node[], outputs: FlowOutput[], charts: FlowChart[]): FlowSelection | undefined {
+function selectionOf(
+    service: FlowEditorService,
+    nodes: Node[],
+    outputs: FlowOutput[],
+    charts: FlowChart[],
+): FlowSelection | undefined {
     const chosen = nodes.filter((node) => node.selected);
     if (chosen.length !== 1) return undefined;
     const {id, type} = chosen[0];
     const kind = KIND_OF[type ?? ''];
     if (kind === 'output' || kind === 'chart') {
         const sink = (kind === 'output' ? outputs : charts).find((candidate) => candidate.id === id);
-        const source = sink?.source && sourcePath(sink.source.node, sink.source.handle);
+        const source = sink?.source && sourcePath(service, sink.source.node, sink.source.handle);
         return {kind, id, label: sink?.label, source};
     }
     return kind ? {kind, field: id} : undefined;
@@ -390,7 +395,12 @@ function FlowCanvas({
     }, [nodes, outputs, charts, onLayoutChange]);
 
     // Report the selected node when it changes: another node, its wire or its label, or no node at all.
-    const selection = useMemo(() => selectionOf(nodes, outputs, charts), [nodes, outputs, charts]);
+    // `version` reads the source path again after a change of the callee.
+    const selection = useMemo(
+        () => selectionOf(service, nodes, outputs, charts),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [service, nodes, outputs, charts, version],
+    );
     const selectionKey = JSON.stringify(selection ?? null);
     const reportedSelection = useRef('null');
     useEffect(() => {
@@ -481,7 +491,7 @@ function FlowCanvas({
                 return;
             }
             // A rejected binding shows on the target node as its error row.
-            service.bindArgument(target, targetHandle.slice('in:'.length), sourcePath(source, sourceHandle));
+            service.bindArgument(target, targetHandle.slice('in:'.length), sourcePath(service, source, sourceHandle));
         },
         [service, outputIds, chartIds],
     );

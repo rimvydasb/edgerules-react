@@ -5,10 +5,10 @@ import {SAMPLE_MODEL} from '../../testing/sampleModel';
 import {autoLayout, findFreeSpot, modelWires, outputWires, qualifyBinding, resolveSource} from '../graph';
 
 describe('resolveSource', () => {
-    const nodes = new Map<string, {results?: string[]}>([
+    const nodes = new Map<string, {whole?: boolean}>([
         ['applicant', {}],
-        ['decision', {results: ['level', 'limit']}],
-        ['payment', {results: ['result']}],
+        ['decision', {whole: false}],
+        ['payment', {whole: true}],
     ]);
 
     it('maps a field path to the output pin of that field', () => {
