@@ -137,6 +137,30 @@ describe('header row', () => {
         testCasesService.dispose();
     });
 
+    it('fits the value column to the editor width without a header toggle when the host fixes the fit mode', () => {
+        const service = createBoxedEditorService(MutableDecisionService.fromCode(MODEL));
+        const {container, rerender} = render(
+            <div>
+                <BoxedEditor service={service} path="*" fitWidth={false} />
+            </div>,
+        );
+        expect(screen.queryByRole('button', {name: 'Fit to width'})).toBeNull();
+        const root = container.querySelector('[role="treegrid"]')!.parentElement!;
+        // jsdom does no layout: 1602 = 2 frame px + 40 steps.
+        Object.defineProperty(root, 'clientWidth', {configurable: true, value: 1602});
+        const template = () => (screen.getByTestId('row-*') as HTMLElement).style.gridTemplateColumns;
+        expect(template()).toBe('320px 480px 40px 240px');
+
+        rerender(
+            <div>
+                <BoxedEditor service={service} path="*" fitWidth />
+            </div>,
+        );
+        expect(screen.queryByRole('button', {name: /Fit to/})).toBeNull();
+        // 40 steps - 8 name - 1 actions - 6 description = 25 value steps.
+        expect(template()).toBe('320px 1000px 40px 240px');
+    });
+
     it('runs the first test case when the test column is shown, and the selected case on navigation', async () => {
         const user = userEvent.setup();
         const mutable = MutableDecisionService.fromCode(MODEL);

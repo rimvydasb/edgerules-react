@@ -239,8 +239,9 @@
 }
 
 /*
- * The selected node beside the canvas, in its own framed sheet. It moves left by one pixel, so the left frame line of
- * the sheet lies on the right frame line of the canvas: one line, not two.
+ * The selected node beside the canvas. The panel draws the line between the canvas and the panel itself, on the right
+ * frame line of the canvas: one line, not two. The sheet inside moves left by one pixel under that line, so its own
+ * left frame line does not double it.
  */
 .splitPanel {
   flex: 1;
@@ -248,4 +249,10 @@
   min-height: 0;
   margin-left: -1px;
   overflow: auto;
+  border-left: 1px solid var(--sh-border);
+  background-color: var(--mantine-color-body);
+}
+
+.splitPanel > * {
+  margin-left: -1px;
 }

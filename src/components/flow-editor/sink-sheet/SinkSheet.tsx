@@ -132,7 +132,8 @@ function RecordTable({records, depth}: {records: Record<string, unknown>[]; dept
     const columns = [...new Set(records.flatMap((record) => Object.keys(record)))];
     const shown = records.slice(0, ROW_LIMIT);
     return (
-        <div className={styles.tableRow} style={{paddingLeft: depth * 20}}>
+        // The table of the wired value itself spans the sheet; a nested table indents under its row.
+        <div className={styles.tableRow} style={{paddingLeft: (depth - 1) * 20}}>
             <div className={styles.scroll}>
                 <table className={styles.table} data-testid="sink-sheet-table">
                     <thead>

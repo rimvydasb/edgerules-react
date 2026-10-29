@@ -83,6 +83,7 @@ export function FlowView({
                             onOpenNode={onOpenNode}
                             languageService={languageService}
                             documentationService={session.documentation}
+                            fitWidth
                         />
                     ) : (
                         'id' in selection && <SinkSheet key={selection.id} service={service} sink={selection} />
