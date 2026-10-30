@@ -91,6 +91,38 @@ describe('FlowEditor', () => {
         expect(screen.queryByTestId('object-input-node-scores')).toBeNull();
     });
 
+    it('renders every expression of the flow context as an expression node, so no read skips a node', async () => {
+        const service = createFlowEditorService(
+            MutableDecisionService.fromCode(`{
+                @InputNode
+                applicant: { income: 5000 }
+                rate: 0.2
+                tax: applicant.income * rate
+            }`),
+        );
+        render(
+            <div style={{width: 1000, height: 600}}>
+                <FlowEditor service={service} />
+            </div>,
+        );
+        expect(await screen.findByTestId('object-input-node-applicant')).toBeInTheDocument();
+        expect(screen.getByTestId('expression-node-rate')).toHaveTextContent('rate');
+        expect(screen.getByTestId('expression-node-tax')).toHaveTextContent('tax');
+    });
+
+    it('turns an expression node into a list input node when the palette adds the list as an input', async () => {
+        const service = createFlowEditorService(MutableDecisionService.fromCode('{ scores: [1, 2, 3] }'));
+        render(
+            <div style={{width: 1000, height: 600}}>
+                <FlowEditor service={service} />
+            </div>,
+        );
+        expect(await screen.findByTestId('expression-node-scores')).toBeInTheDocument();
+        fireEvent.click(palette().getByRole('button', {name: /scores/}));
+        expect(await screen.findByTestId('list-input-node-scores')).toBeInTheDocument();
+        expect(screen.queryByTestId('expression-node-scores')).toBeNull();
+    });
+
     it('reads the model again when the revision changes after a change made outside the editor', async () => {
         const engine = MutableDecisionService.fromCode(SAMPLE_MODEL);
         const service = createFlowEditorService(engine);

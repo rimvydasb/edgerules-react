@@ -23,7 +23,10 @@ export interface FlowEditorProps {
  * wired).
  */
 export type FlowSelection =
-    | {kind: 'function' | 'object-input' | 'list-input' | 'value-input' | 'parameter' | 'result'; field: string}
+    | {
+          kind: 'function' | 'object-input' | 'list-input' | 'value-input' | 'parameter' | 'result' | 'expression';
+          field: string;
+      }
     | {kind: 'output' | 'chart'; id: string; label?: string; source?: string};
 
 /** Asks the canvas to select one node and center it; each new object is a new request. */

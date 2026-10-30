@@ -21,6 +21,7 @@ describe('FlowEditorService of a service', () => {
             {field: 'quote.amount', kind: 'parameter'},
             {field: 'quote.score', kind: 'function'},
             {field: 'quote.installment', kind: 'function'},
+            {field: 'quote.approved', kind: 'expression'},
             {field: 'quote.return', kind: 'result'},
         ]);
     });
@@ -220,9 +221,32 @@ describe('FlowEditorService of a service', () => {
 
         it('annotates an existing return record', () => {
             const {service} = build(`{ @Service func f(a: number): { b: a; return: { b: b } } }`, 'f');
-            expect(service.listNodes().map((node) => node.kind)).toEqual(['parameter']);
+            expect(service.listNodes().map((node) => node.kind)).toEqual(['parameter', 'expression']);
             expect(service.createResultNode()).toBe('f.return');
-            expect(service.listNodes().map((node) => node.kind)).toEqual(['parameter', 'result']);
+            expect(service.listNodes().map((node) => node.kind)).toEqual(['parameter', 'expression', 'result']);
         });
+    });
+});
+
+describe('FlowEditorService of a service: expression nodes', () => {
+    it('shows each expression of the body and reads its variables by their short names', () => {
+        const {service} = build();
+        expect(service.getExpressionNode('quote.approved')).toEqual({
+            field: 'quote.approved',
+            // A function body is not linked as a data context: the engine infers no type.
+            type: 'any',
+            expression: 'score > 350',
+            variables: ['score'],
+        });
+    });
+
+    it('shows a `return` expression as an expression node, not as the result', () => {
+        const {service} = build(`{ @Service func f(a: number): { b: a * 2; return: b + 1 } }`, 'f');
+        expect(service.listNodes()).toEqual([
+            {field: 'f.a', kind: 'parameter'},
+            {field: 'f.b', kind: 'expression'},
+            {field: 'f.return', kind: 'expression'},
+        ]);
+        expect(service.getExpressionNode('f.return').variables).toEqual(['b']);
     });
 });

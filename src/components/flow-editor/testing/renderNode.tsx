@@ -4,6 +4,7 @@ import {render} from '@testing-library/react';
 import {createDocumentationService} from '../../documentation-service';
 import {FlowEditorProvider} from '../FlowEditorProvider';
 import type {DocumentationService} from '../../documentation-service';
+import {ExpressionNode} from '../expression-node/ExpressionNode';
 import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
 import {FunctionNode} from '../function-node/FunctionNode';
 import {ListInputNode} from '../list-input-node/ListInputNode';
@@ -21,6 +22,7 @@ const nodeTypes = {
     valueInputNode: ValueInputNode,
     parameterNode: ParameterNode,
     resultNode: ResultNode,
+    expressionNode: ExpressionNode,
 };
 const INPUT_TYPES = {object: 'objectInputNode', list: 'listInputNode', value: 'valueInputNode'} as const;
 const SERVICE_TYPES = {parameter: 'parameterNode', result: 'resultNode'} as const;
@@ -39,6 +41,7 @@ export function renderNode(
         draft?: boolean;
         input?: 'object' | 'list' | 'value'; // render an input node; the record, list or value at `field` is annotated first
         service?: 'parameter' | 'result'; // render a node of the service flow of `root`
+        expression?: boolean; // render the expression at `field`
         root?: string; // the flow root of the service; defaults to '*'
         readOnly?: boolean;
         onOpenNode?: (target: FlowEditorOpenTarget) => void;
@@ -63,11 +66,13 @@ export function renderNode(
                         nodes={[
                             {
                                 id: nodeField,
-                                type: options.service
-                                    ? SERVICE_TYPES[options.service]
-                                    : options.input
-                                      ? INPUT_TYPES[options.input]
-                                      : 'functionNode',
+                                type: options.expression
+                                    ? 'expressionNode'
+                                    : options.service
+                                      ? SERVICE_TYPES[options.service]
+                                      : options.input
+                                        ? INPUT_TYPES[options.input]
+                                        : 'functionNode',
                                 position: {x: 0, y: 0},
                                 data: {field: nodeField},
                                 width: 400,

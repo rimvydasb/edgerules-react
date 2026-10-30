@@ -20,6 +20,7 @@ import {
 import type {BoxedTableRowData, SignatureParameter} from '../../boxed-editor';
 import {childPath, formatPortableValue, isRecord, parentPath, portableAtPath, typeText} from '#lib/portableUtils';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
+import type {ExpressionNodeModel} from '../expression-node/types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
 import type {ListInputNodeModel} from '../list-input-node/types';
 import type {InputDeclarationKind, ObjectInputField, ObjectInputNodeModel} from '../object-input-node/types';
@@ -86,6 +87,12 @@ function returnLabelOf(results: NodeResult[], schema: unknown): string {
 
 function isInvocation(node: unknown): node is Record<string, unknown> {
     return isRecord(node) && node['@kind'] === 'invocation';
+}
+
+// A computed or literal value: an expression node, or a literal the Portable format writes bare.
+function isExpression(node: unknown): boolean {
+    if (isRecord(node)) return node['@kind'] === 'expression';
+    return typeof node === 'number' || typeof node === 'boolean' || typeof node === 'string' || Array.isArray(node);
 }
 
 function countInvocations(node: unknown, method: string): number {
@@ -331,6 +338,27 @@ export function createFlowEditorService(
         notify();
     };
 
+    // The annotated node kind of a direct field of the flow context: a function, the result or an input.
+    const nodeKindOf = (
+        field: string,
+        key: string,
+        child: Record<string, unknown>,
+    ): FlowNodeRef['kind'] | undefined => {
+        if (isInvocation(child) && child['@node'] === 'FunctionNode') return 'function';
+        if (key === RESULT_FIELD && resultAt(field)) return 'result';
+        if (child['@node'] === 'InputNode') return inputKindOf(field, child);
+        return undefined;
+    };
+
+    // The authored value of a direct field of the flow context when it is an expression node.
+    const expressionAt = (field: string): unknown => {
+        const scope = parentPath(field) ?? '*';
+        if (scope !== root) return undefined;
+        const node = contextAt(root)?.[field.slice(root === '*' ? 0 : root.length + 1)];
+        if (!isExpression(node)) return undefined;
+        return isRecord(node) && nodeKindOf(field, field.split('.').at(-1)!, node) ? undefined : node;
+    };
+
     const stateOf = (field: string): InvocationState | undefined => {
         const draft = drafts.get(field);
         if (draft) return draft;
@@ -424,17 +452,14 @@ export function createFlowEditorService(
                 field: childPath(root, name),
                 kind: 'parameter',
             }));
-            // Direct fields only: a node of a child context belongs to the flow of that context.
+            // Direct fields only: a node of a child context belongs to the flow of that context. Every expression that
+            // no other node shows is an expression node, so a wire never skips a value the flow computes.
             for (const [key, child] of Object.entries(contextAt(root) ?? {})) {
-                if (key.startsWith('@') || !isRecord(child)) continue;
+                if (key.startsWith('@')) continue;
                 const field = childPath(root, key);
-                if (isInvocation(child) && child['@node'] === 'FunctionNode') nodes.push({field, kind: 'function'});
-                else if (key === RESULT_FIELD) {
-                    if (resultAt(field)) nodes.push({field, kind: 'result'});
-                } else if (child['@node'] === 'InputNode') {
-                    const kind = inputKindOf(field, child);
-                    if (kind) nodes.push({field, kind});
-                }
+                const kind = isRecord(child) ? nodeKindOf(field, key, child) : undefined;
+                if (kind) nodes.push({field, kind});
+                else if (isExpression(child)) nodes.push({field, kind: 'expression'});
             }
             const listed = new Set(nodes.map((node) => node.field));
             for (const field of drafts.keys()) {
@@ -568,8 +593,8 @@ export function createFlowEditorService(
         duplicate(field) {
             const base = field.split('.').at(-1)!;
             const copy = childPath(parentPath(field) ?? '*', uniqueName(base, siblingNames(field)));
-            const input = inputAt(field);
-            if (input) {
+            const input = inputAt(field) ?? expressionAt(field);
+            if (input !== undefined) {
                 const result = setWithLinkCheck(
                     engine,
                     copy,
@@ -590,6 +615,7 @@ export function createFlowEditorService(
 
         removeFromFlow(field) {
             if (parameterName(field)) return failure('A parameter is always on the flow of its service');
+            if (expressionAt(field) !== undefined) return failure('An expression is always on the flow');
             if (resultAt(field)) {
                 const result = engine.remove(`${field}.@${RESULT_ANNOTATION}`);
                 if (isPortableError(result)) return result;
@@ -633,13 +659,14 @@ export function createFlowEditorService(
                 notify();
                 return;
             }
-            const previous = (committedAt(field) ?? inputAt(field) ?? resultAt(field)) as PortableNode | undefined;
+            const previous = (committedAt(field) ?? inputAt(field) ?? resultAt(field) ?? expressionAt(field)) as
+                PortableNode | undefined;
             const result = engine.remove(field);
             if (isPortableError(result)) return result;
             try {
                 engine.link();
             } catch (linkError) {
-                if (previous) engine.set(field, previous);
+                if (previous !== undefined) engine.set(field, previous);
                 return linkError as PortableError;
             }
             notify();
@@ -760,6 +787,28 @@ export function createFlowEditorService(
                 label: typeof label === 'string' ? label : undefined,
                 type: typeText(engine.get(field)) ?? 'any',
                 value: typeof input.expression === 'string' ? input.expression : undefined,
+            };
+        },
+
+        getExpressionNode(field): ExpressionNodeModel {
+            const authored = expressionAt(field);
+            if (authored === undefined) return {field, type: 'any', variables: []};
+            ensureLinked();
+            let schema: unknown;
+            try {
+                schema = engine.get(field);
+            } catch {
+                schema = undefined;
+            }
+            const variables = isRecord(schema) && Array.isArray(schema['@variables']) ? schema['@variables'] : [];
+            return {
+                field,
+                type: (isRecord(schema) && schema['@kind'] === 'expression' && typeText(schema)) || 'any',
+                expression:
+                    isRecord(schema) && typeof schema.expression === 'string'
+                        ? schema.expression
+                        : (valueText(authored) ?? ''),
+                variables: variables.filter((variable): variable is string => typeof variable === 'string'),
             };
         },
 

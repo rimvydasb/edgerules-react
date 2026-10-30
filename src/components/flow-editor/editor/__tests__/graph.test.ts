@@ -59,6 +59,46 @@ describe('modelWires', () => {
         ]);
     });
 
+    it('wires every variable of an expression into its one input pin, from the nearest pin of its path', () => {
+        const service = createFlowEditorService(
+            MutableDecisionService.fromCode(`{
+                @InputNode
+                applicant: { income: 5000; address: { city: "Vilnius" } }
+                rate: 0.2
+                tax: applicant.income * rate
+                net: applicant.income - tax + tax
+                city: applicant.address.city
+                unknown: missing.value
+            }`),
+        );
+        const wires = modelWires(
+            service.listNodes(),
+            (field) => service.getFunctionNode(field),
+            (field) => service.getResultNode(field),
+            (field) => service.getExpressionNode(field),
+        );
+        expect(wires.map((wire) => [wire.id, wire.source, wire.sourceHandle, wire.target, wire.targetHandle])).toEqual([
+            ['tax:*:applicant.income', 'applicant', 'out:income', 'tax', 'in:*'],
+            ['tax:*:rate', 'rate', 'out:*', 'tax', 'in:*'],
+            ['net:*:applicant.income', 'applicant', 'out:income', 'net', 'in:*'],
+            ['net:*:tax', 'tax', 'out:*', 'net', 'in:*'],
+            ['city:*:applicant.address', 'applicant', 'out:address', 'city', 'in:*'],
+        ]);
+    });
+
+    it('wires the body of a service into its expressions by short names', () => {
+        const service = createFlowEditorService(MutableDecisionService.fromCode(SERVICE_MODEL), {root: 'quote'});
+        const wires = modelWires(
+            service.listNodes(),
+            (field) => service.getFunctionNode(field),
+            (field) => service.getResultNode(field),
+            (field) => service.getExpressionNode(field),
+        );
+        expect(wires.filter((wire) => wire.target === 'quote.approved').map((wire) => wire.source)).toEqual([
+            'quote.score',
+        ]);
+    });
+
     it('wires a list input from its one whole-list pin', () => {
         const service = createFlowEditorService(
             MutableDecisionService.fromCode(`{

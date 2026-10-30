@@ -1,6 +1,7 @@
 import type {XYPosition} from '@xyflow/react';
 import {parentPath} from '#lib/portableUtils';
 import {typeKind} from '../core-node';
+import type {ExpressionNodeModel} from '../expression-node/types';
 import type {FlowNodeRef} from '../flow-editor-types';
 import type {FunctionNodeModel} from '../function-node/types';
 import type {ResultNodeModel} from '../result-node/types';
@@ -12,7 +13,7 @@ export interface Wire {
     source: string; // node id
     sourceHandle: string; // 'out:<result>', 'out:*'
     target: string; // node id
-    targetHandle: string; // 'in:<parameter>', 'in:value'
+    targetHandle: string; // 'in:<parameter>', 'in:value', 'in:*' of an expression
     kind: ReturnType<typeof typeKind>; // color family of the wire
 }
 
@@ -78,12 +79,14 @@ export function qualifyBinding(text: string, field: string, nodes: ReadonlyMap<s
 }
 
 /**
- * The wires of every path-bound argument, and of every field of a result node, whose source is a node on the canvas.
+ * The wires of every path-bound argument, of every field of a result node and of every field an expression node reads,
+ * whose source is a node on the canvas. All the wires of an expression go into its one input pin.
  */
 export function modelWires(
     refs: FlowNodeRef[],
     functionModel: (field: string) => FunctionNodeModel,
     resultModel?: (field: string) => ResultNodeModel,
+    expressionModel?: (field: string) => ExpressionNodeModel,
 ): Wire[] {
     const models = new Map(
         refs.filter((ref) => ref.kind === 'function').map((ref) => [ref.field, functionModel(ref.field)]),
@@ -94,11 +97,22 @@ export function modelWires(
             .map((ref) => [ref.field, {whole: models.get(ref.field)?.results.some((result) => result.whole)}]),
     );
     const wires: Wire[] = [];
-    const wire = (field: string, pin: string, text: string, type: string) => {
+    const wire = (field: string, pin: string, text: string, type: string, id = `${field}:${pin}`) => {
         const source = resolveSource(qualifyBinding(text.trim(), field, sources), sources);
         if (!source || source.node === field) return;
+        // Two variables of one source pin, `a.x` and `a.x.y`, are one wire.
+        if (
+            wires.some(
+                (existing) =>
+                    existing.target === field &&
+                    existing.targetHandle === `in:${pin}` &&
+                    existing.source === source.node &&
+                    existing.sourceHandle === source.handle,
+            )
+        )
+            return;
         wires.push({
-            id: `${field}:${pin}`,
+            id,
             source: source.node,
             sourceHandle: source.handle,
             target: field,
@@ -115,6 +129,19 @@ export function modelWires(
         if (ref.kind !== 'result' || !resultModel) continue;
         for (const item of resultModel(ref.field).fields) {
             if (item.value !== undefined) wire(ref.field, item.name, item.value, item.type);
+        }
+    }
+    for (const ref of refs) {
+        if (ref.kind !== 'expression' || !expressionModel) continue;
+        for (const variable of expressionModel(ref.field).variables) {
+            // A read deeper than any pin, such as `applicant.address.city`, comes from the nearest pin on its path.
+            let path = variable.trim();
+            while (!resolveSource(qualifyBinding(path, ref.field, sources), sources)) {
+                const cut = Math.max(path.lastIndexOf('.'), path.lastIndexOf('['));
+                if (cut <= 0) break;
+                path = path.slice(0, cut);
+            }
+            wire(ref.field, '*', path, 'any', `${ref.field}:*:${path}`);
         }
     }
     return wires;

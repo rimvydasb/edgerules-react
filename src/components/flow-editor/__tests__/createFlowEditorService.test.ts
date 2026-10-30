@@ -702,9 +702,13 @@ describe('FlowEditorService value inputs', () => {
         return {mutable, service: createFlowEditorService(mutable)};
     };
 
-    it('lists an annotated single value as a value input', () => {
+    it('lists an annotated single value as a value input, and every other value as an expression', () => {
         const {service} = valueService();
-        expect(service.listNodes()).toEqual([{field: 'age', kind: 'value-input'}]);
+        expect(service.listNodes()).toEqual([
+            {field: 'age', kind: 'value-input'},
+            {field: 'adult', kind: 'expression'},
+            {field: 'plain', kind: 'expression'},
+        ]);
     });
 
     it('reads the type, the label and the expression of the value', () => {
@@ -747,6 +751,8 @@ describe('FlowEditorService value inputs', () => {
         });
         expect(service.listNodes()).toEqual([
             {field: 'age', kind: 'value-input'},
+            {field: 'adult', kind: 'expression'},
+            {field: 'plain', kind: 'expression'},
             {field: 'list', kind: 'list-input'},
             {field: 'value', kind: 'value-input'},
         ]);
@@ -769,9 +775,13 @@ describe('FlowEditorService list inputs', () => {
         return {mutable, service: createFlowEditorService(mutable)};
     };
 
-    it('lists an annotated list as a list input', () => {
+    it('lists an annotated list as a list input, and the other lists as expressions', () => {
         const {service} = listService();
-        expect(service.listNodes()).toEqual([{field: 'people', kind: 'list-input'}]);
+        expect(service.listNodes()).toEqual([
+            {field: 'people', kind: 'list-input'},
+            {field: 'scores', kind: 'expression'},
+            {field: 'doubled', kind: 'expression'},
+        ]);
     });
 
     it('reads the list type, the label and the fields of an item', () => {
@@ -803,7 +813,7 @@ describe('FlowEditorService list inputs', () => {
         expect(isPortableError(service.addInputNode('total') as never)).toBe(true);
     });
 
-    it('renames the node, removes it from the flow and duplicates it', () => {
+    it('renames the node, removes it from the flow, where it stays as an expression, and duplicates it', () => {
         const {mutable, service} = listService();
         expect(service.setNodeName('people', 'Prospects')).toBeUndefined();
         expect(service.getListInputNode('people').label).toBe('Prospects');
@@ -812,7 +822,12 @@ describe('FlowEditorService list inputs', () => {
         expect(service.getListInputNode('people2').itemFields).toHaveLength(2);
         expect(service.removeFromFlow('people')).toBeUndefined();
         expect(mutable.toPortable().people).not.toHaveProperty('@node');
-        expect(service.listNodes()).toEqual([{field: 'people2', kind: 'list-input'}]);
+        expect(service.listNodes()).toEqual([
+            {field: 'people', kind: 'expression'},
+            {field: 'scores', kind: 'expression'},
+            {field: 'doubled', kind: 'expression'},
+            {field: 'people2', kind: 'list-input'},
+        ]);
     });
 
     it('refuses to delete a list that an expression reads', () => {
@@ -848,11 +863,15 @@ describe('FlowEditorService root', () => {
         service.setCallee('applicant.score', 'riskScore');
 
         expect(service.listNodes()).toEqual([
+            {field: 'applicant.income', kind: 'expression'},
             {field: 'applicant.profile', kind: 'object-input'},
             {field: 'applicant.score', kind: 'function'},
         ]);
         // The model root shows `applicant` and does not descend into it.
-        expect(createFlowEditorService(mutable).listNodes()).toEqual([{field: 'applicant', kind: 'object-input'}]);
+        expect(createFlowEditorService(mutable).listNodes()).toEqual([
+            {field: 'applicant', kind: 'object-input'},
+            {field: 'limit', kind: 'expression'},
+        ]);
     });
 
     it('offers the records of the root context as input candidates', () => {
@@ -871,6 +890,7 @@ describe('FlowEditorService root', () => {
         expect(service.createInputNode()).toBe('applicant.input');
         expect(mutable.toPortable()).not.toHaveProperty('input');
         expect(service.listNodes().map((node) => node.field)).toEqual([
+            'applicant.income',
             'applicant.input',
             'applicant.node',
             'applicant.node2',
@@ -882,7 +902,11 @@ describe('FlowEditorService root', () => {
         expect(service.createInputNode()).toBe('applicant.adjust.input');
         const body = (mutable.toPortable() as any).applicant.adjust['@body'];
         expect(body.input).toMatchObject({'@kind': 'context', '@node': 'InputNode', value: 0});
-        expect(service.listNodes()).toEqual([{field: 'applicant.adjust.input', kind: 'object-input'}]);
+        expect(service.listNodes()).toEqual([
+            {field: 'applicant.adjust.base', kind: 'expression'},
+            {field: 'applicant.adjust.result', kind: 'expression'},
+            {field: 'applicant.adjust.input', kind: 'object-input'},
+        ]);
     });
 
     it('binds a field of a function body by its short name, which the engine links', () => {
@@ -938,7 +962,10 @@ describe('FlowEditorService root', () => {
         const {service} = rooted('applicant');
         const draft = service.createDraftNode();
         expect(service.renameField(draft, 'step')).toBeUndefined();
-        expect(service.listNodes()).toEqual([{field: 'applicant.step', kind: 'function'}]);
+        expect(service.listNodes()).toEqual([
+            {field: 'applicant.income', kind: 'expression'},
+            {field: 'applicant.step', kind: 'function'},
+        ]);
         expect(isPortableError(service.renameField('applicant.step', 'income'))).toBe(true);
     });
 });
@@ -1026,5 +1053,85 @@ describe('FlowEditorService renames in a nested context', () => {
         expect(mutable.getCode('applicant.short')).toBe('profile.salary / 2');
         expect(mutable.getCode('applicant.full')).toBe('applicant.profile.salary * 2');
         expect(() => mutable.link()).not.toThrow();
+    });
+});
+
+describe('FlowEditorService expression nodes', () => {
+    const EXPRESSION_MODEL = `{
+        @InputNode
+        applicant: { income: 5000; address: { city: "Vilnius" } }
+        rate: 0.2
+        tax: applicant.income * rate
+        net: applicant.income - tax
+        city: applicant.address.city
+        @InputNode
+        age: 30
+    }`;
+    const expressionService = () => {
+        const mutable = MutableDecisionService.fromCode(EXPRESSION_MODEL);
+        return {mutable, service: createFlowEditorService(mutable)};
+    };
+
+    it('lists every expression that no other node shows, literals too, in model order', () => {
+        const {service} = expressionService();
+        expect(service.listNodes()).toEqual([
+            {field: 'applicant', kind: 'object-input'},
+            {field: 'rate', kind: 'expression'},
+            {field: 'tax', kind: 'expression'},
+            {field: 'net', kind: 'expression'},
+            {field: 'city', kind: 'expression'},
+            {field: 'age', kind: 'value-input'},
+        ]);
+    });
+
+    it('reads the type, the text and the variables of an expression', () => {
+        const {service} = expressionService();
+        expect(service.getExpressionNode('tax')).toEqual({
+            field: 'tax',
+            type: 'number',
+            expression: 'applicant.income * rate',
+            variables: ['applicant.income', 'rate'],
+        });
+        // A literal reads no field.
+        expect(service.getExpressionNode('rate')).toEqual({
+            field: 'rate',
+            type: 'number',
+            expression: '0.2',
+            variables: [],
+        });
+        // An input node or a missing field is no expression node.
+        expect(service.getExpressionNode('age')).toEqual({field: 'age', type: 'any', variables: []});
+        expect(service.getExpressionNode('nope')).toEqual({field: 'nope', type: 'any', variables: []});
+    });
+
+    it('is always on the flow: removing it from the flow is refused', () => {
+        const {service} = expressionService();
+        expect(isPortableError(service.removeFromFlow('tax') as never)).toBe(true);
+        expect(service.listNodes()).toContainEqual({field: 'tax', kind: 'expression'});
+    });
+
+    it('duplicates, renames and deletes an expression, link-checked', () => {
+        const {mutable, service} = expressionService();
+        expect(service.duplicate('tax')).toBe('tax2');
+        expect(mutable.toPortable()).toMatchObject({
+            tax2: {'@kind': 'expression', expression: 'applicant.income * rate'},
+        });
+        expect(service.duplicate('rate')).toBe('rate2');
+        expect(service.getExpressionNode('rate2')).toMatchObject({type: 'number', expression: '0.2'});
+        expect(service.renameField('tax2', 'levy')).toBeUndefined();
+        expect(service.listNodes()).toContainEqual({field: 'levy', kind: 'expression'});
+        // `net` reads `tax`: deleting it would break the link.
+        expect(isPortableError(service.deleteField('tax') as never)).toBe(true);
+        expect(mutable.toPortable()).toHaveProperty('tax');
+        expect(service.deleteField('levy')).toBeUndefined();
+        expect(mutable.toPortable()).not.toHaveProperty('levy');
+    });
+
+    it('becomes a list input when a list literal is annotated', () => {
+        const mutable = MutableDecisionService.fromCode(`{ scores: [1, 2, 3] }`);
+        const service = createFlowEditorService(mutable);
+        expect(service.listNodes()).toEqual([{field: 'scores', kind: 'expression'}]);
+        expect(service.addInputNode('scores')).toBeUndefined();
+        expect(service.listNodes()).toEqual([{field: 'scores', kind: 'list-input'}]);
     });
 });

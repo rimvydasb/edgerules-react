@@ -34,6 +34,8 @@ import {isPortableError} from '#lib/portable';
 import {CHART_SIZE, ChartNode} from '../chart-node/ChartNode';
 import type {ChartNodeData} from '../chart-node/types';
 import {CanvasActionsProvider} from '../core-node';
+import {EXPRESSION_COLOR, EXPRESSION_PIN, ExpressionNode} from '../expression-node/ExpressionNode';
+import {expressionNodeWidth} from '../expression-node/layout';
 import {FlowEditorProvider, useFlowEditor} from '../FlowEditorProvider';
 import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import {FunctionNode} from '../function-node/FunctionNode';
@@ -67,6 +69,7 @@ const NODE_TYPES = {
     chartNode: ChartNode,
     parameterNode: ParameterNode,
     resultNode: ResultNode,
+    expressionNode: ExpressionNode,
 };
 const TYPE_OF: Record<LayoutKind, keyof typeof NODE_TYPES> = {
     function: 'functionNode',
@@ -77,6 +80,7 @@ const TYPE_OF: Record<LayoutKind, keyof typeof NODE_TYPES> = {
     chart: 'chartNode',
     parameter: 'parameterNode',
     result: 'resultNode',
+    expression: 'expressionNode',
 };
 const KIND_OF: Record<string, LayoutKind> = {
     functionNode: 'function',
@@ -87,6 +91,7 @@ const KIND_OF: Record<string, LayoutKind> = {
     chartNode: 'chart',
     parameterNode: 'parameter',
     resultNode: 'result',
+    expressionNode: 'expression',
 };
 // Output and chart nodes exist on the canvas only: the model never adds or removes them.
 const CANVAS_TYPES = new Set(['outputNode', 'chartNode']);
@@ -99,6 +104,7 @@ const MINIMAP_COLOR: Record<LayoutKind, string> = {
     chart: ICON_COLOR.chart,
     parameter: ICON_COLOR.parameter,
     result: ICON_COLOR.result,
+    expression: EXPRESSION_COLOR,
 };
 const ROW = 40;
 const FIT_VIEW = {padding: 0.15, maxZoom: 1};
@@ -167,6 +173,7 @@ function estimateSize(service: FlowEditorService, id: string, kind: LayoutKind):
     if (kind === 'parameter')
         return {width: 280, height: (3 + Math.max(1, service.getParameterNode(id).fields.length)) * ROW};
     if (kind === 'result') return {width: 320, height: (4 + service.getResultNode(id).fields.length) * ROW};
+    if (kind === 'expression') return {width: expressionNodeWidth(id), height: ROW};
     const model = service.getFunctionNode(id);
     if (!model.callee) return {width: 320, height: 3 * ROW};
     return {width: 360, height: (3 + Math.max(model.arguments.length, model.results.length)) * ROW};
@@ -189,6 +196,8 @@ function toEdge(wire: Wire, selected: ReadonlySet<string>): Edge {
         targetHandle: wire.targetHandle,
         className: `${styles.wire} ${WIRE_CLASS[wire.kind]}`,
         selected: selected.has(wire.id),
+        // A wire into an expression is a field its text reads: only an edit of the text removes it.
+        ...(wire.targetHandle === EXPRESSION_PIN && {deletable: false}),
     };
 }
 
@@ -295,6 +304,7 @@ function FlowCanvas({
                 refs,
                 (field) => service.getFunctionNode(field),
                 (field) => service.getResultNode(field),
+                (field) => service.getExpressionNode(field),
             ),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [service, refs, version],
@@ -333,10 +343,12 @@ function FlowCanvas({
         const wantedIds = new Set(wanted.map((node) => node.id));
         const removed = current.filter((node) => !wantedIds.has(node.id) && !CANVAS_TYPES.has(node.type ?? ''));
         const added = wanted.filter((node) => !byId.has(node.id));
+        // A field can change kind under the same id: an expression list becomes a list input.
+        const sameKind = (node: (typeof wanted)[number]) => byId.get(node.id)!.type === TYPE_OF[node.kind];
         const unchanged =
             added.length === 0 &&
             current.length === wanted.length &&
-            wanted.every((node) => sameData(byId.get(node.id)!.data, node.data));
+            wanted.every((node) => sameKind(node) && sameData(byId.get(node.id)!.data, node.data));
         if (unchanged) return;
 
         // A renamed field is one model node gone and one of the same kind added: it keeps its place and its outputs.
@@ -365,8 +377,10 @@ function FlowCanvas({
                 if (existing)
                     return {
                         ...existing,
+                        type: TYPE_OF[node.kind],
                         data: sameData(existing.data, node.data) ? existing.data : node.data,
                         selected,
+                        deletable: isDeletable(node.kind),
                     };
                 return {
                     id: node.id,
@@ -374,13 +388,18 @@ function FlowCanvas({
                     position: pending.current.get(node.id) ?? {x: 0, y: 0},
                     data: node.data,
                     selected,
-                    // A parameter is always on the flow of its service: its menu deletes it from the service.
-                    deletable: !readOnly && node.kind !== 'parameter',
+                    deletable: isDeletable(node.kind),
                     // A chart has a size of its own, which the resize handle changes; other nodes fit their rows.
                     ...node.size,
                 };
             }),
         );
+
+        // A parameter is always on the flow of its service, and an expression on the flow of its context: their menus
+        // delete them from the model.
+        function isDeletable(kind: LayoutKind): boolean {
+            return !readOnly && kind !== 'parameter' && kind !== 'expression';
+        }
 
         function initialPositions(unplaced: typeof wanted) {
             // The estimate misses descriptions and long names; the layout runs again once xyflow has measured.
@@ -517,6 +536,10 @@ function FlowCanvas({
         () => new Set(refs.filter((ref) => ref.kind === 'result').map((ref) => ref.field)),
         [refs],
     );
+    const expressionIds = useMemo(
+        () => new Set(refs.filter((ref) => ref.kind === 'expression').map((ref) => ref.field)),
+        [refs],
+    );
 
     const onConnect = useCallback(
         (connection: Connection) => {
@@ -554,12 +577,14 @@ function FlowCanvas({
         [service, outputIds, chartIds, resultIds],
     );
 
+    // The wires into an expression follow its text: a wire cannot change them.
     const isValidConnection: IsValidConnection = useCallback(
         (connection) =>
             connection.source !== connection.target &&
+            !expressionIds.has(connection.target) &&
             Boolean(connection.sourceHandle?.startsWith('out:')) &&
             Boolean(connection.targetHandle?.startsWith('in:')),
-        [],
+        [expressionIds],
     );
 
     // The editor applies deletions to the model itself; xyflow only reports them.
@@ -578,6 +603,7 @@ function FlowCanvas({
             const unwiredOutputs = new Set<string>();
             const unwiredCharts = new Set<string>();
             for (const edge of unwired) {
+                if (expressionIds.has(edge.target)) continue;
                 if (outputIds.has(edge.target)) unwiredOutputs.add(edge.target);
                 else if (chartIds.has(edge.target)) unwiredCharts.add(edge.target);
                 // A wire into the result is a value the service returns: it leaves the result, unless a caller reads it.
@@ -602,7 +628,7 @@ function FlowCanvas({
             }
             return false;
         },
-        [service, outputIds, chartIds, resultIds],
+        [service, outputIds, chartIds, resultIds, expressionIds],
     );
 
     const onNodesChange = useCallback((changes: NodeChange[]) => {

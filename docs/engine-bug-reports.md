@@ -7,8 +7,8 @@ Each entry has a label:
 
 Delete a [VALID] entry when the engine fixes it.
 
-All entries were last re-verified against `@edgerules/node` and `@edgerules/web` **`0.1.0-alpha.202610281745`** on
-**2026-10-28** with throwaway Node scripts — no React, no mocks.
+All entries were last re-verified against `@edgerules/node` and `@edgerules/web` **`0.1.2-alpha.202610300921`** on
+**2026-10-30** with throwaway Node scripts — no React, no mocks. Every [VALID] entry still reproduces on that version.
 
 Entry format: a heading with the label and the problem name, then **What is wrong**, then **Expected behaviour** (for
 [VALID]) or **Why it is not a bug** (for [NOT A BUG]).
@@ -108,7 +108,7 @@ assume that the row the user edited last caused it.
 **What is wrong:** for a list literal, `get(path)` infers the item type (`items` is a `type-definition`), but it lists
 the item fields sorted by name, not in the authored order. A record field, a declared `type` and the executed value keep
 the authored order, so the same shape reads differently depending on where it is written. Verified on `@edgerules/node`
-`0.1.1-alpha.202610291103`.
+`0.1.2-alpha.202610300921`.
 
 ```edgerules
 {

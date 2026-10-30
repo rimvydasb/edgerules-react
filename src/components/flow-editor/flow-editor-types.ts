@@ -7,6 +7,7 @@ import type {FlowEditorOpenTarget} from './core-node/types';
 import type {CalleeRef, FunctionNodeModel} from './function-node/types';
 import type {ListInputNodeModel} from './list-input-node/types';
 import type {ObjectInputNodeModel} from './object-input-node/types';
+import type {ExpressionNodeModel} from './expression-node/types';
 import type {OutputReading} from './output-node/types';
 import type {ParameterNodeModel} from './parameter-node/types';
 import type {ResultNodeModel} from './result-node/types';
@@ -25,15 +26,16 @@ export interface FlowEditorProviderProps {
 
 /**
  * One model field that the canvas draws as a node; the node id is the field path. A service flow adds a node per
- * parameter of the service ('<service>.<parameter>') and its result ('<service>.return').
+ * parameter of the service ('<service>.<parameter>') and its result ('<service>.return'). Every other expression of
+ * the flow context is an expression node.
  */
 export interface FlowNodeRef {
     field: string;
-    kind: 'function' | 'object-input' | 'list-input' | 'value-input' | 'parameter' | 'result'; // inputs: an `@InputNode` record, list or single value
+    kind: 'function' | 'object-input' | 'list-input' | 'value-input' | 'parameter' | 'result' | 'expression'; // inputs: an `@InputNode` record, list or single value
 }
 
 export interface FlowEditorService {
-    listNodes(): FlowNodeRef[]; // a service: its parameters, then '@node' annotated fields in model order, then the drafts
+    listNodes(): FlowNodeRef[]; // a service: its parameters, then '@node' annotated fields and expressions in model order, then the drafts
     isService(): boolean; // the root is a `@Service` function: its flow has parameter and result nodes
     listCallees(): CalleeRef[]; // user func and ruleset entries with only typed parameters
     getFunctionNode(field: string): FunctionNodeModel; // committed invocation plus any draft overlay
@@ -44,7 +46,7 @@ export interface FlowEditorService {
     setNodeName(field: string, name: string): PortableError | void; // '@node-name' only; '' clears it
     renameField(field: string, newName: string): PortableError | void; // rewrites wires; the caller moves the description
     duplicate(field: string): string | PortableError; // returns the new field name
-    removeFromFlow(field: string): PortableError | void; // a write without `@node`; the field stays
+    removeFromFlow(field: string): PortableError | void; // a write without `@node`; the field stays; refused for an expression
     deleteField(field: string): PortableError | void; // remove(field), link-checked; a parameter: refused while the body reads it
     addArgument(field: string, after?: string): PortableError | void; // after = undefined appends
     moveArgument(field: string, parameter: string, direction: 'up' | 'down'): PortableError | void;
@@ -54,6 +56,7 @@ export interface FlowEditorService {
     getObjectInputNode(field: string): ObjectInputNodeModel; // the record annotated @InputNode; no fields when it does not exist
     getListInputNode(field: string): ListInputNodeModel; // the list annotated @InputNode; no item fields when it does not exist
     getValueInputNode(field: string): ValueInputNodeModel; // the single value annotated @InputNode; no value when it does not exist
+    getExpressionNode(field: string): ExpressionNodeModel; // an expression no other node shows, with its `@variables`; no expression when it does not exist
     listInputCandidates(): FlowNodeRef[]; // records and list literals of the model that are not yet an input node
     addInputNode(field: string): PortableError | void; // annotates an existing record or list with '@node: InputNode'
     createInputNode(kind?: 'object-input' | 'list-input' | 'value-input'): string | PortableError; // a new '@InputNode': record 'input…' with one number field (default), list 'list…' of numbers or number 'value…'

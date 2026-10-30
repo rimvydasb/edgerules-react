@@ -171,7 +171,7 @@ describe('ProjectExplorer create', () => {
         ['Methods', 'Function', 'newFunction', {'@kind': 'function-schema'}, 'function'],
         ['Service Methods', undefined, 'newService', {'@kind': 'function-schema', '@node': 'Service'}, 'service'],
         ['Methods', 'Ruleset', 'newRuleset', {'@kind': 'ruleset-schema'}, 'ruleset'],
-        ['Variables', 'Value', 'newValue', {'@kind': 'type', type: 'number'}, 'variable'],
+        ['Variables', 'Value', 'newValue', {'@kind': 'expression', type: 'number'}, 'variable'],
         ['Variables', 'Context', 'newContext', {'@kind': 'context'}, 'context'],
         ['Workbooks', undefined, 'newWorkbook', {'@kind': 'context', '@node': 'Workbook'}, 'workbook'],
     ])('creates a new entity of %s %s and opens it', async (section, item, name, node, kind) => {

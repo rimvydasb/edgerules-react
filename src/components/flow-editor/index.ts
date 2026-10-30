@@ -1,6 +1,7 @@
 export {createFlowEditorService} from './service/createFlowEditorService';
 export {ChartNode} from './chart-node/ChartNode';
 export {FlowEditor} from './editor/FlowEditor';
+export {ExpressionNode} from './expression-node/ExpressionNode';
 export {FlowEditorProvider} from './FlowEditorProvider';
 export {FunctionNode} from './function-node/FunctionNode';
 export {ListInputNode} from './list-input-node/ListInputNode';
@@ -11,6 +12,7 @@ export {ResultNode} from './result-node/ResultNode';
 export {ValueInputNode} from './value-input-node/ValueInputNode';
 export type {ChartConfig, ChartKind, ChartNodeData} from './chart-node/types';
 export type {FlowChart, FlowEditorProps, FlowFocusRequest, FlowLayout, FlowOutput, FlowSelection} from './editor/types';
+export type {ExpressionNodeData, ExpressionNodeModel} from './expression-node/types';
 export type {FlowEditorOpenTarget, FlowEditorProviderProps, FlowEditorService, FlowNodeRef} from './flow-editor-types';
 export type {CalleeRef, FunctionNodeData, FunctionNodeModel, NodeArgument, NodeResult} from './function-node/types';
 export type {ListInputNodeData, ListInputNodeModel, ListItemField} from './list-input-node/types';

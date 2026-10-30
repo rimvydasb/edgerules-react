@@ -8,7 +8,7 @@ export {NodeMenuButton} from './NodeMenuButton';
 export {Pin} from './Pin';
 export {NodeEmptyState, Track, TrackBand, TrackFiller, TrackName, TrackNameText, TrackRow} from './Track';
 export {useNodeDescription, useServiceRead, useSyncPins} from './hooks';
-export {computeTrackLayout, summaryLineWidth, titleLineWidth} from './layout';
+export {computeTrackLayout, KEBAB_WIDTH, summaryLineWidth, TILE_WIDTH, titleLineWidth} from './layout';
 export {FONTS, measureText} from './measure';
 export {coreNodeMenuItems, rowMenuItems, startGroup} from './nodeMenus';
 export {isListType, typeKind} from './typeKind';

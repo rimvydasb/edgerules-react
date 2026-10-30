@@ -24,6 +24,8 @@ engine via [`@edgerules/web`](https://www.npmjs.com/package/@edgerules/web), pub
         ([spec](docs/stories/completed/flow-editor-story.md#flow-editor-objectinputnode),
         [list](docs/stories/completed/flow-editor-story.md#flow-editor-listinputnode))
   - [x] FunctionNode / RulesetNode ([spec and story](docs/stories/completed/flow-editor-story.md))
+  - [x] ExpressionNode ([story](docs/stories/service-flow.md)): every other expression of a workbook or service flow,
+        one header row with a wire from each field it reads (`@variables`), so no wire skips a computed value
   - [x] OutputNode (shows the engine value of the wired result; no model writes)
   - [x] ChartNode ([spec](docs/stories/completed/flow-editor-story.md#flow-editor-chartnode)): a TanStack Charts line,
         area or bar chart of the wired list or record; configures itself from the data, Configure flips it to its config
