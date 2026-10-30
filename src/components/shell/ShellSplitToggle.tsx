@@ -12,19 +12,15 @@ export interface ShellSplitToggleProps {
 
 /**
  * The header cell right of the view switch that splits the Flow view: the canvas on the left, the selected node on
- * the right. It is off by default and disabled in the other views.
+ * the right. It is on by default and disabled in the other views.
  */
 export function ShellSplitToggle({open, disabled, onToggle}: ShellSplitToggleProps): ReactElement {
-    const label = disabled
-        ? 'Split screen is available in the Flow view'
-        : open
-          ? 'Hide the selected node'
-          : 'Show the selected node beside the flow';
+    const label = disabled ? 'Split view is available in the Flow view' : open ? 'Close split view' : 'Split view';
     return (
         <Tooltip label={label} position="bottom-end" withArrow>
             <button
                 type="button"
-                aria-label="Split screen"
+                aria-label="Split view"
                 aria-pressed={open && !disabled}
                 disabled={disabled}
                 className={cx(classes.viewButton, classes.splitToggle, open && !disabled && classes.splitToggleOn)}

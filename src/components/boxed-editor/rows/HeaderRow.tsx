@@ -1,5 +1,5 @@
 import {Tooltip} from '@mantine/core';
-import {IconArrowAutofitContent, IconFlask, IconNotes, IconPlus} from '@tabler/icons-react';
+import {IconArrowAutofitWidth, IconFlask, IconNotes, IconPlus} from '@tabler/icons-react';
 import {Fragment, type ReactElement, type ReactNode} from 'react';
 import {RowActionsMenu} from '#ui/RowActionsMenu';
 import {cx} from '#ui/cx';
@@ -64,18 +64,12 @@ export interface HeaderRowProps {
 
 /**
  * The one-step header on top of every opened Boxed Expression: the model name (root) or the metaphor name, the
- * fit-width toggle, the description and test-results column toggles, and — at the model root only — the `plus` menu
- * that adds entities. The model name, version and description are edited in the settings of the Shell.
+ * `Expand` button (only when the host gives `onExpand`), the description and test-results column toggles, and — at
+ * the model root only — the `plus` menu that adds entities. The model name, version and description are edited in the settings of the Shell.
  * Above the two overlay columns it shows their headings: the model description and the test case selector.
  */
 export function HeaderRow({row}: HeaderRowProps): ReactElement {
-    const {
-        testCasesService,
-        fitWidth = false,
-        setFitWidth,
-        setShowDescription,
-        setShowTestResults,
-    } = useBoxedEditorContext();
+    const {testCasesService, onExpand, setShowDescription, setShowTestResults} = useBoxedEditorContext();
     const {template, showDescription, showTestResults} = useBoxedLayout();
     const actions = useRowActions(row);
     const isModel = row.kind === 'model';
@@ -93,13 +87,9 @@ export function HeaderRow({row}: HeaderRowProps): ReactElement {
                     <div role="heading" aria-level={2} className={cx(classes.headerTitle, classes.strong)}>
                         {metaphorName(row)}
                     </div>
-                    {setFitWidth && (
-                        <HeaderButton
-                            label={fitWidth ? 'Fit to content' : 'Fit to width'}
-                            pressed={fitWidth}
-                            onClick={() => setFitWidth(!fitWidth)}
-                        >
-                            <IconArrowAutofitContent size={18} />
+                    {onExpand && (
+                        <HeaderButton label="Expand" onClick={onExpand}>
+                            <IconArrowAutofitWidth size={18} />
                         </HeaderButton>
                     )}
                     {setShowDescription && (

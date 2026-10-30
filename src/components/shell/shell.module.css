@@ -88,7 +88,6 @@
   outline-offset: -2px;
 }
 
-
 .breadcrumbs {
   display: flex;
   flex: 1;
@@ -343,7 +342,8 @@
   padding: 9px 10px;
   border: 0;
   border-radius: 0;
-  background: transparent;
+  /* The value cells are the open (white) fill of the sheet, like the value cells of the grid. */
+  background-color: var(--mantine-color-body);
   color: var(--mantine-color-text);
   font-size: var(--mantine-font-size-sm);
   line-height: 20px;
@@ -353,7 +353,6 @@
 .settingsField .settingsInputCell .settingsInput:focus {
   outline: 2px solid var(--mantine-primary-color-filled);
   outline-offset: -2px;
-  background-color: var(--mantine-color-body);
 }
 
 .settingsError {

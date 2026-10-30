@@ -3,7 +3,7 @@ import {DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent} fro
 import {useEffect, useRef, useState, type ReactElement, type RefObject} from 'react';
 import type {BoxedEditorProps} from './BoxedEditorProps';
 import {useRowCommands} from './commands/useRowCommands';
-import {BoxedEditorProvider, useBoxedEditorContext} from './context/BoxedEditorContext';
+import {BoxedEditorProvider} from './context/BoxedEditorContext';
 import {BoxedEditorTestProvider} from './context/BoxedEditorTestContext';
 import {BoxedEditorUiProvider} from './context/BoxedEditorUiContext';
 import {BoxedLayoutProvider} from './context/BoxedLayoutContext';
@@ -29,25 +29,25 @@ interface BoxedEditorGridProps {
     showHeader: boolean;
 }
 
-/** The width of `ref`'s parent element while `enabled`, followed on every resize. */
-function useParentWidth(ref: RefObject<HTMLElement | null>, enabled: boolean): number | undefined {
+/** The width of `ref`'s parent element, followed on every resize. */
+function useParentWidth(ref: RefObject<HTMLElement | null>): number | undefined {
     const [width, setWidth] = useState<number>();
     useEffect(() => {
         const parent = ref.current?.parentElement;
-        if (!enabled || !parent || typeof ResizeObserver === 'undefined') return undefined;
+        if (!parent || typeof ResizeObserver === 'undefined') return undefined;
         const measure = (): void => setWidth(parent.clientWidth);
         measure();
         const observer = new ResizeObserver(measure);
         observer.observe(parent);
         return () => observer.disconnect();
-    }, [ref, enabled]);
-    return enabled ? width : undefined;
+    }, [ref]);
+    return width;
 }
 
 function BoxedEditorGrid({path, showHeader}: BoxedEditorGridProps): ReactElement {
-    const {fitWidth = false} = useBoxedEditorContext();
     const gridRef = useRef<HTMLDivElement>(null);
-    const availableWidth = useParentWidth(gridRef, fitWidth);
+    // The value column always widens to fill the width of the editor.
+    const availableWidth = useParentWidth(gridRef);
     const service = useBoxedEditorService();
     const rows = useBoxedRows(path);
     const rootRow = service.getBoxedRowData(path);
@@ -141,7 +141,7 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
         onShowTestResultsChange,
         showType = true,
         expanded = true,
-        fitWidth: fixedFitWidth,
+        onExpand,
         className,
         style,
     } = props;
@@ -156,9 +156,6 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
         setOwnShowTestResults(show);
         onShowTestResultsChange?.(show);
     };
-    // A host that fixes the fit mode hides the header toggle.
-    const [ownFitWidth, setFitWidth] = useState(false);
-    const fitWidth = fixedFitWidth ?? ownFitWidth;
 
     return (
         <div className={cx(classes.root, className)} style={style}>
@@ -170,8 +167,7 @@ export function BoxedEditor(props: BoxedEditorProps): ReactElement {
                 showDescription={showDescription}
                 showTestResults={showTestResults}
                 showType={showType}
-                fitWidth={fitWidth}
-                setFitWidth={fixedFitWidth === undefined ? setFitWidth : undefined}
+                onExpand={onExpand}
                 setShowDescription={setShowDescription}
                 setShowTestResults={setShowTestResults}
                 languageService={languageService}

@@ -19,6 +19,7 @@ import * as classes from './shell.module.css';
 export interface ShellBreadcrumbsProps {
     segments: ShellPathSegment[]; // the root path, one segment per field
     rootLabel?: string; // the model name; defaults to 'Model'
+    origin?: {path: string; label: string}; // the Flow view that opened the root path: a crumb after the model name
     onNavigate: (path: string) => void; // a crumb click; '*' is the model name
     primaryView: 'flow' | 'boxed'; // the view the kind icon opens: Flow when the root path has it, otherwise Boxed
     onOpenPrimary: () => void;
@@ -91,11 +92,14 @@ function KindButton({kind, view, onOpen}: {kind: GlyphKind; view: 'flow' | 'boxe
 
 /**
  * `Loan repayment` › `applicant` › `calculateAge(...)`: the fully qualified root path, the last item as plain text. In the
- * Tests view, the path of the test subject. The model name is always a button: it opens the model root.
+ * Tests view, the path of the test subject. The model name is always a button: it opens the model root. A root path
+ * opened from a Flow view outside it has the crumb of that Flow view after the model name:
+ * `Loan Repayment Planner` › `Mortgage plan` › `yearlySummary(...)`.
  */
 export function ShellBreadcrumbs({
     segments,
     rootLabel = 'Model',
+    origin,
     onNavigate,
     primaryView,
     onOpenPrimary,
@@ -103,6 +107,7 @@ export function ShellBreadcrumbs({
 }: ShellBreadcrumbsProps): ReactElement {
     const items = [
         {label: rootLabel, path: '*'},
+        ...(origin ? [origin] : []),
         ...segments.map((segment) => ({label: segmentLabel(segment), path: segment.path})),
     ];
     return (

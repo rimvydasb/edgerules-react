@@ -23,6 +23,7 @@ export interface FlowViewProps {
     focusNode?: FlowFocusRequest; // the node a Project Explorer click centers
     split?: boolean; // shows the selected node right of the canvas
     onSplitOpen?: () => void; // a selected Output or Input node shows only a part of its data: open the split screen
+    onExpand?: (path: string) => void; // the `Expand` button of the split screen Boxed Editor: open it in the Boxed view
 }
 
 /**
@@ -43,6 +44,7 @@ export function FlowView({
     focusNode,
     split,
     onSplitOpen,
+    onExpand,
 }: FlowViewProps): ReactElement {
     const session = useProjectSession();
     const {version} = useProjectSlice('model');
@@ -99,7 +101,7 @@ export function FlowView({
                             documentationService={session.documentation}
                             // The split screen is narrow: the selected node shows without its description.
                             showDescription={false}
-                            fitWidth
+                            onExpand={onExpand && (() => onExpand(boxedPath))}
                         />
                     ) : (
                         'id' in selection && <SinkSheet key={selection.id} service={service} sink={selection} />

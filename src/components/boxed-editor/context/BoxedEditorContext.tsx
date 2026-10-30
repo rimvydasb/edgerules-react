@@ -13,11 +13,10 @@ export interface BoxedEditorContextValue {
     showDescription: boolean;
     showTestResults: boolean;
     showType: boolean;
-    /** The value column widens to fill the editor's width (header toggle). */
-    fitWidth?: boolean;
-    /** Header toggles of the fit-width mode and the description and test-results columns. Absent in harnesses that
-     * mount only this provider; the header then hides its toggles. */
-    setFitWidth?: (fit: boolean) => void;
+    /** The `Expand` header button: the host opens the editor's path in a full view. Absent: no button. */
+    onExpand?: () => void;
+    /** Header toggles of the description and test-results columns. Absent in harnesses that mount only this provider;
+     * the header then hides its toggles. */
     setShowDescription?: (show: boolean) => void;
     setShowTestResults?: (show: boolean) => void;
     languageService?: CodeEditorService;

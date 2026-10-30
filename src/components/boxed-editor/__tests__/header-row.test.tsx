@@ -120,29 +120,25 @@ describe('header row', () => {
         expect(screen.queryByRole('button', {name: 'Show test column'})).not.toBeInTheDocument();
     });
 
-    it('widens the value column to the editor width when fit to width is on; other columns shrink it', async () => {
+    it('widens the value column to the editor width; other columns shrink it', async () => {
         const user = userEvent.setup();
+        // jsdom does no layout: the parent of the grid reports 1602 = 2 frame px + 40 steps.
+        const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+            this: HTMLElement,
+        ) {
+            return this.querySelector(':scope > [role="treegrid"]') ? 1602 : 0;
+        });
         const testCasesService = createTestCasesService('model', '*', {dbName: uniqueDbName('fit-width')});
-        const {container} = render(
-            <div>
-                <BoxedEditor
-                    service={createBoxedEditorService(MutableDecisionService.fromCode(MODEL))}
-                    path="*"
-                    testCasesService={testCasesService}
-                />
-            </div>,
+        render(
+            <BoxedEditor
+                service={createBoxedEditorService(MutableDecisionService.fromCode(MODEL))}
+                path="*"
+                testCasesService={testCasesService}
+            />,
         );
-        const root = container.querySelector('[role="treegrid"]')!.parentElement!;
-        // jsdom does no layout: 1602 = 2 frame px + 40 steps.
-        Object.defineProperty(root, 'clientWidth', {configurable: true, value: 1602});
         const template = () => (screen.getByTestId('row-*') as HTMLElement).style.gridTemplateColumns;
 
-        expect(template()).toBe('320px 480px 40px 240px');
-        const fit = screen.getByRole('button', {name: 'Fit to width'});
-        expect(fit).toHaveAttribute('aria-pressed', 'false');
-
-        await user.click(fit);
-        expect(screen.getByRole('button', {name: 'Fit to content'})).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.queryByRole('button', {name: /Fit to/})).toBeNull();
         // 40 steps - 8 name - 1 actions - 6 description = 25 value steps.
         expect(template()).toBe('320px 1000px 40px 240px');
 
@@ -152,34 +148,24 @@ describe('header row', () => {
         await user.click(screen.getByRole('button', {name: 'Hide description'}));
         expect(template()).toBe('320px 920px 40px 320px');
 
-        await user.click(screen.getByRole('button', {name: 'Fit to content'}));
-        expect(template()).toBe('320px 480px 40px 320px');
-
         testCasesService.dispose();
+        width.mockRestore();
     });
 
-    it('fits the value column to the editor width without a header toggle when the host fixes the fit mode', () => {
+    it('shows the Expand button left of the description toggle only when the host gives onExpand', async () => {
+        const user = userEvent.setup();
+        const onExpand = vi.fn();
         const service = createBoxedEditorService(MutableDecisionService.fromCode(MODEL));
-        const {container, rerender} = render(
-            <div>
-                <BoxedEditor service={service} path="*" fitWidth={false} />
-            </div>,
-        );
-        expect(screen.queryByRole('button', {name: 'Fit to width'})).toBeNull();
-        const root = container.querySelector('[role="treegrid"]')!.parentElement!;
-        // jsdom does no layout: 1602 = 2 frame px + 40 steps.
-        Object.defineProperty(root, 'clientWidth', {configurable: true, value: 1602});
-        const template = () => (screen.getByTestId('row-*') as HTMLElement).style.gridTemplateColumns;
-        expect(template()).toBe('320px 480px 40px 240px');
+        const {rerender} = render(<BoxedEditor service={service} path="doubled" />);
+        expect(screen.queryByRole('button', {name: 'Expand'})).toBeNull();
 
-        rerender(
-            <div>
-                <BoxedEditor service={service} path="*" fitWidth />
-            </div>,
-        );
-        expect(screen.queryByRole('button', {name: /Fit to/})).toBeNull();
-        // 40 steps - 8 name - 1 actions - 6 description = 25 value steps.
-        expect(template()).toBe('320px 1000px 40px 240px');
+        rerender(<BoxedEditor service={service} path="doubled" onExpand={onExpand} />);
+        const expand = screen.getByRole('button', {name: 'Expand'});
+        const description = screen.getByRole('button', {name: 'Hide description'});
+        expect(expand.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+        await user.click(expand);
+        expect(onExpand).toHaveBeenCalledTimes(1);
     });
 
     it('runs the first test case when the test column is shown, and the selected case on navigation', async () => {

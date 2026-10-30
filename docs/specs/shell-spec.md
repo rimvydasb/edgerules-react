@@ -56,10 +56,11 @@ The `ProjectExplorer` side panel is optional. It is 256px wide, below the header
 
 ### Flow view split screen
 
-With the split screen on, the Flow view shows the selected node in a panel right of the canvas. The panel follows the
-selection (`FlowEditor` `onSelectionChange`). A click on the empty canvas clears the selection and closes the panel. The
-Flow view passes the model version as the `FlowEditor` `revision`: a change in the panel updates the nodes, the wires
-and the output values on the canvas.
+The split screen toggle is right of the view switch. It is on by default and disabled outside the Flow view. Its tooltip
+is `Close split view` when it is on and `Split view` when it is off. With the split screen on, the Flow view shows the
+selected node in a panel right of the canvas. The panel follows the selection (`FlowEditor` `onSelectionChange`). A
+click on the empty canvas clears the selection and closes the panel. The Flow view passes the model version as the
+`FlowEditor` `revision`: a change in the panel updates the nodes, the wires and the output values on the canvas.
 
 | Selected node                      | Panel content                                                                                                           |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -67,6 +68,9 @@ and the output values on the canvas.
 | Object or list input               | `BoxedEditor` at the field path of the node. Another node mounts another Boxed Editor.                                  |
 | Output or chart node (sink)        | `SinkSheet`: the full value of the wired path, on the Boxed Editor ruled sheet.                                         |
 | None, several nodes, or toggle off | No panel. The canvas keeps its full width.                                                                              |
+
+- The `BoxedEditor` of the panel has the `Expand` button (`IconArrowAutofitWidth`) left of `Show description`. A click
+  opens the path of the panel in the Boxed view. The Boxed view has no `Expand` button.
 
 ### Component dependencies
 
@@ -225,6 +229,14 @@ The first item is the model name (`@model-name` of the model root), or `Model` w
 - A function, a service or a ruleset segment shows its name and `(...)`. It is always the last item.
 - A click on an item sets the root path to the path of that item.
 - In the Tests view, a click on an item also sets the view to Boxed.
+- A root path that a Flow view opens in the Boxed Editor (`Expand` of the split screen, or `Open in…` of a node) has the
+  item of that Flow view after the model name, unless the root path is inside it. The item shows the `@node-name` of the
+  Flow view root, or its field name. A click on it opens that Flow view. Another root path removes the item.
+
+| Opened from              | Root path       | Breadcrumb items                                                  |
+| ------------------------ | --------------- | ----------------------------------------------------------------- |
+| Flow view `mortgageBook` | `yearlySummary` | `Loan Repayment Planner` › `Mortgage plan` › `yearlySummary(...)` |
+
 - The kind icon shows the root path kind in the colors of the Boxed Editor rows:
 
 | Root path kind  | Icon               | Fill   |
@@ -262,7 +274,8 @@ The first item is the model name (`@model-name` of the model root), or `Model` w
 - `onCreateTest(subjectId)` calls `session.tests.forSubject(subjectId).addTestCase()`.
 - `readOnly` hides the add buttons of the explorer.
 - A model change re-reads the model in the explorer. The expanded sections stay expanded.
-- A segment with a `@node-name` annotation shows the field name. The breadcrumb shows model paths, not node titles.
+- A segment with a `@node-name` annotation shows the field name. The breadcrumb shows model paths, not node titles. The
+  item of the Flow view that opened the root path is the one exception.
 
 ### The settings dialog edits the name and the description of the root path
 
@@ -275,6 +288,7 @@ It does not show for another entity or when `readOnly` is set. A click opens the
 | `'*'`            | `Model settings`  | The model name (`setModelMetadata`)         | The model version | `documentation` at `'*'`    |
 | Annotated entity | `<Node> settings` | The `name` of the annotation (`@node-name`) | None              | `documentation` at the path |
 
+- The dialog is the Mantine `lg` size. The value cells (name, version and description) have the white body fill.
 - Save writes all fields in one `session.transaction`. A failed write changes nothing and shows the error in the dialog.
 - An empty annotation name removes the name: `@Workbook(name: "Loan book")` becomes `@Workbook`. The field name does not
   change. Use the rename of the Project Explorer or the Boxed Editor to rename the field.

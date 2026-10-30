@@ -101,9 +101,9 @@ export const Project: Story = {
 };
 
 /**
- * The split screen of the Flow view. The toggle right of Tests shows the selected node beside the canvas: the
- * `decision` node as the body of `riskScore` in a Boxed Editor, the output node as the data wired into it. A click on
- * the empty canvas closes it.
+ * The split view of the Flow view, on by default. The toggle right of Tests closes it. It shows the selected node beside
+ * the canvas: the `decision` node as the body of `riskScore` in a Boxed Editor, the output node as the data wired into
+ * it. A click on the empty canvas closes the panel. The `Expand` button of the Boxed Editor opens it in the Boxed view.
  */
 export const SplitScreen: Story = {
     args: {defaultPath: 'loanBook', defaultView: 'flow', defaultExplorerOpen: false},
@@ -128,7 +128,6 @@ export const SplitScreen: Story = {
     ],
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement);
-        await userEvent.click(await canvas.findByRole('button', {name: 'Split screen'}));
         await userEvent.click(await canvas.findByTestId('function-node-loanBook.decision'));
         const panel = await canvas.findByTestId('shell-split-panel');
         await expect(within(panel).getByTestId('row-riskScore.score')).toBeInTheDocument();

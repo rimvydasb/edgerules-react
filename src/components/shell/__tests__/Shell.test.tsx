@@ -949,15 +949,18 @@ describe('Shell split screen', () => {
         return screen.getByTestId(testId).closest<HTMLElement>('.react-flow__node')!;
     }
 
-    it('is off by default and enabled only in the Flow view', async () => {
+    it('is on by default and enabled only in the Flow view', async () => {
         const user = userEvent.setup();
         await renderShell({defaultPath: 'applicant'});
-        const toggle = screen.getByRole('button', {name: 'Split screen'});
+        const toggle = screen.getByRole('button', {name: 'Split view'});
         expect(toggle).toBeDisabled();
         expect(toggle).toHaveAttribute('aria-pressed', 'false');
 
         await user.click(screen.getByRole('radio', {name: 'Flow'}));
         expect(toggle).toBeEnabled();
+        expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+        await user.click(toggle);
         expect(toggle).toHaveAttribute('aria-pressed', 'false');
     });
 
@@ -966,13 +969,14 @@ describe('Shell split screen', () => {
         const user = userEvent.setup();
         await renderShell({defaultPath: 'loanBook', defaultView: 'flow'}, session);
         await screen.findByTestId('function-node-loanBook.decision');
+        await user.click(screen.getByRole('button', {name: 'Split view'}));
 
         // Off: a selected node opens nothing. A click, not a press: d3-drag needs a real window on mousedown.
         fireEvent.click(nodeOf('function-node-loanBook.decision'));
         await waitFor(() => expect(nodeOf('function-node-loanBook.decision')).toHaveClass('selected'));
         expect(screen.queryByTestId('shell-split-panel')).toBeNull();
 
-        await user.click(screen.getByRole('button', {name: 'Split screen'}));
+        await user.click(screen.getByRole('button', {name: 'Split view'}));
         const panel = await screen.findByTestId('shell-split-panel');
         // A function node shows the body of the function it calls, not the call site.
         expect(within(panel).getByRole('treegrid')).toBeInTheDocument();
@@ -990,9 +994,7 @@ describe('Shell split screen', () => {
 
     it('shows the full data wired into an output node', async () => {
         const session = await openWorkbook();
-        const user = userEvent.setup();
         await renderShell({defaultPath: 'loanBook', defaultView: 'flow'}, session);
-        await user.click(screen.getByRole('button', {name: 'Split screen'}));
 
         fireEvent.click(nodeOf('output-node-output'));
         const sheet = await screen.findByTestId('sink-sheet');
@@ -1000,6 +1002,31 @@ describe('Shell split screen', () => {
         expect(within(sheet).getByText('loanBook.decision')).toBeInTheDocument();
         expect(await within(sheet).findByText('score')).toBeInTheDocument();
         expect(within(sheet).getByText('50')).toBeInTheDocument();
+    });
+
+    it('expands the Boxed Editor of the selected node to the Boxed view; the breadcrumbs lead back to the flow', async () => {
+        const {session} = await openFixtureProject({
+            model: {dsl: WORKBOOK_MODEL.replace('@Workbook', '@Workbook(name: "Loan book")')},
+        });
+        const user = userEvent.setup();
+        const {onPathChange, onViewChange} = await renderShell({defaultPath: 'loanBook', defaultView: 'flow'}, session);
+        await screen.findByTestId('function-node-loanBook.decision');
+
+        fireEvent.click(nodeOf('function-node-loanBook.decision'));
+        const panel = await screen.findByTestId('shell-split-panel');
+        await user.click(within(panel).getByRole('button', {name: 'Expand'}));
+
+        expect(onPathChange).toHaveBeenLastCalledWith('riskScore');
+        expect(onViewChange).toHaveBeenLastCalledWith('boxed');
+        await waitFor(() => expect(breadcrumbItems()).toEqual(['Model', 'Loan book', 'riskScore(...)']));
+        expect(screen.queryByTestId('shell-split-panel')).toBeNull();
+        // The Boxed view has no Expand button.
+        expect(screen.queryByRole('button', {name: 'Expand'})).toBeNull();
+
+        await user.click(screen.getByRole('button', {name: 'Loan book'}));
+        expect(onPathChange).toHaveBeenLastCalledWith('loanBook');
+        expect(onViewChange).toHaveBeenLastCalledWith('flow');
+        await waitFor(() => expect(breadcrumbItems()).toEqual(['Model', 'loanBook']));
     });
 
     it('opens for an output node that shows only a part of its value', async () => {
@@ -1030,7 +1057,8 @@ describe('Shell split screen', () => {
             },
         });
         await renderShell({defaultPath: 'countBook', defaultView: 'flow'}, session);
-        const toggle = await screen.findByRole('button', {name: 'Split screen'});
+        const toggle = await screen.findByRole('button', {name: 'Split view'});
+        fireEvent.click(toggle);
 
         // Three items fit in the node: the split screen stays off.
         await waitFor(() => expect(screen.getByTestId('output-node-output')).toHaveAttribute('data-shape', 'list'));
@@ -1060,7 +1088,8 @@ describe('Shell split screen', () => {
             },
         });
         await renderShell({defaultPath: 'listBook', defaultView: 'flow'}, session);
-        const toggle = await screen.findByRole('button', {name: 'Split screen'});
+        const toggle = await screen.findByRole('button', {name: 'Split view'});
+        fireEvent.click(toggle);
 
         // Three items fit in the node: the split screen stays off.
         await waitFor(() => expect(screen.getAllByTestId('list-input-table')).toHaveLength(2));

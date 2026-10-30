@@ -105,7 +105,6 @@ test('a change in the split screen Boxed Editor shows on the canvas and recalcul
     await openStory(page, 'models-loan-repayment--mortgage-book');
     const yearly = page.locator('.react-flow__node[data-id="mortgageBook.yearly"]');
     await expect(yearly).toBeVisible(SLOW);
-    await page.getByRole('button', {name: 'Split screen'}).click();
     const panel = page.getByTestId('shell-split-panel');
 
     // The chart is wired to the unnamed return of `yearlySummary`: the whole list of the node.

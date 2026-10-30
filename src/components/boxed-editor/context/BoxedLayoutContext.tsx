@@ -34,7 +34,7 @@ const BoxedLayoutContext = createContext<BoxedLayout | null>(null);
 
 export interface BoxedLayoutProviderProps {
     rows: BoxedRowData[];
-    /** The editor's width in px; in fit-width mode the value column widens to fill it. */
+    /** The editor's width in px; the value column widens to fill it. */
     availableWidth?: number;
     /** The depth of the opened root path (`0` for the model). */
     baseDepth?: number;
@@ -48,11 +48,11 @@ export function BoxedLayoutProvider({
     baseDepth = 0,
     children,
 }: BoxedLayoutProviderProps): ReactElement {
-    const {showDescription, showTestResults, testCasesService, fitWidth = false} = useBoxedEditorContext();
+    const {showDescription, showTestResults, testCasesService} = useBoxedEditorContext();
     const showTestResultsColumn = showTestResults && testCasesService !== undefined;
     const contentUnits = useMemo(() => valueColumnUnits(rows), [rows]);
     const valueUnits =
-        fitWidth && availableWidth !== undefined
+        availableWidth !== undefined
             ? fittedValueUnits(availableWidth, {showDescription, showTestResults: showTestResultsColumn}, contentUnits)
             : contentUnits;
     const layout = useMemo(

@@ -211,13 +211,31 @@ test.describe('the column toggles of the Boxed view', () => {
         await openStory(page, 'models-loan-repayment--mortgage-book');
         const yearly = page.locator('.react-flow__node[data-id="mortgageBook.yearly"]');
         await expect(yearly).toBeVisible(SLOW);
-        await page.getByRole('button', {name: 'Split screen'}).click();
         await yearly.click({position: {x: 30, y: 10}});
         const panel = page.getByTestId('shell-split-panel');
         await expect(panel.getByTestId('row-yearlySummary.result')).toBeVisible();
         await expect(panel.getByRole('button', {name: 'Show description'})).toBeVisible();
         await expect(panel.locator('[data-column="description"]')).toHaveCount(0);
         await expect(panel.locator('[data-column="test-results"]')).toHaveCount(0);
+    });
+
+    test('Expand opens the split screen Boxed Editor in the Boxed view; the breadcrumbs lead back to the workbook', async ({
+        page,
+    }) => {
+        await openStory(page, 'models-loan-repayment--mortgage-book');
+        const yearly = page.locator('.react-flow__node[data-id="mortgageBook.yearly"]');
+        await expect(yearly).toBeVisible(SLOW);
+        await yearly.click({position: {x: 30, y: 10}});
+        await page.getByTestId('shell-split-panel').getByRole('button', {name: 'Expand'}).click();
+
+        const crumbs = page.getByRole('navigation', {name: 'Model path'});
+        await expect(crumbs).toHaveText(/Loan Repayment Planner.*Mortgage plan.*yearlySummary\(\.\.\.\)/);
+        await expect(page.getByRole('radio', {name: 'Boxed'})).toBeChecked();
+        await expect(page.getByRole('button', {name: 'Expand'})).toHaveCount(0);
+
+        await crumbs.getByRole('button', {name: 'Mortgage plan'}).click();
+        await expect(yearly).toBeVisible(SLOW);
+        await expect(page.getByRole('radio', {name: 'Flow'})).toBeChecked();
     });
 });
 

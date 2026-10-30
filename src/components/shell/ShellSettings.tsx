@@ -113,7 +113,7 @@ export function ShellSettings({root}: ShellSettingsProps): ReactElement {
                         <span className={classes.settingsTitleText}>{title}</span>
                     </>
                 }
-                size="md"
+                size="lg"
                 radius={0}
                 centered
                 closeButtonProps={{iconSize: 18}}

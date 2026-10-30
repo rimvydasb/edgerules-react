@@ -61,9 +61,9 @@ export interface BoxedEditorProps {
     onShowTestResultsChange?: (show: boolean) => void;
     // Type tooltip (hover + Alt-reveal). Default true.
     showType?: boolean;
-    // The value column fills the width of the editor and the header has no fit toggle. Omit it to start fitted to the
-    // content, with the header toggle.
-    fitWidth?: boolean;
+    // A click on the `Expand` header button, left of the description toggle: the host opens `path` in a full view.
+    // Omit it to hide the button.
+    onExpand?: () => void;
     // Initial global expand state only — each row keeps its own state after first render. Default true.
     expanded?: boolean;
     className?: string;

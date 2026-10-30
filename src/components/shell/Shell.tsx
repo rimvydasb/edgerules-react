@@ -77,8 +77,10 @@ export function Shell({
     const [ownPath, setOwnPath] = useState(defaultPath);
     const [ownView, setOwnView] = useState<ShellView>(defaultView);
     const [ownExplorerOpen, setOwnExplorerOpen] = useState(defaultExplorerOpen);
-    // The split screen of the Flow view: off by default.
-    const [split, setSplit] = useState(false);
+    // The split screen of the Flow view: on by default.
+    const [split, setSplit] = useState(true);
+    // The Flow view root that opened the root path in the Boxed Editor: the breadcrumbs lead back to it.
+    const [origin, setOrigin] = useState<{flow: string; path: string} | undefined>();
     // The description and test column toggles of the Boxed view, per root path: each entity keeps its own.
     const [boxedColumns, setBoxedColumns] = useState<Record<string, BoxedColumns>>({});
     const explorerOpen = explorerOpenProp ?? ownExplorerOpen;
@@ -180,11 +182,13 @@ export function Shell({
     // The Flow node that the last Project Explorer click centers; a new object for every click.
     const [focus, setFocus] = useState<FlowFocusRequest | undefined>();
 
-    const navigate = (next: {path?: string; view?: ShellView; focus?: string}) => {
+    // `from` is the root of the Flow view that opens `next.path`; another path forgets the origin.
+    const navigate = (next: {path?: string; view?: ShellView; focus?: string; from?: string}) => {
         // A pending edit of the Code view belongs to the path and view it was typed in.
         flushCode.current?.();
         setFocus(next.focus === undefined ? undefined : {field: next.focus});
         if (next.path !== undefined && next.path !== root) {
+            setOrigin(next.from === undefined || next.from === '*' ? undefined : {flow: next.from, path: next.path});
             if (path === undefined) setOwnPath(next.path);
             onPathChange?.(next.path);
         }
@@ -207,7 +211,8 @@ export function Shell({
 
     const openNode = (target: OpenTarget) => {
         const opens = isRootPath(session.engine.toPortable(), target.path);
-        if (opens && target.kind === 'boxed-editor') navigate({path: target.path, view: 'boxed'});
+        if (opens && target.kind === 'boxed-editor')
+            navigate({path: target.path, view: 'boxed', from: view === 'flow' ? root : undefined});
         else if (opens && target.kind === 'code-editor') navigate({path: target.path, view: 'code'});
         else if (target.kind === 'tests' && (target.path === '*' || opens))
             navigate({path: target.path, view: 'tests'});
@@ -227,6 +232,15 @@ export function Shell({
         navigate({path: name, view: 'flow'});
         return undefined;
     };
+
+    // The crumb of the Flow view that opened the root path, unless the root path is inside it and has its crumb.
+    const originCrumb = useMemo(() => {
+        if (origin === undefined || origin.path !== root) return undefined;
+        if (segments.some((segment) => segment.path === origin.flow)) return undefined;
+        const name = annotationAt(session.engine.toPortable(), origin.flow)?.name;
+        return {path: origin.flow, label: name ?? origin.flow.split('.').at(-1)!};
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session, origin, root, segments, version]);
 
     // The Tests view has no commit; the Code view commit error belongs to the editors of the model.
     const dslError = dslValidity.status === 'invalid' ? dslValidity.message : undefined;
@@ -255,11 +269,12 @@ export function Shell({
                 <ShellBreadcrumbs
                     segments={segments}
                     rootLabel={rootLabel}
-                    // The model name opens the Flow view of the model: its workbooks. Another crumb of the Tests view
-                    // opens the model entity, not its tests.
+                    origin={originCrumb}
+                    // The model name opens the Flow view of the model: its workbooks, and the crumb of the origin its
+                    // Flow view. Another crumb of the Tests view opens the model entity, not its tests.
                     onNavigate={(next) =>
                         navigate(
-                            next === '*'
+                            next === '*' || (origin?.path === root && next === origin.flow)
                                 ? {path: next, view: 'flow'}
                                 : {path: next, view: view === 'tests' ? 'boxed' : undefined},
                         )
@@ -329,6 +344,7 @@ export function Shell({
                                 focusNode={focus}
                                 split={split}
                                 onSplitOpen={() => setSplit(true)}
+                                onExpand={(next) => navigate({path: next, view: 'boxed', from: root})}
                             />
                         )}
                         {view === 'tests' && (
