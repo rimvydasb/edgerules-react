@@ -39,7 +39,8 @@ test('the Project Explorer lists every entity of the model', async ({page}) => {
 test('the Project Explorer labels a method with arguments as name(...) and one without as name()', async ({page}) => {
     await openStory(page, 'models-loan-origination--overview');
     const nav = explorer(page);
-    await expect(nav.getByText('applicantRecord(...)', {exact: true})).toBeVisible(SLOW);
+    // `.first()`: the method; `applicantRecord(...)` is listed again under Tests.
+    await expect(nav.getByText('applicantRecord(...)', {exact: true}).first()).toBeVisible(SLOW);
     await expect(nav.getByText('creditPolicy()', {exact: true})).toBeVisible();
     await expect(nav.getByText('applicantRecord()', {exact: true})).toHaveCount(0);
 });
@@ -47,7 +48,7 @@ test('the Project Explorer labels a method with arguments as name(...) and one w
 test.describe('a function opened from the Project Explorer', () => {
     test.beforeEach(async ({page}) => {
         await openStory(page, 'models-loan-origination--origination-book');
-        await explorer(page).getByText('applicantRecord(...)', {exact: true}).click(SLOW);
+        await explorer(page).getByText('applicantRecord(...)', {exact: true}).first().click(SLOW);
         await expect(page.getByRole('navigation', {name: 'Model path'})).toContainText('applicantRecord(...)');
         // The Flow view of the book shows the nodes of the function body; its arguments are edited in the Boxed view.
         await page.getByRole('radio', {name: 'Boxed'}).click();
@@ -67,7 +68,7 @@ test.describe('a function opened from the Project Explorer', () => {
         await expect(valueCell(page, 'applicantRecord.age')).toContainText('asOf');
     });
 
-    // `scoreApplicant` calls `applicantRecord(applicant, applicationDate)` and `calendarDiff` reads a date: the engine
+    // `applicationRecord` calls `applicantRecord(applicant, applicationDate)` and `calendarDiff` reads a date: the engine
     // rejects an edit that breaks either, and the editor shows why.
     test('rejects a retype that breaks the body visibly', async ({page}) => {
         await retypeHeader(page, 'applicantRecord', 'applicationDate', 'string');

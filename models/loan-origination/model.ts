@@ -3,6 +3,7 @@
  * origination process. Every step reads a record and returns a record, so each result explains itself.
  *
  * - `applicantRecord` and `applicationRecord` are the records the decisions read: the input data plus derived facts.
+ *   `applicationRecord` holds the `applicantRecord` of every applicant, and the scorecard reads that record.
  * - `applicantScorecard` is the scorecard decision table; `riskGrade` maps the score to a grade and a default rate.
  * - `policyRules` are the knockout rules of the credit policy, one record per rule.
  * - `pricingGrid` prices the grade and the loan-to-value; `affordability` stress-tests the payment.
@@ -13,6 +14,7 @@ export const LOAN_ORIGINATION_DSL = `{
     type Applicant: { name: <string>; birthDate: <date>; employment: <string>; yearsEmployed: <number>; monthlyIncome: <number>; monthlyExpenses: <number>; monthlyDebtPayments: <number>; bureauScore: <number>; delinquencies: <number> }
     type LoanTerms: { applicationDate: <date>; loanAmount: <number>; propertyValue: <number>; termYears: <number> }
     type Application: { applicationDate: <date>; loanAmount: <number>; propertyValue: <number>; termYears: <number>; applicants: <Applicant[]> }
+    type ApplicantRecord: { data: <Applicant>; age: <number>; disposableIncome: <number> }
     func creditPolicy(): {
         referenceRate: 0.03
         stressBuffer: 0.03
@@ -101,15 +103,15 @@ export const LOAN_ORIGINATION_DSL = `{
         failed: for rule in rules[passed = false] return rule.code
         allPassed: count(failed) = 0
     }
-    func scoreApplicant(applicant: Applicant, applicationDate: date): {
-        record: applicantRecord(applicant, applicationDate)
-        bins: applicantScorecard(record.age, applicant.employment, applicant.yearsEmployed, applicant.bureauScore, applicant.delinquencies)
+    func scoreApplicant(record: ApplicantRecord): {
+        bins: applicantScorecard(record.age, record.data.employment, record.data.yearsEmployed, record.data.bureauScore, record.data.delinquencies)
         score: sum(for bin in bins return bin.points)
         grade: riskGrade(score)
     }
-    func applicantDecision(applicant: Applicant, application: Application): {
-        scorecard: scoreApplicant(applicant, application.applicationDate)
-        policy: policyRules(scorecard.record.age, application.termYears, applicant.employment, applicant.bureauScore, applicant.delinquencies)
+    func applicantDecision(record: ApplicantRecord, termYears: number): {
+        name: record.data.name
+        scorecard: scoreApplicant(record)
+        policy: policyRules(record.age, termYears, record.data.employment, record.data.bureauScore, record.data.delinquencies)
     }
     func applicationRecord(application: Application): {
         data: application
@@ -117,6 +119,7 @@ export const LOAN_ORIGINATION_DSL = `{
         householdIncome: sum(for applicant in application.applicants return applicant.monthlyIncome)
         householdExpenses: sum(for applicant in application.applicants return applicant.monthlyExpenses)
         householdDebtPayments: sum(for applicant in application.applicants return applicant.monthlyDebtPayments)
+        applicantRecords: for applicant in application.applicants return applicantRecord(applicant, application.applicationDate)
     }
     func affordability(householdIncome: number, householdDebtPayments: number, loanAmount: number, rate: number, termYears: number): {
         payment: round(-pmt(rate / 12, termYears * 12, loanAmount), 2)
@@ -136,10 +139,10 @@ export const LOAN_ORIGINATION_DSL = `{
     @Service
     func loanOriginationDecision(application: Application): {
         record: applicationRecord(application)
-        applicants: for applicant in application.applicants return applicantDecision(applicant, application)
+        applicants: for applicant in record.applicantRecords return applicantDecision(applicant, application.termYears)
         householdScore: min(for applicant in applicants return applicant.scorecard.score)
         grade: riskGrade(householdScore)
-        knockouts: flatten(for applicant in applicants return for code in applicant.policy.failed return applicant.scorecard.record.data.name + ": " + code)
+        knockouts: flatten(for applicant in applicants return for code in applicant.policy.failed return applicant.name + ": " + code)
         pricing: pricingGrid(grade.grade, record.ltv)
         rate: creditPolicy().referenceRate + pricing.margin
         affordability: affordability(record.householdIncome, record.householdDebtPayments, application.loanAmount, rate, application.termYears)
@@ -178,10 +181,14 @@ export const LOAN_ORIGINATION_DSL = `{
         coApplicant: { name: "Ieva Petraitiene"; birthDate: date("1990-09-30"); employment: "contract"; yearsEmployed: 3; monthlyIncome: 2600; monthlyExpenses: 900; monthlyDebtPayments: 0; bureauScore: 702; delinquencies: 1 }
         @FunctionNode(name: "Joint application")
         application: jointApplication(loan: loan, mainApplicant: mainApplicant, coApplicant: coApplicant)
+        @FunctionNode(name: "Main applicant record")
+        mainRecord: applicantRecord(applicant: mainApplicant, applicationDate: loan.applicationDate)
+        @FunctionNode(name: "Co-applicant record")
+        coRecord: applicantRecord(applicant: coApplicant, applicationDate: loan.applicationDate)
         @FunctionNode(name: "Main applicant scorecard")
-        mainScorecard: scoreApplicant(applicant: mainApplicant, applicationDate: loan.applicationDate)
+        mainScorecard: scoreApplicant(record: mainRecord)
         @FunctionNode(name: "Co-applicant scorecard")
-        coScorecard: scoreApplicant(applicant: coApplicant, applicationDate: loan.applicationDate)
+        coScorecard: scoreApplicant(record: coRecord)
         @FunctionNode(name: "Origination decision")
         origination: loanOriginationDecision(application: application)
     }

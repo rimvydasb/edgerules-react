@@ -54,6 +54,7 @@ const IEVA_DELINQUENT = ['Ieva Petraitiene', '1990-09-30', 'contract', '3', '260
 const JONAS_INDEBTED = ['Jonas Petraitis', '1988-04-12', 'permanent', '8', '3800', '1300', '600', '765', '0'];
 const JONAS_SENIOR = ['Jonas Petraitis', '1970-01-15', 'permanent', '8', '4200', '1300', '250', '765', '0'];
 const TOMAS = ['Tomas Kazlauskas', '2003-02-01', 'self-employed', '1', '5200', '1500', '0', '690', '1'];
+const ONA = ['Ona Jankauskiene', '1962-03-01', 'pensioner', '0', '1900', '800', '0', '810', '0'];
 const NONE: string[] = Array(9).fill('');
 
 /** `tests.json` of the loan origination project: the service, the scorecard, the policy and the decision tables. */
@@ -188,29 +189,33 @@ export const LOAN_ORIGINATION_TESTS: TestSuitesDocument = {
                 ],
             ],
         ),
-        scoreApplicant: suite(
-            'scoreApplicant',
+        applicantRecord: suite(
+            'applicantRecord',
             [['applicationDate', 'date'], ...applicantRows('applicant')],
             [
-                ['record.age', 'number'],
-                ['record.disposableIncome', 'number'],
+                ['age', 'number'],
+                ['disposableIncome', 'number'],
+            ],
+            [
+                ['Permanent employee', ['2026-10-01', ...JONAS], ['38', '2650']],
+                ['Contractor', ['2026-10-01', ...IEVA], ['36', '1700']],
+                ['Young self-employed', ['2026-10-01', ...TOMAS], ['23', '3700']],
+                ['Pensioner', ['2026-10-01', ...ONA], ['64', '1100']],
+            ],
+        ),
+        scoreApplicant: suite(
+            'scoreApplicant',
+            [...applicantRows('record.data'), ['record.age', 'number'], ['record.disposableIncome', 'number']],
+            [
                 ['score', 'number'],
                 ['grade.grade', 'string'],
                 ['grade.probabilityOfDefault', 'number'],
             ],
             [
-                [
-                    'Permanent employee, good bureau score',
-                    ['2026-10-01', ...JONAS],
-                    ['38', '2650', '175', 'A', '0.005'],
-                ],
-                ['Contractor with one delinquency', ['2026-10-01', ...IEVA], ['36', '1700', '115', 'C', '0.03']],
-                ['Young self-employed', ['2026-10-01', ...TOMAS], ['23', '3700', '85', 'D', '0.07']],
-                [
-                    'Pensioner, excellent bureau score',
-                    ['2026-10-01', 'Ona Jankauskiene', '1962-03-01', 'pensioner', '0', '1900', '800', '0', '810', '0'],
-                    ['64', '1100', '125', 'C', '0.03'],
-                ],
+                ['Permanent employee, good bureau score', [...JONAS, '38', '2650'], ['175', 'A', '0.005']],
+                ['Contractor with one delinquency', [...IEVA, '36', '1700'], ['115', 'C', '0.03']],
+                ['Young self-employed', [...TOMAS, '23', '3700'], ['85', 'D', '0.07']],
+                ['Pensioner, excellent bureau score', [...ONA, '64', '1100'], ['125', 'C', '0.03']],
             ],
         ),
         policyRules: suite(

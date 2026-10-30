@@ -31,16 +31,21 @@ interface Bin {
     points: number;
 }
 
+interface ApplicantRecord {
+    data: Applicant;
+    age: number;
+    disposableIncome: number;
+}
+
 interface Scorecard {
-    record: {data: Applicant; age: number; disposableIncome: number};
     bins: Bin[];
     score: number;
     grade: {grade: string; probabilityOfDefault: number};
 }
 
 interface Origination {
-    record: {ltv: number; householdIncome: number; householdDebtPayments: number};
-    applicants: {scorecard: Scorecard; policy: {failed: string[]; allPassed: boolean}}[];
+    record: {ltv: number; householdIncome: number; householdDebtPayments: number; applicantRecords: ApplicantRecord[]};
+    applicants: {name: string; scorecard: Scorecard; policy: {failed: string[]; allPassed: boolean}}[];
     householdScore: number;
     grade: {grade: string};
     knockouts: string[];
@@ -188,6 +193,11 @@ describe('loan origination model', () => {
             expect(result.householdScore).toBe(Math.min(...result.applicants.map((a) => a.scorecard.score)));
             expect(result.grade.grade).toBe('C');
             expect(result.record).toMatchObject({ltv: 0.75, householdIncome: 6800, householdDebtPayments: 250});
+            expect(result.record.applicantRecords).toEqual([
+                {data: JONAS, age: 38, disposableIncome: 2650},
+                {data: IEVA, age: 36, disposableIncome: 1700},
+            ]);
+            expect(result.applicants.map((applicant) => applicant.name)).toEqual([JONAS.name, IEVA.name]);
             expect(result.decision.outcome).toBe('APPROVE');
             expect(result.offer).toEqual({
                 amount: 240000,
