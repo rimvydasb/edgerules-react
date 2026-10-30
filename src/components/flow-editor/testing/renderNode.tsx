@@ -10,7 +10,7 @@ import {FunctionNode} from '../function-node/FunctionNode';
 import {ListInputNode} from '../list-input-node/ListInputNode';
 import {ObjectInputNode} from '../object-input-node/ObjectInputNode';
 import {ParameterNode} from '../parameter-node/ParameterNode';
-import {ResultNode} from '../result-node/ResultNode';
+import {ReturnNode} from '../return-node/ReturnNode';
 import {createFlowEditorService, type FlowEditorEngine} from '../service/createFlowEditorService';
 import {ValueInputNode} from '../value-input-node/ValueInputNode';
 import {SAMPLE_MODEL} from './sampleModel';
@@ -21,11 +21,11 @@ const nodeTypes = {
     listInputNode: ListInputNode,
     valueInputNode: ValueInputNode,
     parameterNode: ParameterNode,
-    resultNode: ResultNode,
+    returnNode: ReturnNode,
     expressionNode: ExpressionNode,
 };
 const INPUT_TYPES = {object: 'objectInputNode', list: 'listInputNode', value: 'valueInputNode'} as const;
-const SERVICE_TYPES = {parameter: 'parameterNode', result: 'resultNode'} as const;
+const SERVICE_TYPES = {parameter: 'parameterNode', return: 'returnNode'} as const;
 
 export interface RenderedNode {
     service: FlowEditorService;
@@ -40,7 +40,7 @@ export function renderNode(
         model?: string;
         draft?: boolean;
         input?: 'object' | 'list' | 'value'; // render an input node; the record, list or value at `field` is annotated first
-        service?: 'parameter' | 'result'; // render a node of the service flow of `root`
+        service?: 'parameter' | 'return'; // render a node of the service flow of `root`
         expression?: boolean; // render the expression at `field`
         root?: string; // the flow root of the service; defaults to '*'
         readOnly?: boolean;

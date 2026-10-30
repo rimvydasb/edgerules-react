@@ -3,7 +3,6 @@ import {
     IconArrowUp,
     IconCode,
     IconExternalLink,
-    IconEyeOff,
     IconNote,
     IconNoteOff,
     IconTag,
@@ -11,13 +10,14 @@ import {
 } from '@tabler/icons-react';
 import type {RowMenuItem} from '#ui/RowActionsMenu';
 import {startGroup} from '../core-node';
-import type {ResultFieldMenuContext, ResultNodeMenuContext} from './types';
+import type {ReturnFieldMenuContext, ReturnNodeMenuContext} from './types';
 
 /**
- * The ResultNode menu: "This node", "Result" with the host routes, then "Remove". Remove from flow keeps the `return`
- * record; Delete removes it, so the service returns every field of its body again. Read-only mode keeps the routes.
+ * The ReturnNode menu: "This node", "Return" with the host routes, then "Remove". The return is always on the flow of
+ * its service: Delete removes the `return` field, so the service returns every field of its body again. Read-only mode
+ * keeps the routes.
  */
-export function resultNodeMenuItems(context: ResultNodeMenuContext): RowMenuItem[] {
+export function returnNodeMenuItems(context: ReturnNodeMenuContext): RowMenuItem[] {
     const {readOnly, onOpenNode, field} = context;
     const items: RowMenuItem[] = [];
     if (!readOnly) {
@@ -60,22 +60,14 @@ export function resultNodeMenuItems(context: ResultNodeMenuContext): RowMenuItem
                         onSelect: () => onOpenNode({path: field, kind: 'code-editor'}),
                     },
                 ],
-                'Result',
+                'Return',
             ),
         );
     }
     if (!readOnly) {
         items.push(
             ...startGroup(
-                [
-                    {
-                        id: 'remove-from-flow',
-                        label: 'Remove from flow',
-                        icon: IconEyeOff,
-                        onSelect: context.onRemoveFromFlow,
-                    },
-                    {id: 'delete', label: 'Delete', icon: IconTrash, danger: true, onSelect: context.onDelete},
-                ],
+                [{id: 'delete', label: 'Delete', icon: IconTrash, danger: true, onSelect: context.onDelete}],
                 'Remove',
             ),
         );
@@ -83,8 +75,8 @@ export function resultNodeMenuItems(context: ResultNodeMenuContext): RowMenuItem
     return items;
 }
 
-/** The menu of one result field: move it, or take it out of the result. The engine refuses what a caller reads. */
-export function resultFieldMenuItems({model, item, onMove, onDelete}: ResultFieldMenuContext): RowMenuItem[] {
+/** The menu of one return field: move it, or take it out of the return. The engine refuses what a caller reads. */
+export function returnFieldMenuItems({model, item, onMove, onDelete}: ReturnFieldMenuContext): RowMenuItem[] {
     const index = model.fields.findIndex((candidate) => candidate.name === item.name);
     return [
         {id: 'move-up', label: 'Move up', icon: IconArrowUp, disabled: index === 0, onSelect: () => onMove('up')},

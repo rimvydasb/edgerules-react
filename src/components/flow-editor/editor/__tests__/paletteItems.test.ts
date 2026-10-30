@@ -11,7 +11,7 @@ function items() {
 }
 
 describe('paletteItems', () => {
-    it('offers a new input of each kind and the records of the model, then one Invocation, Output and Chart', () => {
+    it('offers a new input of each kind and the records of the model, then one Invocation, Expression, Output and Chart', () => {
         const ids = items().items.map((item) => item.id);
         expect(ids).toEqual([
             'new-input',
@@ -20,12 +20,13 @@ describe('paletteItems', () => {
             'input:applicant',
             'input:application',
             'function',
+            'expression',
             'output',
             'chart',
         ]);
     });
 
-    it('offers a service flow a Parameter, one Invocation and the Result while it has none', () => {
+    it('offers a service flow a Parameter, one Invocation, an Expression and the Return while it has none', () => {
         const ids = (model: string) =>
             paletteItems(createFlowEditorService(MutableDecisionService.fromCode(model), {root: 'f'})).map((item) => [
                 item.id,
@@ -35,10 +36,17 @@ describe('paletteItems', () => {
         expect(ids('{ @Service func f(a: number): { b: a } }')).toEqual([
             ['parameter', 'input', {kind: 'parameter'}],
             ['function', 'function', {kind: 'function'}],
-            ['result', 'output', {kind: 'result'}],
+            ['expression', 'expression', {kind: 'expression'}],
+            ['return', 'output', {kind: 'return'}],
         ]);
         const service = createFlowEditorService(MutableDecisionService.fromCode(SERVICE_MODEL), {root: 'quote'});
-        expect(paletteItems(service).map((item) => item.id)).toEqual(['parameter', 'function']);
+        expect(paletteItems(service).map((item) => item.id)).toEqual(['parameter', 'function', 'expression']);
+        // A `return` expression, annotated or not, is the return of the service.
+        expect(ids('{ @Service func f(a: number): { b: a; return: b } }').map(([id]) => id)).toEqual([
+            'parameter',
+            'function',
+            'expression',
+        ]);
     });
 
     it('offers one Invocation item that picks the callee on the node', () => {

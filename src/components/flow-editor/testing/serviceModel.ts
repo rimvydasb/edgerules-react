@@ -1,4 +1,4 @@
-// A `@Service` with a record parameter and a number parameter, two function nodes and a `@ResultNode`, and a caller
+// A `@Service` with a record parameter and a number parameter, two function nodes and a `@ReturnNode`, and a caller
 // that reads the result: the service flow tests and stories use it.
 export const SERVICE_MODEL = `{
   type Applicant: { age: <number>; income: <number> }
@@ -11,7 +11,7 @@ export const SERVICE_MODEL = `{
     @FunctionNode(name: "Monthly")
     installment: monthly(amount: amount)
     approved: score > 350
-    @ResultNode(name: "Quote")
+    @ReturnNode(name: "Quote")
     return: {
       score: score
       installment: installment

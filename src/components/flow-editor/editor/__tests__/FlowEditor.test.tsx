@@ -38,7 +38,7 @@ describe('FlowEditor', () => {
         expect(palette().queryByRole('button', {name: 'Add ruleset risk'})).toBeNull();
     });
 
-    it('renders the flow of a service: its parameters, its function nodes and its result', async () => {
+    it('renders the flow of a service: its parameters, its function nodes and its return', async () => {
         const service = createFlowEditorService(MutableDecisionService.fromCode(SERVICE_MODEL), {root: 'quote'});
         render(
             <div style={{width: 1000, height: 600}}>
@@ -48,11 +48,11 @@ describe('FlowEditor', () => {
         expect(await screen.findByTestId('parameter-node-quote.applicant')).toBeInTheDocument();
         expect(screen.getByTestId('parameter-node-quote.amount')).toBeInTheDocument();
         expect(screen.getByTestId('function-node-quote.score')).toBeInTheDocument();
-        expect(screen.getByTestId('result-node-quote.return')).toBeInTheDocument();
-        // A service has no data inputs, outputs or charts; its result is already on the canvas.
+        expect(screen.getByTestId('return-node-quote.return')).toBeInTheDocument();
+        // A service has no data inputs, outputs or charts; its return is already on the canvas.
         for (const group of ['Charts', 'Outputs']) expect(palette().queryByRole('region', {name: group})).toBeNull();
         expect(palette().getByRole('button', {name: 'Add parameter'})).toBeInTheDocument();
-        expect(palette().queryByRole('button', {name: 'Add result'})).toBeNull();
+        expect(palette().queryByRole('button', {name: 'Add return'})).toBeNull();
     });
 
     it('adds a parameter to a service from the palette', async () => {
@@ -67,8 +67,38 @@ describe('FlowEditor', () => {
         );
         fireEvent.click(palette().getByRole('button', {name: 'Add parameter'}));
         expect(await screen.findByTestId('parameter-node-f.param')).toHaveTextContent('number');
-        fireEvent.click(palette().getByRole('button', {name: 'Add result'}));
-        expect(await screen.findByTestId('result-node-f.return')).toHaveTextContent('{ b }');
+        fireEvent.click(palette().getByRole('button', {name: 'Add return'}));
+        expect(await screen.findByTestId('return-node-f.return')).toHaveTextContent('{ b }');
+        await waitFor(() => expect(palette().queryByRole('button', {name: 'Add return'})).toBeNull());
+    });
+
+    it('shows a `return` expression of a service as its return node, wired from the fields it reads', async () => {
+        const service = createFlowEditorService(
+            MutableDecisionService.fromCode('{ @Service func f(a: number): { b: a * 2; return: b + 1 } }'),
+            {root: 'f'},
+        );
+        render(
+            <div style={{width: 1000, height: 600}}>
+                <FlowEditor service={service} />
+            </div>,
+        );
+        expect(await screen.findByTestId('return-node-f.return')).toHaveTextContent('b + 1');
+        expect(screen.queryByTestId('expression-node-f.return')).toBeNull();
+        expect(palette().queryByRole('button', {name: 'Add return'})).toBeNull();
+    });
+
+    it('adds an expression to a service from the palette', async () => {
+        const service = createFlowEditorService(
+            MutableDecisionService.fromCode('{ @Service func f(a: number): { b: a } }'),
+            {root: 'f'},
+        );
+        render(
+            <div style={{width: 1000, height: 600}}>
+                <FlowEditor service={service} />
+            </div>,
+        );
+        fireEvent.click(palette().getByRole('button', {name: 'Add expression'}));
+        expect(await screen.findByTestId('expression-node-f.expression')).toHaveTextContent('expression');
     });
 
     it('renders the annotated fields of the model as nodes', async () => {

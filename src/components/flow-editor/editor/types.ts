@@ -24,7 +24,7 @@ export interface FlowEditorProps {
  */
 export type FlowSelection =
     | {
-          kind: 'function' | 'object-input' | 'list-input' | 'value-input' | 'parameter' | 'result' | 'expression';
+          kind: 'function' | 'object-input' | 'list-input' | 'value-input' | 'parameter' | 'return' | 'expression';
           field: string;
       }
     | {kind: 'output' | 'chart'; id: string; label?: string; source?: string};
@@ -36,7 +36,7 @@ export interface FlowFocusRequest {
 
 export type {FlowChart, FlowLayout, FlowOutput} from '#lib/flowLayout';
 
-export type PaletteGroup = 'input' | 'function' | 'output' | 'chart';
+export type PaletteGroup = 'input' | 'function' | 'expression' | 'output' | 'chart';
 
 /** What a palette item creates. */
 export type PaletteAction =
@@ -45,11 +45,12 @@ export type PaletteAction =
     | {kind: 'function'} // a draft invocation; the user picks what it invokes on the node
     | {kind: 'output'}
     | {kind: 'chart'}
+    | {kind: 'expression'} // a new field of the flow context with the expression `0`
     | {kind: 'parameter'} // a service only: a new parameter
-    | {kind: 'result'}; // a service only: its `return` record as the result node
+    | {kind: 'return'}; // a service only: a new `return` context with every value the service returns now
 
 export type PaletteIcon =
-    'input' | 'list-input' | 'value-input' | 'function' | 'output' | 'chart' | 'parameter' | 'result';
+    'input' | 'list-input' | 'value-input' | 'function' | 'expression' | 'output' | 'chart' | 'parameter' | 'return';
 
 export interface PaletteItem {
     id: string; // stable key, also the drag payload

@@ -10,7 +10,7 @@ import type {ObjectInputNodeModel} from './object-input-node/types';
 import type {ExpressionNodeModel} from './expression-node/types';
 import type {OutputReading} from './output-node/types';
 import type {ParameterNodeModel} from './parameter-node/types';
-import type {ResultNodeModel} from './result-node/types';
+import type {ReturnNodeModel} from './return-node/types';
 import type {ValueInputNodeModel} from './value-input-node/types';
 
 export type {FlowEditorOpenTarget, Unsubscribe};
@@ -26,17 +26,17 @@ export interface FlowEditorProviderProps {
 
 /**
  * One model field that the canvas draws as a node; the node id is the field path. A service flow adds a node per
- * parameter of the service ('<service>.<parameter>') and its result ('<service>.return'). Every other expression of
+ * parameter of the service ('<service>.<parameter>') and its return ('<service>.return'). Every other expression of
  * the flow context is an expression node.
  */
 export interface FlowNodeRef {
     field: string;
-    kind: 'function' | 'object-input' | 'list-input' | 'value-input' | 'parameter' | 'result' | 'expression'; // inputs: an `@InputNode` record, list or single value
+    kind: 'function' | 'object-input' | 'list-input' | 'value-input' | 'parameter' | 'return' | 'expression'; // inputs: an `@InputNode` record, list or single value
 }
 
 export interface FlowEditorService {
     listNodes(): FlowNodeRef[]; // a service: its parameters, then '@node' annotated fields and expressions in model order, then the drafts
-    isService(): boolean; // the root is a `@Service` function: its flow has parameter and result nodes
+    isService(): boolean; // the root is a `@Service` function: its flow has parameter nodes and a return node
     listCallees(): CalleeRef[]; // user func and ruleset entries with only typed parameters
     getFunctionNode(field: string): FunctionNodeModel; // committed invocation plus any draft overlay
     createDraftNode(): string; // new field name from uniqueName('node', …); no callee, nothing written
@@ -46,7 +46,7 @@ export interface FlowEditorService {
     setNodeName(field: string, name: string): PortableError | void; // '@node-name' only; '' clears it
     renameField(field: string, newName: string): PortableError | void; // rewrites wires; the caller moves the description
     duplicate(field: string): string | PortableError; // returns the new field name
-    removeFromFlow(field: string): PortableError | void; // a write without `@node`; the field stays; refused for an expression
+    removeFromFlow(field: string): PortableError | void; // a write without `@node`; the field stays; refused for an expression and the return
     deleteField(field: string): PortableError | void; // remove(field), link-checked; a parameter: refused while the body reads it
     addArgument(field: string, after?: string): PortableError | void; // after = undefined appends
     moveArgument(field: string, parameter: string, direction: 'up' | 'down'): PortableError | void;
@@ -57,6 +57,7 @@ export interface FlowEditorService {
     getListInputNode(field: string): ListInputNodeModel; // the list annotated @InputNode; no item fields when it does not exist
     getValueInputNode(field: string): ValueInputNodeModel; // the single value annotated @InputNode; no value when it does not exist
     getExpressionNode(field: string): ExpressionNodeModel; // an expression no other node shows, with its `@variables`; no expression when it does not exist
+    createExpressionNode(): string | PortableError; // a new field 'expression…' of the flow context with the expression `0`
     listInputCandidates(): FlowNodeRef[]; // records and list literals of the model that are not yet an input node
     addInputNode(field: string): PortableError | void; // annotates an existing record or list with '@node: InputNode'
     createInputNode(kind?: 'object-input' | 'list-input' | 'value-input'): string | PortableError; // a new '@InputNode': record 'input…' with one number field (default), list 'list…' of numbers or number 'value…'
@@ -71,13 +72,14 @@ export interface FlowEditorService {
     createParameter(): string | PortableError; // a new 'number' parameter 'param…' of the service; returns its node id
     renameParameter(field: string, to: string): PortableError | void; // migrates the body and the call sites
     setParameterType(field: string, type: string): PortableError | void; // link-checked
-    getResultNode(field: string): ResultNodeModel; // the `return` record of the service annotated @ResultNode
-    createResultNode(): string | PortableError; // annotates `return`, or creates it with every value the service returns now
-    bindResultField(field: string, name: string | undefined, sourcePath: string): PortableError | void; // no name: a new field named after the source
-    renameResultField(field: string, from: string, to: string): PortableError | void; // link-checked
-    moveResultField(field: string, name: string, direction: 'up' | 'down'): PortableError | void;
-    removeResultField(field: string, name: string): PortableError | void; // link-checked: refused while a caller reads it
-    setResultFieldValue(field: string, name: string, text: string): PortableError | void; // an expression; link-checked
+    getReturnNode(field: string): ReturnNodeModel; // the `return` field of the service: a record or an expression, annotated or not
+    createReturnNode(): string | PortableError; // a `return` record with every value the service returns now; refused when `return` exists
+    setReturnExpression(field: string, text: string): PortableError | void; // the text of an expression `return`; link-checked
+    bindReturnField(field: string, name: string | undefined, sourcePath: string): PortableError | void; // no name: a new field named after the source
+    renameReturnField(field: string, from: string, to: string): PortableError | void; // link-checked
+    moveReturnField(field: string, name: string, direction: 'up' | 'down'): PortableError | void;
+    removeReturnField(field: string, name: string): PortableError | void; // link-checked: refused while a caller reads it
+    setReturnFieldValue(field: string, name: string, text: string): PortableError | void; // an expression; link-checked
     readOutput(source: string): Promise<OutputReading>; // evaluates a model path, for example 'decision.level'
     subscribe(listener: () => void): Unsubscribe; // fires after every committed change
     invalidate(): void; // fires the listeners after a change of the model made outside this service

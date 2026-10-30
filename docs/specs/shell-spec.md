@@ -192,7 +192,7 @@ A valid root path is `'*'` or the path of an entity. `ProjectExplorer` opens eac
 - `Shell` MUST NOT support indexed paths. A path that contains `[` is not a valid root path.
 - A root path MUST NOT go below a function, or below any other entity that is not a context.
 - `Shell` opens the nearest valid ancestor for an invalid root path, and then calls `onPathChange`.
-- A function has no Flow view. A service has a Flow view: its parameters, the nodes of its body and its result.
+- A function has no Flow view. A service has a Flow view: its parameters, the nodes of its body and its return.
 - A function is a test subject only if every argument has a type. The engine types a generic function at each call site.
 - `ShellViewSwitch` disables the cell of each view that the root path does not have.
 - A root path in a view that it does not have shows the Boxed view. `Shell` calls `onViewChange`.
@@ -386,29 +386,33 @@ annotation as a node.
   when its parent context is the root path.
 - Node ids stay fully qualified field paths, for example `applicant.score`.
 - A new node, for example from the palette, is a direct field of the root path context.
-- A service root adds one `ParameterNode` for each parameter and one `ResultNode` for its `@ResultNode` `return` record.
-  The [Flow view of a service](#the-flow-view-of-a-service-shows-its-parameters-and-its-result) gives the details.
+- A service root adds one `ParameterNode` for each parameter and one `ReturnNode` for its `@ReturnNode` `return` record.
+  The [Flow view of a service](#the-flow-view-of-a-service-shows-its-parameters-and-its-return) gives the details.
 - Each root path has its own `FlowLayout`: node positions, output nodes and chart nodes.
 - `FlowMetadataDocument` holds one `FlowLayout` for each root path, keyed by the root path.
 - The `renamePath` command moves the layout keys and the node position keys with the renamed path.
 
-### The Flow view of a service shows its parameters and its result
+### The Flow view of a service shows its parameters and its return
 
-| Node            | Node id                 | Source in the model                         | Pins                                                     |
-| --------------- | ----------------------- | ------------------------------------------- | -------------------------------------------------------- |
-| `ParameterNode` | `<service>.<parameter>` | One entry of `@parameters` and its type     | Out: one per field of a record type, and the whole value |
-| `FunctionNode`  | `<service>.<field>`     | A `@FunctionNode` field of the body         | In: arguments. Out: results                              |
-| `ResultNode`    | `<service>.return`      | The `return` record annotated `@ResultNode` | In: one per field, and the add pin `in:+`                |
+| Node            | Node id                 | Source in the model                            | Pins                                                                    |
+| --------------- | ----------------------- | ---------------------------------------------- | ----------------------------------------------------------------------- |
+| `ParameterNode` | `<service>.<parameter>` | One entry of `@parameters` and its type        | Out: one per field of a record type, and the whole value                |
+| `FunctionNode`  | `<service>.<field>`     | A `@FunctionNode` field of the body            | In: arguments. Out: results                                             |
+| `ReturnNode`    | `<service>.return`      | The `return` field: a context or an expression | A context: one per field, and the add pin `in:+`. An expression: `in:*` |
 
 - A `ParameterNode` shows types only. It has no value to edit.
 - A `ParameterNode` title is the parameter name. A rename migrates the body and the named arguments of each call.
 - A `ParameterNode` is always on the canvas. `Delete parameter` is disabled while the body reads the parameter.
-- A `ResultNode` shows the expression of each field. It shows no computed value.
+- The `return` field of a service is its `ReturnNode`, with or without the `@ReturnNode` annotation. The annotation
+  holds only the node name. The `ReturnNode` is always on the canvas: its menu has no `Remove from flow`. `Delete`
+  removes the `return` field, and the service returns its whole body again.
+- A `ReturnNode` of a context shows the expression of each field. It shows no computed value.
 - A wire into `in:+` adds a field named after the wired value. A wire into a field pin replaces its expression.
-- The engine link check refuses a result change that breaks a caller. A field that a caller reads stays.
-- The palette of a service offers `Parameter`, `Invocation` and `Result`. `Result` shows only while the service has no
-  result node.
-- `Result` annotates an existing `return` record. Without one, it creates `return` with each value field of the body.
+- A `ReturnNode` of an expression shows one row with the expression text. Its pin `in:*` takes one wire for each field
+  in its `@variables`. The wires follow the text: a wire cannot be dropped on the pin or deleted.
+- The engine link check refuses a return change that breaks a caller. A field that a caller reads stays.
+- The palette of a service offers `Parameter`, `Invocation`, `Expression` and `Return`. `Return` shows only while the
+  service has no `return` field. It creates a `return` context with each value field of the body.
 
 ### The root path follows model changes
 

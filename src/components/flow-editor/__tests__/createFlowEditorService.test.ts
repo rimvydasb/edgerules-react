@@ -688,6 +688,13 @@ describe('FlowEditorService flow nodes', () => {
         expect(service.createInputNode()).toBe('input2');
         expect(listener).toHaveBeenCalledTimes(2);
     });
+
+    it('creates a new expression node at the model root', () => {
+        const {service, portable} = build();
+        expect(service.createExpressionNode()).toBe('expression');
+        expect(portable().expression).toBe(0);
+        expect(service.listNodes()).toContainEqual({field: 'expression', kind: 'expression'});
+    });
 });
 
 describe('FlowEditorService value inputs', () => {

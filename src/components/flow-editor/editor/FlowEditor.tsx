@@ -44,7 +44,7 @@ import {ObjectInputNode} from '../object-input-node/ObjectInputNode';
 import {OutputNode, sourcePath} from '../output-node/OutputNode';
 import type {OutputNodeData} from '../output-node/types';
 import {ParameterNode} from '../parameter-node/ParameterNode';
-import {ADD_PIN, ResultNode} from '../result-node/ResultNode';
+import {ADD_PIN, ReturnNode} from '../return-node/ReturnNode';
 import {ValueInputNode} from '../value-input-node/ValueInputNode';
 import {autoLayout, findFreeSpot, modelWires, outputWires, type LayoutKind, type Wire} from './graph';
 import {ICON_COLOR, NodePalette} from './NodePalette';
@@ -68,7 +68,7 @@ const NODE_TYPES = {
     outputNode: OutputNode,
     chartNode: ChartNode,
     parameterNode: ParameterNode,
-    resultNode: ResultNode,
+    returnNode: ReturnNode,
     expressionNode: ExpressionNode,
 };
 const TYPE_OF: Record<LayoutKind, keyof typeof NODE_TYPES> = {
@@ -79,7 +79,7 @@ const TYPE_OF: Record<LayoutKind, keyof typeof NODE_TYPES> = {
     output: 'outputNode',
     chart: 'chartNode',
     parameter: 'parameterNode',
-    result: 'resultNode',
+    return: 'returnNode',
     expression: 'expressionNode',
 };
 const KIND_OF: Record<string, LayoutKind> = {
@@ -90,7 +90,7 @@ const KIND_OF: Record<string, LayoutKind> = {
     outputNode: 'output',
     chartNode: 'chart',
     parameterNode: 'parameter',
-    resultNode: 'result',
+    returnNode: 'return',
     expressionNode: 'expression',
 };
 // Output and chart nodes exist on the canvas only: the model never adds or removes them.
@@ -103,7 +103,7 @@ const MINIMAP_COLOR: Record<LayoutKind, string> = {
     output: ICON_COLOR.output,
     chart: ICON_COLOR.chart,
     parameter: ICON_COLOR.parameter,
-    result: ICON_COLOR.result,
+    return: ICON_COLOR.return,
     expression: EXPRESSION_COLOR,
 };
 const ROW = 40;
@@ -120,7 +120,7 @@ const WIRE_CLASS: Record<Wire['kind'], string> = {
 
 /**
  * The EdgeRules Flow Editor: a canvas of Input, Function, Output and Chart nodes with a node palette on the left; the
- * flow of a `@Service` has Parameter, Function and Result nodes. Nodes and wires come from the model; positions,
+ * flow of a `@Service` has Parameter, Function and Return nodes. Nodes and wires come from the model; positions,
  * output nodes and chart nodes are presentation data reported through `onLayoutChange`.
  */
 export function FlowEditor({
@@ -172,7 +172,10 @@ function estimateSize(service: FlowEditorService, id: string, kind: LayoutKind):
     if (kind === 'value-input') return {width: 240, height: 3 * ROW};
     if (kind === 'parameter')
         return {width: 280, height: (3 + Math.max(1, service.getParameterNode(id).fields.length)) * ROW};
-    if (kind === 'result') return {width: 320, height: (4 + service.getResultNode(id).fields.length) * ROW};
+    if (kind === 'return') {
+        const model = service.getReturnNode(id);
+        return {width: 320, height: (model.expression === undefined ? 4 + model.fields.length : 3) * ROW};
+    }
     if (kind === 'expression') return {width: expressionNodeWidth(id), height: ROW};
     const model = service.getFunctionNode(id);
     if (!model.callee) return {width: 320, height: 3 * ROW};
@@ -196,7 +199,8 @@ function toEdge(wire: Wire, selected: ReadonlySet<string>): Edge {
         targetHandle: wire.targetHandle,
         className: `${styles.wire} ${WIRE_CLASS[wire.kind]}`,
         selected: selected.has(wire.id),
-        // A wire into an expression is a field its text reads: only an edit of the text removes it.
+        // A wire into an expression, or a returned expression, is a field its text reads: only an edit of the text
+        // removes it.
         ...(wire.targetHandle === EXPRESSION_PIN && {deletable: false}),
     };
 }
@@ -303,7 +307,7 @@ function FlowCanvas({
             modelWires(
                 refs,
                 (field) => service.getFunctionNode(field),
-                (field) => service.getResultNode(field),
+                (field) => service.getReturnNode(field),
                 (field) => service.getExpressionNode(field),
             ),
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -395,10 +399,10 @@ function FlowCanvas({
             }),
         );
 
-        // A parameter is always on the flow of its service, and an expression on the flow of its context: their menus
-        // delete them from the model.
+        // A parameter and the return are always on the flow of their service, and an expression on the flow of its
+        // context: their menus delete them from the model.
         function isDeletable(kind: LayoutKind): boolean {
-            return !readOnly && kind !== 'parameter' && kind !== 'expression';
+            return !readOnly && kind !== 'parameter' && kind !== 'return' && kind !== 'expression';
         }
 
         function initialPositions(unplaced: typeof wanted) {
@@ -508,8 +512,13 @@ function FlowCanvas({
             if (!isPortableError(created)) place(created);
             return;
         }
-        if (action.kind === 'parameter' || action.kind === 'result') {
-            const created = action.kind === 'parameter' ? service.createParameter() : service.createResultNode();
+        if (action.kind === 'parameter' || action.kind === 'return' || action.kind === 'expression') {
+            const created =
+                action.kind === 'parameter'
+                    ? service.createParameter()
+                    : action.kind === 'return'
+                      ? service.createReturnNode()
+                      : service.createExpressionNode();
             if (!isPortableError(created)) place(created);
             return;
         }
@@ -532,12 +541,8 @@ function FlowCanvas({
 
     const outputIds = useMemo(() => new Set(outputs.map((output) => output.id)), [outputs]);
     const chartIds = useMemo(() => new Set(charts.map((chart) => chart.id)), [charts]);
-    const resultIds = useMemo(
-        () => new Set(refs.filter((ref) => ref.kind === 'result').map((ref) => ref.field)),
-        [refs],
-    );
-    const expressionIds = useMemo(
-        () => new Set(refs.filter((ref) => ref.kind === 'expression').map((ref) => ref.field)),
+    const returnIds = useMemo(
+        () => new Set(refs.filter((ref) => ref.kind === 'return').map((ref) => ref.field)),
         [refs],
     );
 
@@ -565,26 +570,26 @@ function FlowCanvas({
                 return;
             }
             const path = sourcePath(service, source, sourceHandle);
-            if (resultIds.has(target)) {
+            if (returnIds.has(target)) {
                 // The add pin adds a new field named after the wired value; a field pin rebinds that field.
                 const name = targetHandle === ADD_PIN ? undefined : targetHandle.slice('in:'.length);
-                service.bindResultField(target, name, path);
+                service.bindReturnField(target, name, path);
                 return;
             }
             // A rejected binding shows on the target node as its error row.
             service.bindArgument(target, targetHandle.slice('in:'.length), path);
         },
-        [service, outputIds, chartIds, resultIds],
+        [service, outputIds, chartIds, returnIds],
     );
 
-    // The wires into an expression follow its text: a wire cannot change them.
+    // The wires into an expression, or a returned expression, follow its text: a wire cannot change them.
     const isValidConnection: IsValidConnection = useCallback(
         (connection) =>
             connection.source !== connection.target &&
-            !expressionIds.has(connection.target) &&
+            connection.targetHandle !== EXPRESSION_PIN &&
             Boolean(connection.sourceHandle?.startsWith('out:')) &&
             Boolean(connection.targetHandle?.startsWith('in:')),
-        [expressionIds],
+        [],
     );
 
     // The editor applies deletions to the model itself; xyflow only reports them.
@@ -603,12 +608,12 @@ function FlowCanvas({
             const unwiredOutputs = new Set<string>();
             const unwiredCharts = new Set<string>();
             for (const edge of unwired) {
-                if (expressionIds.has(edge.target)) continue;
+                if (edge.targetHandle === EXPRESSION_PIN) continue;
                 if (outputIds.has(edge.target)) unwiredOutputs.add(edge.target);
                 else if (chartIds.has(edge.target)) unwiredCharts.add(edge.target);
-                // A wire into the result is a value the service returns: it leaves the result, unless a caller reads it.
-                else if (resultIds.has(edge.target) && edge.targetHandle)
-                    service.removeResultField(edge.target, edge.targetHandle.slice('in:'.length));
+                // A wire into the return is a value the service returns: it leaves the return, unless a caller reads it.
+                else if (returnIds.has(edge.target) && edge.targetHandle)
+                    service.removeReturnField(edge.target, edge.targetHandle.slice('in:'.length));
                 else if (edge.targetHandle) service.unbindArgument(edge.target, edge.targetHandle.slice('in:'.length));
             }
             if (removedOutputs.size > 0 || unwiredOutputs.size > 0) {
@@ -628,7 +633,7 @@ function FlowCanvas({
             }
             return false;
         },
-        [service, outputIds, chartIds, resultIds, expressionIds],
+        [service, outputIds, chartIds, returnIds],
     );
 
     const onNodesChange = useCallback((changes: NodeChange[]) => {

@@ -4,7 +4,7 @@ import {typeKind} from '../core-node';
 import type {ExpressionNodeModel} from '../expression-node/types';
 import type {FlowNodeRef} from '../flow-editor-types';
 import type {FunctionNodeModel} from '../function-node/types';
-import type {ResultNodeModel} from '../result-node/types';
+import type {ReturnNodeModel} from '../return-node/types';
 import type {FlowOutput} from './types';
 
 /** A wire as the canvas draws it; the editor turns it into an xyflow edge. */
@@ -31,9 +31,9 @@ function isSource(kind: LayoutKind | undefined): boolean {
     return kind === 'object-input' || kind === 'list-input' || kind === 'value-input' || kind === 'parameter';
 }
 
-/** Output, chart and result nodes only read: they sit one column after their source. */
+/** Output, chart and return nodes only read: they sit one column after their source. */
 function isSink(kind: LayoutKind | undefined): boolean {
-    return kind === 'output' || kind === 'chart' || kind === 'result';
+    return kind === 'output' || kind === 'chart' || kind === 'return';
 }
 
 export interface LayoutNode {
@@ -79,13 +79,14 @@ export function qualifyBinding(text: string, field: string, nodes: ReadonlyMap<s
 }
 
 /**
- * The wires of every path-bound argument, of every field of a result node and of every field an expression node reads,
- * whose source is a node on the canvas. All the wires of an expression go into its one input pin.
+ * The wires of every path-bound argument, of every field of a return context and of every field an expression node or
+ * a returned expression reads, whose source is a node on the canvas. All the wires of an expression go into its one
+ * input pin.
  */
 export function modelWires(
     refs: FlowNodeRef[],
     functionModel: (field: string) => FunctionNodeModel,
-    resultModel?: (field: string) => ResultNodeModel,
+    returnModel?: (field: string) => ReturnNodeModel,
     expressionModel?: (field: string) => ExpressionNodeModel,
 ): Wire[] {
     const models = new Map(
@@ -93,7 +94,7 @@ export function modelWires(
     );
     const sources = new Map<string, {whole?: boolean}>(
         refs
-            .filter((ref) => ref.kind !== 'result')
+            .filter((ref) => ref.kind !== 'return')
             .map((ref) => [ref.field, {whole: models.get(ref.field)?.results.some((result) => result.whole)}]),
     );
     const wires: Wire[] = [];
@@ -125,24 +126,30 @@ export function modelWires(
             if (argument.binding?.kind === 'path') wire(field, argument.name, argument.binding.text, argument.type);
         }
     }
-    for (const ref of refs) {
-        if (ref.kind !== 'result' || !resultModel) continue;
-        for (const item of resultModel(ref.field).fields) {
-            if (item.value !== undefined) wire(ref.field, item.name, item.value, item.type);
-        }
-    }
-    for (const ref of refs) {
-        if (ref.kind !== 'expression' || !expressionModel) continue;
-        for (const variable of expressionModel(ref.field).variables) {
+    const wireVariables = (field: string, variables: string[]) => {
+        for (const variable of variables) {
             // A read deeper than any pin, such as `applicant.address.city`, comes from the nearest pin on its path.
             let path = variable.trim();
-            while (!resolveSource(qualifyBinding(path, ref.field, sources), sources)) {
+            while (!resolveSource(qualifyBinding(path, field, sources), sources)) {
                 const cut = Math.max(path.lastIndexOf('.'), path.lastIndexOf('['));
                 if (cut <= 0) break;
                 path = path.slice(0, cut);
             }
-            wire(ref.field, '*', path, 'any', `${ref.field}:*:${path}`);
+            wire(field, '*', path, 'any', `${field}:*:${path}`);
         }
+    };
+    for (const ref of refs) {
+        if (ref.kind !== 'return' || !returnModel) continue;
+        const model = returnModel(ref.field);
+        // A returned expression wires like an expression node: one wire per field it reads into its one pin.
+        if (model.expression !== undefined) wireVariables(ref.field, model.variables);
+        for (const item of model.fields) {
+            if (item.value !== undefined) wire(ref.field, item.name, item.value, item.type);
+        }
+    }
+    for (const ref of refs) {
+        if (ref.kind === 'expression' && expressionModel)
+            wireVariables(ref.field, expressionModel(ref.field).variables);
     }
     return wires;
 }

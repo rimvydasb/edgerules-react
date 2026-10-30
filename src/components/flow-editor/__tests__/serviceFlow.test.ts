@@ -13,7 +13,7 @@ const body = (mutable: MutableDecisionService) =>
     (mutable.toPortable() as unknown as Record<string, {'@body': Record<string, unknown>}>).quote['@body'];
 
 describe('FlowEditorService of a service', () => {
-    it('lists the parameters first, then the function nodes and the result', () => {
+    it('lists the parameters first, then the function nodes and the return', () => {
         const {service} = build();
         expect(service.isService()).toBe(true);
         expect(service.listNodes()).toEqual([
@@ -22,7 +22,7 @@ describe('FlowEditorService of a service', () => {
             {field: 'quote.score', kind: 'function'},
             {field: 'quote.installment', kind: 'function'},
             {field: 'quote.approved', kind: 'expression'},
-            {field: 'quote.return', kind: 'result'},
+            {field: 'quote.return', kind: 'return'},
         ]);
     });
 
@@ -129,24 +129,25 @@ describe('FlowEditorService of a service', () => {
         });
     });
 
-    describe('the result node', () => {
-        it('reads the fields of the result with their expressions and types', () => {
+    describe('the return node', () => {
+        it('reads the fields of the return context with their expressions and types', () => {
             const {service} = build();
-            expect(service.getResultNode('quote.return')).toEqual({
+            expect(service.getReturnNode('quote.return')).toEqual({
                 field: 'quote.return',
                 label: 'Quote',
                 fields: [
                     {name: 'score', type: 'number', value: 'score'},
                     {name: 'installment', type: 'number', value: 'installment'},
                 ],
+                variables: [],
                 exists: true,
             });
         });
 
         it('adds a wired value as a new field named after it, and the service returns it', async () => {
             const {service, mutable} = build();
-            expect(service.bindResultField('quote.return', undefined, 'quote.applicant.income')).toBeUndefined();
-            expect(service.getResultNode('quote.return').fields.at(-1)).toEqual({
+            expect(service.bindReturnField('quote.return', undefined, 'quote.applicant.income')).toBeUndefined();
+            expect(service.getReturnNode('quote.return').fields.at(-1)).toEqual({
                 name: 'income',
                 type: 'number',
                 value: 'applicant.income',
@@ -158,48 +159,50 @@ describe('FlowEditorService of a service', () => {
 
         it('names a new field uniquely and rebinds an existing one', () => {
             const {service} = build();
-            service.bindResultField('quote.return', undefined, 'quote.score');
-            expect(service.getResultNode('quote.return').fields.map((item) => item.name)).toEqual([
+            service.bindReturnField('quote.return', undefined, 'quote.score');
+            expect(service.getReturnNode('quote.return').fields.map((item) => item.name)).toEqual([
                 'score',
                 'installment',
                 'score2',
             ]);
-            expect(service.bindResultField('quote.return', 'score2', 'quote.applicant.age')).toBeUndefined();
-            expect(service.getResultNode('quote.return').fields[2]).toMatchObject({value: 'applicant.age'});
+            expect(service.bindReturnField('quote.return', 'score2', 'quote.applicant.age')).toBeUndefined();
+            expect(service.getReturnNode('quote.return').fields[2]).toMatchObject({value: 'applicant.age'});
         });
 
         it('refuses to remove or rename a field that a caller reads', () => {
             const {service} = build();
-            expect(service.removeResultField('quote.return', 'installment')).toMatchObject({'@kind': 'error'});
-            expect(service.renameResultField('quote.return', 'installment', 'monthly')).toMatchObject({
+            expect(service.removeReturnField('quote.return', 'installment')).toMatchObject({'@kind': 'error'});
+            expect(service.renameReturnField('quote.return', 'installment', 'monthly')).toMatchObject({
                 '@kind': 'error',
             });
-            expect(service.removeResultField('quote.return', 'score')).toBeUndefined();
-            expect(service.getResultNode('quote.return').fields.map((item) => item.name)).toEqual(['installment']);
+            expect(service.removeReturnField('quote.return', 'score')).toBeUndefined();
+            expect(service.getReturnNode('quote.return').fields.map((item) => item.name)).toEqual(['installment']);
         });
 
         it('moves a field and edits its expression', () => {
             const {service} = build();
-            service.moveResultField('quote.return', 'installment', 'up');
-            expect(service.getResultNode('quote.return').fields.map((item) => item.name)).toEqual([
+            service.moveReturnField('quote.return', 'installment', 'up');
+            expect(service.getReturnNode('quote.return').fields.map((item) => item.name)).toEqual([
                 'installment',
                 'score',
             ]);
-            expect(service.setResultFieldValue('quote.return', 'score', 'score * 2')).toBeUndefined();
-            expect(service.setResultFieldValue('quote.return', 'score', 'nothing')).toMatchObject({'@kind': 'error'});
-            expect(service.getResultNode('quote.return').fields[1].value).toBe('score * 2');
+            expect(service.setReturnFieldValue('quote.return', 'score', 'score * 2')).toBeUndefined();
+            expect(service.setReturnFieldValue('quote.return', 'score', 'nothing')).toMatchObject({'@kind': 'error'});
+            expect(service.getReturnNode('quote.return').fields[1].value).toBe('score * 2');
         });
 
-        it('renames the node and leaves the flow without the record leaving the model', () => {
+        it('renames the node and clears its name; the return is always on the flow', () => {
             const {service, mutable} = build();
             service.setNodeName('quote.return', 'Offer');
-            expect(service.getResultNode('quote.return').label).toBe('Offer');
-            expect(service.removeFromFlow('quote.return')).toBeUndefined();
-            expect(service.listNodes().map((node) => node.kind)).not.toContain('result');
+            expect(service.getReturnNode('quote.return').label).toBe('Offer');
+            expect(service.setNodeName('quote.return', '')).toBeUndefined();
+            expect(service.getReturnNode('quote.return').label).toBeUndefined();
+            expect(service.removeFromFlow('quote.return')).toMatchObject({'@kind': 'error'});
+            expect(service.listNodes().map((node) => node.kind)).toContain('return');
             expect(body(mutable).return).toMatchObject({'@kind': 'context', score: {expression: 'score'}});
         });
 
-        it('creates the result with every value the service returns now, so callers keep linking', async () => {
+        it('creates the return context with every value the service returns now, so callers keep linking', async () => {
             const model = `{
   func monthly(amount: number): amount / 12
   @Service
@@ -211,19 +214,53 @@ describe('FlowEditorService of a service', () => {
   use: f(amount: 120).total
 }`;
             const {service, mutable} = build(model, 'f');
-            expect(service.createResultNode()).toBe('f.return');
-            expect(service.getResultNode('f.return').fields.map((item) => [item.name, item.value])).toEqual([
+            expect(service.createReturnNode()).toBe('f.return');
+            expect(service.getReturnNode('f.return').fields.map((item) => [item.name, item.value])).toEqual([
                 ['installment', 'installment'],
                 ['total', 'total'],
             ]);
             expect(await mutable.execute('use')).toBe(240);
         });
 
-        it('annotates an existing return record', () => {
+        it('shows a `return` context without an annotation, and refuses to create a second one', () => {
             const {service} = build(`{ @Service func f(a: number): { b: a; return: { b: b } } }`, 'f');
+            expect(service.listNodes().map((node) => node.kind)).toEqual(['parameter', 'expression', 'return']);
+            expect(service.getReturnNode('f.return').fields.map((item) => item.name)).toEqual(['b']);
+            expect(service.createReturnNode()).toMatchObject({'@kind': 'error', type: 'DuplicateName'});
+        });
+
+        it('shows a `return` expression with the fields it reads, and edits its text', async () => {
+            const {service, mutable} = build(`{ @Service func f(a: number): { b: a * 2; return: b + 1 } }`, 'f');
+            expect(service.listNodes()).toEqual([
+                {field: 'f.a', kind: 'parameter'},
+                {field: 'f.b', kind: 'expression'},
+                {field: 'f.return', kind: 'return'},
+            ]);
+            expect(service.getReturnNode('f.return')).toMatchObject({
+                fields: [],
+                expression: 'b + 1',
+                variables: ['b'],
+                exists: true,
+            });
+            expect(service.setReturnExpression('f.return', 'b + a')).toBeUndefined();
+            expect(service.getReturnNode('f.return').variables).toEqual(['b', 'a']);
+            expect(service.setReturnExpression('f.return', 'nothing')).toMatchObject({'@kind': 'error'});
+            expect(await mutable.execute('f', {a: 2})).toBe(6);
+        });
+
+        it('names a `return` expression with the annotation, and keeps the name when its text changes', () => {
+            const {service} = build(`{ @Service func f(a: number): { return: a + 1 } }`, 'f');
+            expect(service.setNodeName('f.return', 'Total')).toBeUndefined();
+            expect(service.setReturnExpression('f.return', 'a + 2')).toBeUndefined();
+            expect(service.getReturnNode('f.return')).toMatchObject({label: 'Total', expression: 'a + 2'});
+            expect(service.removeFromFlow('f.return')).toMatchObject({'@kind': 'error'});
+        });
+
+        it('deletes the return, so the service returns its whole body again', () => {
+            const {service} = build(`{ @Service func f(a: number): { b: a; return: b } }`, 'f');
+            expect(service.deleteField('f.return')).toBeUndefined();
             expect(service.listNodes().map((node) => node.kind)).toEqual(['parameter', 'expression']);
-            expect(service.createResultNode()).toBe('f.return');
-            expect(service.listNodes().map((node) => node.kind)).toEqual(['parameter', 'expression', 'result']);
+            expect(service.createReturnNode()).toBe('f.return');
         });
     });
 });
@@ -240,13 +277,17 @@ describe('FlowEditorService of a service: expression nodes', () => {
         });
     });
 
-    it('shows a `return` expression as an expression node, not as the result', () => {
+    it('shows a `return` expression as the return node, not as an expression node', () => {
         const {service} = build(`{ @Service func f(a: number): { b: a * 2; return: b + 1 } }`, 'f');
-        expect(service.listNodes()).toEqual([
-            {field: 'f.a', kind: 'parameter'},
-            {field: 'f.b', kind: 'expression'},
-            {field: 'f.return', kind: 'expression'},
-        ]);
-        expect(service.getExpressionNode('f.return').variables).toEqual(['b']);
+        expect(service.getExpressionNode('f.return')).toEqual({field: 'f.return', type: 'any', variables: []});
+    });
+
+    it('adds a new expression to the body of the service', async () => {
+        const {service, mutable} = build(`{ @Service func f(a: number): { b: a } }`, 'f');
+        expect(service.createExpressionNode()).toBe('f.expression');
+        expect(service.createExpressionNode()).toBe('f.expression2');
+        expect(service.listNodes().map((node) => node.field)).toEqual(['f.a', 'f.b', 'f.expression', 'f.expression2']);
+        expect(service.getExpressionNode('f.expression').expression).toBe('0');
+        expect(await mutable.execute('f', {a: 1})).toMatchObject({b: 1, expression: 0});
     });
 });

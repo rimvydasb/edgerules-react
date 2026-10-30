@@ -8,7 +8,7 @@ export {ListInputNode} from './list-input-node/ListInputNode';
 export {ObjectInputNode} from './object-input-node/ObjectInputNode';
 export {OutputNode} from './output-node/OutputNode';
 export {ParameterNode} from './parameter-node/ParameterNode';
-export {ResultNode} from './result-node/ResultNode';
+export {ReturnNode} from './return-node/ReturnNode';
 export {ValueInputNode} from './value-input-node/ValueInputNode';
 export type {ChartConfig, ChartKind, ChartNodeData} from './chart-node/types';
 export type {FlowChart, FlowEditorProps, FlowFocusRequest, FlowLayout, FlowOutput, FlowSelection} from './editor/types';
@@ -19,5 +19,5 @@ export type {ListInputNodeData, ListInputNodeModel, ListItemField} from './list-
 export type {ObjectInputField, ObjectInputNodeData, ObjectInputNodeModel} from './object-input-node/types';
 export type {OutputNodeData, OutputReading} from './output-node/types';
 export type {ParameterField, ParameterNodeData, ParameterNodeModel} from './parameter-node/types';
-export type {ResultField, ResultNodeData, ResultNodeModel} from './result-node/types';
+export type {ReturnField, ReturnNodeData, ReturnNodeModel} from './return-node/types';
 export type {ValueInputNodeData, ValueInputNodeModel} from './value-input-node/types';

@@ -1,4 +1,4 @@
-/* The last row of a ResultNode: an input pin that adds the value wired into it to the result. */
+/* The last row of a ReturnNode: an input pin that adds the value wired into it to the result. */
 .add {
   display: flex;
   flex: 1;

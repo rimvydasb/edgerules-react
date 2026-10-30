@@ -48,7 +48,7 @@ describe('modelWires', () => {
         const wires = modelWires(
             service.listNodes(),
             (field) => service.getFunctionNode(field),
-            (field) => service.getResultNode(field),
+            (field) => service.getReturnNode(field),
         );
         expect(wires.map((wire) => [wire.source, wire.sourceHandle, wire.target, wire.targetHandle])).toEqual([
             ['quote.applicant', 'out:age', 'quote.score', 'in:age'],
@@ -74,7 +74,7 @@ describe('modelWires', () => {
         const wires = modelWires(
             service.listNodes(),
             (field) => service.getFunctionNode(field),
-            (field) => service.getResultNode(field),
+            (field) => service.getReturnNode(field),
             (field) => service.getExpressionNode(field),
         );
         expect(wires.map((wire) => [wire.id, wire.source, wire.sourceHandle, wire.target, wire.targetHandle])).toEqual([
@@ -91,7 +91,7 @@ describe('modelWires', () => {
         const wires = modelWires(
             service.listNodes(),
             (field) => service.getFunctionNode(field),
-            (field) => service.getResultNode(field),
+            (field) => service.getReturnNode(field),
             (field) => service.getExpressionNode(field),
         );
         expect(wires.filter((wire) => wire.target === 'quote.approved').map((wire) => wire.source)).toEqual([

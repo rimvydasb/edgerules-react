@@ -3,7 +3,7 @@
  *
  * - `pricingTier` is the decision table: the credit score and the term select the price tier and the rate premium.
  * - `loanRepayment` is the `@Service`: it prices a `LoanRequest` and returns its monthly repayment schedule. Its flow
- *   shows the `request` parameter, the invocations of its body and the `@ResultNode`: the values it returns. The
+ *   shows the `request` parameter, the invocations of its body and the `@ReturnNode`: the values it returns. The
  *   intermediate `annuity` and `fullSchedule` stay out of the result.
  * - `mortgageBook` and `termComparisonBook` are the two workbooks that call the service and chart the repayment.
  */
@@ -52,7 +52,7 @@ export const LOAN_REPAYMENT_DSL = `{
         schedule: fullSchedule[pricing.approved]
         @FunctionNode(name: "Cost of the loan")
         cost: loanCost(schedule: schedule)
-        @ResultNode(name: "Repayment")
+        @ReturnNode(name: "Repayment")
         return: {
             pricing: pricing
             rate: rate

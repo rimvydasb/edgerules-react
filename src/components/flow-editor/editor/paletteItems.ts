@@ -6,11 +6,12 @@ export const DRAG_TYPE = 'application/x-edgerules-flow-node';
 export const GROUP_LABEL: Record<PaletteGroup, string> = {
     input: 'Inputs',
     function: 'Invocations',
+    expression: 'Expressions',
     output: 'Outputs',
     chart: 'Charts',
 };
 
-export const GROUP_ORDER: PaletteGroup[] = ['input', 'function', 'output', 'chart'];
+export const GROUP_ORDER: PaletteGroup[] = ['input', 'function', 'expression', 'output', 'chart'];
 
 const INVOCATION: PaletteItem = {
     id: 'function',
@@ -22,9 +23,20 @@ const INVOCATION: PaletteItem = {
     action: {kind: 'function'},
 };
 
+const EXPRESSION: PaletteItem = {
+    id: 'expression',
+    group: 'expression',
+    icon: 'expression',
+    title: 'Expression',
+    detail: 'A computed value; write it in the boxed or code editor',
+    label: 'Add expression',
+    action: {kind: 'expression'},
+};
+
 /**
- * The nodes of a service flow: a new Parameter, one Invocation, and the Result while the service has none. The values
- * of a service come from its parameters and leave through its result, so it has no data inputs, outputs or charts.
+ * The nodes of a service flow: a new Parameter, one Invocation, an Expression, and the Return while the service has no
+ * `return` field. The values of a service come from its parameters and leave through its return, so it has no data
+ * inputs, outputs or charts.
  */
 function serviceItems(service: FlowEditorService): PaletteItem[] {
     const items: PaletteItem[] = [
@@ -38,16 +50,17 @@ function serviceItems(service: FlowEditorService): PaletteItem[] {
             action: {kind: 'parameter'},
         },
         INVOCATION,
+        EXPRESSION,
     ];
-    if (!service.listNodes().some((node) => node.kind === 'result')) {
+    if (!service.listNodes().some((node) => node.kind === 'return')) {
         items.push({
-            id: 'result',
+            id: 'return',
             group: 'output',
-            icon: 'result',
-            title: 'Result',
-            detail: 'The values the service returns',
-            label: 'Add result',
-            action: {kind: 'result'},
+            icon: 'return',
+            title: 'Return',
+            detail: 'The value the service returns',
+            label: 'Add return',
+            action: {kind: 'return'},
         });
     }
     return items;
@@ -55,7 +68,8 @@ function serviceItems(service: FlowEditorService): PaletteItem[] {
 
 /**
  * Every node the palette offers: a new input of each kind and the records and lists of the model, one Invocation that
- * picks what it invokes on the node, an Output and a Chart. A service flow offers its own nodes (`serviceItems`).
+ * picks what it invokes on the node, an Expression, an Output and a Chart. A service flow offers its own nodes
+ * (`serviceItems`).
  */
 export function paletteItems(service: FlowEditorService): PaletteItem[] {
     if (service.isService()) return serviceItems(service);
@@ -97,6 +111,7 @@ export function paletteItems(service: FlowEditorService): PaletteItem[] {
             action: {kind: 'input', field},
         })),
         INVOCATION,
+        EXPRESSION,
         {
             id: 'output',
             group: 'output',
