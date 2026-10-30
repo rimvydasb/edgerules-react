@@ -1,0 +1,57 @@
+import '@xyflow/react/dist/style.css';
+import {useMemo, type ReactElement} from 'react';
+import type {Meta, StoryObj} from '@storybook/react-vite';
+import {expect, within} from 'storybook/test';
+import {init, MutableDecisionService} from '@edgerules/web/mutable';
+import {createDocumentationService} from '../../../src/components/documentation-service';
+import {createFlowEditorService, FlowEditor} from '../../../src/components/flow-editor';
+import {SERVICE_MODEL} from '../../../src/components/flow-editor/testing/serviceModel';
+
+// The `quote` service: its result returns the score and the installment; a caller reads the installment.
+function Canvas({readOnly = false}: {readOnly?: boolean}): ReactElement {
+    const service = useMemo(
+        () => createFlowEditorService(MutableDecisionService.fromCode(SERVICE_MODEL) as never, {root: 'quote'}),
+        [],
+    );
+    const documentation = useMemo(() => createDocumentationService(`result-story-${Math.random()}`), []);
+    return (
+        <div style={{width: '100%', height: 520}}>
+            <FlowEditor
+                service={service}
+                documentation={documentation}
+                languageService={MutableDecisionService}
+                readOnly={readOnly}
+                defaultPaletteCollapsed
+            />
+        </div>
+    );
+}
+
+const meta: Meta<typeof Canvas> = {
+    title: 'Components/Flow Editor/Result Node',
+    component: Canvas,
+    parameters: {layout: 'fullscreen'},
+    loaders: [
+        async () => {
+            await init();
+            return {};
+        },
+    ],
+};
+export default meta;
+
+type Story = StoryObj<typeof Canvas>;
+
+/**
+ * The values the service returns, each with its expression and no computed value. Wire a pin of a parameter or a node
+ * into "Wire a value here" to add it; the installment stays while the caller reads it.
+ */
+export const Default: Story = {
+    play: async ({canvasElement}) => {
+        const result = await within(canvasElement).findByTestId('result-node-quote.return');
+        await expect(result).toHaveTextContent('Quote');
+        await expect(within(result).getByTestId('result-add-row')).toBeInTheDocument();
+    },
+};
+/** Expressions show as code; no add row and no menu edits. */
+export const ReadOnly: Story = {args: {readOnly: true}};

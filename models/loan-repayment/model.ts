@@ -2,7 +2,9 @@
  * The EdgeRules DSL of the loan repayment model.
  *
  * - `pricingTier` is the decision table: the credit score and the term select the price tier and the rate premium.
- * - `loanRepayment` is the `@Service`: it prices a `LoanRequest` and returns its monthly repayment schedule.
+ * - `loanRepayment` is the `@Service`: it prices a `LoanRequest` and returns its monthly repayment schedule. Its flow
+ *   shows the `request` parameter, the invocations of its body and the `@ResultNode`: the values it returns. The
+ *   intermediate `annuity` and `fullSchedule` stay out of the result.
  * - `mortgageBook` and `termComparisonBook` are the two workbooks that call the service and chart the repayment.
  */
 export const LOAN_REPAYMENT_DSL = `{
@@ -38,11 +40,26 @@ export const LOAN_REPAYMENT_DSL = `{
     }
     @Service
     func loanRepayment(request: LoanRequest): {
-        pricing: pricingTier(request.creditScore, request.years)
-        rate: annualRate(request.creditScore, request.years)
-        payment: if pricing.approved then monthlyPayment(request.amount, rate, request.years) else 0
-        schedule: repaymentSchedule(request.amount, rate, request.years)[pricing.approved]
-        cost: loanCost(schedule)
+        @FunctionNode(name: "Price tier")
+        pricing: pricingTier(creditScore: request.creditScore, years: request.years)
+        @FunctionNode(name: "Annual rate")
+        rate: annualRate(creditScore: request.creditScore, years: request.years)
+        @FunctionNode(name: "Monthly annuity")
+        annuity: monthlyPayment(amount: request.amount, annualRate: rate, years: request.years)
+        @FunctionNode(name: "Full schedule")
+        fullSchedule: repaymentSchedule(amount: request.amount, annualRate: rate, years: request.years)
+        payment: if pricing.approved then annuity else 0
+        schedule: fullSchedule[pricing.approved]
+        @FunctionNode(name: "Cost of the loan")
+        cost: loanCost(schedule: schedule)
+        @ResultNode(name: "Repayment")
+        return: {
+            pricing: pricing
+            rate: rate
+            payment: payment
+            schedule: schedule
+            cost: cost
+        }
     }
     sampleRequest: { amount: 25000; years: 3; creditScore: 700 }
     samplePayment: loanRepayment(request: sampleRequest).payment

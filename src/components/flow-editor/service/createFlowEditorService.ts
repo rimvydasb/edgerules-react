@@ -23,10 +23,18 @@ import type {FlowEditorService, FlowNodeRef} from '../flow-editor-types';
 import type {CalleeRef, FunctionNodeModel, NodeArgument, NodeResult} from '../function-node/types';
 import type {ListInputNodeModel} from '../list-input-node/types';
 import type {InputDeclarationKind, ObjectInputField, ObjectInputNodeModel} from '../object-input-node/types';
+import type {ParameterField, ParameterNodeModel} from '../parameter-node/types';
+import type {ResultNodeModel} from '../result-node/types';
 import type {ValueInputNodeModel} from '../value-input-node/types';
 
 type GetFilter = 'FIELDS' | 'ALL' | 'EXTERNAL_DEFINITIONS';
-type InputKind = Exclude<FlowNodeRef['kind'], 'function'>;
+type InputKind = 'object-input' | 'list-input' | 'value-input';
+
+// `@node` of a function whose flow has parameter and result nodes, and of the `return` record that is its result.
+const SERVICE_ANNOTATION = 'Service';
+const RESULT_ANNOTATION = 'ResultNode';
+// The body field whose value a function returns.
+const RESULT_FIELD = 'return';
 
 /** Structural subset of `MutableDecisionService` that the flow editor service uses. */
 export interface FlowEditorEngine extends CallableSource, LinkCheckService {
@@ -262,6 +270,67 @@ export function createFlowEditorService(
     const newRootField = (base: string): string =>
         childPath(root, uniqueName(base, siblingNames(childPath(root, base))));
 
+    // The root function when it is annotated `@Service`.
+    const serviceAt = (): Record<string, unknown> | undefined => {
+        if (root === '*') return undefined;
+        const node: unknown = portableAtPath(engine.toPortable() as PortableNode, root);
+        return isRecord(node) && node['@kind'] === 'function' && node['@node'] === SERVICE_ANNOTATION
+            ? node
+            : undefined;
+    };
+
+    const parametersOfService = (service: Record<string, unknown> | undefined): Record<string, unknown> =>
+        isRecord(service?.['@parameters']) ? service['@parameters'] : {};
+
+    // The parameter name of a parameter node id '<service>.<parameter>', when the service has that parameter.
+    const parameterName = (field: string): string | undefined => {
+        if (!field.startsWith(`${root}.`)) return undefined;
+        const name = field.slice(root.length + 1);
+        return name in parametersOfService(serviceAt()) ? name : undefined;
+    };
+
+    // The `return` record of the service when it is annotated `@ResultNode`.
+    const resultAt = (field: string = childPath(root, RESULT_FIELD)): Record<string, unknown> | undefined => {
+        if (!serviceAt() || field !== childPath(root, RESULT_FIELD)) return undefined;
+        const node = contextAt(root)?.[RESULT_FIELD];
+        return isRecord(node) && node['@kind'] === 'context' && node['@node'] === RESULT_ANNOTATION ? node : undefined;
+    };
+
+    // Writes the whole model with the parameters of the service rewritten, then links; restored on a failure.
+    const editParameters = (
+        edit: (parameters: [string, unknown][]) => [string, unknown][],
+        migrate: (model: unknown) => unknown = (model) => model,
+    ): PortableError | void => {
+        const service = serviceAt();
+        if (!service) return failure(`'${root}' is not a service`);
+        const previous = engine.toPortable();
+        const parameters = Object.fromEntries(edit(Object.entries(parametersOfService(service))));
+        const next = migrate(
+            replaceAt(previous, root, {...service, '@parameters': parameters} as unknown as PortableNode),
+        );
+        const written = writeChangedEntries(engine, next as PortableRootContext, previous);
+        if (isPortableError(written)) return written;
+        boxed.invalidate();
+        notify();
+    };
+
+    // Rewrites the fields of the result record in one link-checked write; the annotations stay.
+    const editResult = (
+        field: string,
+        edit: (entries: [string, unknown][]) => [string, unknown][] | undefined,
+    ): PortableError | void => {
+        const result = resultAt(field);
+        if (!result) return failure(`node '${field}' does not exist`);
+        const entries = Object.entries(result).filter(([key]) => !key.startsWith('@'));
+        const next = edit(entries);
+        if (!next) return;
+        const meta = Object.entries(result).filter(([key]) => key.startsWith('@'));
+        const record = Object.fromEntries([...meta, ...next]) as unknown as PortableNode;
+        const written = setWithLinkCheck(engine, field, record, result as unknown as PortableNode);
+        if (isPortableError(written)) return written;
+        notify();
+    };
+
     const stateOf = (field: string): InvocationState | undefined => {
         const draft = drafts.get(field);
         if (draft) return draft;
@@ -349,13 +418,20 @@ export function createFlowEditorService(
 
     return {
         listNodes(): FlowNodeRef[] {
-            const nodes: FlowNodeRef[] = [];
+            const service = serviceAt();
+            // A service reads its parameters first: they are the inputs of its flow.
+            const nodes: FlowNodeRef[] = Object.keys(parametersOfService(service)).map((name) => ({
+                field: childPath(root, name),
+                kind: 'parameter',
+            }));
             // Direct fields only: a node of a child context belongs to the flow of that context.
             for (const [key, child] of Object.entries(contextAt(root) ?? {})) {
                 if (key.startsWith('@') || !isRecord(child)) continue;
                 const field = childPath(root, key);
                 if (isInvocation(child) && child['@node'] === 'FunctionNode') nodes.push({field, kind: 'function'});
-                else if (child['@node'] === 'InputNode') {
+                else if (key === RESULT_FIELD) {
+                    if (resultAt(field)) nodes.push({field, kind: 'result'});
+                } else if (child['@node'] === 'InputNode') {
                     const kind = inputKindOf(field, child);
                     if (kind) nodes.push({field, kind});
                 }
@@ -366,6 +442,8 @@ export function createFlowEditorService(
             }
             return nodes;
         },
+
+        isService: () => serviceAt() !== undefined,
 
         listCallees: () => calleeSchemas().map((schema) => schema.ref),
 
@@ -443,7 +521,7 @@ export function createFlowEditorService(
         },
 
         setNodeName(field, name) {
-            const input = inputAt(field);
+            const input = inputAt(field) ?? resultAt(field);
             if (input) {
                 const {'@node-name': _label, ...rest} = input;
                 const label = name.trim();
@@ -511,6 +589,13 @@ export function createFlowEditorService(
         },
 
         removeFromFlow(field) {
+            if (parameterName(field)) return failure('A parameter is always on the flow of its service');
+            if (resultAt(field)) {
+                const result = engine.remove(`${field}.@${RESULT_ANNOTATION}`);
+                if (isPortableError(result)) return result;
+                notify();
+                return;
+            }
             if (inputAt(field)) {
                 // `set` keeps the annotations of a record when it gets none; the annotation named after the
                 // node type is removed with both `@node` and `@node-name`.
@@ -533,6 +618,14 @@ export function createFlowEditorService(
         },
 
         deleteField(field) {
+            const parameter = parameterName(field);
+            if (parameter) {
+                if (usedBy(root, parameter)) return failure(`'${parameter}' is read by '${root}'`);
+                return editParameters(
+                    (parameters) => parameters.filter(([name]) => name !== parameter),
+                    (model) => removeCallArgument(model, root, parameter),
+                );
+            }
             const draftOnly = drafts.has(field) && !committedAt(field);
             drafts.delete(field);
             errors.delete(field);
@@ -540,7 +633,7 @@ export function createFlowEditorService(
                 notify();
                 return;
             }
-            const previous = (committedAt(field) ?? inputAt(field)) as PortableNode | undefined;
+            const previous = (committedAt(field) ?? inputAt(field) ?? resultAt(field)) as PortableNode | undefined;
             const result = engine.remove(field);
             if (isPortableError(result)) return result;
             try {
@@ -809,6 +902,181 @@ export function createFlowEditorService(
             return buildExpressionEmbedContext(engine.toPortable(), name === undefined ? field : `${field}.${name}`);
         },
 
+        getParameterNode(field): ParameterNodeModel {
+            const name = parameterName(field);
+            if (!name)
+                return {field, name: field.split('.').at(-1)!, type: 'any', fields: [], used: false, exists: false};
+            const declared = parametersOfService(serviceAt())[name];
+            const type = typeText(declared) ?? 'any';
+            // A record type: inline, or a type definition of the model by name.
+            let definition: unknown = declared;
+            let typePath: string | undefined;
+            if (typeof declared === 'string' && !PRIMITIVE_TYPES.has(declared)) {
+                const named = engine.get(declared, 'ALL');
+                if (isRecord(named) && named['@kind'] === 'type-definition') {
+                    definition = named;
+                    typePath = declared;
+                }
+            }
+            const fields: ParameterField[] =
+                isRecord(definition) && definition['@kind'] === 'type-definition'
+                    ? Object.entries(definition)
+                          .filter(([key]) => !key.startsWith('@'))
+                          .map(([key, child]) => ({name: key, type: typeText(child) ?? 'object'}))
+                    : [];
+            return {field, name, type, ...(typePath && {typePath}), fields, used: usedBy(root, name), exists: true};
+        },
+
+        createParameter() {
+            const service = serviceAt();
+            if (!service) return failure(`'${root}' is not a service`);
+            const taken = new Set([
+                ...Object.keys(parametersOfService(service)),
+                ...Object.keys(contextAt(root) ?? {}),
+            ]);
+            const name = uniqueName('param', taken);
+            const error = editParameters((parameters) => [...parameters, [name, 'number']]);
+            return error ?? childPath(root, name);
+        },
+
+        renameParameter(field, to) {
+            const from = parameterName(field);
+            if (!from) return failure(`node '${field}' does not exist`);
+            if (from === to) return;
+            if (!IDENTIFIER.test(to)) return failure(`'${to}' is not a valid parameter name`);
+            if (to in parametersOfService(serviceAt()) || to in (contextAt(root) ?? {})) {
+                return failure(`'${to}' already exists`, 'DuplicateName');
+            }
+            return editParameters(
+                (parameters) => parameters.map(([name, type]) => [name === from ? to : name, type]),
+                (model) => {
+                    const keys = contextKeys(model, root);
+                    const body = keys && renameIdentifier(valueAt(model, keys), from, to);
+                    return renameCallArgument(keys ? setAt(model, keys, body) : model, root, from, to);
+                },
+            );
+        },
+
+        setParameterType(field, type) {
+            const name = parameterName(field);
+            if (!name) return failure(`node '${field}' does not exist`);
+            const text = type.trim();
+            if (text === '') return failure('A type is required.');
+            return editParameters((parameters) =>
+                parameters.map(([key, declared]) => [key, key === name ? text : declared]),
+            );
+        },
+
+        getResultNode(field): ResultNodeModel {
+            const result = resultAt(field);
+            if (!result) return {field, fields: [], exists: false};
+            ensureLinked();
+            const schema = engine.get(root);
+            const returned = isRecord(schema) && isRecord(schema['@return']) ? schema['@return'] : {};
+            const label = result['@node-name'];
+            return {
+                field,
+                label: typeof label === 'string' ? label : undefined,
+                fields: Object.entries(result)
+                    .filter(([name]) => !name.startsWith('@'))
+                    .map(([name, value]) => ({name, type: typeText(returned[name]) ?? 'any', value: valueText(value)})),
+                exists: true,
+            };
+        },
+
+        createResultNode() {
+            if (!serviceAt()) return failure(`'${root}' is not a service`);
+            const body = contextAt(root);
+            if (body?.['@kind'] !== 'context') return failure(`The body of '${root}' is not a context`);
+            const field = childPath(root, RESULT_FIELD);
+            const existing = body[RESULT_FIELD];
+            if (isRecord(existing) && existing['@kind'] !== 'context') {
+                return failure(`The result of '${root}' is not a record`);
+            }
+            // Without a `return` record the service returns every field of its body: the result starts with them,
+            // so the callers keep reading what they read.
+            const node = isRecord(existing)
+                ? {...existing, '@node': RESULT_ANNOTATION}
+                : {
+                      '@kind': 'context',
+                      ...Object.fromEntries(
+                          Object.entries(body)
+                              .filter(([key, value]) => !key.startsWith('@') && !declarationKind(value))
+                              .map(([key]) => [key, {'@kind': 'expression', expression: key}]),
+                      ),
+                      '@node': RESULT_ANNOTATION,
+                  };
+            const written = setWithLinkCheck(
+                engine,
+                field,
+                node as unknown as PortableNode,
+                existing as PortableNode | undefined,
+            );
+            if (isPortableError(written)) return written;
+            notify();
+            return field;
+        },
+
+        bindResultField(field, name, sourcePath) {
+            const result = resultAt(field);
+            if (!result) return failure(`node '${field}' does not exist`);
+            const text = bindingPath(field, sourcePath);
+            if (name !== undefined && !(name in result)) return failure(`'${name}' does not exist`);
+            const taken = new Set(Object.keys(result));
+            const base = text.split('.').at(-1)!.replace(/\[.*$/, '');
+            const target = name ?? uniqueName(IDENTIFIER.test(base) ? base : 'value', taken);
+            const written = setWithLinkCheck(
+                engine,
+                `${field}.${target}`,
+                text as unknown as PortableNode,
+                result[target] as PortableNode | undefined,
+            );
+            if (isPortableError(written)) return written;
+            notify();
+        },
+
+        renameResultField(field, from, to) {
+            if (from === to) return;
+            if (!IDENTIFIER.test(to)) return failure(`'${to}' is not a valid field name`);
+            const result = resultAt(field);
+            if (result && to in result) return failure(`'${to}' already exists`, 'DuplicateName');
+            return editResult(field, (entries) =>
+                entries.some(([key]) => key === from)
+                    ? entries.map(([key, value]) => [key === from ? to : key, value])
+                    : undefined,
+            );
+        },
+
+        moveResultField(field, name, direction) {
+            return editResult(field, (entries) => {
+                const from = entries.findIndex(([key]) => key === name);
+                const to = direction === 'up' ? from - 1 : from + 1;
+                if (from < 0 || to < 0 || to >= entries.length) return undefined;
+                const next = [...entries];
+                [next[from], next[to]] = [next[to], next[from]];
+                return next;
+            });
+        },
+
+        removeResultField(field, name) {
+            return editResult(field, (entries) => entries.filter(([key]) => key !== name));
+        },
+
+        setResultFieldValue(field, name, text) {
+            const result = resultAt(field);
+            if (!result) return failure(`node '${field}' does not exist`);
+            if (!(name in result) || name.startsWith('@')) return failure(`'${name}' does not exist`);
+            if (text.trim() === '') return failure('A value is required.');
+            const written = setWithLinkCheck(
+                engine,
+                `${field}.${name}`,
+                text as unknown as PortableNode,
+                result[name] as PortableNode,
+            );
+            if (isPortableError(written)) return written;
+            notify();
+        },
+
         async readOutput(source) {
             const keys = source.split('.');
             let firstError: string | undefined;
@@ -863,6 +1131,19 @@ const NEW_INPUT: Record<InputKind, {base: string; node: PortableNode}> = {
         node: {'@kind': 'expression', expression: '0', '@node': 'InputNode'} as unknown as PortableNode,
     },
 };
+
+// Built-in types: a parameter of any other named type reads the fields of its type definition.
+const PRIMITIVE_TYPES = new Set([
+    'number',
+    'string',
+    'boolean',
+    'date',
+    'time',
+    'datetime',
+    'duration',
+    'period',
+    'any',
+]);
 
 const DECLARATION_KINDS: Record<string, InputDeclarationKind> = {
     function: 'function',
@@ -958,6 +1239,99 @@ function rewriteReads(node: unknown, names: string[], from: string, to: string, 
     return Object.fromEntries(
         Object.entries(node).map(([key, child]) => [key, rewriteReads(child, names, from, to, scoped, false)]),
     );
+}
+
+// Rewrites every read of the identifier `from` to `to` in the expression texts of `node`. A named argument label or a
+// record key (`from:`) is not a read.
+function renameIdentifier(node: unknown, from: string, to: string): unknown {
+    if (typeof node === 'string') {
+        return node.replace(new RegExp(`(?<![\\w.])${escapeRegExp(from)}\\b(?!\\s*:)`, 'g'), to);
+    }
+    if (Array.isArray(node)) return node.map((child) => renameIdentifier(child, from, to));
+    if (!isRecord(node)) return node;
+    // Metadata such as `@kind` or `@node` holds no expression; arguments and a function body do.
+    return Object.fromEntries(
+        Object.entries(node).map(([key, child]) => [
+            key,
+            key.startsWith('@') && key !== '@arguments' && key !== '@body' ? child : renameIdentifier(child, from, to),
+        ]),
+    );
+}
+
+// Applies `edit` to the named arguments of every call of `method` in the model: an invocation, and a call in an
+// expression text through `editText`.
+function editCallArguments(
+    node: unknown,
+    method: string,
+    edit: (args: [string, unknown][]) => [string, unknown][],
+    editText: (text: string) => string,
+): unknown {
+    if (typeof node === 'string') return editText(node);
+    if (Array.isArray(node)) return node.map((child) => editCallArguments(child, method, edit, editText));
+    if (!isRecord(node)) return node;
+    const next = Object.fromEntries(
+        Object.entries(node).map(([key, child]) => [key, editCallArguments(child, method, edit, editText)]),
+    );
+    if (isInvocation(node) && node['@method'] === method && isRecord(next['@arguments'])) {
+        next['@arguments'] = Object.fromEntries(edit(Object.entries(next['@arguments'])));
+    }
+    return next;
+}
+
+// `method(from: x)` becomes `method(to: x)` in every call of the model.
+function renameCallArgument(model: unknown, method: string, from: string, to: string): unknown {
+    return editCallArguments(
+        model,
+        method,
+        (args) => args.map(([name, value]) => [name === from ? to : name, value]),
+        (text) => renameNamedArgument(text, method, from, to),
+    );
+}
+
+// The named argument `name` leaves every invocation of `method`; a call in an expression text keeps it, and the
+// link check refuses the change.
+function removeCallArgument(model: unknown, method: string, name: string): unknown {
+    return editCallArguments(
+        model,
+        method,
+        (args) => args.filter(([key]) => key !== name),
+        (text) => text,
+    );
+}
+
+// Renames the label `from:` of the top-level named arguments of each call of `method` in an expression text.
+function renameNamedArgument(text: string, method: string, from: string, to: string): string {
+    const call = new RegExp(`(?<![\\w.])${escapeRegExp(method)}\\s*\\(`, 'g');
+    const label = new RegExp(`^(\\s*)${escapeRegExp(from)}(\\s*:)`);
+    let out = '';
+    let index = 0;
+    for (let match = call.exec(text); match; match = call.exec(text)) {
+        let at = match.index + match[0].length;
+        out += text.slice(index, at);
+        let depth = 0;
+        let argumentStart = true;
+        while (at < text.length) {
+            const named = argumentStart && depth === 0 ? label.exec(text.slice(at)) : null;
+            if (named) {
+                out += `${named[1]}${to}${named[2]}`;
+                at += named[0].length;
+                argumentStart = false;
+                continue;
+            }
+            const char = text[at];
+            argumentStart = false;
+            if ('([{'.includes(char)) depth += 1;
+            else if (')]}'.includes(char)) {
+                if (depth === 0) break;
+                depth -= 1;
+            } else if (char === ',' && depth === 0) argumentStart = true;
+            out += char;
+            at += 1;
+        }
+        index = at;
+        call.lastIndex = at;
+    }
+    return out + text.slice(index);
 }
 
 // The fields that invoke `method`, by path; the fields of a function body are addressed through the function.

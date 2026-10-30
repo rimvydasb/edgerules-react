@@ -137,3 +137,20 @@ test('a change in the split screen Boxed Editor shows on the canvas and recalcul
     await page.keyboard.press('Enter');
     await expect(payment).toHaveText('1000');
 });
+
+test('the service flow shows the request parameter, the body invocations and the Repayment result', async ({page}) => {
+    await openStory(page, 'models-loan-repayment--service-flow');
+    const request = page.getByTestId('parameter-node-loanRepayment.request');
+    await expect(request).toBeVisible(SLOW);
+    await expect(request).toContainText('LoanRequest');
+    for (const field of ['amount', 'years', 'creditScore']) await expect(request).toContainText(field);
+    for (const node of ['pricing', 'rate', 'annuity', 'fullSchedule', 'cost']) {
+        await expect(page.getByTestId(`function-node-loanRepayment.${node}`), node).toBeVisible();
+    }
+    const result = page.getByTestId('result-node-loanRepayment.return');
+    await expect(result).toContainText('Repayment');
+    await expect(result).toContainText('{ pricing, rate, payment, schedule, cost }');
+    // The parameter feeds the price tier, and the price tier feeds the result.
+    await expect(page.locator('.react-flow__edge[data-id="loanRepayment.pricing:creditScore"]')).toHaveCount(1);
+    await expect(page.locator('.react-flow__edge[data-id="loanRepayment.return:pricing"]')).toHaveCount(1);
+});

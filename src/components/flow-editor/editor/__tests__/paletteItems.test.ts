@@ -2,6 +2,7 @@ import {MutableDecisionService} from '@edgerules/node/mutable';
 import {describe, expect, it} from 'vitest';
 import {createFlowEditorService} from '../../service/createFlowEditorService';
 import {SAMPLE_MODEL} from '../../testing/sampleModel';
+import {SERVICE_MODEL} from '../../testing/serviceModel';
 import {filterItems, paletteItems} from '../paletteItems';
 
 function items() {
@@ -22,6 +23,22 @@ describe('paletteItems', () => {
             'output',
             'chart',
         ]);
+    });
+
+    it('offers a service flow a Parameter, one Invocation and the Result while it has none', () => {
+        const ids = (model: string) =>
+            paletteItems(createFlowEditorService(MutableDecisionService.fromCode(model), {root: 'f'})).map((item) => [
+                item.id,
+                item.group,
+                item.action,
+            ]);
+        expect(ids('{ @Service func f(a: number): { b: a } }')).toEqual([
+            ['parameter', 'input', {kind: 'parameter'}],
+            ['function', 'function', {kind: 'function'}],
+            ['result', 'output', {kind: 'result'}],
+        ]);
+        const service = createFlowEditorService(MutableDecisionService.fromCode(SERVICE_MODEL), {root: 'quote'});
+        expect(paletteItems(service).map((item) => item.id)).toEqual(['parameter', 'function']);
     });
 
     it('offers one Invocation item that picks the callee on the node', () => {

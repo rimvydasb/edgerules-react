@@ -2,7 +2,7 @@ import {isRecord} from '#lib/portableUtils';
 import type {ShellView} from './shell-types';
 
 /** What a root path segment is; it picks the icon of the header and the views that can show it. */
-export type ShellPathKind = 'context' | 'workbook' | 'function' | 'ruleset' | 'type' | 'field';
+export type ShellPathKind = 'context' | 'workbook' | 'function' | 'service' | 'ruleset' | 'type' | 'field';
 
 /** One breadcrumb item of a root path. */
 export interface ShellPathSegment {
@@ -18,6 +18,7 @@ function pathKind(node: unknown): ShellPathKind {
         case 'context':
             return node['@node'] === 'Workbook' ? 'workbook' : 'context';
         case 'function':
+            return node['@node'] === 'Service' ? 'service' : 'function';
         case 'external-function':
             return 'function';
         case 'ruleset':
@@ -67,16 +68,18 @@ export type ShellRootKind = 'model' | ShellPathKind;
 /**
  * The views of each root path kind; the view switch, the view fallback and the Project Explorer routing all read it.
  * - Code and Boxed show every entity.
- * - Flow is the canvas of the Flow Component nodes of a context: the model, a workbook or another context. A function,
- *   a ruleset, a type and a plain field have no nodes.
- * - Tests are the tests of a callable: the model, a function or a ruleset. A function is a test subject only when
- *   every argument has a type (see `untypedParameters`).
+ * - Flow is the canvas of the Flow Component nodes of a context: the model, a workbook or another context, and of
+ *   the body of a service, with its parameters and its result. Another function, a ruleset, a type and a plain field
+ *   have no nodes.
+ * - Tests are the tests of a callable: the model, a function, a service or a ruleset. A function is a test subject only
+ *   when every argument has a type (see `untypedParameters`).
  */
 export const ROOT_VIEWS: Record<ShellRootKind, readonly ShellView[]> = {
     model: ['code', 'boxed', 'flow', 'tests'],
     workbook: ['code', 'boxed', 'flow'],
     context: ['code', 'boxed', 'flow'],
     function: ['code', 'boxed', 'tests'],
+    service: ['code', 'boxed', 'flow', 'tests'],
     ruleset: ['code', 'boxed', 'tests'],
     type: ['code', 'boxed'],
     field: ['code', 'boxed'],

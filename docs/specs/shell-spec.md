@@ -178,6 +178,7 @@ A valid root path is `'*'` or the path of an entity. `ProjectExplorer` opens eac
 | Context field                | Yes, at any position | Code, Boxed, Flow        | `applicant`                  |
 | Workbook (`@Workbook`)       | Yes, at any position | Code, Boxed, Flow        | `loanBook`                   |
 | Function (`func`)            | Yes, last only       | Code, Boxed, Tests       | `applicant.calculateAge`     |
+| Service (`@Service` func)    | Yes, last only       | Code, Boxed, Flow, Tests | `loanRepayment`              |
 | Ruleset                      | Yes, last only       | Code, Boxed, Tests       | `band`                       |
 | Type definition              | Yes, last only       | Code, Boxed              | `Customer`                   |
 | Plain value or invocation    | Yes, last only       | Code, Boxed              | `limit`, `loanBook.decision` |
@@ -187,7 +188,7 @@ A valid root path is `'*'` or the path of an entity. `ProjectExplorer` opens eac
 - `Shell` MUST NOT support indexed paths. A path that contains `[` is not a valid root path.
 - A root path MUST NOT go below a function, or below any other entity that is not a context.
 - `Shell` opens the nearest valid ancestor for an invalid root path, and then calls `onPathChange`.
-- A function has no Flow view. Its body is a function, not a canvas of Flow Component nodes.
+- A function has no Flow view. A service has a Flow view: its parameters, the nodes of its body and its result.
 - A function is a test subject only if every argument has a type. The engine types a generic function at each call site.
 - `ShellViewSwitch` disables the cell of each view that the root path does not have.
 - A root path in a view that it does not have shows the Boxed view. `Shell` calls `onViewChange`.
@@ -221,7 +222,7 @@ The first item is the model name (`@model-name` of the model root), or `Model` w
 | `applicant.calculateAge` | `Model` › `applicant` › `calculateAge(...)` |
 
 - A context segment shows the field name.
-- A function or a ruleset segment shows its name and `(...)`. It is always the last item.
+- A function, a service or a ruleset segment shows its name and `(...)`. It is always the last item.
 - A click on an item sets the root path to the path of that item.
 - In the Tests view, a click on an item also sets the view to Boxed.
 - The kind icon shows the root path kind in the colors of the Boxed Editor rows:
@@ -231,6 +232,7 @@ The first item is the model name (`@model-name` of the model root), or `Model` w
 | Model (`'*'`)   | `IconSitemap`      | Dark   |
 | Workbook        | `IconBook2`        | Dark   |
 | Function        | `IconMathFunction` | Blue   |
+| Service         | `IconMathFunction` | Gold   |
 | Ruleset         | `IconListCheck`    | Purple |
 | Type definition | `IconTag`          | Orange |
 | Context         | `IconBraces`       | Muted  |
@@ -248,6 +250,7 @@ The first item is the model name (`@model-name` of the model root), or `Model` w
 | Active view   | Opened entry                                      | Root path     | View                       |
 | ------------- | ------------------------------------------------- | ------------- | -------------------------- |
 | Any           | A test                                            | Subject ID    | Tests                      |
+| Any           | A service                                         | Entry path    | Flow                       |
 | Code or Boxed | Any other entry                                   | Entry path    | Unchanged                  |
 | Flow          | A context or a workbook                           | Entry path    | Flow                       |
 | Flow          | A node of a workbook, for example `function-node` | Workbook path | Flow, the node is centered |
@@ -293,6 +296,8 @@ opens the Flow view of the workbook.
 | Subtitle    | The field name, when the annotation has a name                             |
 | Description | The description of the workbook, three lines at most, or `No description`  |
 | Footer      | The number of `@InputNode` and `@FunctionNode` fields, and `Open flow`     |
+
+A panel of a service opens the Flow view of the service.
 
 ### Navigation changes the root path or the view
 
@@ -367,9 +372,29 @@ annotation as a node.
   when its parent context is the root path.
 - Node ids stay fully qualified field paths, for example `applicant.score`.
 - A new node, for example from the palette, is a direct field of the root path context.
+- A service root adds one `ParameterNode` for each parameter and one `ResultNode` for its `@ResultNode` `return` record.
+  The [Flow view of a service](#the-flow-view-of-a-service-shows-its-parameters-and-its-result) gives the details.
 - Each root path has its own `FlowLayout`: node positions, output nodes and chart nodes.
 - `FlowMetadataDocument` holds one `FlowLayout` for each root path, keyed by the root path.
 - The `renamePath` command moves the layout keys and the node position keys with the renamed path.
+
+### The Flow view of a service shows its parameters and its result
+
+| Node            | Node id                 | Source in the model                         | Pins                                                     |
+| --------------- | ----------------------- | ------------------------------------------- | -------------------------------------------------------- |
+| `ParameterNode` | `<service>.<parameter>` | One entry of `@parameters` and its type     | Out: one per field of a record type, and the whole value |
+| `FunctionNode`  | `<service>.<field>`     | A `@FunctionNode` field of the body         | In: arguments. Out: results                              |
+| `ResultNode`    | `<service>.return`      | The `return` record annotated `@ResultNode` | In: one per field, and the add pin `in:+`                |
+
+- A `ParameterNode` shows types only. It has no value to edit.
+- A `ParameterNode` title is the parameter name. A rename migrates the body and the named arguments of each call.
+- A `ParameterNode` is always on the canvas. `Delete parameter` is disabled while the body reads the parameter.
+- A `ResultNode` shows the expression of each field. It shows no computed value.
+- A wire into `in:+` adds a field named after the wired value. A wire into a field pin replaces its expression.
+- The engine link check refuses a result change that breaks a caller. A field that a caller reads stays.
+- The palette of a service offers `Parameter`, `Invocation` and `Result`. `Result` shows only while the service has no
+  result node.
+- `Result` annotates an existing `return` record. Without one, it creates `return` with each value field of the body.
 
 ### The root path follows model changes
 
@@ -422,6 +447,9 @@ current model on mount, so it shows the changes of the other views.
 
 ## Limitations
 
+- A new service parameter is required. The link check refuses it while a call of the service does not pass it.
+- Output and chart nodes are not in the palette of a service. The engine executes a model field, not a path in a
+  function body.
 - `Shell` shows one session. Project selection, tabs and session lifetime belong to the host application.
 
 ## Clarifications

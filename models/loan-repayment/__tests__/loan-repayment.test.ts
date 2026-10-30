@@ -113,6 +113,12 @@ describe('loan repayment model', () => {
             expect(cost.totalPaid).toBe(cents([amount, cost.totalInterest]));
         });
 
+        it('returns only the values of its result', async () => {
+            const result = await repay(20000, 5, 700);
+            // `annuity` and `fullSchedule` are steps of the body, not part of the result.
+            expect(Object.keys(result)).toEqual(['pricing', 'rate', 'payment', 'schedule', 'cost']);
+        });
+
         it('returns an empty schedule for a declined request', async () => {
             const result = await repay(20000, 5, 550);
             expect(result).toMatchObject({pricing: {approved: false}, payment: 0, schedule: []});

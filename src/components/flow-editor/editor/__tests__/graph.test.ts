@@ -2,6 +2,7 @@ import {MutableDecisionService} from '@edgerules/node/mutable';
 import {describe, expect, it} from 'vitest';
 import {createFlowEditorService} from '../../service/createFlowEditorService';
 import {SAMPLE_MODEL} from '../../testing/sampleModel';
+import {SERVICE_MODEL} from '../../testing/serviceModel';
 import {autoLayout, findFreeSpot, modelWires, outputWires, qualifyBinding, resolveSource} from '../graph';
 
 describe('resolveSource', () => {
@@ -39,6 +40,22 @@ describe('modelWires', () => {
             ['decision:age', 'applicant', 'out:age', 'in:age', 'number'],
             ['decision:income', 'applicant', 'out:income', 'in:income', 'number'],
             ['decision:segment', 'applicant', 'out:segment', 'in:segment', 'string'],
+        ]);
+    });
+
+    it('wires the parameters of a service into its nodes, and its nodes into the fields of its result', () => {
+        const service = createFlowEditorService(MutableDecisionService.fromCode(SERVICE_MODEL), {root: 'quote'});
+        const wires = modelWires(
+            service.listNodes(),
+            (field) => service.getFunctionNode(field),
+            (field) => service.getResultNode(field),
+        );
+        expect(wires.map((wire) => [wire.source, wire.sourceHandle, wire.target, wire.targetHandle])).toEqual([
+            ['quote.applicant', 'out:age', 'quote.score', 'in:age'],
+            ['quote.applicant', 'out:income', 'quote.score', 'in:income'],
+            ['quote.amount', 'out:*', 'quote.installment', 'in:amount'],
+            ['quote.score', 'out:result', 'quote.return', 'in:score'],
+            ['quote.installment', 'out:result', 'quote.return', 'in:installment'],
         ]);
     });
 

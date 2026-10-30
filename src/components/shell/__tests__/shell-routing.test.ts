@@ -8,6 +8,8 @@ const model = MutableDecisionService.fromCode(
     `{
     type Customer: { name: <string> }
     func riskScore(income: number): { score: income / 100 }
+    @Service
+    func quote(income: number): { score: riskScore(income).score }
     limit: 1000
     applicant: { age: 21 }
     @Workbook
@@ -27,6 +29,9 @@ describe('explorerRoute', () => {
         ['boxed', {kind: 'workbook', path: 'book'}, {path: 'book', view: 'flow'}],
         ['code', {kind: 'workbook', path: '*'}, {path: '*', view: 'flow'}],
         ['tests', {kind: 'workbook', path: 'book'}, {path: 'book', view: 'flow'}],
+        // A service opens in the Flow view too: its parameters, its body and its result.
+        ['boxed', {kind: 'service', path: 'quote'}, {path: 'quote', view: 'flow'}],
+        ['tests', {kind: 'service', path: 'quote'}, {path: 'quote', view: 'flow'}],
         ['boxed', {kind: 'function-node', path: 'book.score'}, {path: 'book', view: 'flow', focus: 'book.score'}],
         ['flow', {kind: 'function-node', path: 'book.score'}, {path: 'book', view: 'flow', focus: 'book.score'}],
         ['code', {kind: 'input-node', path: 'applicant'}, {path: '*', view: 'flow', focus: 'applicant'}],

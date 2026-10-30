@@ -38,6 +38,7 @@ function KindGlyph({kind}: {kind: GlyphKind}): ReactElement {
         case 'workbook':
             return <IconBook2 size={19} color="#fff" />;
         case 'function':
+        case 'service':
             return <IconMathFunction size={19} color="#fff" />;
         case 'ruleset':
             return <IconListCheck size={19} color="#fff" />;
@@ -55,13 +56,16 @@ const KIND_FILL: Partial<Record<GlyphKind, string>> = {
     tests: '#2f9e44',
     workbook: KIND_COLORS.model,
     function: KIND_COLORS.function,
+    service: KIND_COLORS.service,
     ruleset: KIND_COLORS.ruleset,
     type: KIND_COLORS.complexType,
 };
 
 // A callable reads as a call: `name(...)`.
 function segmentLabel(segment: ShellPathSegment): string {
-    return segment.kind === 'function' || segment.kind === 'ruleset' ? `${segment.name}(...)` : segment.name;
+    return segment.kind === 'function' || segment.kind === 'service' || segment.kind === 'ruleset'
+        ? `${segment.name}(...)`
+        : segment.name;
 }
 
 // The kind icon square opens the root path in its main editor: the Flow Editor, or the Boxed Editor when the root

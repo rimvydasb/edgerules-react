@@ -3,6 +3,7 @@ import {parentPath} from '#lib/portableUtils';
 import {typeKind} from '../core-node';
 import type {FlowNodeRef} from '../flow-editor-types';
 import type {FunctionNodeModel} from '../function-node/types';
+import type {ResultNodeModel} from '../result-node/types';
 import type {FlowOutput} from './types';
 
 /** A wire as the canvas draws it; the editor turns it into an xyflow edge. */
@@ -24,14 +25,14 @@ export interface Box {
 
 export type LayoutKind = FlowNodeRef['kind'] | 'output' | 'chart';
 
-/** Input nodes only feed: they sit in the first column. */
+/** Input and parameter nodes only feed: they sit in the first column. */
 function isSource(kind: LayoutKind | undefined): boolean {
-    return kind === 'object-input' || kind === 'list-input' || kind === 'value-input';
+    return kind === 'object-input' || kind === 'list-input' || kind === 'value-input' || kind === 'parameter';
 }
 
-/** Output and chart nodes only read: they sit one column after their source. */
+/** Output, chart and result nodes only read: they sit one column after their source. */
 function isSink(kind: LayoutKind | undefined): boolean {
-    return kind === 'output' || kind === 'chart';
+    return kind === 'output' || kind === 'chart' || kind === 'result';
 }
 
 export interface LayoutNode {
@@ -76,28 +77,44 @@ export function qualifyBinding(text: string, field: string, nodes: ReadonlyMap<s
     return nodes.has(`${scope}.${first}`) ? `${scope}.${text}` : text;
 }
 
-/** The wires of every path-bound argument whose source is a node on the canvas. */
-export function modelWires(refs: FlowNodeRef[], functionModel: (field: string) => FunctionNodeModel): Wire[] {
+/**
+ * The wires of every path-bound argument, and of every field of a result node, whose source is a node on the canvas.
+ */
+export function modelWires(
+    refs: FlowNodeRef[],
+    functionModel: (field: string) => FunctionNodeModel,
+    resultModel?: (field: string) => ResultNodeModel,
+): Wire[] {
     const models = new Map(
         refs.filter((ref) => ref.kind === 'function').map((ref) => [ref.field, functionModel(ref.field)]),
     );
     const sources = new Map<string, {whole?: boolean}>(
-        refs.map((ref) => [ref.field, {whole: models.get(ref.field)?.results.some((result) => result.whole)}]),
+        refs
+            .filter((ref) => ref.kind !== 'result')
+            .map((ref) => [ref.field, {whole: models.get(ref.field)?.results.some((result) => result.whole)}]),
     );
     const wires: Wire[] = [];
+    const wire = (field: string, pin: string, text: string, type: string) => {
+        const source = resolveSource(qualifyBinding(text.trim(), field, sources), sources);
+        if (!source || source.node === field) return;
+        wires.push({
+            id: `${field}:${pin}`,
+            source: source.node,
+            sourceHandle: source.handle,
+            target: field,
+            targetHandle: `in:${pin}`,
+            kind: typeKind(type),
+        });
+    };
     for (const [field, model] of models) {
         for (const argument of model.arguments) {
-            if (argument.binding?.kind !== 'path') continue;
-            const source = resolveSource(qualifyBinding(argument.binding.text.trim(), field, sources), sources);
-            if (!source || source.node === field) continue;
-            wires.push({
-                id: `${field}:${argument.name}`,
-                source: source.node,
-                sourceHandle: source.handle,
-                target: field,
-                targetHandle: `in:${argument.name}`,
-                kind: typeKind(argument.type),
-            });
+            if (argument.binding?.kind === 'path') wire(field, argument.name, argument.binding.text, argument.type);
+        }
+    }
+    for (const ref of refs) {
+        if (ref.kind !== 'result' || !resultModel) continue;
+        for (const item of resultModel(ref.field).fields) {
+            if (item.value !== undefined) wire(ref.field, item.name, item.value, item.type);
         }
     }
     return wires;

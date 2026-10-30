@@ -26,9 +26,11 @@ export function NodeFrame({
     menuItems,
     editing,
     onEditingChange,
+    onRenameNode,
     children,
 }: NodeFrameProps): ReactElement {
     const {service, documentation, readOnly = false} = useFlowEditor();
+    const renameNode = onRenameNode ?? ((text: string) => runCommand(() => service.setNodeName(field, text)));
     const title = label ?? field;
     const stopEditing = () => onEditingChange(null);
 
@@ -50,9 +52,7 @@ export function NodeFrame({
                                     value={label ?? ''}
                                     ariaLabel={`Name of node ${field}`}
                                     placeholder={field}
-                                    onCommit={(text) =>
-                                        runCommand(() => service.setNodeName(field, text)) ?? stopEditing()
-                                    }
+                                    onCommit={(text) => renameNode(text) ?? stopEditing()}
                                     onCancel={stopEditing}
                                 />
                             ) : (

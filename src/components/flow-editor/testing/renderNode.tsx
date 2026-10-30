@@ -8,6 +8,8 @@ import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types
 import {FunctionNode} from '../function-node/FunctionNode';
 import {ListInputNode} from '../list-input-node/ListInputNode';
 import {ObjectInputNode} from '../object-input-node/ObjectInputNode';
+import {ParameterNode} from '../parameter-node/ParameterNode';
+import {ResultNode} from '../result-node/ResultNode';
 import {createFlowEditorService, type FlowEditorEngine} from '../service/createFlowEditorService';
 import {ValueInputNode} from '../value-input-node/ValueInputNode';
 import {SAMPLE_MODEL} from './sampleModel';
@@ -17,8 +19,11 @@ const nodeTypes = {
     objectInputNode: ObjectInputNode,
     listInputNode: ListInputNode,
     valueInputNode: ValueInputNode,
+    parameterNode: ParameterNode,
+    resultNode: ResultNode,
 };
 const INPUT_TYPES = {object: 'objectInputNode', list: 'listInputNode', value: 'valueInputNode'} as const;
+const SERVICE_TYPES = {parameter: 'parameterNode', result: 'resultNode'} as const;
 
 export interface RenderedNode {
     service: FlowEditorService;
@@ -33,12 +38,14 @@ export function renderNode(
         model?: string;
         draft?: boolean;
         input?: 'object' | 'list' | 'value'; // render an input node; the record, list or value at `field` is annotated first
+        service?: 'parameter' | 'result'; // render a node of the service flow of `root`
+        root?: string; // the flow root of the service; defaults to '*'
         readOnly?: boolean;
         onOpenNode?: (target: FlowEditorOpenTarget) => void;
     } = {},
 ): RenderedNode {
     const mutable = MutableDecisionService.fromCode(options.model ?? SAMPLE_MODEL);
-    const service = createFlowEditorService(mutable);
+    const service = createFlowEditorService(mutable, {root: options.root});
     const documentation = createDocumentationService(`fn-${Math.random()}`);
     if (options.input) service.addInputNode(field);
     const nodeField = options.draft ? service.createDraftNode() : field;
@@ -56,7 +63,11 @@ export function renderNode(
                         nodes={[
                             {
                                 id: nodeField,
-                                type: options.input ? INPUT_TYPES[options.input] : 'functionNode',
+                                type: options.service
+                                    ? SERVICE_TYPES[options.service]
+                                    : options.input
+                                      ? INPUT_TYPES[options.input]
+                                      : 'functionNode',
                                 position: {x: 0, y: 0},
                                 data: {field: nodeField},
                                 width: 400,

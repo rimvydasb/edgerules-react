@@ -211,7 +211,7 @@ describe('Shell project explorer', () => {
         expect(await screen.findByTestId('function-node-loanBook.decision')).toBeInTheDocument();
     });
 
-    it('offers a panel per service method in the workbook picker, and opens the clicked one', async () => {
+    it('offers a panel per service method in the workbook picker, and opens the clicked one in the Flow view', async () => {
         const {session} = await openFixtureProject({
             model: {
                 dsl: `{
@@ -236,7 +236,9 @@ describe('Shell project explorer', () => {
         expect(within(services).getByText('1 argument')).toBeInTheDocument();
         await user.click(within(services).getByRole('button', {name: 'quote(...)'}));
         expect(breadcrumbItems()).toEqual(['Model', 'quote(...)']);
-        expect(screen.getByRole('radio', {name: 'Boxed'})).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByRole('radio', {name: 'Flow'})).toHaveAttribute('aria-checked', 'true');
+        // The flow of a service shows its parameter.
+        expect(await screen.findByTestId('parameter-node-quote.income')).toHaveTextContent('number');
     });
 
     it('creates a workbook from the add panel of the workbook picker and opens its flow', async () => {

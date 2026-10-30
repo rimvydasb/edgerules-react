@@ -113,6 +113,7 @@ export interface NodeFrameProps {
     menuItems: RowMenuItem[];
     editing: NodeEditing<{kind: string}> | null;
     onEditingChange: (editing: CoreEditing | null) => void;
+    onRenameNode?: (text: string) => string | void; // replaces the '@node-name' write; returns an error text
     children: ReactNode; // the body: tracks, or an empty state
 }
 

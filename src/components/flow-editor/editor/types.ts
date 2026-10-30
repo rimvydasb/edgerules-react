@@ -1,7 +1,7 @@
 import type {FlowLayout} from '#lib/flowLayout';
 import type {CodeEditorService} from '../../code-editor-cell';
 import type {DocumentationService} from '../../documentation-service';
-import type {FlowEditorOpenTarget, FlowEditorService, FlowNodeRef} from '../flow-editor-types';
+import type {FlowEditorOpenTarget, FlowEditorService} from '../flow-editor-types';
 
 export interface FlowEditorProps {
     service: FlowEditorService; // engine-backed node service from createFlowEditorService()
@@ -18,11 +18,12 @@ export interface FlowEditorProps {
 }
 
 /**
- * The one selected node of the canvas. A model node is a field of the model; an output or a chart node is a sink that
- * shows the value of the model path wired into it (`source`, undefined while nothing is wired).
+ * The one selected node of the canvas. A model node is a field of the model, or a parameter of a service; an output or
+ * a chart node is a sink that shows the value of the model path wired into it (`source`, undefined while nothing is
+ * wired).
  */
 export type FlowSelection =
-    | {kind: 'function' | 'object-input' | 'list-input' | 'value-input'; field: string}
+    | {kind: 'function' | 'object-input' | 'list-input' | 'value-input' | 'parameter' | 'result'; field: string}
     | {kind: 'output' | 'chart'; id: string; label?: string; source?: string};
 
 /** Asks the canvas to select one node and center it; each new object is a new request. */
@@ -36,13 +37,16 @@ export type PaletteGroup = 'input' | 'function' | 'output' | 'chart';
 
 /** What a palette item creates. */
 export type PaletteAction =
-    | {kind: 'new-input'; input: Exclude<FlowNodeRef['kind'], 'function'>} // a new record, list or single value
+    | {kind: 'new-input'; input: 'object-input' | 'list-input' | 'value-input'} // a new record, list or single value
     | {kind: 'input'; field: string} // annotate an existing record or list
     | {kind: 'function'} // a draft invocation; the user picks what it invokes on the node
     | {kind: 'output'}
-    | {kind: 'chart'};
+    | {kind: 'chart'}
+    | {kind: 'parameter'} // a service only: a new parameter
+    | {kind: 'result'}; // a service only: its `return` record as the result node
 
-export type PaletteIcon = 'input' | 'list-input' | 'value-input' | 'function' | 'output' | 'chart';
+export type PaletteIcon =
+    'input' | 'list-input' | 'value-input' | 'function' | 'output' | 'chart' | 'parameter' | 'result';
 
 export interface PaletteItem {
     id: string; // stable key, also the drag payload

@@ -26,7 +26,8 @@ export interface FlowViewProps {
 }
 
 /**
- * The Flow Component nodes that are direct fields of the root path context, on the canvas of that root. With the split
+ * The Flow Component nodes that are direct fields of the root path context, on the canvas of that root; a service
+ * root adds its parameters and its result. With the split
  * screen on, the selected node shows on the right in a Boxed Editor: a function node as the body of its callee, an
  * input node at its field path. An Output or a Chart node shows the full data wired into it. Selecting an Output or
  * an Input node that shows only a part of its data opens the split screen. A click on the empty canvas clears the
@@ -49,9 +50,11 @@ export function FlowView({
     const [defaultLayout] = useState(() => session.flow.getLayout(root));
     const onLayoutChange = useCallback((layout: FlowLayout) => session.flow.setLayout(root, layout), [session, root]);
     const [selection, setSelection] = useState<FlowSelection | undefined>();
-    // A function node shows the body of the function or ruleset it calls; a draft without a callee, its own field.
+    // A function node shows the body of the function or ruleset it calls; a draft without a callee, its own field. A
+    // parameter shows its record type; a parameter of another type has nothing to show.
     const boxedPath = useMemo(() => {
         if (!selection || !('field' in selection)) return undefined;
+        if (selection.kind === 'parameter') return service.getParameterNode(selection.field).typePath;
         if (selection.kind !== 'function') return selection.field;
         return service.getFunctionNode(selection.field).callee?.path ?? selection.field;
         // `version` re-reads the callee after a model change.

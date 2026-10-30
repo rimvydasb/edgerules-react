@@ -12,11 +12,53 @@ export const GROUP_LABEL: Record<PaletteGroup, string> = {
 
 export const GROUP_ORDER: PaletteGroup[] = ['input', 'function', 'output', 'chart'];
 
+const INVOCATION: PaletteItem = {
+    id: 'function',
+    group: 'function',
+    icon: 'function',
+    title: 'Invocation',
+    detail: 'Pick a function or ruleset on the node',
+    label: 'Add invocation',
+    action: {kind: 'function'},
+};
+
+/**
+ * The nodes of a service flow: a new Parameter, one Invocation, and the Result while the service has none. The values
+ * of a service come from its parameters and leave through its result, so it has no data inputs, outputs or charts.
+ */
+function serviceItems(service: FlowEditorService): PaletteItem[] {
+    const items: PaletteItem[] = [
+        {
+            id: 'parameter',
+            group: 'input',
+            icon: 'parameter',
+            title: 'Parameter',
+            detail: 'A number parameter of the service',
+            label: 'Add parameter',
+            action: {kind: 'parameter'},
+        },
+        INVOCATION,
+    ];
+    if (!service.listNodes().some((node) => node.kind === 'result')) {
+        items.push({
+            id: 'result',
+            group: 'output',
+            icon: 'result',
+            title: 'Result',
+            detail: 'The values the service returns',
+            label: 'Add result',
+            action: {kind: 'result'},
+        });
+    }
+    return items;
+}
+
 /**
  * Every node the palette offers: a new input of each kind and the records and lists of the model, one Invocation that
- * picks what it invokes on the node, an Output and a Chart.
+ * picks what it invokes on the node, an Output and a Chart. A service flow offers its own nodes (`serviceItems`).
  */
 export function paletteItems(service: FlowEditorService): PaletteItem[] {
+    if (service.isService()) return serviceItems(service);
     const items: PaletteItem[] = [
         {
             id: 'new-input',
@@ -54,15 +96,7 @@ export function paletteItems(service: FlowEditorService): PaletteItem[] {
             label: `Add input ${field}`,
             action: {kind: 'input', field},
         })),
-        {
-            id: 'function',
-            group: 'function',
-            icon: 'function',
-            title: 'Invocation',
-            detail: 'Pick a function or ruleset on the node',
-            label: 'Add invocation',
-            action: {kind: 'function'},
-        },
+        INVOCATION,
         {
             id: 'output',
             group: 'output',

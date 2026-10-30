@@ -139,12 +139,14 @@ test.describe('the Project Explorer follows the shown entity', () => {
         await expect(entry(page, 'function', 'yearlySummary')).toHaveAttribute('aria-selected', 'true');
     });
 
-    test('a service opened from the workbook picker is selected in Service Methods', async ({page}) => {
+    test('a service opened from the workbook picker opens its flow and is selected in Service Methods', async ({
+        page,
+    }) => {
         await openStory(page, 'models-loan-repayment--overview');
         await section(page, 'Service Methods').click(SLOW);
         await crumbs(page).getByRole('button', {name: 'Loan Repayment Planner'}).click();
         await page.getByTestId('shell-service-loanRepayment').click();
-        await expectView(page, 'Boxed');
+        await expectView(page, 'Flow');
         await expect(entry(page, 'service', 'loanRepayment')).toBeVisible();
         await expect(entry(page, 'service', 'loanRepayment')).toHaveAttribute('aria-selected', 'true');
     });

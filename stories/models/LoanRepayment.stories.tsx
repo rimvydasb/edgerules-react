@@ -33,5 +33,11 @@ export const MortgageBook: Story = {args: {defaultPath: 'mortgageBook', defaultV
 /** The `termComparisonBook` workbook: the same loan over 15 and 30 years, and the balance of both by year. */
 export const TermComparisonBook: Story = {args: {defaultPath: 'termComparisonBook', defaultView: 'flow'}};
 
+/**
+ * The flow of the `loanRepayment` service: the `request` parameter drawn from its `LoanRequest` type, the invocations
+ * of its body, and the Repayment result with the values the service returns.
+ */
+export const ServiceFlow: Story = {args: {defaultPath: 'loanRepayment', defaultView: 'flow'}};
+
 /** The tests of the `loanRepayment` service. Run all to check every case. */
 export const ServiceTests: Story = {args: {defaultPath: 'loanRepayment', defaultView: 'tests'}};

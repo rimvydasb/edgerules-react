@@ -41,6 +41,8 @@ import {ListInputNode} from '../list-input-node/ListInputNode';
 import {ObjectInputNode} from '../object-input-node/ObjectInputNode';
 import {OutputNode, sourcePath} from '../output-node/OutputNode';
 import type {OutputNodeData} from '../output-node/types';
+import {ParameterNode} from '../parameter-node/ParameterNode';
+import {ADD_PIN, ResultNode} from '../result-node/ResultNode';
 import {ValueInputNode} from '../value-input-node/ValueInputNode';
 import {autoLayout, findFreeSpot, modelWires, outputWires, type LayoutKind, type Wire} from './graph';
 import {ICON_COLOR, NodePalette} from './NodePalette';
@@ -63,6 +65,8 @@ const NODE_TYPES = {
     valueInputNode: ValueInputNode,
     outputNode: OutputNode,
     chartNode: ChartNode,
+    parameterNode: ParameterNode,
+    resultNode: ResultNode,
 };
 const TYPE_OF: Record<LayoutKind, keyof typeof NODE_TYPES> = {
     function: 'functionNode',
@@ -71,6 +75,8 @@ const TYPE_OF: Record<LayoutKind, keyof typeof NODE_TYPES> = {
     'value-input': 'valueInputNode',
     output: 'outputNode',
     chart: 'chartNode',
+    parameter: 'parameterNode',
+    result: 'resultNode',
 };
 const KIND_OF: Record<string, LayoutKind> = {
     functionNode: 'function',
@@ -79,6 +85,8 @@ const KIND_OF: Record<string, LayoutKind> = {
     valueInputNode: 'value-input',
     outputNode: 'output',
     chartNode: 'chart',
+    parameterNode: 'parameter',
+    resultNode: 'result',
 };
 // Output and chart nodes exist on the canvas only: the model never adds or removes them.
 const CANVAS_TYPES = new Set(['outputNode', 'chartNode']);
@@ -89,6 +97,8 @@ const MINIMAP_COLOR: Record<LayoutKind, string> = {
     function: ICON_COLOR.function,
     output: ICON_COLOR.output,
     chart: ICON_COLOR.chart,
+    parameter: ICON_COLOR.parameter,
+    result: ICON_COLOR.result,
 };
 const ROW = 40;
 const FIT_VIEW = {padding: 0.15, maxZoom: 1};
@@ -103,9 +113,9 @@ const WIRE_CLASS: Record<Wire['kind'], string> = {
 };
 
 /**
- * The EdgeRules Flow Editor: a canvas of Input, Function, Output and Chart nodes with a node palette on the left.
- * Nodes and wires come from the model; positions, output nodes and chart nodes are presentation data reported
- * through `onLayoutChange`.
+ * The EdgeRules Flow Editor: a canvas of Input, Function, Output and Chart nodes with a node palette on the left; the
+ * flow of a `@Service` has Parameter, Function and Result nodes. Nodes and wires come from the model; positions,
+ * output nodes and chart nodes are presentation data reported through `onLayoutChange`.
  */
 export function FlowEditor({
     service,
@@ -154,6 +164,9 @@ function estimateSize(service: FlowEditorService, id: string, kind: LayoutKind):
     if (kind === 'list-input')
         return {width: 280, height: (3 + Math.max(1, service.getListInputNode(id).itemFields.length)) * ROW};
     if (kind === 'value-input') return {width: 240, height: 3 * ROW};
+    if (kind === 'parameter')
+        return {width: 280, height: (3 + Math.max(1, service.getParameterNode(id).fields.length)) * ROW};
+    if (kind === 'result') return {width: 320, height: (4 + service.getResultNode(id).fields.length) * ROW};
     const model = service.getFunctionNode(id);
     if (!model.callee) return {width: 320, height: 3 * ROW};
     return {width: 360, height: (3 + Math.max(model.arguments.length, model.results.length)) * ROW};
@@ -277,7 +290,12 @@ function FlowCanvas({
     const [fitOnInit] = useState(() => refs.length + outputs.length + charts.length > 0);
     const loaded = useRef(!fitOnInit);
     const wires = useMemo(
-        () => modelWires(refs, (field) => service.getFunctionNode(field)),
+        () =>
+            modelWires(
+                refs,
+                (field) => service.getFunctionNode(field),
+                (field) => service.getResultNode(field),
+            ),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [service, refs, version],
     );
@@ -356,7 +374,8 @@ function FlowCanvas({
                     position: pending.current.get(node.id) ?? {x: 0, y: 0},
                     data: node.data,
                     selected,
-                    deletable: !readOnly,
+                    // A parameter is always on the flow of its service: its menu deletes it from the service.
+                    deletable: !readOnly && node.kind !== 'parameter',
                     // A chart has a size of its own, which the resize handle changes; other nodes fit their rows.
                     ...node.size,
                 };
@@ -470,6 +489,11 @@ function FlowCanvas({
             if (!isPortableError(created)) place(created);
             return;
         }
+        if (action.kind === 'parameter' || action.kind === 'result') {
+            const created = action.kind === 'parameter' ? service.createParameter() : service.createResultNode();
+            if (!isPortableError(created)) place(created);
+            return;
+        }
         place(service.createDraftNode());
     };
 
@@ -489,6 +513,10 @@ function FlowCanvas({
 
     const outputIds = useMemo(() => new Set(outputs.map((output) => output.id)), [outputs]);
     const chartIds = useMemo(() => new Set(charts.map((chart) => chart.id)), [charts]);
+    const resultIds = useMemo(
+        () => new Set(refs.filter((ref) => ref.kind === 'result').map((ref) => ref.field)),
+        [refs],
+    );
 
     const onConnect = useCallback(
         (connection: Connection) => {
@@ -513,10 +541,17 @@ function FlowCanvas({
                 );
                 return;
             }
+            const path = sourcePath(service, source, sourceHandle);
+            if (resultIds.has(target)) {
+                // The add pin adds a new field named after the wired value; a field pin rebinds that field.
+                const name = targetHandle === ADD_PIN ? undefined : targetHandle.slice('in:'.length);
+                service.bindResultField(target, name, path);
+                return;
+            }
             // A rejected binding shows on the target node as its error row.
-            service.bindArgument(target, targetHandle.slice('in:'.length), sourcePath(service, source, sourceHandle));
+            service.bindArgument(target, targetHandle.slice('in:'.length), path);
         },
-        [service, outputIds, chartIds],
+        [service, outputIds, chartIds, resultIds],
     );
 
     const isValidConnection: IsValidConnection = useCallback(
@@ -545,6 +580,9 @@ function FlowCanvas({
             for (const edge of unwired) {
                 if (outputIds.has(edge.target)) unwiredOutputs.add(edge.target);
                 else if (chartIds.has(edge.target)) unwiredCharts.add(edge.target);
+                // A wire into the result is a value the service returns: it leaves the result, unless a caller reads it.
+                else if (resultIds.has(edge.target) && edge.targetHandle)
+                    service.removeResultField(edge.target, edge.targetHandle.slice('in:'.length));
                 else if (edge.targetHandle) service.unbindArgument(edge.target, edge.targetHandle.slice('in:'.length));
             }
             if (removedOutputs.size > 0 || unwiredOutputs.size > 0) {
@@ -564,7 +602,7 @@ function FlowCanvas({
             }
             return false;
         },
-        [service, outputIds, chartIds],
+        [service, outputIds, chartIds, resultIds],
     );
 
     const onNodesChange = useCallback((changes: NodeChange[]) => {

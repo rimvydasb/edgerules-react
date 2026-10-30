@@ -5,6 +5,7 @@ import {createDocumentationService} from '../../../documentation-service';
 import {createFlowEditorService} from '../../service/createFlowEditorService';
 import {LOAN_MODEL} from '../../testing/loanModel';
 import {SAMPLE_MODEL} from '../../testing/sampleModel';
+import {SERVICE_MODEL} from '../../testing/serviceModel';
 import {FlowEditor} from '../FlowEditor';
 import type {FlowEditorProps, FlowLayout} from '../types';
 
@@ -35,6 +36,39 @@ describe('FlowEditor', () => {
         // A group label has no item count after it.
         expect(palette().getByText('Charts')).toHaveTextContent(/^Charts$/);
         expect(palette().queryByRole('button', {name: 'Add ruleset risk'})).toBeNull();
+    });
+
+    it('renders the flow of a service: its parameters, its function nodes and its result', async () => {
+        const service = createFlowEditorService(MutableDecisionService.fromCode(SERVICE_MODEL), {root: 'quote'});
+        render(
+            <div style={{width: 1000, height: 600}}>
+                <FlowEditor service={service} />
+            </div>,
+        );
+        expect(await screen.findByTestId('parameter-node-quote.applicant')).toBeInTheDocument();
+        expect(screen.getByTestId('parameter-node-quote.amount')).toBeInTheDocument();
+        expect(screen.getByTestId('function-node-quote.score')).toBeInTheDocument();
+        expect(screen.getByTestId('result-node-quote.return')).toBeInTheDocument();
+        // A service has no data inputs, outputs or charts; its result is already on the canvas.
+        for (const group of ['Charts', 'Outputs']) expect(palette().queryByRole('region', {name: group})).toBeNull();
+        expect(palette().getByRole('button', {name: 'Add parameter'})).toBeInTheDocument();
+        expect(palette().queryByRole('button', {name: 'Add result'})).toBeNull();
+    });
+
+    it('adds a parameter to a service from the palette', async () => {
+        const service = createFlowEditorService(
+            MutableDecisionService.fromCode('{ @Service func f(a: number): { b: a } }'),
+            {root: 'f'},
+        );
+        render(
+            <div style={{width: 1000, height: 600}}>
+                <FlowEditor service={service} />
+            </div>,
+        );
+        fireEvent.click(palette().getByRole('button', {name: 'Add parameter'}));
+        expect(await screen.findByTestId('parameter-node-f.param')).toHaveTextContent('number');
+        fireEvent.click(palette().getByRole('button', {name: 'Add result'}));
+        expect(await screen.findByTestId('result-node-f.return')).toHaveTextContent('{ b }');
     });
 
     it('renders the annotated fields of the model as nodes', async () => {

@@ -1,5 +1,6 @@
 import {ActionIcon, CloseButton, ScrollArea, TextInput, Tooltip} from '@mantine/core';
 import {
+    IconArrowBarToRight,
     IconChartLine,
     IconGripVertical,
     IconLayoutSidebarLeftCollapse,
@@ -9,11 +10,14 @@ import {
     IconLogout2,
     IconMathFunction,
     IconSearch,
+    IconTargetArrow,
     IconVariable,
 } from '@tabler/icons-react';
 import {useState, type DragEvent, type KeyboardEvent, type ReactElement} from 'react';
 import {CHART_COLOR} from '../chart-node/ChartNode';
 import {KIND_COLOR} from '../function-node/KindIcon';
+import {PARAMETER_COLOR} from '../parameter-node/ParameterNode';
+import {RESULT_COLOR} from '../result-node/ResultNode';
 import {DRAG_TYPE, filterItems, GROUP_LABEL, GROUP_ORDER} from './paletteItems';
 import type {NodePaletteProps, PaletteIcon, PaletteItem} from './types';
 import styles from './flowEditor.module.css';
@@ -25,6 +29,8 @@ export const ICON_COLOR: Record<PaletteIcon, string> = {
     function: KIND_COLOR.function,
     output: '#2f9e44',
     chart: CHART_COLOR,
+    parameter: PARAMETER_COLOR,
+    result: RESULT_COLOR,
 };
 
 const ICONS = {
@@ -34,10 +40,21 @@ const ICONS = {
     function: IconMathFunction,
     output: IconLogout2,
     chart: IconChartLine,
+    parameter: IconArrowBarToRight,
+    result: IconTargetArrow,
 };
 
 // The rail keeps the generic item of each node type one click away.
-const GENERIC_ITEMS = new Set(['new-input', 'new-list-input', 'new-value-input', 'function', 'output', 'chart']);
+const GENERIC_ITEMS = new Set([
+    'new-input',
+    'new-list-input',
+    'new-value-input',
+    'function',
+    'output',
+    'chart',
+    'parameter',
+    'result',
+]);
 
 function PaletteTile({icon, size = 28}: {icon: PaletteIcon; size?: number}): ReactElement {
     const Icon = ICONS[icon];

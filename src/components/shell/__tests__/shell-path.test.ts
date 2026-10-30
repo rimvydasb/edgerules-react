@@ -6,6 +6,8 @@ const model = MutableDecisionService.fromCode(
     `{
     type Customer: { name: <string> }
     func riskScore(income: number): { score: income / 100 }
+    @Service
+    func quote(income: number): { score: riskScore(income).score }
     ruleset band(age: number): {
         hitPolicy: "first-match"
         rules: [{ when: { age: < 30 }, then: { level: "young" } }]
@@ -34,6 +36,10 @@ describe('rootPathSegments', () => {
         expect(rootPathSegments(model, '*')).toEqual([]);
     });
 
+    it('names a `@Service` function a service', () => {
+        expect(rootPathSegments(model, 'quote')).toEqual([{name: 'quote', path: 'quote', kind: 'service'}]);
+    });
+
     it('names the kind of every entity, a workbook and a plain field included', () => {
         expect(rootPathSegments(model, 'book.score')).toEqual([
             {name: 'book', path: 'book', kind: 'workbook'},
@@ -50,8 +56,9 @@ describe('rootViews', () => {
         ['*', ['code', 'boxed', 'flow', 'tests']],
         ['applicant', ['code', 'boxed', 'flow']],
         ['book', ['code', 'boxed', 'flow']],
-        // A function has no nodes, so no Flow view.
+        // A function has no nodes, so no Flow view; a service has its parameters, its body and its result.
         ['riskScore', ['code', 'boxed', 'tests']],
+        ['quote', ['code', 'boxed', 'flow', 'tests']],
         ['band', ['code', 'boxed', 'tests']],
         ['Customer', ['code', 'boxed']],
         ['applicant.age', ['code', 'boxed']],

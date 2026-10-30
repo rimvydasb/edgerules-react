@@ -103,7 +103,10 @@ export function Shell({
     const root = segments.at(-1)?.path ?? '*';
     // A generic function: the arguments that need a type before it can be tested.
     const untypedArguments = useMemo(
-        () => (segments.at(-1)?.kind === 'function' ? untypedParameters(session.engine.get(root)) : []),
+        () =>
+            segments.at(-1)?.kind === 'function' || segments.at(-1)?.kind === 'service'
+                ? untypedParameters(session.engine.get(root))
+                : [],
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [session, root, segments, version],
     );
@@ -310,7 +313,7 @@ export function Shell({
                                 services={services}
                                 taken={taken}
                                 onSelect={(workbook) => navigate({path: workbook, view: 'flow'})}
-                                onSelectService={(service) => navigate({path: service, view: 'boxed'})}
+                                onSelectService={(service) => navigate({path: service, view: 'flow'})}
                                 onCreate={readOnly ? undefined : createWorkbook}
                             />
                         )}
